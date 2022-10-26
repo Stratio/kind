@@ -33,6 +33,8 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	configaction "sigs.k8s.io/kind/pkg/cluster/internal/create/actions/config"
+
+	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcapi"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit"
@@ -95,7 +97,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	status := cli.StatusForLogger(logger)
 
 	// we're going to start creating now, tell the user
-	logger.V(0).Infof("Creating cluster %q ...\n", opts.Config.Name)
+	logger.V(0).Infof("Creating temporary cluster %q ...\n", opts.Config.Name)
 
 	// Create node containers implementing defined config Nodes
 	if err := p.Provision(status, opts.Config); err != nil {
@@ -126,6 +128,10 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 			installstorage.NewAction(),                // install StorageClass
 			kubeadmjoin.NewAction(),                   // run kubeadm join
 			waitforready.NewAction(opts.WaitForReady), // wait for cluster readiness
+		)
+		// add remaining steps
+		actionsToRun = append(actionsToRun,
+			installcapi.NewAction(), // install ClusterAPI
 		)
 	}
 
