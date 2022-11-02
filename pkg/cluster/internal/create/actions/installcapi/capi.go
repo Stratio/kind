@@ -20,7 +20,6 @@ package installcapi
 import (
 	"bytes"
 	"os"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -40,8 +39,11 @@ type SecretsFile struct {
 				ClientID     string `yaml:"client_id"`
 				ClientSecret string `yaml:"client_secret"`
 				Region       string `yaml:"region"`
+				Account      string `yaml:"account"`
 			} `yaml:"credentials"`
+			B64Credentials string `yaml:"b64_credentials"`
 		} `yaml:"aws"`
+		GithubToken string `yaml:"github_token"`
 	} `yaml:"secrets"`
 }
 
@@ -52,7 +54,7 @@ func NewAction() actions.Action {
 
 // Execute runs the action
 func (a *action) Execute(ctx *actions.ActionContext) error {
-	ctx.Status.Start("Ensuring CAPx requirements 🎖️")
+	ctx.Status.Start("Ensuring IAM security 👮")
 	defer ctx.Status.End(false)
 
 	allNodes, err := ctx.Nodes()
@@ -69,7 +71,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Right now, a CAPA pre-requisite is to have the region, aws_access_key_id and aws_secret_access_key
 	// as environment variables. So we read the secrets.yaml file and ask for the decryption passphrase.
-	// TODO STG: ask for the decryption passphrase
+	// TODO STG: ask for the decryption passphrase (in new module "getcredentials"?)
 
 	secretRAW, err := os.ReadFile("./secrets.yaml.clear")
 	if err != nil {
@@ -92,7 +94,14 @@ spec:
     enable: true
     iamRoleCreation: false
     defaultControlPlaneRole:
-      disable: false`
+        disable: false
+  controlPlane:
+    enableCSIPolicy: true
+  nodes:
+    extraPolicyAttachments:
+      - arn:aws:iam::` + secretsFile.Secrets.AWS.Credentials.Account + `:policy/csi.cluster-api-provider-aws.sigs.k8s.io`
+
+	// fmt.Println("RAW STRING eksConfigData: " + eksConfigData)
 
 	// Create the eks.config file in the container
 	var raw bytes.Buffer
@@ -103,11 +112,13 @@ spec:
 	}
 
 	// Run clusterawsadm with the eks.config file previously created
+	// (this will create or update the CloudFormation stack in AWS)
 	raw = bytes.Buffer{}
 	cmd = node.Command("clusterawsadm", "bootstrap", "iam", "create-cloudformation-stack", "--config", eksConfigPath)
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
 		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret)
+		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
@@ -115,51 +126,36 @@ spec:
 	// manifest := raw.String()
 	ctx.Status.End(true) // End Ensuring CAPx requirements
 
-	ctx.Status.Start("Installing CAPx 🎖️")
+	ctx.Status.Start("Installing CAPx in local 🎖️")
 	defer ctx.Status.End(false)
 
 	// Get credentials in B64
-	raw = bytes.Buffer{}
-	cmd = node.Command("clusterawsadm", "bootstrap", "credentials", "encode-as-profile")
-	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret)
-	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to get clusterawsadm credentials")
-	}
-	// fmt.Println("RAW STRING: " + raw.String())
-	b64Credentials := strings.TrimSuffix(raw.String(), "\n")
+	// raw = bytes.Buffer{}
+	// cmd = node.Command("clusterawsadm", "bootstrap", "credentials", "encode-as-profile")
+	// cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
+	// 	"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
+	// 	"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+	// 	"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
+	// if err := cmd.SetStdout(&raw).Run(); err != nil {
+	// 	return errors.Wrap(err, "failed to get clusterawsadm credentials")
+	// }
+	// // fmt.Println("RAW STRING: " + raw.String())
+	// b64Credentials := strings.TrimSuffix(raw.String(), "\n")
 
+	// Install CAPA
 	raw = bytes.Buffer{}
 	cmd = node.Command("sh", "-c", "clusterctl init --infrastructure aws --wait-providers")
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
 		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
 		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
-		"AWS_B64ENCODED_CREDENTIALS="+b64Credentials)
+		"AWS_B64ENCODED_CREDENTIALS="+secretsFile.Secrets.AWS.B64Credentials,
+		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to install CAPA")
 	}
 
 	// mark success
 	ctx.Status.End(true) // End Installing CAPx
-
-	// TODO STG: Generate env vars from cluster.yaml
-
-	// clusterctl generate cluster eks-cluster
-	// --kubernetes-version v1.23.0 --worker-machine-count=3
-	// --flavor eks --infrastructure aws > eks-cluster.yaml
-
-	// TODO STG: Generate the manifest for EKS
-	raw = bytes.Buffer{}
-	cmd = node.Command("clusterawsadm", "bootstrap", "credentials", "encode-as-profile")
-	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret)
-	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to get clusterawsadm credentials")
-	}
-	// fmt.Println("RAW STRING: " + raw.String())
-	// b64Credentials := strings.TrimSuffix(raw.String(), "\n")
 
 	return nil
 }

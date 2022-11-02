@@ -33,8 +33,9 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	configaction "sigs.k8s.io/kind/pkg/cluster/internal/create/actions/config"
-
+	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/createworker"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcapi"
+
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit"
@@ -129,9 +130,15 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 			kubeadmjoin.NewAction(),                   // run kubeadm join
 			waitforready.NewAction(opts.WaitForReady), // wait for cluster readiness
 		)
-		// add remaining steps
+
+		// add Stratio step
 		actionsToRun = append(actionsToRun,
 			installcapi.NewAction(), // install ClusterAPI
+		)
+
+		// add Stratio step
+		actionsToRun = append(actionsToRun,
+			createworker.NewAction(), // create worker k8s cluster
 		)
 	}
 
@@ -165,15 +172,22 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 		return err
 	}
 
+	// add Stratio action: delete the local cluster
+	actionsContext.Status.Start("Cleaning up local cluster 🧹")
+	defer actionsContext.Status.End(false)
+	_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
+	actionsContext.Status.End(true) // End Cleaning up local cluster
+
 	// optionally display usage
-	if opts.DisplayUsage {
-		logUsage(logger, opts.Config.Name, opts.KubeconfigPath)
-	}
+	// if opts.DisplayUsage {
+	// 	logUsage(logger, opts.Config.Name, opts.KubeconfigPath)
+	// }
 	// optionally give the user a friendly salutation
 	if opts.DisplaySalutation {
 		logger.V(0).Info("")
 		logSalutation(logger)
 	}
+
 	return nil
 }
 
@@ -204,10 +218,7 @@ func logUsage(logger log.Logger, name, explicitKubeconfigPath string) {
 
 func logSalutation(logger log.Logger) {
 	salutations := []string{
-		"Have a nice day! 👋",
-		"Thanks for using kind! 😊",
-		"Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/",
-		"Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂",
+		"The local cluster has been deleted. Please refer to Stratio KEOS documentation on how to proceed.",
 	}
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	s := salutations[r.Intn(len(salutations))]
