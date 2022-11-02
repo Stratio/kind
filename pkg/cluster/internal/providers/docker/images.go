@@ -51,7 +51,7 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			return err
 		}
 		// build the stratio image
-		status.Start(fmt.Sprintf("Building Stratio image (%s) 📸", "stratio-capi-image:"+strings.Split(image, ":")[1]))
+		status.Start(fmt.Sprintf("Building Stratio image (%s) 📸", "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1]))
 
 		dockerfileDir, err := ensureStratioImageFiles(logger)
 		if err != nil {
@@ -59,7 +59,7 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			return err
 		}
 
-		err = buildStratioImage(logger, "stratio-capi-image:"+strings.Split(image, ":")[1], dockerfileDir)
+		err = buildStratioImage(logger, "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1], dockerfileDir)
 		if err != nil {
 			status.End(false)
 			return err
