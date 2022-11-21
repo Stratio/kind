@@ -36,10 +36,10 @@ type SecretsFile struct {
 	Secrets struct {
 		AWS struct {
 			Credentials struct {
-				ClientID     string `yaml:"client_id"`
-				ClientSecret string `yaml:"client_secret"`
-				Region       string `yaml:"region"`
-				Account      string `yaml:"account"`
+				AccessKey string `yaml:"access_key"`
+				SecretKey string `yaml:"secret_key"`
+				Region    string `yaml:"region"`
+				Account   string `yaml:"account"`
 			} `yaml:"credentials"`
 			B64Credentials string `yaml:"b64_credentials"`
 		} `yaml:"aws"`
@@ -116,8 +116,8 @@ spec:
 	raw = bytes.Buffer{}
 	cmd = node.Command("clusterawsadm", "bootstrap", "iam", "create-cloudformation-stack", "--config", eksConfigPath)
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
+		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
 		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to run clusterawsadm")
@@ -133,8 +133,8 @@ spec:
 	// raw = bytes.Buffer{}
 	// cmd = node.Command("clusterawsadm", "bootstrap", "credentials", "encode-as-profile")
 	// cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-	// 	"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-	// 	"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+	// 	"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
+	// 	"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
 	// 	"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
 	// if err := cmd.SetStdout(&raw).Run(); err != nil {
 	// 	return errors.Wrap(err, "failed to get clusterawsadm credentials")
@@ -146,10 +146,12 @@ spec:
 	raw = bytes.Buffer{}
 	cmd = node.Command("sh", "-c", "clusterctl init --infrastructure aws --wait-providers")
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
+		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
 		"AWS_B64ENCODED_CREDENTIALS="+secretsFile.Secrets.AWS.B64Credentials,
-		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
+		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken,
+		"CAPA_EKS_IAM=true")
+	// "EXP_MACHINE_POOL=true")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to install CAPA")
 	}

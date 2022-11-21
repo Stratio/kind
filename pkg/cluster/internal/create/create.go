@@ -38,6 +38,8 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage"
+	"sigs.k8s.io/kind/pkg/cluster/internal/create/keosinstaller"
+
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadmjoin"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/loadbalancer"
@@ -172,11 +174,23 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 		return err
 	}
 
-	// add Stratio action: delete the local cluster
-	actionsContext.Status.Start("Cleaning up local cluster 🧹")
+	// add Stratio action: generate the KEOS descriptor
+	actionsContext.Status.Start("Generating the KEOS descriptor 📝")
 	defer actionsContext.Status.End(false)
-	_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
-	actionsContext.Status.End(true) // End Cleaning up local cluster
+
+	err = keosinstaller.CreateKEOSDescriptor()
+	if err != nil {
+		return err
+	}
+	actionsContext.Status.End(true) // End Generating KEOS descriptor
+
+	// add Stratio action: delete the local cluster
+	if !opts.Retain {
+		actionsContext.Status.Start("Cleaning up temporary cluster 🧹")
+		defer actionsContext.Status.End(false)
+		_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
+		actionsContext.Status.End(true) // End Cleaning up local cluster
+	}
 
 	// optionally display usage
 	// if opts.DisplayUsage {
@@ -218,7 +232,8 @@ func logUsage(logger log.Logger, name, explicitKubeconfigPath string) {
 
 func logSalutation(logger log.Logger) {
 	salutations := []string{
-		"The local cluster has been deleted. Please refer to Stratio KEOS documentation on how to proceed.",
+		// "Kubeconfig file: ",
+		"The cluster has been installed, please refer to Stratio KEOS documentation on how to proceed.",
 	}
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	s := salutations[r.Intn(len(salutations))]

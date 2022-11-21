@@ -20,7 +20,6 @@ package createworker
 import (
 	"bytes"
 	"os"
-	"strconv"
 
 	"gopkg.in/yaml.v3"
 
@@ -34,7 +33,23 @@ type action struct{}
 // DescriptorFile represents the YAML structure in the cluster.yaml file
 type DescriptorFile struct {
 	ClusterID string `yaml:"cluster_id"`
-	Nodes     struct {
+	Keos      struct {
+		Domain         string `yaml:"domain"`
+		ExternalDomain string `yaml:"external_domain"`
+		Flavour        string `yaml:"flavour"`
+	} `yaml:"keos"`
+	K8SVersion string  `yaml:"k8s_version"`
+	Bastion    Bastion `yaml:"bastion"`
+	Networks   struct {
+		VPCID string `yaml:"vpc_id"`
+	}
+	ExternalRegistry map[string]interface{} `yaml:"external_registry"`
+	//      ExternalRegistry     struct {
+	//              AuthRequired    bool `yaml: auth_required`
+	//              Type            string `yaml: type`
+	//              URL             string `yaml: url`
+	//      }
+	Nodes struct {
 		KubeNode struct {
 			AmiID string `yaml:"ami_id"`
 			Disks []struct {
@@ -54,8 +69,16 @@ type DescriptorFile struct {
 			VMSize   string `yaml:"vm_size"`
 			Subnet   string `yaml:"subnet"`
 			SSHKey   string `yaml:"ssh_key"`
+			Spot     bool   `yaml:"spot"`
 		} `yaml:"kube_node"`
 	} `yaml:"nodes"`
+}
+
+// Bastion represents the bastion VM
+type Bastion struct {
+	AmiID             string   `yaml:"ami_id"`
+	VMSize            string   `yaml:"vm_size"`
+	AllowedCIDRBlocks []string `yaml:"allowedCIDRBlocks"`
 }
 
 // SecretsFile represents the YAML structure in the secrets.yaml file
@@ -63,10 +86,10 @@ type SecretsFile struct {
 	Secrets struct {
 		AWS struct {
 			Credentials struct {
-				ClientID     string `yaml:"client_id"`
-				ClientSecret string `yaml:"client_secret"`
-				Region       string `yaml:"region"`
-				Account      string `yaml:"account"`
+				AccessKey string `yaml:"access_key"`
+				SecretKey string `yaml:"secret_key"`
+				Region    string `yaml:"region"`
+				Account   string `yaml:"account"`
 			} `yaml:"credentials"`
 			B64Credentials string `yaml:"b64_credentials"`
 		} `yaml:"aws"`
@@ -122,28 +145,21 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 
+	// TODO STG: make k8s version configurable?
+
+	capiClustersNamespace := "capi-clusters"
+
 	// Generate the manifest for EKS (eks-cluster.yaml)
-	raw := bytes.Buffer{}
-	cmd := node.Command("clusterctl", "generate", "cluster", descriptorFile.ClusterID,
-		"--kubernetes-version", "v1.23.0", "--worker-machine-count="+strconv.Itoa(descriptorFile.Nodes.KubeNode.Quantity),
-		"--flavor", "eks", "--infrastructure", "aws")
-	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
-		"AWS_SSH_KEY_NAME="+descriptorFile.Nodes.KubeNode.SSHKey,
-		"AWS_NODE_MACHINE_TYPE="+descriptorFile.Nodes.KubeNode.VMSize,
-		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
-	if err := cmd.SetStdout(&raw).Run(); err != nil {
+	eksDescriptorData, err := generateEKSManifest(secretsFile, descriptorFile, capiClustersNamespace)
+
+	if err != nil {
 		return errors.Wrap(err, "failed to generate EKS manifests")
 	}
-	eksDescriptorData := raw.String()
-	// fmt.Println("RAW STRING: " + raw.String())
-	// b64Credentials := strings.TrimSuffix(raw.String(), "\n")
 
 	// Create the eks-cluster.yaml file in the container
 	descriptorPath := "/kind/eks-cluster.yaml"
-	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "echo \""+eksDescriptorData+"\" > "+descriptorPath)
+	raw := bytes.Buffer{}
+	cmd := node.Command("sh", "-c", "echo \""+eksDescriptorData+"\" > "+descriptorPath)
 	if err = cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to write the eks-cluster.yaml")
 	}
@@ -153,9 +169,17 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Creating the worker cluster 💥")
 	defer ctx.Status.End(false)
 
+	// Create namespace for CAPI clusters (it must exists)
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "create", "ns", capiClustersNamespace)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to create manifests Namespace")
+	}
+	// fmt.Println("RAW STRING: " + raw.String())
+
 	// Apply manifests
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "create", "-f", "/kind/eks-cluster.yaml")
+	cmd = node.Command("kubectl", "create", "-n", capiClustersNamespace, "-f", "/kind/eks-cluster.yaml")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply manifests")
 	}
@@ -163,17 +187,20 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Wait for EKS cluster creation
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "wait", "--for=condition=ready", "--timeout", "25m", "cluster", descriptorFile.ClusterID)
+	cmd = node.Command("kubectl", "-n", capiClustersNamespace, "wait", "--for=condition=ready", "--timeout", "25m", "cluster", descriptorFile.ClusterID)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to create the EKS cluster")
 	}
 	// fmt.Println("RAW STRING: " + raw.String())
 
-	// Get EKS kubeconfig file (with 10m token)
+	// TODO: Wait for the machines to be ready (problem with spot instances?)
+	// kubectl -n capi-clusters get md stg-capi-eks-md-0 -o json | jq .status.unavailableReplicas == 0
+
+	// Get EKS kubeconfig file (with 10m token, that should be enough)
 	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "clusterctl get kubeconfig "+descriptorFile.ClusterID+" > /kind/eks-cluster.kubeconfig")
+	cmd = node.Command("sh", "-c", "clusterctl -n "+capiClustersNamespace+" get kubeconfig "+descriptorFile.ClusterID+" > /kind/eks-cluster.kubeconfig")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to get the kubeconfig file")
+		return errors.Wrap(err, "failed to get the EKS kubeconfig file")
 	}
 
 	ctx.Status.End(true) // End Creating the worker cluster
@@ -185,10 +212,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	raw = bytes.Buffer{}
 	cmd = node.Command("sh", "-c", "clusterctl --kubeconfig /kind/eks-cluster.kubeconfig init --infrastructure aws --wait-providers")
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
+		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
+		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
 		"AWS_B64ENCODED_CREDENTIALS="+secretsFile.Secrets.AWS.B64Credentials,
-		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
+		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken,
+		"CAPA_EKS_IAM=true")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to install CAPA")
 	}
@@ -198,19 +226,24 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Transfering the management role 🗝️")
 	defer ctx.Status.End(false)
 
-	// Pivot management role to EKS
-	// raw = bytes.Buffer{}
-	// cmd = node.Command("sh", "-c", "clusterctl move --to-kubeconfig /kind/eks-cluster.kubeconfig")
-	// cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
-	// 	"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.ClientID,
-	// 	"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.ClientSecret,
-	// 	"AWS_B64ENCODED_CREDENTIALS="+secretsFile.Secrets.AWS.B64Credentials,
-	// 	"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
-	// if err := cmd.SetStdout(&raw).Run(); err != nil {
-	// 	return errors.Wrap(err, "failed to pivot management role to EKS")
-	// }
+	// Create namespace for CAPI clusters (it must exists) in EKS
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "create", "ns", capiClustersNamespace)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to create manifests Namespace")
+	}
 
-	// Get kubeconfig for aws
+	// Pivot management role to EKS
+	raw = bytes.Buffer{}
+	cmd = node.Command("sh", "-c", "clusterctl move -n "+capiClustersNamespace+" --to-kubeconfig /kind/eks-cluster.kubeconfig")
+	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
+		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
+		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
+		"AWS_B64ENCODED_CREDENTIALS="+secretsFile.Secrets.AWS.B64Credentials,
+		"GITHUB_TOKEN="+secretsFile.Secrets.GithubToken)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to pivot management role to EKS")
+	}
 
 	ctx.Status.End(true) // End Transfering the management role
 
