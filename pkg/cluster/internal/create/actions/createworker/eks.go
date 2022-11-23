@@ -89,13 +89,25 @@ type SecretsFile struct {
 				AccessKey string `yaml:"access_key"`
 				SecretKey string `yaml:"secret_key"`
 				Region    string `yaml:"region"`
-				Account   string `yaml:"account"`
+				AccountID string `yaml:"account_id"`
 			} `yaml:"credentials"`
 			B64Credentials string `yaml:"b64_credentials"`
 		} `yaml:"aws"`
 		GithubToken string `yaml:"github_token"`
 	} `yaml:"secrets"`
 }
+
+const allowAllEgressNetPol = `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress
+spec:
+  egress:
+  - {}
+  podSelector: {}
+  policyTypes:
+  - Egress`
 
 // NewAction returns a new action for installing default CAPI
 func NewAction() actions.Action {
@@ -156,12 +168,12 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return errors.Wrap(err, "failed to generate EKS manifests")
 	}
 
-	// Create the eks-cluster.yaml file in the container
+	// Create the cluster manifests file in the container
 	descriptorPath := "/kind/eks-cluster.yaml"
 	raw := bytes.Buffer{}
 	cmd := node.Command("sh", "-c", "echo \""+eksDescriptorData+"\" > "+descriptorPath)
 	if err = cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to write the eks-cluster.yaml")
+		return errors.Wrap(err, "failed to write the cluster manifests")
 	}
 
 	ctx.Status.End(true) // End Generating worker cluster manifests
@@ -219,6 +231,45 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		"CAPA_EKS_IAM=true")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to install CAPA")
+	}
+
+	// Create the allow-all-egress network policy file in the container
+	allowAllEgressNetPolPath := "/kind/allow-all-egress_netpol.yaml"
+	raw = bytes.Buffer{}
+	cmd = node.Command("sh", "-c", "echo \""+allowAllEgressNetPol+"\" > "+allowAllEgressNetPolPath)
+	if err = cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to write the allow-all-egress network policy")
+	}
+
+	// Allow egress in CAPI's Namespaces
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-system", "apply", "-f", allowAllEgressNetPolPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
+	}
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-kubeadm-bootstrap-system", "apply", "-f", allowAllEgressNetPolPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
+	}
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-kubeadm-control-plane-system", "apply", "-f", allowAllEgressNetPolPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
+	}
+
+	// Allow egress in CAPA's Namespace
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capa-system", "apply", "-f", allowAllEgressNetPolPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply CAPA's NetworkPolicy")
+	}
+
+	// Allow egress in cert-manager Namespace
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "cert-manager", "apply", "-f", allowAllEgressNetPolPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply cert-manager's NetworkPolicy")
 	}
 
 	ctx.Status.End(true) // End Installing CAPx in EKS

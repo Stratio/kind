@@ -39,7 +39,7 @@ type SecretsFile struct {
 				AccessKey string `yaml:"access_key"`
 				SecretKey string `yaml:"secret_key"`
 				Region    string `yaml:"region"`
-				Account   string `yaml:"account"`
+				AccountID string `yaml:"account_id"`
 			} `yaml:"credentials"`
 			B64Credentials string `yaml:"b64_credentials"`
 		} `yaml:"aws"`
@@ -99,7 +99,8 @@ spec:
     enableCSIPolicy: true
   nodes:
     extraPolicyAttachments:
-      - arn:aws:iam::` + secretsFile.Secrets.AWS.Credentials.Account + `:policy/csi.cluster-api-provider-aws.sigs.k8s.io`
+    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy`
+	// - arn:aws:iam::` + secretsFile.Secrets.AWS.Credentials.AccountID + `:policy/csi.cluster-api-provider-aws.sigs.k8s.io`
 
 	// fmt.Println("RAW STRING eksConfigData: " + eksConfigData)
 

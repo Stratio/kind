@@ -71,6 +71,7 @@ type MachineDeploymentSpec struct {
 				APIVersion string `yaml:"apiVersion"`
 				Kind       string `yaml:"kind"`
 				Name       string `yaml:"name"`
+				Namespace  string `yaml:"namespace"`
 			} `yaml:"infrastructureRef"`
 			Version       string `yaml:"version"`
 			FailureDomain string `yaml:"failureDomain"`
@@ -215,6 +216,7 @@ func generateEKSManifest(secretsFile SecretsFile, descriptorFile DescriptorFile,
 				machineDeploymentZone.Spec.Template.Spec.Bootstrap.ConfigRef.Name = machineDeploymentName
 				machineDeploymentZone.Spec.Template.Spec.Bootstrap.ConfigRef.Namespace = capiClustersNamespace
 				machineDeploymentZone.Spec.Template.Spec.InfrastructureRef.Name = machineDeploymentName
+				machineDeploymentZone.Spec.Template.Spec.InfrastructureRef.Namespace = capiClustersNamespace
 				machineDeploymentZone.Spec.Template.Spec.FailureDomain = nodeZone
 				// machineDeploymentZone.Spec.Selector.MatchLabels = "null"
 
@@ -239,6 +241,17 @@ func generateEKSManifest(secretsFile SecretsFile, descriptorFile DescriptorFile,
 		if k8sObject.Kind == "AWSMachineTemplate" || k8sObject.Kind == "EKSConfigTemplate" {
 			for i := range nodesZones {
 				k8sObjectZone := k8sObject
+
+				// TODO: Add spot option
+				//  awsMachineTemplate
+				// spec:
+				//   template:
+				//     spec:
+				// 	    iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
+				// 	    instanceType: t3.medium
+				// 	    spotMarketOptions:
+				// 	      maxPrice: ""
+				// 	    sshKeyName: stg-capi
 
 				k8sObjectZone.Metadata.Name = descriptorFile.ClusterID + "-md-" + strconv.Itoa(i)
 
