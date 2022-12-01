@@ -135,7 +135,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 		// add Stratio step
 		actionsToRun = append(actionsToRun,
-			installcapi.NewAction(), // install ClusterAPI
+			installcapi.NewAction(), // install ClusterAPI in local
 		)
 
 		// add Stratio step

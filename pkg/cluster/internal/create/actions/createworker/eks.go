@@ -109,6 +109,8 @@ spec:
   policyTypes:
   - Egress`
 
+const eksKubeconfigPath = "/kind/eks-cluster.kubeconfig"
+
 // NewAction returns a new action for installing default CAPI
 func NewAction() actions.Action {
 	return &action{}
@@ -185,11 +187,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	raw = bytes.Buffer{}
 	cmd = node.Command("kubectl", "create", "ns", capiClustersNamespace)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to create manifests Namespace")
+		return errors.Wrap(err, "failed to create cluster's Namespace")
 	}
 	// fmt.Println("RAW STRING: " + raw.String())
 
-	// Apply manifests
+	// Apply EKS manifests
 	raw = bytes.Buffer{}
 	cmd = node.Command("kubectl", "create", "-n", capiClustersNamespace, "-f", "/kind/eks-cluster.yaml")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
@@ -197,22 +199,53 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	}
 	// fmt.Println("RAW STRING: " + raw.String())
 
+	var machineHealthCheck = `
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineHealthCheck
+metadata:
+  name: ` + descriptorFile.ClusterID + `-node-unhealthy
+spec:
+  clusterName: ` + descriptorFile.ClusterID + `
+  nodeStartupTimeout: 90s
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ` + descriptorFile.ClusterID + `
+  unhealthyConditions:
+    - type: Ready
+      status: Unknown
+      timeout: 60s
+    - type: Ready
+      status: 'False'
+      timeout: 60s`
+
+	// Create the MachineHealthCheck manifest file in the container
+	machineHealthCheckPath := "/kind/machinehealthcheck.yaml"
+	raw = bytes.Buffer{}
+	cmd = node.Command("sh", "-c", "echo \""+machineHealthCheck+"\" > "+machineHealthCheckPath)
+	if err = cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to write the MachineHealthCheck manifest")
+	}
+
+	// Enable the cluster's self-healing
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "-n", capiClustersNamespace, "apply", "-f", machineHealthCheckPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to apply the MachineHealthCheck manifest")
+	}
+
 	// Wait for EKS cluster creation
 	raw = bytes.Buffer{}
 	cmd = node.Command("kubectl", "-n", capiClustersNamespace, "wait", "--for=condition=ready", "--timeout", "25m", "cluster", descriptorFile.ClusterID)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to create the EKS cluster")
+		return errors.Wrap(err, "failed to create the EKS Cluster")
 	}
 	// fmt.Println("RAW STRING: " + raw.String())
 
-	// TODO: Wait for the machines to be ready (problem with spot instances?)
-	// kubectl -n capi-clusters get md stg-capi-eks-md-0 -o json | jq .status.unavailableReplicas == 0
-
-	// Get EKS kubeconfig file (with 10m token, that should be enough)
+	// Wait for machines creation
 	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "clusterctl -n "+capiClustersNamespace+" get kubeconfig "+descriptorFile.ClusterID+" > /kind/eks-cluster.kubeconfig")
+	cmd = node.Command("kubectl", "-n", capiClustersNamespace, "wait", "--for=condition=ready", "--timeout", "20m", "--all", "md")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
-		return errors.Wrap(err, "failed to get the EKS kubeconfig file")
+		return errors.Wrap(err, "failed to create the Machines")
 	}
 
 	ctx.Status.End(true) // End Creating the worker cluster
@@ -220,9 +253,16 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Installing CAPx in EKS 🎖️")
 	defer ctx.Status.End(false)
 
+	// Get EKS kubeconfig file (with 10m token, that should be enough)
+	raw = bytes.Buffer{}
+	cmd = node.Command("sh", "-c", "clusterctl -n "+capiClustersNamespace+" get kubeconfig "+descriptorFile.ClusterID+" > "+eksKubeconfigPath)
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to get the EKS kubeconfig file")
+	}
+
 	// Install CAPA in EKS
 	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "clusterctl --kubeconfig /kind/eks-cluster.kubeconfig init --infrastructure aws --wait-providers")
+	cmd = node.Command("sh", "-c", "clusterctl --kubeconfig "+eksKubeconfigPath+" init --infrastructure aws --wait-providers")
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
 		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
 		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
@@ -231,6 +271,20 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		"CAPA_EKS_IAM=true")
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to install CAPA")
+	}
+
+	//Scale CAPI to 2 replicas
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capi-system", "scale", "--replicas", "2", "deploy", "capi-controller-manager")
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to scale the CAPI Deployment")
+	}
+
+	//Scale CAPA to 2 replicas
+	raw = bytes.Buffer{}
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capa-system", "scale", "--replicas", "2", "deploy", "capa-controller-manager")
+	if err := cmd.SetStdout(&raw).Run(); err != nil {
+		return errors.Wrap(err, "failed to scale the CAPA Deployment")
 	}
 
 	// Create the allow-all-egress network policy file in the container
@@ -243,34 +297,36 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Allow egress in CAPI's Namespaces
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-system", "apply", "-f", allowAllEgressNetPolPath)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capi-system", "apply", "-f", allowAllEgressNetPolPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
 	}
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-kubeadm-bootstrap-system", "apply", "-f", allowAllEgressNetPolPath)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capi-kubeadm-bootstrap-system", "apply", "-f", allowAllEgressNetPolPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
 	}
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capi-kubeadm-control-plane-system", "apply", "-f", allowAllEgressNetPolPath)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capi-kubeadm-control-plane-system", "apply", "-f", allowAllEgressNetPolPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply CAPI's NetworkPolicy")
 	}
 
 	// Allow egress in CAPA's Namespace
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "capa-system", "apply", "-f", allowAllEgressNetPolPath)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "capa-system", "apply", "-f", allowAllEgressNetPolPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply CAPA's NetworkPolicy")
 	}
 
 	// Allow egress in cert-manager Namespace
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "-n", "cert-manager", "apply", "-f", allowAllEgressNetPolPath)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "-n", "cert-manager", "apply", "-f", allowAllEgressNetPolPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply cert-manager's NetworkPolicy")
 	}
+
+	// TODO STG: Disable OIDC provider
 
 	ctx.Status.End(true) // End Installing CAPx in EKS
 
@@ -279,14 +335,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Create namespace for CAPI clusters (it must exists) in EKS
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "--kubeconfig", "/kind/eks-cluster.kubeconfig", "create", "ns", capiClustersNamespace)
+	cmd = node.Command("kubectl", "--kubeconfig", eksKubeconfigPath, "create", "ns", capiClustersNamespace)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to create manifests Namespace")
 	}
 
 	// Pivot management role to EKS
 	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "clusterctl move -n "+capiClustersNamespace+" --to-kubeconfig /kind/eks-cluster.kubeconfig")
+	cmd = node.Command("sh", "-c", "clusterctl move -n "+capiClustersNamespace+" --to-kubeconfig "+eksKubeconfigPath)
 	cmd.SetEnv("AWS_REGION="+secretsFile.Secrets.AWS.Credentials.Region,
 		"AWS_ACCESS_KEY_ID="+secretsFile.Secrets.AWS.Credentials.AccessKey,
 		"AWS_SECRET_ACCESS_KEY="+secretsFile.Secrets.AWS.Credentials.SecretKey,
