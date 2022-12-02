@@ -146,9 +146,11 @@ func generateEKSManifest(secretsFile SecretsFile, descriptorFile DescriptorFile,
 			"WORKER_MACHINE_COUNT":  strconv.Itoa(descriptorFile.Nodes.KubeNode.Quantity),
 			"AWS_NODE_MACHINE_TYPE": descriptorFile.Nodes.KubeNode.VMSize,
 		}
+
 		if descriptorFile.Nodes.KubeNode.SSHKey == "" {
-			envMap["AWS_SSH_KEY_NAME"] = "\"\""
+			envMap["AWS_SSH_KEY_NAME"] = "\\\"\\\""
 		}
+
 		for k, e := range envMap {
 			manifestStr = strings.Replace(manifestStr, "${"+k+"}", e, -1)
 		}
