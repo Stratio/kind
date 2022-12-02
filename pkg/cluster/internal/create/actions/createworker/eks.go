@@ -163,7 +163,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	capiClustersNamespace := "capi-clusters"
 
-	// Generate the manifest for EKS (eks-cluster.yaml)
+	// Generate the manifest for EKS
 	eksDescriptorData, err := generateEKSManifest(secretsFile, descriptorFile, capiClustersNamespace)
 
 	if err != nil {
@@ -171,7 +171,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	}
 
 	// Create the cluster manifests file in the container
-	descriptorPath := "/kind/eks-cluster.yaml"
+	descriptorPath := "/kind/manifests/eks-cluster.yaml"
 	raw := bytes.Buffer{}
 	cmd := node.Command("sh", "-c", "echo \""+eksDescriptorData+"\" > "+descriptorPath)
 	if err = cmd.SetStdout(&raw).Run(); err != nil {
@@ -193,7 +193,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Apply EKS manifests
 	raw = bytes.Buffer{}
-	cmd = node.Command("kubectl", "create", "-n", capiClustersNamespace, "-f", "/kind/eks-cluster.yaml")
+	cmd = node.Command("kubectl", "create", "-n", capiClustersNamespace, "-f", descriptorPath)
 	if err := cmd.SetStdout(&raw).Run(); err != nil {
 		return errors.Wrap(err, "failed to apply manifests")
 	}
@@ -206,7 +206,7 @@ metadata:
   name: ` + descriptorFile.ClusterID + `-node-unhealthy
 spec:
   clusterName: ` + descriptorFile.ClusterID + `
-  nodeStartupTimeout: 90s
+  nodeStartupTimeout: 120s
   selector:
     matchLabels:
       cluster.x-k8s.io/cluster-name: ` + descriptorFile.ClusterID + `
