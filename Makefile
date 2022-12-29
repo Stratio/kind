@@ -117,5 +117,8 @@ deps:
 deploy: build
 	hack/custom/deploy.sh
 
+change-version:
+	hack/custom/change-version.sh $(version)
+
 #################################################################################
 .PHONY: all kind build install unit clean update generate gofmt verify lint shellcheck
