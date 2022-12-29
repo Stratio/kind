@@ -13,6 +13,6 @@ hose {
     GRYPE_TEST = false
 
     DEV = { config ->
-        doDeploy(conf:config)
+        doDeploy(conf:config, parameters: "GOCACHE=/tmp")
     }
 }
