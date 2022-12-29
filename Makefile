@@ -113,8 +113,7 @@ shellcheck:
 deps:
 	hack/custom/deps.sh
 
-deploy:
-    deps
+deploy: deps
     build
 	hack/custom/deploy.sh
 
