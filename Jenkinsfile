@@ -4,7 +4,7 @@ hose {
     EMAIL = 'eos'
     BUILDTOOL = 'make'
     DEVTIMEOUT = 30
-    BUILDTOOL_IMAGE = "golang:1.16"
+    BUILDTOOL_IMAGE = 'qa.int.stratio.com:8443/stratio/keos-builder:0.3.1-PR29-SNAPSHOT'
     ANCHORE_POLICY = "production"
     VERSIONING_TYPE = 'stratioVersion-3-3'
     UPSTREAM_VERSION = '0.17.0'
