@@ -64,8 +64,7 @@ KIND_BUILD_FLAGS?=-trimpath -ldflags="-buildid= -w $(KIND_BUILD_LD_FLAGS)"
 # standard "make" target -> builds
 all: build
 # builds kind in a container, outputs to $(OUT_DIR)
-kind: deps
-	go build -v -o "$(OUT_DIR)/$(KIND_BINARY_NAME)" $(KIND_BUILD_FLAGS)
+kind: go build -v -o "$(OUT_DIR)/$(KIND_BINARY_NAME)" $(KIND_BUILD_FLAGS)
 # alias for building kind
 build: kind
 # use: make install INSTALL_DIR=/usr/local/bin
@@ -114,7 +113,9 @@ shellcheck:
 deps:
 	hack/custom/deps.sh
 
-deploy: build
+deploy:
+    deps
+    build
 	hack/custom/deploy.sh
 
 change-version:
