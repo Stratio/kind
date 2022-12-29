@@ -13,6 +13,19 @@ wget -q http://tools.stratio.com/go/go1.16.linux-amd64.tar.gz
 
 tar -xvzf go1.16.linux-amd64.tar.gz
 
+echo " CURRENT_PATH: $CURRENT_PATH"
+ls -la $CURRENT_PATH
+
+echo " GOROOT: $GOROOT"
+ls -la $GOROOT
+
+echo "GOPATH: $GOPATH"
+ls -la $GOPATH
+
+echo " GOROOT/bin: $GOROOT/bin/"
+ls -la $GOROOT/bin
+
+
 $GOROOT/bin/go mod download github.com/go-yaml/yaml
 $GOROOT/bin/go mod download github.com/BurntSushi/toml
 $GOROOT/bin/go mod download github.com/alessio/shellescape
