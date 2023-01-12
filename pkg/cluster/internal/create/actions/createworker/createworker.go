@@ -30,57 +30,6 @@ import (
 
 type action struct{}
 
-// DescriptorFile represents the YAML structure in the cluster.yaml file
-type DescriptorFile struct {
-	ClusterID string `yaml:"cluster_id"`
-	Keos      struct {
-		Domain         string `yaml:"domain"`
-		ExternalDomain string `yaml:"external_domain"`
-		Flavour        string `yaml:"flavour"`
-	} `yaml:"keos"`
-	K8SVersion string  `yaml:"k8s_version"`
-	Bastion    Bastion `yaml:"bastion"`
-	Networks   struct {
-		VPCID string `yaml:"vpc_id"`
-	}
-	ExternalRegistry map[string]interface{} `yaml:"external_registry"`
-	//      ExternalRegistry     struct {
-	//              AuthRequired    bool `yaml: auth_required`
-	//              Type            string `yaml: type`
-	//              URL             string `yaml: url`
-	//      }
-	Nodes struct {
-		KubeNode struct {
-			AmiID string `yaml:"ami_id"`
-			Disks []struct {
-				DeviceName string `yaml:"device_name"`
-				Name       string `yaml:"name"`
-				Path       string `yaml:"path,omitempty"`
-				Size       int    `yaml:"size"`
-				Type       string `yaml:"type"`
-				Volumes    []struct {
-					Name string `yaml:"name"`
-					Path string `yaml:"path"`
-					Size string `yaml:"size"`
-				} `yaml:"volumes,omitempty"`
-			} `yaml:"disks"`
-			NodeType string `yaml:"node_type"`
-			Quantity int    `yaml:"quantity"`
-			VMSize   string `yaml:"vm_size"`
-			Subnet   string `yaml:"subnet"`
-			SSHKey   string `yaml:"ssh_key"`
-			Spot     bool   `yaml:"spot"`
-		} `yaml:"kube_node"`
-	} `yaml:"nodes"`
-}
-
-// Bastion represents the bastion VM
-type Bastion struct {
-	AmiID             string   `yaml:"ami_id"`
-	VMSize            string   `yaml:"vm_size"`
-	AllowedCIDRBlocks []string `yaml:"allowedCIDRBlocks"`
-}
-
 // SecretsFile represents the YAML structure in the secrets.yaml file
 type SecretsFile struct {
 	Secrets struct {
