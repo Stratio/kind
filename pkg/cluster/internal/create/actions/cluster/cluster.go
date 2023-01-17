@@ -32,7 +32,7 @@ type DescriptorFile struct {
 
 	K8SVersion   string `yaml:"k8s_version"`
 	Region       string `yaml:"region"`
-	SSHKey       string `default:"juan" yaml:"ssh_key"`
+	SSHKey       string `yaml:"ssh_key"`
 	FullyPrivate bool   `yaml:"fully_private"`
 
 	// Networks struct {
