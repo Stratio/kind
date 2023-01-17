@@ -18,7 +18,7 @@ type DescriptorFile struct {
 	Kind       string `yaml:"kind"`
 	ClusterID  string `yaml:"cluster_id"`
 
-	// Bastion      Bastion `yaml:"bastion"`
+	Bastion Bastion `yaml:"bastion"`
 
 	Credentials struct {
 		AccessKey  string `yaml:"access_key"`
@@ -67,30 +67,32 @@ type DescriptorFile struct {
 		Image           string `yaml:"image"`
 	} `yaml:"control_plane"`
 
-	WorkerNodes []struct {
-		Name             string `yaml:"name"`
-		AmiID            string `yaml:"ami_id"`
-		Quantity         int    `yaml:"quantity"`
-		Size             string `yaml:"size"`
-		Image            string `yaml:"image"`
-		ZoneDistribution string `yaml:"zone_distribution"`
-		AZ               string `yaml:"az"`
-		SSHKey           string `yaml:"ssh_key"`
-		Spot             bool   `yaml:"spot"`
-		Disks            []struct {
-			DeviceName string `yaml:"device_name"`
-			Name       string `yaml:"name"`
-			Path       string `yaml:"path,omitempty"`
-			Size       int    `yaml:"size"`
-			Type       string `yaml:"type"`
-			Encrypted  bool   `yaml:"encrypted"`
-			Volumes    []struct {
-				Name string `yaml:"name"`
-				Path string `yaml:"path"`
-				Size string `yaml:"size"`
-			} `yaml:"volumes,omitempty"`
-		} `yaml:"disks"`
-	} `yaml:"worker_nodes"`
+	WorkerNodes WorkerNodes `yaml:"worker_nodes"`
+}
+
+type WorkerNodes []struct {
+	Name             string `yaml:"name"`
+	AmiID            string `yaml:"ami_id"`
+	Quantity         int    `yaml:"quantity"`
+	Size             string `yaml:"size"`
+	Image            string `yaml:"image"`
+	ZoneDistribution string `default:"balanced" yaml:"zone_distribution"`
+	AZ               string `yaml:"az"`
+	SSHKey           string `yaml:"ssh_key"`
+	Spot             bool   `yaml:"spot"`
+	Disks            []struct {
+		DeviceName string `yaml:"device_name"`
+		Name       string `yaml:"name"`
+		Path       string `yaml:"path,omitempty"`
+		Size       int    `yaml:"size"`
+		Type       string `yaml:"type"`
+		Encrypted  bool   `yaml:"encrypted"`
+		Volumes    []struct {
+			Name string `yaml:"name"`
+			Path string `yaml:"path"`
+			Size string `yaml:"size"`
+		} `yaml:"volumes,omitempty"`
+	} `yaml:"disks"`
 }
 
 // Bastion represents the bastion VM
@@ -100,18 +102,12 @@ type Bastion struct {
 	AllowedCIDRBlocks []string `yaml:"allowedCIDRBlocks"`
 }
 
-type Eks struct {
-	ClusterName string
-	Region      string
-}
-
 // Read cluster.yaml file
 func GetClusterDescriptor() (*DescriptorFile, error) {
 	descriptorRAW, err := os.ReadFile("./cluster.yaml")
 	if err != nil {
 		return nil, err
 	}
-	//var descriptorFile DescriptorFile
 	descriptorFile := new(DescriptorFile)
 	yaml.Unmarshal(descriptorRAW, &descriptorFile)
 	return descriptorFile, nil
