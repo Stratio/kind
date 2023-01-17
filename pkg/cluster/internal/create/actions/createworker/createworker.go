@@ -19,13 +19,31 @@ package createworker
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
+	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/nodeutils"
 	"sigs.k8s.io/kind/pkg/errors"
+)
+
+const (
+	capiClustersNamespace = "capi-clusters"
+	kubeconfigPath        = "/kind/worker-cluster.kubeconfig"
+	allowAllEgressNetPol  = `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress
+spec:
+  egress:
+  - {}
+  podSelector: {}
+  policyTypes:
+  - Egress`
 )
 
 type action struct{}
@@ -45,20 +63,6 @@ type SecretsFile struct {
 		GithubToken string `yaml:"github_token"`
 	} `yaml:"secrets"`
 }
-
-const allowAllEgressNetPol = `
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress
-spec:
-  egress:
-  - {}
-  podSelector: {}
-  policyTypes:
-  - Egress`
-
-const kubeconfigPath = "/kind/worker-cluster.kubeconfig"
 
 // NewAction returns a new action for installing default CAPI
 func NewAction() actions.Action {
@@ -87,7 +91,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 
-	// get the target node for this task
+	// Get the target node for this task
 	controlPlanes, err := nodeutils.ControlPlaneNodes(allNodes)
 	if err != nil {
 		return err
@@ -107,25 +111,15 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 
-	// Read cluster.yaml file
-
-	descriptorRAW, err := os.ReadFile("./cluster.yaml")
+	// Get the cluster descriptor
+	descriptorFile, err := cluster.GetClusterDescriptor()
 	if err != nil {
-		return err
+		fmt.Println("Error: ", err)
+		os.Exit(1)
 	}
 
-	var descriptorFile DescriptorFile
-	err = yaml.Unmarshal(descriptorRAW, &descriptorFile)
-	if err != nil {
-		return err
-	}
-
-	// TODO STG: make k8s version configurable?
-
-	capiClustersNamespace := "capi-clusters"
-
-	// EKS specific: Generate the manifest
-	descriptorData, err := generateEKSManifest(secretsFile, descriptorFile, capiClustersNamespace)
+	// Generate the manifest
+	descriptorData, err := cluster.GetClusterManifest(*descriptorFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate EKS manifests")
 	}

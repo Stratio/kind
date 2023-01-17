@@ -1,20 +1,24 @@
 package cluster
 
 import (
+	"bytes"
 	"embed"
-	"fmt"
 	"os"
 	"text/template"
 
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed templates/cluster-template-eks.tmpl
+//go:embed templates/aws.eks.tmpl
 var ctel embed.FS
 
 // DescriptorFile represents the YAML structure in the cluster.yaml file
 type DescriptorFile struct {
-	ClusterID string `yaml:"cluster_id"`
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	ClusterID  string `yaml:"cluster_id"`
+
+	// Bastion      Bastion `yaml:"bastion"`
 
 	Credentials struct {
 		AccessKey  string `yaml:"access_key"`
@@ -26,34 +30,33 @@ type DescriptorFile struct {
 
 	InfraProvider string `yaml:"infra_provider"`
 
-	Keos struct {
-		Domain         string `yaml:"domain"`
-		ExternalDomain string `yaml:"external_domain"`
-		Flavour        string `yaml:"flavour"`
-		Version        string `yaml:"version"`
-	} `yaml:"keos"`
+	K8SVersion   string `yaml:"k8s_version"`
+	Region       string `yaml:"region"`
+	SSHKey       string `default:"juan" yaml:"ssh_key"`
+	FullyPrivate bool   `yaml:"fully_private"`
 
-	K8SVersion   string  `yaml:"k8s_version"`
-	Region       string  `yaml:"region"`
-	SSHKey       string  `default:"juan" yaml:"ssh_key"`
-	FullyPrivate bool    `yaml:"fully_private"`
-	Bastion      Bastion `yaml:"bastion"`
-
-	Networks struct {
-		VPCID   string `yaml:"vpc_id"`
-		subnets []struct {
-			AvailabilityZone string `yaml:"availability_zone"`
-			Name             string `yaml:"name"`
-			PrivateCIDR      string `yaml:"private_cidr"`
-			PublicCIDR       string `yaml:"public_cidr"`
-		} `yaml:"subnets"`
-	}
+	// Networks struct {
+	// 	VPCID   string `yaml:"vpc_id"`
+	// 	subnets []struct {
+	// 		AvailabilityZone string `yaml:"availability_zone"`
+	// 		Name             string `yaml:"name"`
+	// 		PrivateCIDR      string `yaml:"private_cidr"`
+	// 		PublicCIDR       string `yaml:"public_cidr"`
+	// 	} `yaml:"subnets"`
+	// }
 
 	ExternalRegistry struct {
 		AuthRequired bool   `yaml: auth_required`
 		Type         string `yaml: type`
 		URL          string `yaml: url`
 	} `yaml:"external_registry"`
+
+	Keos struct {
+		Domain         string `yaml:"domain"`
+		ExternalDomain string `yaml:"external_domain"`
+		Flavour        string `yaml:"flavour"`
+		Version        string `yaml:"version"`
+	} `yaml:"keos"`
 
 	ControlPlane struct {
 		Managed         bool   `yaml:"managed"`
@@ -74,28 +77,19 @@ type DescriptorFile struct {
 		AZ               string `yaml:"az"`
 		SSHKey           string `yaml:"ssh_key"`
 		Spot             bool   `yaml:"spot"`
-
-		KubeNode struct {
-			AmiID string `yaml:"ami_id"`
-			Disks []struct {
-				DeviceName string `yaml:"device_name"`
-				Name       string `yaml:"name"`
-				Path       string `yaml:"path,omitempty"`
-				Size       int    `yaml:"size"`
-				Type       string `yaml:"type"`
-				Volumes    []struct {
-					Name string `yaml:"name"`
-					Path string `yaml:"path"`
-					Size string `yaml:"size"`
-				} `yaml:"volumes,omitempty"`
-			} `yaml:"disks"`
-			NodeType string `yaml:"node_type"`
-			Quantity int    `yaml:"quantity"`
-			VMSize   string `yaml:"vm_size"`
-			Subnet   string `yaml:"subnet"`
-			SSHKey   string `yaml:"ssh_key"`
-			Spot     bool   `yaml:"spot"`
-		} `yaml:"kube_node"`
+		Disks            []struct {
+			DeviceName string `yaml:"device_name"`
+			Name       string `yaml:"name"`
+			Path       string `yaml:"path,omitempty"`
+			Size       int    `yaml:"size"`
+			Type       string `yaml:"type"`
+			Encrypted  bool   `yaml:"encrypted"`
+			Volumes    []struct {
+				Name string `yaml:"name"`
+				Path string `yaml:"path"`
+				Size string `yaml:"size"`
+			} `yaml:"volumes,omitempty"`
+		} `yaml:"disks"`
 	} `yaml:"worker_nodes"`
 }
 
@@ -112,27 +106,27 @@ type Eks struct {
 }
 
 // Read cluster.yaml file
-func GetClusterDescriptor() DescriptorFile {
+func GetClusterDescriptor() (*DescriptorFile, error) {
 	descriptorRAW, err := os.ReadFile("./cluster.yaml")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	var descriptorFile DescriptorFile
+	//var descriptorFile DescriptorFile
+	descriptorFile := new(DescriptorFile)
 	yaml.Unmarshal(descriptorRAW, &descriptorFile)
-	return descriptorFile
+	return descriptorFile, nil
 }
 
-func GetClusterConfig() error {
+func GetClusterManifest(d DescriptorFile) (string, error) {
+	var tpl bytes.Buffer
 
-	d := GetClusterDescriptor()
-	fmt.Print("Descriptor:", d)
-	tmpl, err := template.ParseFS(ctel, "templates/cluster-template-eks.tmpl")
+	t, err := template.ParseFS(ctel, "templates/aws.eks.tmpl")
 	if err != nil {
-		return err
+		return "", err
 	}
-	err2 := tmpl.Execute(os.Stdout, d)
-	if err2 != nil {
-		return err2
+	err = t.Execute(&tpl, d)
+	if err != nil {
+		return "", err
 	}
-	return nil
+	return tpl.String(), nil
 }
