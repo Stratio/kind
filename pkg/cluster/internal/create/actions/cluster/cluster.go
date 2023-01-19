@@ -3,8 +3,8 @@ package cluster
 import (
 	"bytes"
 	"embed"
-	"fmt"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/go-playground/validator/v10"
@@ -181,8 +181,7 @@ func GetClusterManifest(d DescriptorFile) (string, error) {
 		return "", err
 	}
 
-	fmt.Println(t.Name())
-	err = t.ExecuteTemplate(&tpl, "aws.eks.tmpl", d)
+	err = t.ExecuteTemplate(&tpl, strings.Split(flavor, "/")[1], d)
 	if err != nil {
 		return "", err
 	}
