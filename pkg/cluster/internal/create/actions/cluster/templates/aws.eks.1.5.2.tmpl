@@ -9,22 +9,15 @@ spec:
     pods:
       cidrBlocks: ["192.168.0.0/16"]
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: AWSManagedControlPlane
     name: "{{ .ClusterID }}-control-plane"
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-    kind: AWSManagedCluster
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: AWSManagedControlPlane
     name: "{{ .ClusterID }}"
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: AWSManagedCluster
-metadata:
-  name: "{{ .ClusterID }}"
-  namespace: capi-clusters
-spec: {}
----
-apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: AWSManagedControlPlane
 metadata:
   name: "{{ .ClusterID }}-control-plane"
@@ -55,56 +48,56 @@ spec:
     env:
       - name: ANNOTATE_POD_IP
         value: \"true\"
-{{ range $node := .WorkerNodes }}
-{{ range $az := loop .AZ }}
+{{ range .WorkerNodes }}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: "{{ $node.Name }}"
+  name: "{{ .Name }}"
   namespace: capi-clusters
 spec:
   clusterName: "{{ $.ClusterID }}"
-  replicas: {{ $node.Quantity }}
+  replicas: {{ .Quantity }}
   selector:
     matchLabels:
   template:
     spec:
       bootstrap:
         configRef:
-          name: "{{ $node.Name }}"
+          name: "{{ .Name }}"
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
           kind: EKSConfigTemplate
       clusterName: "{{ $.ClusterID }}"
       infrastructureRef:
-        name: "{{ $node.Name }}"
+        name: "{{ .Name }}"
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
         kind: AWSMachineTemplate
       version: "{{ $.K8SVersion }}"
-      failureDomain: "{{- if $node.AZ -}} {{ $az }} {{- else -}} {{ $.Region }}{{ $az }} {{- end }}"
+      failureDomain: "{{ .AZ }}"
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AWSMachineTemplate
 metadata:
-  name: "{{ $node.Name }}"
+  name: "{{ .Name }}"
   namespace: capi-clusters
 spec:
   template:
     spec:
       iamInstanceProfile: "nodes.cluster-api-provider-aws.sigs.k8s.io"
-      instanceType: "{{ $node.Size }}"
-      sshKeyName: \"{{ $node.SSHKey }}\"
+      instanceType: "{{ .Size }}"
+      sshKeyName: \"{{ .SSHKey }}\"
+      {{- range .Disks }}
       rootVolume:
-        size: {{- if $node.RootVolume.Size }} {{ $node.RootVolume.Size }} {{ else }} 20 {{ end }}
-        type: {{- if $node.RootVolume.Type }} {{ $node.RootVolume.Type }} {{ else }} gp2 {{ end }}
-        encrypted: {{ $node.RootVolume.Encrypted }}
+        size: {{ .Size }}
+        type: {{ .Type }}
+        encrypted: {{ .Encrypted }}
+      {{ end }}
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: EKSConfigTemplate
 metadata:
-  name: "{{ $node.Name }}"
+  name: "{{ .Name }}"
   namespace: capi-clusters
 spec:
   template: {}
-{{- end}}
 {{ end }}

@@ -1,0 +1,39 @@
+cluster_id: fran-capi-eks
+k8s_version: v1.23.0
+region: eu-west-1
+infra_provider: aws
+credentials:
+  access_key: AKIAT467XUZXN5ZO65XF
+  account: 268367799918
+  region: eu-west-1
+  secret_key: yOwRv4oJB1pXdjV1qOat1NZdJxTtq9MKcNHT4K9u
+  assume_role: arn:aws:iam::268367799918:role/assumed_role
+external_registry:
+    auth_required: false
+    type: ecr
+    url: 268367799918.dkr.ecr.eu-west-1.amazonaws.com/keos
+keos:
+  version: 0.8.0
+  domain: cluster.local
+  external_domain: domain.ext
+  flavour: development
+control_plane:
+  managed: false
+  size: t3.medium
+worker_nodes:
+  - name: workers-md-0
+    quantity: 1
+    size: t3.2xlarge
+    az: eu-west-1a
+    disks:
+      - name: rootVolume
+        size: 30
+        type: gp2
+  - name: workers-md-1
+    quantity: 1
+    size: t3.2xlarge
+    az: eu-west-1b
+  - name: workers-md-2
+    quantity: 1
+    size: t3.2xlarge
+    az: eu-west-1c
