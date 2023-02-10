@@ -1,0 +1,134 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "{{ .Descriptor.ClusterID }}"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: "{{ .Descriptor.ClusterID }}-control-plane"
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedCluster
+    name: "{{ .Descriptor.ClusterID }}"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedCluster
+metadata:
+  name: "{{ .Descriptor.ClusterID }}"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec: {}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: "{{ .Descriptor.ClusterID }}-control-plane"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec:
+  addons:
+    - name: "aws-ebs-csi-driver"
+      version: "v1.14.1-eksbuild.1"
+    - name: "vpc-cni"
+      version: "v1.12.1-eksbuild.1"
+      conflictResolution: "overwrite"
+  associateOIDCProvider: {{ .Descriptor.ControlPlane.AWS.AssociateOIDCProvider }}
+  eksClusterName: "{{ .Descriptor.ClusterID }}"
+  logging:
+    apiServer: {{ .Descriptor.ControlPlane.AWS.Logging.ApiServer }}
+    audit: {{ .Descriptor.ControlPlane.AWS.Logging.Audit }}
+    authenticator: {{ .Descriptor.ControlPlane.AWS.Logging.Authenticator }}
+    controllerManager: {{ .Descriptor.ControlPlane.AWS.Logging.ControllerManager }}
+    scheduler: {{ .Descriptor.ControlPlane.AWS.Logging.Scheduler }}
+  network:
+    vpc:
+      availabilityZoneSelection: Ordered
+      availabilityZoneUsageLimit: 3
+{{- if ne .Descriptor.Networks.VPCID "" }}
+      id: {{ .Descriptor.Networks.VPCID }}
+    {{- if ne .Descriptor.Networks.Subnets nil }}
+    subnets:
+    {{- range .Descriptor.Networks.Subnets }}
+      - id: {{ .Name }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+  region: "{{ .Descriptor.Region }}"
+  sshKeyName: \"{{ .Descriptor.SSHKey }}\"
+  version: "{{ .Descriptor.K8SVersion }}"
+  vpcCni:
+    env:
+      - name: ANNOTATE_POD_IP
+        value: \"true\"
+{{- range $node := .Descriptor.WorkerNodes }}
+{{- range $index, $n := loop .AZ .Quantity .NodeGroupMaxSize .NodeGroupMinSize }}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  annotations:
+  {{- if $node.NodeGroupMaxSize }}
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: '{{ $n.MaxSize }}'
+  {{- end }}
+  {{- if $node.NodeGroupMinSize }}
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: '{{ $n.MinSize }}'
+  {{- end }}
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  clusterName: "{{ $.Descriptor.ClusterID }}"
+  replicas: {{ $n.QA }}
+  selector:
+    matchLabels:
+  template:
+    spec:
+      clusterName: "{{ $.Descriptor.ClusterID }}"
+      version: "{{ $.Descriptor.K8SVersion }}"
+      failureDomain: "{{- if $node.AZ -}} {{ $n.AZ }} {{- else -}} {{ $.Descriptor.Region }}{{ $n.AZ }} {{- end }}"
+      bootstrap:
+        configRef:
+          name: "{{ $node.Name }}-md-{{ $index }}"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+          kind: EKSConfigTemplate
+      infrastructureRef:
+        name: "{{ $node.Name }}-md-{{ $index }}"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSMachineTemplate
+metadata:
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  template:
+    spec:
+      {{- if ne $node.AmiID "" }}
+      ami:
+        id: {{ $node.AmiID }}
+      {{- end }}
+      iamInstanceProfile: "nodes.cluster-api-provider-aws.sigs.k8s.io"
+      instanceType: "{{ $node.Size }}"
+      sshKeyName: \"{{ $node.SSHKey }}\"
+      rootVolume:
+        {{- if $node.RootVolume.Size }}
+        size: {{ $node.RootVolume.Size }}
+        {{- end }}
+        {{- if $node.RootVolume.Type }}
+        type: {{ $node.RootVolume.Type }}
+        {{- end }}
+        encrypted: {{ $node.RootVolume.Encrypted }}
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+kind: EKSConfigTemplate
+metadata:
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  template: {}
+{{- end }}
+{{- end }}
