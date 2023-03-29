@@ -252,14 +252,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Wait for the worker cluster creation
 		raw = bytes.Buffer{}
-		cmd = node.Command("kubectl", "-n", capiClustersNamespace, "wait", "--for=condition=ready", "--timeout", "25m", "cluster", descriptorFile.ClusterID)
+		cmd = node.Command("kubectl", "-n", capiClustersNamespace, "wait", "--for=condition=ControlPlaneInitialized", "--timeout", "25m", "cluster", descriptorFile.ClusterID)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to create the worker Cluster")
 		}
 
 		// Get the workload cluster kubeconfig
 		raw = bytes.Buffer{}
-		cmd = node.Command("sh", "-c", "clusterctl -n "+capiClustersNamespace+" get kubeconfig "+descriptorFile.ClusterID+" | tee "+kubeconfigPath)
+		cmd = node.Command("sh", "-c", "clusterctl -n "+capiClustersNamespace+" get kubeconfig "+descriptorFile.ClusterID+" > "+kubeconfigPath)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to get workload cluster kubeconfig")
 		}
