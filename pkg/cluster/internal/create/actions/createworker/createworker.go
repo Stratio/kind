@@ -22,8 +22,6 @@ import (
 	_ "embed"
 	"os"
 	"strings"
-	"io"
-	"path/filepath"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -490,36 +488,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Now copy to local host with io.copy and filepath all from cloudProviderBackupPath to localBackupPath
 		// first check if localpath exists
-		_, err = os.Stat(localBackupPath){
-			if err != nil {
-				err := os.Mkdir(localBackupPath, os.ModePerm)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		// Copy files from cloudProviderBackupPath to localBackupPath
-		err = filepath.Walk(cloudProviderBackupPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			// Create the new path
-			newPath := strings.Replace(path, cloudProviderBackupPath, localBackupPath, 1)
-			// If it's a directory, create it
-			if info.IsDir() {
-				err = os.MkdirAll(newPath, os.ModePerm)
-				if err != nil {
-					return err
-				}
-			} else {
-				// If it's a file, copy it
-				err = copyFile(path, newPath)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		})	
 
 		ctx.Status.End(true)
 
