@@ -22,6 +22,8 @@ import (
 	_ "embed"
 	"os"
 	"strings"
+	"io"
+	"path/filepath"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -49,6 +51,8 @@ var allowCAPAEgressIMDSGNetPol string
 const kubeconfigPath = "/kind/worker-cluster.kubeconfig"
 const workKubeconfigPath = ".kube/config"
 const CAPILocalRepository = "/root/.cluster-api/local-repository"
+const cloudProviderBackupPath = "/root/backup"
+const localBackupPath = "backup"
 
 // NewAction returns a new action for installing default CAPI
 func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool) actions.Action {
@@ -459,6 +463,65 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 			ctx.Status.End(true)
 		}
+
+		// Create cloud-provisioner Objects backup
+		ctx.Status.Start("Creating cloud-provisioner Objects backup 🗄️")
+		defer ctx.Status.End(false)
+
+		// Create Backup directory
+		raw = bytes.Buffer{}
+		cmd = node.Command("sh", "-c", "mkdir -p "+cloudProviderBackupPath)
+		if err := cmd.SetStdout(&raw).Run(); err != nil {
+			return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
+		}
+		// Set permissions to 0600
+		raw = bytes.Buffer{}
+		cmd = node.Command("sh", "-c", "chmod 0600 "+cloudProviderBackupPath)
+		if err := cmd.SetStdout(&raw).Run(); err != nil {
+			return errors.Wrap(err, "failed to set permissions to cloud-provisioner backup directory")
+		}
+
+		// Backup cloud-provisioner Objects
+		raw = bytes.Buffer{}
+		cmd = node.Command("sh", "-c", "clusterctl move -n "+capiClustersNamespace+" --to-directory "+cloudProviderBackupPath)
+		if err := cmd.SetStdout(&raw).Run(); err != nil {
+			return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
+		}
+
+		// Now copy to local host with io.copy and filepath all from cloudProviderBackupPath to localBackupPath
+		// first check if localpath exists
+		_, err = os.Stat(localBackupPath){
+			if err != nil {
+				err := os.Mkdir(localBackupPath, os.ModePerm)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		// Copy files from cloudProviderBackupPath to localBackupPath
+		err = filepath.Walk(cloudProviderBackupPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			// Create the new path
+			newPath := strings.Replace(path, cloudProviderBackupPath, localBackupPath, 1)
+			// If it's a directory, create it
+			if info.IsDir() {
+				err = os.MkdirAll(newPath, os.ModePerm)
+				if err != nil {
+					return err
+				}
+			} else {
+				// If it's a file, copy it
+				err = copyFile(path, newPath)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})	
+
+		ctx.Status.End(true)
 
 		if !a.moveManagement {
 			ctx.Status.Start("Moving the management role 🗝️")

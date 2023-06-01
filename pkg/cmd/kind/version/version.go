@@ -54,15 +54,11 @@ func DisplayVersion() string {
 }
 
 // versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
-<<<<<<< HEAD
-const versionCore = "0.18.0"
-=======
 const versionCore = "0.2.0"
->>>>>>> upstream/branch-0.17.0-0.2
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0
-const versionPreRelease = "alpha"
+const versionPreRelease = ""
 
 // gitCommitCount count the commits since the last release.
 // It is injected at build time.
