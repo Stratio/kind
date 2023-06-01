@@ -1,0 +1,234 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "{{ .Descriptor.ClusterID }}"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: "{{ .Descriptor.ClusterID }}-control-plane"
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedCluster
+    name: "{{ .Descriptor.ClusterID }}"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedCluster
+metadata:
+  name: "{{ .Descriptor.ClusterID }}"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec: {}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: "{{ .Descriptor.ClusterID }}-control-plane"
+  namespace: "cluster-{{ .Descriptor.ClusterID }}"
+spec:
+  addons:
+    - name: "vpc-cni"
+      version: "v1.12.6-eksbuild.1"
+      conflictResolution: "overwrite"
+    - name: "aws-ebs-csi-driver"
+      version: "v1.17.0-eksbuild.1"
+      conflictResolution: "overwrite"
+    - name: "coredns"
+      version: "v1.9.3-eksbuild.3"
+      conflictResolution: "overwrite"
+    - name: "kube-proxy"
+      version: "v1.24.10-eksbuild.2"
+      conflictResolution: "overwrite"
+  associateOIDCProvider: {{ .Descriptor.ControlPlane.AWS.AssociateOIDCProvider }}
+  eksClusterName: "{{ .Descriptor.ClusterID }}"
+  logging:
+    apiServer: {{ .Descriptor.ControlPlane.AWS.Logging.ApiServer }}
+    audit: {{ .Descriptor.ControlPlane.AWS.Logging.Audit }}
+    authenticator: {{ .Descriptor.ControlPlane.AWS.Logging.Authenticator }}
+    controllerManager: {{ .Descriptor.ControlPlane.AWS.Logging.ControllerManager }}
+    scheduler: {{ .Descriptor.ControlPlane.AWS.Logging.Scheduler }}
+  network:
+    vpc:
+      availabilityZoneSelection: {{- if ne .Descriptor.Networks.AvailabilityZoneSelection "" }} {{ .Descriptor.Networks.AvailabilityZoneSelection }} {{ else }} Ordered {{ end }}
+      availabilityZoneUsageLimit: {{- if ne .Descriptor.Networks.AvailabilityZoneUsageLimit 0 }} {{ .Descriptor.Networks.AvailabilityZoneUsageLimit }} {{ else }} 3 {{ end }}
+  {{- if ne .Descriptor.Networks.VPCCidrBlock "" }}
+      cidrBlock: {{ .Descriptor.Networks.VPCCidrBlock }}
+  {{- end }}
+  {{- if isNotEmpty .Descriptor.Networks.Tags }}
+      tags:
+    {{- range $key,$value := .Descriptor.Networks.Tags }}
+      - $key: $value
+    {{- end}}
+  {{- end }}
+{{- if ne .Descriptor.Networks.VPCID "" }}
+      id: {{ .Descriptor.Networks.VPCID }}
+    {{- if ne .Descriptor.Networks.Subnets nil }}
+    subnets:
+    {{- range .Descriptor.Networks.Subnets }}
+      - id: {{ .SubnetId }}
+      {{- if ne .AvailabilityZone "" }}
+        availabilityZone:  {{ .AvailabilityZone }} 
+      {{- end }}
+      {{- if ne .CidrBlock "" }}
+        cidrBlock:  {{ .CidrBlock }} 
+      {{- end }}
+      {{- if ne .RouteTableId "" }}
+        routeTableId:  {{ .RouteTableId }} 
+      {{- end }}
+      {{- if ne .NatGatewayId "" }}
+        natGatewayId:  {{ .NatGatewayId }} 
+      {{- end }}
+      {{- if checkReference .IsPublic }}
+        isPublic: {{ .IsPublic }}
+      {{- end }}
+      {{- if isNotEmpty .Tags }}
+        tags:
+      {{- range $key,$value := .Tags }}
+        - $key: $value
+      {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+  region: "{{ .Descriptor.Region }}"
+{{- if ne .Descriptor.Networks.PodsCidrBlock "" }}
+  secondaryCidrBlock: {{ .Descriptor.Networks.PodsCidrBlock }}
+{{- end }}
+  sshKeyName: \"{{ .Descriptor.Bastion.SSHKey }}\"
+  version: "{{ .Descriptor.K8SVersion }}"
+  vpcCni:
+    env:
+      - name: ANNOTATE_POD_IP
+        value: \"true\"
+    {{- if ne .Descriptor.Networks.PodsCidrBlock "" }}
+      - name: AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG
+        value: \"true\"
+      - name: ENI_CONFIG_LABEL_DEF
+        value: \"topology.kubernetes.io/zone\"
+    {{- end }}
+{{- range $node := .Descriptor.WorkerNodes }}
+{{- range $index, $n := loop .AZ .ZoneDistribution .Quantity .NodeGroupMaxSize .NodeGroupMinSize }}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+{{- if gt $node.NodeGroupMaxSize 0 }}
+  annotations:
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: '{{ $n.MaxSize }}'
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: '{{ $n.MinSize }}'
+{{- end }}
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  clusterName: "{{ $.Descriptor.ClusterID }}"
+  replicas: {{ $n.QA }}
+  selector:
+    matchLabels:
+  template:
+    metadata:
+      labels: 
+        keos.stratio.com/machine-role: "{{ $.Descriptor.ClusterID }}-worker-node"
+    spec:
+      clusterName: "{{ $.Descriptor.ClusterID }}"
+      version: "{{ $.Descriptor.K8SVersion }}"
+      failureDomain: "{{ $n.AZ }}"
+      bootstrap:
+        configRef:
+          name: "{{ $node.Name }}-md-{{ $index }}"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+          kind: EKSConfigTemplate
+      infrastructureRef:
+        name: "{{ $node.Name }}-md-{{ $index }}"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSMachineTemplate
+metadata:
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  template:
+    spec:
+      {{- if $node.Spot }}
+      spotMarketOptions:
+        maxPrice: \"\"
+      {{- end }}
+      {{- if ne $node.NodeImage "" }}
+      ami:
+        id: {{ $node.NodeImage }}
+      {{- end }}
+      iamInstanceProfile: "nodes.cluster-api-provider-aws.sigs.k8s.io"
+      instanceType: "{{ $node.Size }}"
+      sshKeyName: \"{{ $node.SSHKey }}\"
+      rootVolume:
+        size: {{- if $node.RootVolume.Size }} {{ $node.RootVolume.Size }} {{ else }} 30 {{ end }}
+        {{- if $node.RootVolume.Type }}
+        type: {{ $node.RootVolume.Type }}
+        {{- end }}
+        encrypted: {{ $node.RootVolume.Encrypted }}
+      {{- if $node.ExtraVolumes }}
+      nonRootVolumes:
+        {{- range $index, $vol := $node.ExtraVolumes }}
+        - deviceName: {{ $vol.DeviceName }}
+          size: {{ $vol.Size }}
+          type: {{ $vol.Type }}
+          encrypted: {{ $vol.Encrypted }}
+        {{- end }}
+      {{- end }}
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+kind: EKSConfigTemplate
+metadata:
+  name: "{{ $node.Name }}-md-{{ $index }}"
+  namespace: "cluster-{{ $.Descriptor.ClusterID }}"
+spec:
+  template:
+    spec:
+      {{- if gt (len $.DockerRegistries) 0 }}
+      files:
+        {{- range $reg := $.DockerRegistries }}
+        {{- $url := hostname $reg.url }}
+        - content: |
+            server = \"https://{{ $url }}\"
+            [host.\"https://{{ $url }}\"]
+              capabilities = [\"pull\", \"resolve\"]
+              [host.\"https://{{ $url }}\".header]
+                {{- $auth := base64 (print $reg.user ":" $reg.pass) }}
+                authorization = \"Basic {{ $auth }}\"
+          path: /etc/containerd/certs.d/{{ $url }}/hosts.toml
+        {{- end }}
+      postBootstrapCommands:
+        - systemctl restart containerd
+      {{- end }}
+      {{- if $node.ExtraVolumes }}
+      diskSetup:
+        filesystems:
+          {{- range $index, $vol := $node.ExtraVolumes }}
+          - device: /dev/nvme{{ len (printf "a%*s" $index "") }}n1
+            filesystem: xfs
+            label: {{ $vol.Label }}
+          {{- end }}
+        partitions:
+          {{- range $index, $vol := $node.ExtraVolumes }}
+          - device: /dev/nvme{{ len (printf "a%*s" $index "") }}n1
+            layout: true
+            overwrite: false
+            tableType: gpt
+          {{- end }}
+      mounts:
+        {{- range $index, $vol := $node.ExtraVolumes }}
+        - - /dev/nvme{{ len (printf "a%*s" $index "") }}n1
+          - {{ $vol.MountPath }}
+        {{- end }}
+      {{- end }}
+      {{- if $node.Labels }}
+      kubeletExtraArgs:
+        node-labels: \"{{ range $key, $value := $node.Labels }}{{ $key }}={{ $value }},{{- end }}\"
+      {{- end }}
+{{- end }}
+{{- end }}

@@ -34,11 +34,9 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	configaction "sigs.k8s.io/kind/pkg/cluster/internal/create/actions/config"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/createworker"
-	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcapi"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage"
-	"sigs.k8s.io/kind/pkg/cluster/internal/create/keosinstaller"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadmjoin"
@@ -55,8 +53,12 @@ const (
 
 // ClusterOptions holds cluster creation options
 type ClusterOptions struct {
-	Config       *config.Cluster
-	NameOverride string // overrides config.Name
+	Config         *config.Cluster
+	NameOverride   string // overrides config.Name
+	VaultPassword  string
+	DescriptorPath string
+	MoveManagement bool
+	AvoidCreation  bool
 	// NodeImage overrides the nodes' images in Config if non-zero
 	NodeImage      string
 	Retain         bool
@@ -135,12 +137,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 		// add Stratio step
 		actionsToRun = append(actionsToRun,
-			installcapi.NewAction(), // install ClusterAPI in local
-		)
-
-		// add Stratio step
-		actionsToRun = append(actionsToRun,
-			createworker.NewAction(), // create worker k8s cluster
+			createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation), // create worker k8s cluster
 		)
 	}
 
@@ -173,16 +170,6 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	if err != nil {
 		return err
 	}
-
-	// add Stratio action: generate the KEOS descriptor
-	actionsContext.Status.Start("Generating the KEOS descriptor 📝")
-	defer actionsContext.Status.End(false)
-
-	err = keosinstaller.CreateKEOSDescriptor()
-	if err != nil {
-		return err
-	}
-	actionsContext.Status.End(true) // End Generating KEOS descriptor
 
 	// add Stratio action: delete the local cluster
 	if !opts.Retain {
