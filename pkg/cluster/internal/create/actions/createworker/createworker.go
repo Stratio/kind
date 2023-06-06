@@ -51,7 +51,7 @@ var allowCAPAEgressIMDSGNetPol string
 const kubeconfigPath = "/kind/worker-cluster.kubeconfig"
 const workKubeconfigPath = ".kube/config"
 const CAPILocalRepository = "/root/.cluster-api/local-repository"
-const cloudProviderBackupPath = "/kind/backup"
+const cloudProviderBackupPath = "/kind/backup/objects"
 const localBackupPath = "backup"
 
 // NewAction returns a new action for installing default CAPI
@@ -491,7 +491,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Now copy to local host with docker cp command
 		raw = bytes.Buffer{}
-		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":"+cloudProviderBackupPath+" "+localBackupPath)
+		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":/kind/backup "+localBackupPath)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to copy cloud-provisioner backup directory to local host")
 		}
