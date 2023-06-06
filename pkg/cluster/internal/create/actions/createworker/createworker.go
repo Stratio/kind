@@ -19,6 +19,7 @@ package createworker
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"os"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
+	"sigs.k8s.io/kind/pkg/exec"
 )
 
 type action struct {
@@ -49,7 +51,7 @@ var allowCAPAEgressIMDSGNetPol string
 const kubeconfigPath = "/kind/worker-cluster.kubeconfig"
 const workKubeconfigPath = ".kube/config"
 const CAPILocalRepository = "/root/.cluster-api/local-repository"
-const cloudProviderBackupPath = "/root/backup"
+const cloudProviderBackupPath = "/kind/backup"
 const localBackupPath = "backup"
 
 // NewAction returns a new action for installing default CAPI
@@ -467,14 +469,15 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		defer ctx.Status.End(false)
 
 		// Create Backup directory
-		raw = bytes.Buffer{}
-		cmd = node.Command("sh", "-c", "mkdir -p "+cloudProviderBackupPath)
+		raw := bytes.Buffer{}
+		cmd := node.Command("sh", "-c", "mkdir -p "+cloudProviderBackupPath)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
 		}
+
 		// Set permissions to 0600
 		raw = bytes.Buffer{}
-		cmd = node.Command("sh", "-c", "chmod 0600 "+cloudProviderBackupPath)
+		cmd = node.Command("sh", "-c", "chmod -R 0755 "+cloudProviderBackupPath)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to set permissions to cloud-provisioner backup directory")
 		}
@@ -486,8 +489,19 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
 		}
 
-		// Now copy to local host with io.copy and filepath all from cloudProviderBackupPath to localBackupPath
-		// first check if localpath exists
+		// Now copy to local host with docker cp command
+		raw = bytes.Buffer{}
+		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":"+cloudProviderBackupPath+" "+localBackupPath)
+		if err := cmd.SetStdout(&raw).Run(); err != nil {
+			return errors.Wrap(err, "failed to copy cloud-provisioner backup directory to local host")
+		}
+
+		// Copy /kind/manifests folder to local host
+		raw = bytes.Buffer{}
+		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":/kind/manifests "+localBackupPath)
+		if err := cmd.SetStdout(&raw).Run(); err != nil {
+			return errors.Wrap(err, "failed to copy /kind/manifests folder to local host")
+		}
 
 		ctx.Status.End(true)
 
