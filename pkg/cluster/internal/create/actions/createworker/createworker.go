@@ -496,7 +496,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Now copy to local host with docker cp command
 		raw = bytes.Buffer{}
-		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":/kind/backup "+localBackupPath)
+		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":"+cloudProviderBackupPath+" "+localBackupPath)
 		if err := cmd.SetStdout(&raw).Run(); err != nil {
 			return errors.Wrap(err, "failed to copy cloud-provisioner backup directory to local host")
 		}
