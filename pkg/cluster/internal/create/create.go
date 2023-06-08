@@ -86,8 +86,14 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	}
 
 	// Check if the cluster name already exists
-	if err := alreadyExists(p, opts.Config.Name, opts.ForceDelete); err != nil {
-		return err
+	if err := alreadyExists(p, opts.Config.Name); err != nil {
+		if opts.ForceDelete {
+			// Delete current cluster container
+			_ = delete.Cluster(nil, p, opts.Config.Name, "")
+		} else {
+			return errors.Errorf("A cluster with the name %q already exists \n"+
+				"Please use a different cluster name or delete the current container with --delete-previous flag", opts.Config.Name)
+		}
 	}
 
 	// warn if cluster name might typically be too long
@@ -196,20 +202,13 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 // alreadyExists returns an error if the cluster name already exists
 // or if we had an error checking
-// Also add the facililty to delete current cluster container if it exists with flag --force
-func alreadyExists(p providers.Provider, name string, forceDelete bool) error {
+func alreadyExists(p providers.Provider, name string) error {
 	n, err := p.ListNodes(name)
 	if err != nil {
 		return err
 	}
-	if len(n) > 0 {
-		if forceDelete {
-			// Delete current cluster container
-			_ = delete.Cluster(nil, p, name, "")
-		} else {
-			return errors.Errorf("node(s) already exist for a cluster with the name %q \n"+
-				"Please use a different cluster name or delete the current container with --force flag", name)
-		}
+	if len(n) != 0 {
+		return errors.Errorf("node(s) already exist for a cluster with the name %q", name)
 	}
 	return nil
 }
