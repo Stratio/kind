@@ -54,6 +54,13 @@ const CAPILocalRepository = "/root/.cluster-api/local-repository"
 const cloudProviderBackupPath = "/kind/backup/objects"
 const localBackupPath = "backup"
 
+// Create an array that contains al path to backup by docker cp locally to localBackupPath
+// cloudProviderBackupPath and /kind/manifests by now
+var PathsToBackupLocally = []string{
+	cloudProviderBackupPath,
+	"/kind/manifests",
+}
+
 // NewAction returns a new action for installing default CAPI
 func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool) actions.Action {
 	return &action{
@@ -502,18 +509,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
 		}
 
-		// Now copy to local host with docker cp command
-		raw = bytes.Buffer{}
-		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":"+cloudProviderBackupPath+" "+localBackupPath)
-		if err := cmd.SetStdout(&raw).Run(); err != nil {
-			return errors.Wrap(err, "failed to copy cloud-provisioner backup directory to local host")
-		}
-
-		// Copy /kind/manifests folder to local host
-		raw = bytes.Buffer{}
-		cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":/kind/manifests "+localBackupPath)
-		if err := cmd.SetStdout(&raw).Run(); err != nil {
-			return errors.Wrap(err, "failed to copy /kind/manifests folder to local host")
+		// Now copy to local host with docker cp command all the PathsToBackupLocally to localBackupPath
+		for _, path := range PathsToBackupLocally {
+			raw = bytes.Buffer{}
+			cmd = exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+node.String()+":"+path+" "+localBackupPath)
+			if err := cmd.SetStdout(&raw).Run(); err != nil {
+				return errors.Wrap(err, "failed to copy "+path+" to local host")
+			}
 		}
 
 		ctx.Status.End(true)
