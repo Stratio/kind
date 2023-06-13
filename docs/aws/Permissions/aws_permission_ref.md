@@ -216,3 +216,17 @@ kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl01 delete cluster eks-cl0
 | iam:ListRoleTags | not authorized to perform: iam:ListRoleTags on resource: role eks-iam-for-sa-external-dns-role-eks-cl01 | ListRoleTags | arn:aws:iam::268367799918:role/* | keos |
 | route53:ListHostedZones | not authorized to perform: route53:ListHostedZones | ListHostedZones | * | keos |
 | iam:PutRolePolicy | not authorized to perform: iam:PutRolePolicy on resource: role eks-iam-for-sa-external-dns-role-eks-cl01 | PutRolePolicy | arn:aws:iam::268367799918:role/* | keos |
+
+**AWS Unmanaged**: Create EC2 cluster
+| Permission | Needed for | Description | Resource | Application |
+| --- | --- | --- | --- | --- |
+| ec2:AuthorizeSecurityGroupIngress | failed to authorize security group "sg-04980f574d329b786" ingress rules | arn:aws:ec2:*:268367799918:security-group/* | cloud-provisioner |
+| elasticloadbalancing:DescribeLoadBalancers | not authorized to perform: elasticloadbalancing:DescribeLoadBalancers | * | cloud-provisioner |
+| elasticloadbalancing:CreateLoadBalancer | not authorized to perform: elasticloadbalancing:CreateLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
+| elasticloadbalancing:AddTags | Dependencie from CreateLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner | 
+| elasticloadbalancing:DescribeLoadBalancerAttributes | failed to describe classic load balancer "eks-cl02-apiserver" attributes | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
+| elasticloadbalancing:DescribeTags | not authorized to perform: elasticloadbalancing:DescribeTags | * | cloud-provisioner |
+| elasticloadbalancing:ModifyLoadBalancerAttributes | not authorized to perform: elasticloadbalancing:ModifyLoadBalancerAttributes | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
+| elasticloadbalancing:RegisterInstancesWithLoadBalancer | not authorized to perform: elasticloadbalancing:RegisterInstancesWithLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
+| elasticloadbalancing:DeleteLoadBalancer | not authorized to perform: elasticloadbalancing:RegisterInstancesWithLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
+| ec2:RevokeSecurityGroupIngress | not authorized to perform this operation | arn:aws:ec2:*:268367799918:security-group/* | cloud-provisioner |
