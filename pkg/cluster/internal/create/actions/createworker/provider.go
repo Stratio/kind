@@ -164,7 +164,7 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	calicoTemplate := "/kind/calico-helm-values.yaml"
 
 	// Generate the calico helm values
-	calicoHelmValues, err := getManifest("all", "calico-helm-values.tmpl", descriptorFile)
+	calicoHelmValues, err := getManifest("common", "calico-helm-values.tmpl", descriptorFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate calico helm values")
 	}
@@ -233,14 +233,22 @@ func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.Descript
 		return errors.Wrap(err, "failed to create CoreDNS configmap file")
 	}
 
-	c = "kubectl apply -f " + coreDNSTemplate
+	// Patch configmap
+	c = "kubectl --kubeconfig patch cm coredns --patch-file " + coreDNSTemplate
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to customize coreDNS patching configmap")
 	}
 
+	// Rollout restart to catch the made changes
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout start deploy coredns"
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to redeploy coreDNS")
+	}
+
 	// Wait until CoreDNS completely rollout
-	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system -f rollout status deploy coredns --timeout=3m"
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deploy coredns --timeout=3m"
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for the customatization of CoreDNS configmap")
