@@ -60,7 +60,7 @@ Files:
 Files:  
 *   DEPENDENCIES
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
-*   pkg/cluster/internal/create/actions/createworker/templates/calico-helm-values.tmpl
+*   pkg/cluster/internal/create/actions/createworker/templates/common/calico-helm-values.tmpl
 
 > [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/releases)
 
@@ -70,7 +70,7 @@ Files:
 
 Files:  
 *   DEPENDENCIES
-*   pkg/cluster/internal/create/actions/cluster/templates/aws.eks.tmpl
+*   pkg/cluster/internal/create/actions/cluster/templates/aws/aws.eks.tmpl
 
 > [vpc-cni](https://github.com/aws/amazon-vpc-cni-k8s/releases)
 
@@ -80,7 +80,7 @@ Files:
 
 Files:  
 *   DEPENDENCIES
-*   pkg/cluster/internal/create/actions/cluster/templates/aws.eks.tmpl
+*   pkg/cluster/internal/create/actions/cluster/templates/aws/aws.eks.tmpl
 
 > [cluster-api-gcp / cluster-api-gcp-templates](https://github.com/kubernetes-sigs/cluster-api-provider-gcp/releases)
 

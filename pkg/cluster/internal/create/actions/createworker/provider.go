@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"embed"
 	"encoding/base64"
+	"path/filepath"
+
 	"reflect"
 	"strconv"
 	"strings"
@@ -32,7 +34,7 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
-//go:embed templates/*
+//go:embed templates/*/*
 var ctel embed.FS
 
 const (
@@ -162,7 +164,7 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	calicoTemplate := "/kind/calico-helm-values.yaml"
 
 	// Generate the calico helm values
-	calicoHelmValues, err := getManifest("calico-helm-values.tmpl", descriptorFile)
+	calicoHelmValues, err := getManifest("all", "calico-helm-values.tmpl", descriptorFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate calico helm values")
 	}
@@ -208,6 +210,40 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
 	if err = cmd.SetStdin(strings.NewReader(calicoMetrics)).Run(); err != nil {
 		return errors.Wrap(err, "failed to create calico metrics services")
+	}
+
+	return nil
+}
+
+func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.DescriptorFile) error {
+	var c string
+	var err error
+
+	coreDNSTemplate := "/kind/coredns-configmap.yaml"
+
+	// Generate the coredns configmap
+	coreDNSConfigmap, err := getManifest(descriptorFile.InfraProvider, "coredns_configmap.tmpl", descriptorFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate CoreDNS configmap")
+	}
+
+	c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create CoreDNS configmap file")
+	}
+
+	c = "kubectl apply -f " + coreDNSTemplate
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to customize coreDNS patching configmap")
+	}
+
+	// Wait until CoreDNS completely rollout
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system -f rollout status deploy coredns --timeout=3m"
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to wait for the customatization of CoreDNS configmap")
 	}
 
 	return nil
@@ -411,9 +447,10 @@ func GetClusterManifest(flavor string, params commons.TemplateParams, azs []stri
 		"sub":   func(a, b int) int { return a - b },
 		"split": strings.Split,
 	}
+	templatePath := filepath.Join("templates", params.Descriptor.InfraProvider, flavor)
 
 	var tpl bytes.Buffer
-	t, err := template.New("").Funcs(funcMap).ParseFS(ctel, "templates/"+flavor)
+	t, err := template.New("").Funcs(funcMap).ParseFS(ctel, templatePath)
 	if err != nil {
 		return "", err
 	}
@@ -426,9 +463,11 @@ func GetClusterManifest(flavor string, params commons.TemplateParams, azs []stri
 	return tpl.String(), nil
 }
 
-func getManifest(name string, params interface{}) (string, error) {
+func getManifest(parentPath string, name string, params interface{}) (string, error) {
+	templatePath := filepath.Join("templates", parentPath, name)
+
 	var tpl bytes.Buffer
-	t, err := template.New("").ParseFS(ctel, "templates/"+name)
+	t, err := template.New("").ParseFS(ctel, templatePath)
 	if err != nil {
 		return "", err
 	}

@@ -50,7 +50,7 @@ var PathsToBackupLocally = []string{
 	"/kind/manifests",
 }
 
-//go:embed files/all/allow-all-egress_netpol.yaml
+//go:embed files/common/allow-all-egress_netpol.yaml
 var allowCommonEgressNetPol string
 
 //go:embed files/gcp/rbac-loadbalancing.yaml
@@ -300,6 +300,16 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
+
+		ctx.Status.Start("Customizing CoreDNS configuration 🪡")
+		defer ctx.Status.End(false)
+
+		err = customConfigCoreDNS(n, kubeconfigPath, *descriptorFile)
+		if err != nil {
+			return errors.Wrap(err, "failed to customized CoreDNS configuration")
+		}
+
+		ctx.Status.End(true) // End Customizing CoreDNS configuration
 
 		// Install unmanaged cluster addons
 		if !descriptorFile.ControlPlane.Managed {
