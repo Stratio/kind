@@ -335,16 +335,17 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
 
-		ctx.Status.Start("Customizing CoreDNS configuration 🪡")
-		defer ctx.Status.End(false)
+		if descriptorFile.Dns.ExternalServers != nil && len(descriptorFile.Dns.ExternalServers) > 0 {
+			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
+			defer ctx.Status.End(false)
 
-		err = customConfigCoreDNS(n, kubeconfigPath, *descriptorFile)
-		if err != nil {
-			return errors.Wrap(err, "failed to customized CoreDNS configuration")
+			err = customConfigCoreDNS(n, kubeconfigPath, *descriptorFile)
+			if err != nil {
+				return errors.Wrap(err, "failed to customized CoreDNS configuration")
+			}
+
+			ctx.Status.End(true) // End Customizing CoreDNS configuration
 		}
-
-		ctx.Status.End(true) // End Customizing CoreDNS configuration
-
 		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
 		defer ctx.Status.End(false)
 

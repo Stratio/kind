@@ -14,9 +14,15 @@ data:
            ttl 30
         }
         prometheus :9153
-        forward . /etc/resolv.conf {
-           max_concurrent 1000
+        {{- if gt (len $.Dns.ExternalServers) 0 }}
+        forward .{{ range $i, $server := .Dns.ExternalServers }} {{ $server }}{{ end }} {
+          prefer_udp
         }
+        {{- else }}
+        forward . /etc/resolv.conf {
+          max_concurrent 1000
+        }
+        {{- end }}
         cache 30
         loop
         reload
