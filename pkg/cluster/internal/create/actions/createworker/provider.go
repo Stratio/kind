@@ -234,14 +234,14 @@ func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.Descript
 	}
 
 	// Patch configmap
-	c = "kubectl --kubeconfig patch cm coredns --patch-file " + coreDNSTemplate
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm coredns --patch-file " + coreDNSTemplate
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to customize coreDNS patching configmap")
 	}
 
 	// Rollout restart to catch the made changes
-	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout start deploy coredns"
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout restart deploy coredns"
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to redeploy coreDNS")
