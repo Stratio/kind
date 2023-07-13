@@ -47,7 +47,7 @@ const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckwork
 const machineHealthCheckControlPlaneNodePath = "/kind/manifests/machinehealthcheckcontrolplane.yaml"
 const defaultScAnnotation = "storageclass.kubernetes.io/is-default-class"
 
-//go:embed files/calico-metrics.yaml
+//go:embed files/common/calico-metrics.yaml
 var calicoMetrics string
 
 type PBuilder interface {
@@ -219,12 +219,19 @@ func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.Descript
 	var c string
 	var err error
 
+	coreDNSSuffix := ""
 	coreDNSTemplate := "/kind/coredns-configmap.yaml"
+	coreDNSPatchFile := "coredns"
 
 	// Generate the coredns configmap
-	coreDNSConfigmap, err := getManifest(descriptorFile.InfraProvider, "coredns_configmap.tmpl", descriptorFile)
+	if descriptorFile.InfraProvider == "azure" && descriptorFile.ControlPlane.Managed {
+		coreDNSSuffix = "-aks"
+		coreDNSPatchFile = "coredns-custom"
+	}
+
+	coreDNSConfigmap, err := getManifest(descriptorFile.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", descriptorFile)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate CoreDNS configmap")
+		return errors.Wrap(err, "failed to get CoreDNS file")
 	}
 
 	c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
@@ -234,7 +241,7 @@ func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.Descript
 	}
 
 	// Patch configmap
-	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm coredns --patch-file " + coreDNSTemplate
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm " + coreDNSPatchFile + " --patch-file " + coreDNSTemplate
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to customize coreDNS patching configmap")

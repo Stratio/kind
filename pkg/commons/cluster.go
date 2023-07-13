@@ -61,8 +61,8 @@ type DescriptorFile struct {
 	Networks Networks `yaml:"networks" validate:"omitempty,dive"`
 
 	Dns struct {
-		ManageZone      bool     `yaml:"manage_zone" validate:"boolean"`
-		ExternalServers []string `yaml:"external_servers" validate:"omitempty,dive,ip_addr"`
+		ManageZone bool     `yaml:"manage_zone" validate:"boolean"`
+		Forwarders []string `yaml:"forwarders" validate:"omitempty,dive,ip_addr"`
 	} `yaml:"dns"`
 
 	DockerRegistries []DockerRegistry `yaml:"docker_registries" validate:"dive"`

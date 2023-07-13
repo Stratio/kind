@@ -299,6 +299,8 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to save the workload cluster kubeconfig")
 		}
 
+		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
+
 		// Install unmanaged cluster addons
 		if !descriptorFile.ControlPlane.Managed {
 
@@ -333,19 +335,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.End(true)
 		}
 
-		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
-
-		if descriptorFile.Dns.ExternalServers != nil && len(descriptorFile.Dns.ExternalServers) > 0 {
-			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
-			defer ctx.Status.End(false)
-
-			err = customConfigCoreDNS(n, kubeconfigPath, *descriptorFile)
-			if err != nil {
-				return errors.Wrap(err, "failed to customized CoreDNS configuration")
-			}
-
-			ctx.Status.End(true) // End Customizing CoreDNS configuration
-		}
 		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
 		defer ctx.Status.End(false)
 
@@ -550,6 +539,19 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			ctx.Status.End(true)
+		}
+
+		// Customize CoreDNS configuration
+		if descriptorFile.Dns.Forwarders != nil && len(descriptorFile.Dns.Forwarders) > 0 {
+			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
+			defer ctx.Status.End(false)
+
+			err = customConfigCoreDNS(n, kubeconfigPath, *descriptorFile)
+			if err != nil {
+				return errors.Wrap(err, "failed to customized CoreDNS configuration")
+			}
+
+			ctx.Status.End(true) // End Customizing CoreDNS configuration
 		}
 
 		// Create cloud-provisioner Objects backup

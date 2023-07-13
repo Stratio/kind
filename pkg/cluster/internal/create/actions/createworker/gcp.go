@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
-//go:embed files/gcp-compute-persistent-disk-csi-driver.yaml
+//go:embed files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
 var csiManifest string
 
 type GCPBuilder struct {

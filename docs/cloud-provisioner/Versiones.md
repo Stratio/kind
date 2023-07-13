@@ -100,7 +100,7 @@ Files:
 
 Files:  
 *   DEPENDENCIES
-*   pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*   pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
 
 > [csi-node-driver-registrar](https://github.com/kubernetes-csi/node-driver-registrar/releases)
 
@@ -110,7 +110,7 @@ Files:
 
 Files:  
 *   DEPENDENCIES
-*   pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*   pkg/cluster/internal/create/actions/createworker/files/gpc/gcp-compute-persistent-disk-csi-driver.yaml
 
 > [csi-snapshotter](https://github.com/kubernetes-csi/external-snapshotter/releases)
 
@@ -120,7 +120,7 @@ Files:
 
 Files:  
 *   DEPENDENCIES
-*   pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*   pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
 
 > [csi-resizer](https://github.com/kubernetes-csi/external-resizer/releases)
 
@@ -130,7 +130,7 @@ Files:
 
 Files:  
 *  DEPENDENCIES
-*  pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*  pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
 
 > [csi-attacher]()
 
@@ -140,7 +140,7 @@ Files:
 
 Files:  
 *  DEPENDENCIES
-*  pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*  pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
 
 > [csi-provisioner](https://github.com/kubernetes-csi/external-provisioner/releases)
 
@@ -150,4 +150,4 @@ Files:
 
 Files:  
 *  DEPENDENCIES
-*  pkg/cluster/internal/create/actions/createworker/files/gcp-compute-persistent-disk-csi-driver.yaml
+*  pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
