@@ -6,10 +6,11 @@ ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
 # Tools versions
 ENV CLUSTERCTL=v1.4.3
-ENV CLUSTERAWSADM=v2.1.4
+ENV CLUSTERAWSADM=v2.2.0
 ENV HELM=v3.11.3
 
 # Helm charts
+ENV AWS_EBS_CSI_DRIVER_CHART=v2.20.0
 ENV AZUREDISK_CSI_DRIVER_CHART=v1.27.1
 ENV CLOUD_PROVIDER_AZURE_CHART=v1.27.1
 ENV CLUSTER_AUTOSCALER_CHART=9.29.1
@@ -17,7 +18,7 @@ ENV TIGERA_OPERATOR_CHART=v3.25.1
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
-ENV CAPA=v2.1.4
+ENV CAPA=v2.2.0
 ENV CAPG=v1.3.1
 ENV CAPZ=v1.9.3
 
@@ -50,6 +51,7 @@ RUN curl -L https://get.helm.sh/helm-${HELM}-linux-amd64.tar.gz -o /root/helm.ta
 
 # Download helm charts
 RUN mkdir -p /stratio/helm \
+  && for i in $(seq 1 3); do timeout 5 helm pull aws-ebs-csi-driver --version ${AWS_EBS_CSI_DRIVER_CHART} --repo https://kubernetes-sigs.github.io/aws-ebs-csi-driver --untar --untardir /stratio/helm && break; done \
   && for i in $(seq 1 3); do timeout 5 helm pull azuredisk-csi-driver --version ${AZUREDISK_CSI_DRIVER_CHART} --repo https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts --untar --untardir /stratio/helm && break; done \
   && for i in $(seq 1 3); do timeout 5 helm pull cloud-provider-azure --version ${CLOUD_PROVIDER_AZURE_CHART} --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo --untar --untardir /stratio/helm && break; done \
   && for i in $(seq 1 3); do timeout 5 helm pull cluster-autoscaler --version ${CLUSTER_AUTOSCALER_CHART} --repo https://kubernetes.github.io/autoscaler --untar --untardir /stratio/helm && break; done \

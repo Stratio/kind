@@ -23,11 +23,9 @@ import (
 	"path/filepath"
 
 	"reflect"
-	"strconv"
 	"strings"
 	"text/template"
 
-	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -41,6 +39,8 @@ const (
 	CAPICoreProvider         = "cluster-api:v1.4.3"
 	CAPIBootstrapProvider    = "kubeadm:v1.4.3"
 	CAPIControlPlaneProvider = "kubeadm:v1.4.3"
+
+	scName = "keos"
 )
 
 const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
@@ -52,24 +52,26 @@ var calicoMetrics string
 
 type PBuilder interface {
 	setCapx(managed bool)
-	setCapxEnvVars(p commons.ProviderParams)
+	setCapxEnvVars(p ProviderParams)
+	setSC(p ProviderParams)
 	installCSI(n nodes.Node, k string) error
 	getProvider() Provider
-	configureStorageClass(n nodes.Node, k string, sc commons.StorageClass) error
-	getParameters(sc commons.StorageClass) commons.SCParameters
+	configureStorageClass(n nodes.Node, k string) error
 	getAzs(networks commons.Networks) ([]string, error)
 	internalNginx(networks commons.Networks, credentialsMap map[string]string, clusterID string) (bool, error)
-	getOverrideVars(descriptor commons.DescriptorFile, credentialsMap map[string]string) (map[string][]byte, error)
+	getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error)
 }
 
 type Provider struct {
 	capxProvider     string
 	capxVersion      string
 	capxImageVersion string
+	capxManaged      bool
 	capxName         string
 	capxTemplate     string
 	capxEnvVars      []string
-	stClassName      string
+	scParameters     commons.SCParameters
+	scProvisioner    string
 	csiNamespace     string
 }
 
@@ -84,17 +86,41 @@ type Infra struct {
 	builder PBuilder
 }
 
-type StorageClassDef struct {
+type ProviderParams struct {
+	Region       string
+	Managed      bool
+	Credentials  map[string]string
+	GithubToken  string
+	StorageClass commons.StorageClass
+}
+
+type DefaultStorageClass struct {
 	APIVersion string `yaml:"apiVersion"`
 	Kind       string `yaml:"kind"`
 	Metadata   struct {
 		Annotations map[string]string `yaml:"annotations,omitempty"`
 		Name        string            `yaml:"name"`
 	} `yaml:"metadata"`
-	AllowVolumeExpansion bool                   `yaml:"allowVolumeExpansion"`
-	Provisioner          string                 `yaml:"provisioner"`
-	Parameters           map[string]interface{} `yaml:"parameters"`
-	VolumeBindingMode    string                 `yaml:"volumeBindingMode"`
+	AllowVolumeExpansion bool                 `yaml:"allowVolumeExpansion"`
+	Provisioner          string               `yaml:"provisioner"`
+	Parameters           commons.SCParameters `yaml:"parameters"`
+	VolumeBindingMode    string               `yaml:"volumeBindingMode"`
+}
+
+var scTemplate = DefaultStorageClass{
+	APIVersion: "storage.k8s.io/v1",
+	Kind:       "StorageClass",
+	Metadata: struct {
+		Annotations map[string]string `yaml:"annotations,omitempty"`
+		Name        string            `yaml:"name"`
+	}{
+		Annotations: map[string]string{
+			defaultScAnnotation: "true",
+		},
+		Name: scName,
+	},
+	AllowVolumeExpansion: true,
+	VolumeBindingMode:    "WaitForFirstConsumer",
 }
 
 func getBuilder(builderType string) PBuilder {
@@ -118,9 +144,10 @@ func newInfra(b PBuilder) *Infra {
 	}
 }
 
-func (i *Infra) buildProvider(p commons.ProviderParams) Provider {
+func (i *Infra) buildProvider(p ProviderParams) Provider {
 	i.builder.setCapx(p.Managed)
 	i.builder.setCapxEnvVars(p)
+	i.builder.setSC(p)
 	return i.builder.getProvider()
 }
 
@@ -128,8 +155,8 @@ func (i *Infra) installCSI(n nodes.Node, k string) error {
 	return i.builder.installCSI(n, k)
 }
 
-func (i *Infra) configureStorageClass(n nodes.Node, k string, sc commons.StorageClass) error {
-	return i.builder.configureStorageClass(n, k, sc)
+func (i *Infra) configureStorageClass(n nodes.Node, k string) error {
+	return i.builder.configureStorageClass(n, k)
 }
 
 func (i *Infra) internalNginx(networks commons.Networks, credentialsMap map[string]string, ClusterID string) (bool, error) {
@@ -140,8 +167,8 @@ func (i *Infra) internalNginx(networks commons.Networks, credentialsMap map[stri
 	return requiredIntenalNginx, nil
 }
 
-func (i *Infra) getOverrideVars(descriptor commons.DescriptorFile, credentialsMap map[string]string) (map[string][]byte, error) {
-	overrideVars, err := i.builder.getOverrideVars(descriptor, credentialsMap)
+func (i *Infra) getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error) {
+	overrideVars, err := i.builder.getOverrideVars(keosCluster, credentialsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +183,7 @@ func (i *Infra) getAzs(networks commons.Networks) ([]string, error) {
 	return azs, nil
 }
 
-func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile, allowCommonEgressNetPolPath string) error {
+func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, allowCommonEgressNetPolPath string) error {
 	var c string
 	var cmd exec.Cmd
 	var err error
@@ -164,7 +191,7 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	calicoTemplate := "/kind/calico-helm-values.yaml"
 
 	// Generate the calico helm values
-	calicoHelmValues, err := getManifest("common", "calico-helm-values.tmpl", descriptorFile)
+	calicoHelmValues, err := getManifest("common", "calico-helm-values.tmpl", keosCluster.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate calico helm values")
 	}
@@ -193,7 +220,7 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	}
 
 	// Wait for calico-system namespace to be created
-	c = "timeout 30s bash -c 'until kubectl --kubeconfig " + kubeconfigPath + " get ns calico-system; do sleep 2s ; done'"
+	c = "timeout 60s bash -c 'until kubectl --kubeconfig " + kubeconfigPath + " get ns calico-system; do sleep 2s ; done'"
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for calico-system namespace")
@@ -215,21 +242,19 @@ func installCalico(n nodes.Node, k string, descriptorFile commons.DescriptorFile
 	return nil
 }
 
-func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.DescriptorFile) error {
+func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 	var c string
 	var err error
 
 	coreDNSSuffix := ""
 	coreDNSTemplate := "/kind/coredns-configmap.yaml"
-	coreDNSPatchFile := "coredns"
 
 	// Generate the coredns configmap
-	if descriptorFile.InfraProvider == "azure" && descriptorFile.ControlPlane.Managed {
+	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
 		coreDNSSuffix = "-aks"
-		coreDNSPatchFile = "coredns-custom"
 	}
 
-	coreDNSConfigmap, err := getManifest(descriptorFile.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", descriptorFile)
+	coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CoreDNS file")
 	}
@@ -238,6 +263,19 @@ func customConfigCoreDNS(n nodes.Node, k string, descriptorFile commons.Descript
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to create CoreDNS configmap file")
+	}
+	return nil
+}
+
+func applyCustomCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
+	var c string
+	var err error
+
+	coreDNSTemplate := "/kind/coredns-configmap.yaml"
+	coreDNSPatchFile := "coredns"
+
+	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
+		coreDNSPatchFile = "coredns-custom"
 	}
 
 	// Patch configmap
@@ -349,13 +387,13 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 	return nil
 }
 
-func enableSelfHealing(n nodes.Node, descriptorFile commons.DescriptorFile, namespace string) error {
+func enableSelfHealing(n nodes.Node, keosCluster commons.KeosCluster, namespace string) error {
 	var c string
 	var err error
 
-	if !descriptorFile.ControlPlane.Managed {
+	if !keosCluster.Spec.ControlPlane.Managed {
 		machineRole := "-control-plane-node"
-		generateMHCManifest(n, descriptorFile.ClusterID, namespace, machineHealthCheckControlPlaneNodePath, machineRole)
+		generateMHCManifest(n, keosCluster.Metadata.Name, namespace, machineHealthCheckControlPlaneNodePath, machineRole)
 
 		c = "kubectl -n " + namespace + " apply -f " + machineHealthCheckControlPlaneNodePath
 		_, err = commons.ExecuteCommand(n, c)
@@ -365,7 +403,7 @@ func enableSelfHealing(n nodes.Node, descriptorFile commons.DescriptorFile, name
 	}
 
 	machineRole := "-worker-node"
-	generateMHCManifest(n, descriptorFile.ClusterID, namespace, machineHealthCheckWorkerNodePath, machineRole)
+	generateMHCManifest(n, keosCluster.Metadata.Name, namespace, machineHealthCheckWorkerNodePath, machineRole)
 
 	c = "kubectl -n " + namespace + " apply -f " + machineHealthCheckWorkerNodePath
 	_, err = commons.ExecuteCommand(n, c)
@@ -462,7 +500,7 @@ func GetClusterManifest(flavor string, params commons.TemplateParams, azs []stri
 		"sub":   func(a, b int) int { return a - b },
 		"split": strings.Split,
 	}
-	templatePath := filepath.Join("templates", params.Descriptor.InfraProvider, flavor)
+	templatePath := filepath.Join("templates", params.KeosCluster.Spec.InfraProvider, flavor)
 
 	var tpl bytes.Buffer
 	t, err := template.New("").Funcs(funcMap).ParseFS(ctel, templatePath)
@@ -492,87 +530,4 @@ func getManifest(parentPath string, name string, params interface{}) (string, er
 		return "", err
 	}
 	return tpl.String(), nil
-}
-
-func setStorageClassParameters(storageClass string, params map[string]string, lineToStart string) (string, error) {
-
-	paramIndex := strings.Index(storageClass, lineToStart)
-	if paramIndex == -1 {
-		return storageClass, nil
-	}
-
-	var lines []string
-	for key, value := range params {
-		line := "  " + key + ": " + value
-		lines = append(lines, line)
-	}
-
-	linesToInsert := "\n" + strings.Join(lines, "\n") + "\n"
-	newStorageClass := storageClass[:paramIndex+len(lineToStart)] + linesToInsert + storageClass[paramIndex+len(lineToStart):]
-
-	return newStorageClass, nil
-}
-
-func mergeSCParameters(params1, params2 commons.SCParameters) commons.SCParameters {
-	destValue := reflect.ValueOf(&params1).Elem()
-	srcValue := reflect.ValueOf(&params2).Elem()
-
-	for i := 0; i < srcValue.NumField(); i++ {
-		srcField := srcValue.Field(i)
-		destField := destValue.Field(i)
-
-		if srcField.IsValid() && destField.IsValid() && destField.CanSet() {
-			destFieldValue := destField.Interface()
-
-			if reflect.DeepEqual(destFieldValue, reflect.Zero(destField.Type()).Interface()) {
-				destField.Set(srcField)
-			}
-		}
-	}
-
-	return params1
-}
-
-func insertParameters(storageClass StorageClassDef, params commons.SCParameters) (string, error) {
-	paramsYAML, err := structToYAML(params)
-	if err != nil {
-		return "", err
-	}
-
-	newMap := map[string]interface{}{}
-	err = yaml.Unmarshal([]byte(paramsYAML), &newMap)
-	if err != nil {
-		return "", err
-	}
-
-	for key, value := range newMap {
-		newKey := strings.ReplaceAll(key, "_", "-")
-		storageClass.Parameters[newKey] = value
-	}
-
-	if storageClass.Provisioner == "ebs.csi.aws.com" {
-		if labels, ok := storageClass.Parameters["labels"].(string); ok && labels != "" {
-			delete(storageClass.Parameters, "labels")
-			for i, label := range strings.Split(labels, ",") {
-				key_prefix := "tagSpecification_"
-				key := key_prefix + strconv.Itoa(i)
-				storageClass.Parameters[key] = label
-			}
-		}
-	}
-
-	resultYAML, err := yaml.Marshal(storageClass)
-	if err != nil {
-		return "", err
-	}
-
-	return string(resultYAML), nil
-}
-
-func structToYAML(data interface{}) (string, error) {
-	yamlBytes, err := yaml.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-	return string(yamlBytes), nil
 }

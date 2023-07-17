@@ -6,38 +6,37 @@ import (
 	"reflect"
 	"strings"
 
-	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/kind/pkg/commons"
 )
 
 type Validator interface {
-	DescriptorFile(descriptorFile commons.DescriptorFile)
+	Spec(spec commons.Spec)
 	SecretsFile(secretFile commons.SecretsFile)
 	Validate(fileType string) error
 	CommonsValidations() error
 }
 
 type commonValidator struct {
-	descriptor commons.DescriptorFile
+	descriptor commons.Spec
 	secrets    commons.SecretsFile
 }
 
 var validator Validator
 
 func InitValidator(descriptorPath string) error {
-	descriptorFile, err := commons.GetClusterDescriptor(descriptorPath)
+	keosCluster, err := commons.GetClusterDescriptor(descriptorPath)
 	if err != nil {
 		return err
 	}
 
-	infraProvider := descriptorFile.InfraProvider
-	managed := descriptorFile.ControlPlane.Managed
+	infraProvider := keosCluster.Spec.InfraProvider
+	managed := keosCluster.Spec.ControlPlane.Managed
 	validator, err = getValidator(infraProvider, managed)
 	if err != nil {
 		return err
 	}
 
-	validator.DescriptorFile(*descriptorFile)
+	validator.Spec(keosCluster.Spec)
 	return nil
 }
 
@@ -78,10 +77,7 @@ func ExecuteCommonsValidations() error {
 func getValidator(provider string, managed bool) (Validator, error) {
 	switch provider {
 	case "aws":
-		if managed {
-			return newEKSValidator(), nil
-		}
-		return nil, errors.New("WIP in not managed AWS")
+		return newAWSValidator(managed), nil
 	case "azure":
 		return newAzureValidator(managed), nil
 	case "gcp":
@@ -94,25 +90,25 @@ func getValidator(provider string, managed bool) (Validator, error) {
 	}
 }
 
-func verifyFields(descriptor commons.DescriptorFile) error {
+func verifyFields(descriptor commons.Spec) error {
+	var supportedFields []string
 	params := descriptor.StorageClass.Parameters
-	supportedFields := []string{}
 	switch descriptor.InfraProvider {
 	case "gcp":
-		supportedFields = []string{"type", "provisioned_iops_on_create", "replication_type", "labels"}
-		err := verifyAdditionalFields(params, []string{"Type", "ProvisionedIopsOnCreate", "ReplicationType", "Labels"})
+		supportedFields = []string{"type", "fsType", "labels", "provisioned-iops-on-create", "provisioned-throughput-on-create", "replication-type"}
+		err := verifyAdditionalFields(params, []string{"Type", "FsType", "Labels", "ProvisionedIopsOnCreate", "ProvisionedThroughputOnCreate", "ReplicationType"})
 		if err != nil {
 			return errors.New(err.Error() + "Supported fields for " + descriptor.InfraProvider + ": " + strings.Join(supportedFields, ", "))
 		}
 	case "aws":
-		supportedFields = []string{"type", "iopsPerGB", "fsType", "allowAutoIOPSPerGBIncrease", "iops", "throughput", "blockExpress", "blockSize", "labels"}
-		err := verifyAdditionalFields(params, []string{"Type", "IopsPerGB", "FsType", "AllowAutoIOPSPerGBIncrease", "Iops", "Throughput", "BlockExpress", "BlockSize", "Labels"})
+		supportedFields = []string{"type", "fsType", "labels", "allowAutoIOPSPerGBIncrease", "blockExpress", "blockSize", "iops", "iopsPerGB", "encrypted", "throughput"}
+		err := verifyAdditionalFields(params, []string{"Type", "FsType", "Labels", "AllowAutoIOPSPerGBIncrease", "BlockExpress", "BlockSize", "Iops", "IopsPerGB", "Encrypted", "Throughput"})
 		if err != nil {
 			return errors.New(err.Error() + "Supported fields for " + descriptor.InfraProvider + ": " + strings.Join(supportedFields, ", "))
 		}
 	case "azure":
-		supportedFields = []string{"provisioner", "fsType", "skuName", "kind", "cachingMode", "diskEncryptionType", "resourceGroup", "tags", "networkAccessPolicy", "publicNetworkAccess", "diskAccessID", "enableBursting", "enablePerformancePlus", "subscriptionID"}
-		err := verifyAdditionalFields(params, []string{"Provisioner", "FsType", "SkuName", "Kind", "CachingMode", "DiskEncryptionType", "ResourceGroup", "Tags", "NetworkAccessPolicy", "PublicNetworkAccess", "DiskAccessID", "EnableBursting", "EnablePerformancePlus", "SubscriptionID"})
+		supportedFields = []string{"fsType", "kind", "cachingMode", "diskAccessID", "diskEncryptionType", "enableBursting", "enablePerformancePlus", "networkAccessPolicy", "provisioner", "publicNetworkAccess", "resourceGroup", "skuName", "subscriptionID", "tags"}
+		err := verifyAdditionalFields(params, []string{"FsType", "Kind", "CachingMode", "DiskAccessID", "DiskEncryptionType", "EnableBursting", "EnablePerformancePlus", "NetworkAccessPolicy", "Provisioner", "PublicNetworkAccess", "ResourceGroup", "SkuName", "SubscriptionID", "Tags"})
 		if err != nil {
 			return errors.New(err.Error() + "Supported fields for " + descriptor.InfraProvider + ": " + strings.Join(supportedFields, ", "))
 		}
@@ -157,12 +153,4 @@ func contains(list []string, item string) bool {
 		}
 	}
 	return false
-}
-
-func structToYAML(data interface{}) (string, error) {
-	yamlBytes, err := yaml.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-	return string(yamlBytes), nil
 }

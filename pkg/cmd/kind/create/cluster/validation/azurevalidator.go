@@ -31,8 +31,8 @@ func newAzureValidator(managed bool) *AzureValidator {
 	return azureInstance
 }
 
-func (v *AzureValidator) DescriptorFile(descriptorFile commons.DescriptorFile) {
-	v.descriptor = descriptorFile
+func (v *AzureValidator) Spec(spec commons.Spec) {
+	v.descriptor = spec
 }
 
 func (v *AzureValidator) SecretsFile(secrets commons.SecretsFile) {
@@ -65,32 +65,32 @@ func (v *AzureValidator) CommonsValidations() error {
 	return nil
 }
 
-func (v *AzureValidator) descriptorAzureValidations(descriptorFile commons.DescriptorFile, secretsFile commons.SecretsFile, managed bool) error {
-	err := commonsDescriptorValidation(descriptorFile)
+func (v *AzureValidator) descriptorAzureValidations(spec commons.Spec, secretsFile commons.SecretsFile, managed bool) error {
+	err := commonsDescriptorValidation(spec)
 	if err != nil {
 		return err
 	}
 	if managed {
-		err = aksVersionValidation(descriptorFile, secretsFile)
+		err = aksVersionValidation(spec, secretsFile)
 		if err != nil {
 			return err
 		}
-		err = aksNodesValidation(descriptorFile.WorkerNodes)
+		err = aksNodesValidation(spec.WorkerNodes)
 		if err != nil {
 			return err
 		}
 	}
-	err = v.storageClassValidation(descriptorFile)
+	err = v.storageClassValidation(spec)
 	if err != nil {
 		return err
 	}
 
-	if !descriptorFile.ControlPlane.Managed {
-		err = v.extraVolumesValidation(descriptorFile.ControlPlane.ExtraVolumes, "controlplane")
+	if !spec.ControlPlane.Managed {
+		err = v.extraVolumesValidation(spec.ControlPlane.ExtraVolumes, "controlplane")
 		if err != nil {
 			return err
 		}
-		for _, wn := range descriptorFile.WorkerNodes {
+		for _, wn := range spec.WorkerNodes {
 			err = v.extraVolumesValidation(wn.ExtraVolumes, "workernodes "+wn.Name)
 			if err != nil {
 				return err
@@ -109,14 +109,14 @@ func secretsAzureValidations(secretsFile commons.SecretsFile) error {
 	return nil
 }
 
-func aksVersionValidation(descriptorFile commons.DescriptorFile, secretsFile commons.SecretsFile) error {
+func aksVersionValidation(spec commons.Spec, secretsFile commons.SecretsFile) error {
 	var availableVersions []string
 	var azureSecrets commons.AzureCredentials
 
 	if secretsFile.Secrets.AZURE.Credentials != (commons.AzureCredentials{}) {
 		azureSecrets = secretsFile.Secrets.AZURE.Credentials
 	} else {
-		azureSecrets = descriptorFile.Credentials.AZURE
+		azureSecrets = spec.Credentials.AZURE
 	}
 
 	creds, err := azidentity.NewClientSecretCredential(azureSecrets.TenantID, azureSecrets.ClientID, azureSecrets.ClientSecret, nil)
@@ -128,7 +128,7 @@ func aksVersionValidation(descriptorFile commons.DescriptorFile, secretsFile com
 	if err != nil {
 		return err
 	}
-	res, err := clientFactory.NewManagedClustersClient().ListKubernetesVersions(ctx, descriptorFile.Region, nil)
+	res, err := clientFactory.NewManagedClustersClient().ListKubernetesVersions(ctx, spec.Region, nil)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func aksVersionValidation(descriptorFile commons.DescriptorFile, secretsFile com
 			}
 		}
 	}
-	if !slices.Contains(availableVersions, strings.ReplaceAll(descriptorFile.K8SVersion, "v", "")) {
+	if !slices.Contains(availableVersions, strings.ReplaceAll(spec.K8SVersion, "v", "")) {
 		a, _ := json.Marshal(availableVersions)
 		return errors.New("AKS only supports Kubernetes versions: " + string(a))
 	}
@@ -156,14 +156,14 @@ func aksNodesValidation(workerNodes commons.WorkerNodes) error {
 	return nil
 }
 
-func (v *AzureValidator) storageClassValidation(descriptorFile commons.DescriptorFile) error {
-	if descriptorFile.StorageClass.EncryptionKey != "" {
-		err := v.storageClassKeyFormatValidation(descriptorFile.StorageClass.EncryptionKey)
+func (v *AzureValidator) storageClassValidation(spec commons.Spec) error {
+	if spec.StorageClass.EncryptionKey != "" {
+		err := v.storageClassKeyFormatValidation(spec.StorageClass.EncryptionKey)
 		if err != nil {
 			return errors.New("Error in StorageClass: " + err.Error())
 		}
 	}
-	err := v.storageClassParametersValidation(descriptorFile)
+	err := v.storageClassParametersValidation(spec)
 	if err != nil {
 		return errors.New("Error in StorageClass: " + err.Error())
 	}
@@ -174,29 +174,29 @@ func (v *AzureValidator) storageClassValidation(descriptorFile commons.Descripto
 func (v *AzureValidator) storageClassKeyFormatValidation(key string) error {
 	regex := regexp.MustCompile(`^/subscriptions/[a-fA-F0-9-]+/resourceGroups/[\w.-]+/providers/Microsoft\.Compute/diskEncryptionSets/[\w.-]+$`)
 	if !regex.MatchString(key) {
-		return errors.New("Incorrect encryptionKey format. It must have the format /subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.ManagedIdentity/diskEncryptionSets/[DISK_ENCRYPION_SETS_NAME]")
+		return errors.New("incorrect encryptionKey format. It must have the format /subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.ManagedIdentity/diskEncryptionSets/[DISK_ENCRYPION_SETS_NAME]")
 	}
 	return nil
 }
 
-func (v *AzureValidator) storageClassParametersValidation(descriptorFile commons.DescriptorFile) error {
-	sc := descriptorFile.StorageClass
-	err := verifyFields(descriptorFile)
+func (v *AzureValidator) storageClassParametersValidation(spec commons.Spec) error {
+	sc := spec.StorageClass
+	err := verifyFields(spec)
 	fstypes := []string{"xfs", "ext3", "ext4", "ext2", "btrfs"}
 	if err != nil {
 		return err
 	}
 	if sc.Parameters.SkuName != "" && !slices.Contains(provisionersTypesAzure, sc.Parameters.SkuName) {
-		return errors.New("Unsupported skuname: " + sc.Parameters.SkuName)
+		return errors.New("unsupported skuname: " + sc.Parameters.SkuName)
 	}
 	if sc.Parameters.FsType != "" && !slices.Contains(fstypes, sc.Parameters.FsType) {
-		return errors.New("Unsupported fsType: " + sc.Parameters.FsType + ". Supported types: " + fmt.Sprint(strings.Join(fstypes, ", ")))
+		return errors.New("unsupported fsType: " + sc.Parameters.FsType + ". Supported types: " + fmt.Sprint(strings.Join(fstypes, ", ")))
 	}
 	if sc.Parameters.CachingMode != "" && sc.Parameters.SkuName == "PremiumV2_LRS" && sc.Parameters.CachingMode != "none" {
-		return errors.New("With skuName: PremiumV2_LRS, CachingMode only can be none")
+		return errors.New("with skuName: PremiumV2_LRS, CachingMode only can be none")
 	}
 	if sc.Parameters.DiskEncryptionSetID != "" {
-		err := v.storageClassKeyFormatValidation(descriptorFile.StorageClass.Parameters.DiskEncryptionKmsKey)
+		err := v.storageClassKeyFormatValidation(spec.StorageClass.Parameters.DiskEncryptionKmsKey)
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (v *AzureValidator) storageClassParametersValidation(descriptorFile commons
 		regex := regexp.MustCompile(`^(\w+|.*)=(\w+|.*)$`)
 		for _, tag := range tags {
 			if !regex.MatchString(tag) {
-				return errors.New("Incorrect labels format. Labels must have the format 'key1=value1,key2=value2'.")
+				return errors.New("incorrect labels format. Labels must have the format 'key1=value1,key2=value2'")
 			}
 		}
 	}
@@ -218,12 +218,12 @@ func (v *AzureValidator) storageClassParametersValidation(descriptorFile commons
 func (v *AzureValidator) extraVolumesValidation(extraVolumes []commons.ExtraVolume, nodeRole string) error {
 	for i, ev := range extraVolumes {
 		if ev.Name == "" {
-			return errors.New("All  extravolumes must have their own name in " + nodeRole + ".")
+			return errors.New("all  extravolumes must have their own name in " + nodeRole + ".")
 		}
 		name1 := ev.Name
 		for _, ev2 := range extraVolumes[i+1:] {
 			if name1 == ev2.Name {
-				return errors.New("There can be no more than 1 extravolume with the same name in " + nodeRole + ".")
+				return errors.New("there can be no more than 1 extravolume with the same name in " + nodeRole + ".")
 			}
 		}
 

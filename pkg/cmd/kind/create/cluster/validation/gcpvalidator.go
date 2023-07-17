@@ -16,8 +16,6 @@ type GCPValidator struct {
 	commonValidator
 }
 
-var supportedProvisioners = []string{"pd.csi.storage.gke.io"}
-
 var provisionersTypesGCP = []string{"pd-balanced", "pd-ssd", "pd-standard", "pd-extreme"}
 
 func NewGCPValidator() *GCPValidator {
@@ -27,8 +25,8 @@ func NewGCPValidator() *GCPValidator {
 	return gcpInstance
 }
 
-func (v *GCPValidator) DescriptorFile(descriptorFile commons.DescriptorFile) {
-	v.descriptor = descriptorFile
+func (v *GCPValidator) Spec(spec commons.Spec) {
+	v.descriptor = spec
 }
 
 func (v *GCPValidator) SecretsFile(secrets commons.SecretsFile) {
@@ -48,7 +46,7 @@ func (v *GCPValidator) Validate(fileType string) error {
 			return err
 		}
 	default:
-		return errors.New("Incorrect filetype validation")
+		return errors.New("incorrect filetype validation")
 	}
 	return nil
 }
@@ -61,12 +59,12 @@ func (v *GCPValidator) CommonsValidations() error {
 	return nil
 }
 
-func (v *GCPValidator) descriptorGcpValidations(descriptorFile commons.DescriptorFile) error {
-	err := commonsDescriptorValidation(descriptorFile)
+func (v *GCPValidator) descriptorGcpValidations(spec commons.Spec) error {
+	err := commonsDescriptorValidation(spec)
 	if err != nil {
 		return err
 	}
-	err = v.storageClassValidation(descriptorFile)
+	err = v.storageClassValidation(spec)
 	if err != nil {
 		return err
 	}
@@ -81,15 +79,15 @@ func secretsGcpValidations(secretsFile commons.SecretsFile) error {
 	return nil
 }
 
-func (v *GCPValidator) storageClassValidation(descriptorFile commons.DescriptorFile) error {
-	if descriptorFile.StorageClass.EncryptionKey != "" {
-		err := v.storageClassKeyFormatValidation(descriptorFile.StorageClass.EncryptionKey)
+func (v *GCPValidator) storageClassValidation(spec commons.Spec) error {
+	if spec.StorageClass.EncryptionKey != "" {
+		err := v.storageClassKeyFormatValidation(spec.StorageClass.EncryptionKey)
 		if err != nil {
 			return errors.New("Error in StorageClass: " + err.Error())
 		}
 	}
 
-	err := v.storageClassParametersValidation(descriptorFile)
+	err := v.storageClassParametersValidation(spec)
 	if err != nil {
 		return errors.New("Error in StorageClass: " + err.Error())
 	}
@@ -100,44 +98,44 @@ func (v *GCPValidator) storageClassValidation(descriptorFile commons.DescriptorF
 func (v *GCPValidator) storageClassKeyFormatValidation(key string) error {
 	regex := regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`)
 	if !regex.MatchString(key) {
-		return errors.New("Incorrect encryptionKey format. It must have the format projects/[PROJECT_ID]/locations/[REGION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]")
+		return errors.New("incorrect encryptionKey format. It must have the format projects/[PROJECT_ID]/locations/[REGION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]")
 	}
 	return nil
 }
 
-func (v *GCPValidator) storageClassParametersValidation(descriptorFile commons.DescriptorFile) error {
-	sc := descriptorFile.StorageClass
-	k8s_version := descriptorFile.K8SVersion
+func (v *GCPValidator) storageClassParametersValidation(spec commons.Spec) error {
+	sc := spec.StorageClass
+	k8s_version := spec.K8SVersion
 	minor, _ := strconv.Atoi(strings.Split(k8s_version, ".")[1])
-	err := verifyFields(descriptorFile)
+	err := verifyFields(spec)
 	if err != nil {
 		return err
 	}
 	if sc.Parameters.Type != "" && !slices.Contains(provisionersTypesGCP, sc.Parameters.Type) {
-		return errors.New("Unsupported type: " + sc.Parameters.Type)
+		return errors.New("unsupported type: " + sc.Parameters.Type)
 	}
 	replicationTypeRegex := regexp.MustCompile(`^(none|regional-pd)$`)
 	if sc.Parameters.ReplicationType != "" && !replicationTypeRegex.MatchString(sc.Parameters.ReplicationType) {
-		return errors.New("Incorrect replication_type. Supported values are none or regional-pd")
+		return errors.New("incorrect replication_type. Supported values are none or regional-pd")
 	}
 	if sc.Parameters.Type == "pd-extreme" && minor < 26 {
-		return errors.New("StorageClass Type pd-extreme is only supported by kubernetes versions v1.26.0 and higher")
+		return errors.New("storageClass Type pd-extreme is only supported by kubernetes versions v1.26.0 and higher")
 	}
 	if sc.Parameters.Type != "pd-extreme" && sc.Parameters.ProvisionedIopsOnCreate != "" {
-		return errors.New("Parameter provisioned_iops_on_create only can be supported for type pd-extreme")
+		return errors.New("parameter provisioned_iops_on_create only can be supported for type pd-extreme")
 	}
 
 	if sc.Parameters.ProvisionedIopsOnCreate != "" {
 		_, err = strconv.Atoi(sc.Parameters.ProvisionedIopsOnCreate)
 		if err != nil {
-			return errors.New("Parameter provisioned_iops_on_create must be an integer")
+			return errors.New("parameter provisioned_iops_on_create must be an integer")
 		}
 	}
 
-	if descriptorFile.StorageClass.Parameters.DiskEncryptionKmsKey != "" {
-		err := v.storageClassKeyFormatValidation(descriptorFile.StorageClass.Parameters.DiskEncryptionKmsKey)
+	if spec.StorageClass.Parameters.DiskEncryptionKmsKey != "" {
+		err := v.storageClassKeyFormatValidation(spec.StorageClass.Parameters.DiskEncryptionKmsKey)
 		if err != nil {
-			return errors.New("Error in StorageClass: " + err.Error())
+			return errors.New("error in StorageClass: " + err.Error())
 		}
 	}
 
@@ -146,7 +144,7 @@ func (v *GCPValidator) storageClassParametersValidation(descriptorFile commons.D
 		regex := regexp.MustCompile(`^(\w+|.*)=(\w+|.*)$`)
 		for _, label := range labels {
 			if !regex.MatchString(label) {
-				return errors.New("Incorrect labels format. Labels must have the format 'key1=value1,key2=value2'")
+				return errors.New("incorrect labels format. Labels must have the format 'key1=value1,key2=value2'")
 			}
 		}
 	}

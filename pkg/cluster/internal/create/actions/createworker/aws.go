@@ -18,9 +18,11 @@ package createworker
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
-	"io/ioutil"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -30,49 +32,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"golang.org/x/exp/slices"
+	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
-var defaultAWSSc = "gp2"
-
-var storageClassAWSTemplate = StorageClassDef{
-	APIVersion: "storage.k8s.io/v1",
-	Kind:       "StorageClass",
-	Metadata: struct {
-		Annotations map[string]string `yaml:"annotations,omitempty"`
-		Name        string            `yaml:"name"`
-	}{
-		Annotations: map[string]string{
-			"storageclass.kubernetes.io/is-default-class": "true",
-		},
-		Name: "keos",
-	},
-	AllowVolumeExpansion: true,
-	Provisioner:          "ebs.csi.aws.com",
-	Parameters:           make(map[string]interface{}),
-	VolumeBindingMode:    "WaitForFirstConsumer",
-}
-
-var standardAWSParameters = commons.SCParameters{
-	Type: "gp3",
-}
-
-var premiumAWSParameters = commons.SCParameters{
-	Type: "io2",
-	Iops: "64000",
-}
+//go:embed files/aws/internal-ingress-nginx.yaml
+var awsInternalIngress []byte
 
 type AWSBuilder struct {
 	capxProvider     string
 	capxVersion      string
 	capxImageVersion string
+	capxManaged      bool
 	capxName         string
 	capxTemplate     string
 	capxEnvVars      []string
-	stClassName      string
+	scParameters     commons.SCParameters
+	scProvisioner    string
 	csiNamespace     string
 }
 
@@ -82,20 +61,22 @@ func newAWSBuilder() *AWSBuilder {
 
 func (b *AWSBuilder) setCapx(managed bool) {
 	b.capxProvider = "aws"
-	b.capxVersion = "v2.1.4"
-	b.capxImageVersion = "2.1.4-0.4.0"
+	b.capxVersion = "v2.2.0"
+	b.capxImageVersion = "v2.2.0"
 	b.capxName = "capa"
-	b.stClassName = "keos"
+
+	b.csiNamespace = "kube-system"
+
 	if managed {
+		b.capxManaged = true
 		b.capxTemplate = "aws.eks.tmpl"
-		b.csiNamespace = ""
 	} else {
+		b.capxManaged = false
 		b.capxTemplate = "aws.tmpl"
-		b.csiNamespace = ""
 	}
 }
 
-func (b *AWSBuilder) setCapxEnvVars(p commons.ProviderParams) {
+func (b *AWSBuilder) setCapxEnvVars(p ProviderParams) {
 	awsCredentials := "[default]\naws_access_key_id = " + p.Credentials["AccessKey"] + "\naws_secret_access_key = " + p.Credentials["SecretKey"] + "\nregion = " + p.Region + "\n"
 	b.capxEnvVars = []string{
 		"AWS_REGION=" + p.Region,
@@ -109,20 +90,55 @@ func (b *AWSBuilder) setCapxEnvVars(p commons.ProviderParams) {
 	}
 }
 
+func (b *AWSBuilder) setSC(p ProviderParams) {
+	if (p.StorageClass.Parameters != commons.SCParameters{}) {
+		b.scParameters = p.StorageClass.Parameters
+	}
+
+	b.scProvisioner = "ebs.csi.aws.com"
+
+	if b.scParameters.Type == "" {
+		if p.StorageClass.Class == "premium" {
+			b.scParameters.Type = "io2"
+			b.scParameters.IopsPerGB = "64000"
+		} else {
+			b.scParameters.Type = "gp3"
+		}
+	}
+
+	if p.StorageClass.EncryptionKey != "" {
+		b.scParameters.Encrypted = "true"
+		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
+	}
+}
+
 func (b *AWSBuilder) getProvider() Provider {
 	return Provider{
 		capxProvider:     b.capxProvider,
 		capxVersion:      b.capxVersion,
 		capxImageVersion: b.capxImageVersion,
+		capxManaged:      b.capxManaged,
 		capxName:         b.capxName,
 		capxTemplate:     b.capxTemplate,
 		capxEnvVars:      b.capxEnvVars,
-		stClassName:      b.stClassName,
+		scParameters:     b.scParameters,
+		scProvisioner:    b.scProvisioner,
 		csiNamespace:     b.csiNamespace,
 	}
 }
 
 func (b *AWSBuilder) installCSI(n nodes.Node, k string) error {
+	var c string
+	var err error
+
+	c = "helm install aws-ebs-csi-driver /stratio/helm/aws-ebs-csi-driver" +
+		" --kubeconfig " + k +
+		" --namespace " + b.csiNamespace
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy AWS EBS CSI driver Helm Chart")
+	}
+
 	return nil
 }
 
@@ -216,7 +232,7 @@ func (b *AWSBuilder) getAzs(networks commons.Networks) ([]string, error) {
 	}
 }
 
-func (b *AWSBuilder) internalNginx(networks commons.Networks, credentialsMap map[string]string, ClusterID string) (bool, error) {
+func (b *AWSBuilder) internalNginx(networks commons.Networks, credentialsMap map[string]string, clusterName string) (bool, error) {
 	if len(b.capxEnvVars) == 0 {
 		return false, errors.New("Insufficient credentials.")
 	}
@@ -310,7 +326,7 @@ func filterPublicSubnet(svc *ec2.EC2, subnetID *string) (string, error) {
 	}
 }
 
-func getEcrToken(p commons.ProviderParams) (string, error) {
+func getEcrToken(p ProviderParams) (string, error) {
 	customProvider := credentials.NewStaticCredentialsProvider(
 		p.Credentials["AccessKey"], p.Credentials["SecretKey"], "",
 	)
@@ -337,88 +353,83 @@ func getEcrToken(p commons.ProviderParams) (string, error) {
 	return parts[1], nil
 }
 
-func (b *AWSBuilder) configureStorageClass(n nodes.Node, k string, sc commons.StorageClass) error {
+func (b *AWSBuilder) configureStorageClass(n nodes.Node, k string) error {
+	var c string
+	var err error
 	var cmd exec.Cmd
 
-	cmd = n.Command("kubectl", "--kubeconfig", k, "delete", "storageclass", defaultAWSSc)
-	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "failed to delete default StorageClass")
+	if b.capxManaged {
+		// Remove annotation from default storage class
+		c = "kubectl --kubeconfig " + k + " get sc | grep '(default)' | awk '{print $1}'"
+		output, err := commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to get default storage class")
+		}
+		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
+			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove annotation from default storage class")
+			}
+		}
 	}
 
-	params := b.getParameters(sc)
+	scTemplate.Parameters = b.scParameters
+	scTemplate.Provisioner = b.scProvisioner
 
-	storageClass, err := insertParameters(storageClassAWSTemplate, params)
+	scBytes, err := yaml.Marshal(scTemplate)
 	if err != nil {
 		return err
 	}
+	storageClass := strings.Replace(string(scBytes), "fsType", "csi.storage.k8s.io/fstype", -1)
 
-	storageClass = strings.ReplaceAll(storageClass, "fsType", "csi.storage.k8s.io/fstype")
+	if b.scParameters.Labels != "" {
+		var tags string
+		re := regexp.MustCompile(`\s*labels: (.*,?)`)
+		labels := re.FindStringSubmatch(storageClass)[1]
+		for i, label := range strings.Split(labels, ",") {
+			tags += "\n    tagSpecification_" + strconv.Itoa(i+1) + ": \"" + strings.TrimSpace(label) + "\""
+		}
+		storageClass = re.ReplaceAllString(storageClass, tags)
+	}
 
 	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
 	if err = cmd.SetStdin(strings.NewReader(storageClass)).Run(); err != nil {
-		return errors.Wrap(err, "failed to create StorageClass")
+		return errors.Wrap(err, "failed to create default storage class")
 	}
+
 	return nil
-
 }
 
-func (b *AWSBuilder) getParameters(sc commons.StorageClass) commons.SCParameters {
-	if sc.EncryptionKey != "" {
-		sc.Parameters.Encrypted = "true"
-		sc.Parameters.KmsKeyId = sc.EncryptionKey
-	}
-	switch class := sc.Class; class {
-	case "standard":
-		return mergeSCParameters(sc.Parameters, standardAWSParameters)
-	case "premium":
-		return mergeSCParameters(sc.Parameters, premiumAWSParameters)
-	default:
-		return mergeSCParameters(sc.Parameters, standardAWSParameters)
-	}
-}
-
-func (b *AWSBuilder) getOverrideVars(descriptor commons.DescriptorFile, credentialsMap map[string]string) (map[string][]byte, error) {
+func (b *AWSBuilder) getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error) {
 	overrideVars := map[string][]byte{}
-	InternalNginxOVPath, InternalNginxOVValue, err := b.getInternalNginxOverrideVars(descriptor.Networks, credentialsMap, descriptor.ClusterID)
+	InternalNginxOVPath, InternalNginxOVValue, err := b.getInternalNginxOverrideVars(keosCluster.Spec.Networks, credentialsMap, keosCluster.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
-	pvcSizeOVPath, pvcSizeOVValue, err := b.getPvcSizeOverrideVars(descriptor.StorageClass)
-	if err != nil {
-		return nil, err
-	}
+
 	overrideVars = addOverrideVar(InternalNginxOVPath, InternalNginxOVValue, overrideVars)
-	overrideVars = addOverrideVar(pvcSizeOVPath, pvcSizeOVValue, overrideVars)
+
+	// Add override vars for storage class
+	if commons.Contains([]string{"io1", "io2"}, b.scParameters.Type) {
+		overrideVars = addOverrideVar("storage-class.yaml", []byte("storage_class_pvc_size: 4Gi"), overrideVars)
+	}
+	if commons.Contains([]string{"st1", "sc1"}, b.scParameters.Type) {
+		overrideVars = addOverrideVar("storage-class.yaml", []byte("storage_class_pvc_size: 125Gi"), overrideVars)
+	}
 
 	return overrideVars, nil
 }
 
-func (b *AWSBuilder) getPvcSizeOverrideVars(sc commons.StorageClass) (string, []byte, error) {
-	if (sc.Class == "premium" && sc.Parameters.Type == "") || sc.Parameters.Type == "io2" || sc.Parameters.Type == "io1" {
-		return "storage-class.yaml", []byte("storage_class_pvc_size: 4Gi"), nil
-	}
-	return "", []byte(""), nil
-}
-
-func (b *AWSBuilder) getInternalNginxOverrideVars(networks commons.Networks, credentialsMap map[string]string, ClusterID string) (string, []byte, error) {
-	requiredInternalNginx, err := b.internalNginx(networks, credentialsMap, ClusterID)
+func (b *AWSBuilder) getInternalNginxOverrideVars(networks commons.Networks, credentialsMap map[string]string, clusterName string) (string, []byte, error) {
+	requiredInternalNginx, err := b.internalNginx(networks, credentialsMap, clusterName)
 	if err != nil {
 		return "", nil, err
 	}
 
 	if requiredInternalNginx {
-		internalIngressFilePath := "files/" + b.capxProvider + "/internal-ingress-nginx.yaml"
-		internalIngressFile, err := internalIngressFiles.Open(internalIngressFilePath)
-		if err != nil {
-			return "", nil, errors.Wrap(err, "error opening the internal ingress nginx file")
-		}
-		defer internalIngressFile.Close()
-
-		internalIngressContent, err := ioutil.ReadAll(internalIngressFile)
-		if err != nil {
-			return "", nil, errors.Wrap(err, "error reading the internal ingress nginx file")
-		}
-		return "ingress-nginx.yaml", internalIngressContent, nil
+		return "ingress-nginx.yaml", awsInternalIngress, nil
 	}
+
 	return "", []byte(""), nil
 }

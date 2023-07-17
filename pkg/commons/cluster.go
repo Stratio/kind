@@ -36,16 +36,23 @@ type Resource struct {
 	Spec       map[string]interface{} `yaml:"spec"`
 }
 
-type K8sObject struct {
-	APIVersion string         `yaml:"apiVersion" validate:"required"`
-	Kind       string         `yaml:"kind" validate:"required"`
-	Spec       DescriptorFile `yaml:"spec" validate:"required,dive"`
+type KeosCluster struct {
+	APIVersion string   `yaml:"apiVersion" validate:"required"`
+	Kind       string   `yaml:"kind" validate:"required"`
+	Metadata   Metadata `yaml:"metadata" validate:"required,dive"`
+	Spec       Spec     `yaml:"spec" validate:"required,dive"`
 }
 
-// DescriptorFile represents the YAML structure in the spec field of the descriptor file
-type DescriptorFile struct {
-	ClusterID        string `yaml:"cluster_id" validate:"required,min=3,max=100"`
-	DeployAutoscaler bool   `yaml:"deploy_autoscaler" validate:"boolean"`
+type Metadata struct {
+	Name        string            `json:"name,omitempty" validate:"required,min=3,max=100"`
+	Namespace   string            `json:"namespace,omitempty" `
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// Spec represents the YAML structure in the spec field of the descriptor file
+type Spec struct {
+	DeployAutoscaler bool `yaml:"deploy_autoscaler" validate:"boolean"`
 
 	Bastion Bastion `yaml:"bastion"`
 
@@ -118,7 +125,8 @@ type Subnets struct {
 }
 
 type AWSCP struct {
-	AssociateOIDCProvider bool `yaml:"associate_oidc_provider" validate:"boolean"`
+	AssociateOIDCProvider bool   `yaml:"associate_oidc_provider" validate:"boolean"`
+	EncryptionKey         string `yaml:"encryption_key"`
 	Logging               struct {
 		ApiServer         bool `yaml:"api_server" validate:"boolean"`
 		Audit             bool `yaml:"audit" validate:"boolean"`
@@ -217,7 +225,7 @@ type DockerRegistry struct {
 }
 
 type TemplateParams struct {
-	Descriptor       DescriptorFile
+	KeosCluster      KeosCluster
 	Credentials      map[string]string
 	DockerRegistries []map[string]interface{}
 }
@@ -253,13 +261,6 @@ type EFS struct {
 	Permissions string `yaml:"permissions,omitempty"`
 }
 
-type ProviderParams struct {
-	Region      string
-	Managed     bool
-	Credentials map[string]string
-	GithubToken string
-}
-
 type StorageClass struct {
 	EFS           EFS          `yaml:"efs"`
 	EncryptionKey string       `yaml:"encryptionKey,omitempty"  validate:"omitempty"`
@@ -268,83 +269,87 @@ type StorageClass struct {
 }
 
 type SCParameters struct {
-	Type string `yaml:"type,omitempty" validate:"omitempty"`
+	// Common
+	Type   string `yaml:"type,omitempty" validate:"omitempty"`
+	FsType string `yaml:"fsType,omitempty"  validate:"omitempty"`
+	Labels string `yaml:"labels,omitempty"  validate:"omitempty"`
 
-	ProvisionedIopsOnCreate string `yaml:"provisioned_iops_on_create,omitempty"  validate:"omitempty"`
-	ReplicationType         string `yaml:"replication_type,omitempty" validate:"omitempty,oneof='none' 'regional-pd'"`
-	DiskEncryptionKmsKey    string `yaml:"disk_encryption_kms_key,omitempty"  validate:"omitempty"`
-	Labels                  string `yaml:"labels,omitempty"  validate:"omitempty"`
-
-	IopsPerGB                  string `yaml:"iopsPerGB,omitempty" validate:"omitempty,excluded_with=Iops"`
-	FsType                     string `yaml:"fsType,omitempty"  validate:"omitempty"`
-	KmsKeyId                   string `yaml:"kmsKeyId,omitempty"  validate:"omitempty"`
+	// AWS
 	AllowAutoIOPSPerGBIncrease string `yaml:"allowAutoIOPSPerGBIncrease,omitempty" validate:"omitempty,oneof='true' 'false'"`
-	Iops                       string `yaml:"iops,omitempty" validate:"omitempty,excluded_with=IopsPerGB"`
-	Throughput                 int    `yaml:"throughput,omitempty" validate:"omitempty,gt=0"`
-	Encrypted                  string `yaml:"encrypted,omitempty" validate:"omitempty,oneof='true' 'false'"`
 	BlockExpress               string `yaml:"blockExpress,omitempty" validate:"omitempty,oneof='true' 'false'"`
 	BlockSize                  string `yaml:"blockSize,omitempty" validate:"omitempty"`
+	Iops                       string `yaml:"iops,omitempty" validate:"omitempty,excluded_with=IopsPerGB"`
+	IopsPerGB                  string `yaml:"iopsPerGB,omitempty" validate:"omitempty,excluded_with=Iops"`
+	Encrypted                  string `yaml:"encrypted,omitempty" validate:"omitempty,oneof='true' 'false'"`
+	KmsKeyId                   string `yaml:"kmsKeyId,omitempty" validate:"omitempty"`
+	Throughput                 int    `yaml:"throughput,omitempty" validate:"omitempty,gt=0"`
 
-	Provisioner           string `yaml:"provisioner,omitempty" validate:"omitempty,oneof='disk.csi.azure.com' 'file.csi.azure.com"`
-	SkuName               string `yaml:"skuName,omitempty" validate:"omitempty"`
-	Kind                  string `yaml:"kind,omitempty" validate:"omitempty,oneof='managed'"`
+	// Azure
 	CachingMode           string `yaml:"cachingMode,omitempty" validate:"omitempty,oneof='None' 'ReadOnly'"`
-	DiskEncryptionType    string `yaml:"diskEncryptionType,omitempty" validate:"omitempty,oneof='EncryptionAtRestWithCustomerKey' 'EncryptionAtRestWithPlatformAndCustomerKeys'"`
-	DiskEncryptionSetID   string `yaml:"diskEncryptionSetID,omitempty" validate:"omitempty"`
-	ResourceGroup         string `yaml:"resourceGroup,omitempty" validate:"omitempty"`
-	Tags                  string `yaml:"tags,omitempty"  validate:"omitempty"`
-	NetworkAccessPolicy   string `yaml:"networkAccessPolicy,omitempty"  validate:"omitempty,oneof='AllowAll' 'DenyAll' 'AllowPrivate'"`
-	PublicNetworkAccess   string `yaml:"publicNetworkAccess,omitempty" validate:"omitempty,oneof='Enabled' 'Disabled'"`
 	DiskAccessID          string `yaml:"diskAccessID,omitempty" validate:"omitempty"`
+	DiskEncryptionSetID   string `yaml:"diskEncryptionSetID,omitempty" validate:"omitempty"`
+	DiskEncryptionType    string `yaml:"diskEncryptionType,omitempty" validate:"omitempty,oneof='EncryptionAtRestWithCustomerKey' 'EncryptionAtRestWithPlatformAndCustomerKeys'"`
 	EnableBursting        string `yaml:"enableBursting,omitempty" validate:"omitempty,oneof='true' 'false'"`
 	EnablePerformancePlus string `yaml:"enablePerformancePlus,omitempty" validate:"omitempty,oneof='true' 'false'"`
+	Kind                  string `yaml:"kind,omitempty" validate:"omitempty,oneof='managed'"`
+	NetworkAccessPolicy   string `yaml:"networkAccessPolicy,omitempty" validate:"omitempty,oneof='AllowAll' 'DenyAll' 'AllowPrivate'"`
+	Provisioner           string `yaml:"provisioner,omitempty" validate:"omitempty,oneof='disk.csi.azure.com' 'file.csi.azure.com"`
+	PublicNetworkAccess   string `yaml:"publicNetworkAccess,omitempty" validate:"omitempty,oneof='Enabled' 'Disabled'"`
+	ResourceGroup         string `yaml:"resourceGroup,omitempty" validate:"omitempty"`
+	SkuName               string `yaml:"skuName,omitempty" validate:"omitempty"`
 	SubscriptionID        string `yaml:"subscriptionID,omitempty" validate:"omitempty"`
+	Tags                  string `yaml:"tags,omitempty" validate:"omitempty"`
+
+	// GCP
+	DiskEncryptionKmsKey          string `yaml:"disk-encryption-kms-key,omitempty" validate:"omitempty"`
+	ProvisionedIopsOnCreate       string `yaml:"provisioned-iops-on-create,omitempty" validate:"omitempty"`
+	ProvisionedThroughputOnCreate string `yaml:"provisioned-throughput-on-create,omitempty" validate:"omitempty"`
+	ReplicationType               string `yaml:"replication-type,omitempty" validate:"omitempty,oneof='none' 'regional-pd'"`
 }
 
-// Init sets default values for the DescriptorFile
-func (d DescriptorFile) Init() DescriptorFile {
-	d.ControlPlane.HighlyAvailable = true
+// Init sets default values for the Spec
+func (s Spec) Init() Spec {
+	s.ControlPlane.HighlyAvailable = true
 
 	// AKS
-	d.ControlPlane.Azure.Tier = "Paid"
+	s.ControlPlane.Azure.Tier = "Paid"
 
 	// Autoscaler
-	d.DeployAutoscaler = true
+	s.DeployAutoscaler = true
 
 	// EKS
-	d.Security.AWS.CreateIAM = true
-	d.ControlPlane.AWS.AssociateOIDCProvider = true
-	d.ControlPlane.AWS.Logging.ApiServer = false
-	d.ControlPlane.AWS.Logging.Audit = false
-	d.ControlPlane.AWS.Logging.Authenticator = false
-	d.ControlPlane.AWS.Logging.ControllerManager = false
-	d.ControlPlane.AWS.Logging.Scheduler = false
+	s.Security.AWS.CreateIAM = true
+	s.ControlPlane.AWS.AssociateOIDCProvider = true
+	s.ControlPlane.AWS.Logging.ApiServer = false
+	s.ControlPlane.AWS.Logging.Audit = false
+	s.ControlPlane.AWS.Logging.Authenticator = false
+	s.ControlPlane.AWS.Logging.ControllerManager = false
+	s.ControlPlane.AWS.Logging.Scheduler = false
 
 	// Managed zones
-	d.Dns.ManageZone = true
+	s.Dns.ManageZone = true
 
-	return d
+	return s
 }
 
 // Read descriptor file
-func GetClusterDescriptor(descriptorPath string) (*DescriptorFile, error) {
+func GetClusterDescriptor(descriptorPath string) (*KeosCluster, error) {
 	_, err := os.Stat(descriptorPath)
 	if err != nil {
 		return nil, errors.New("No exists any cluster descriptor as " + descriptorPath)
 	}
-	var k8sStruct K8sObject
+	var keosCluster KeosCluster
 
 	descriptorRAW, err := os.ReadFile(descriptorPath)
 	if err != nil {
 		return nil, err
 	}
 
-	k8sStruct.Spec = new(DescriptorFile).Init()
-	err = yaml.Unmarshal(descriptorRAW, &k8sStruct)
+	keosCluster.Spec = new(Spec).Init()
+	err = yaml.Unmarshal(descriptorRAW, &keosCluster)
 	if err != nil {
 		return nil, err
 	}
-	descriptorFile := k8sStruct.Spec
 	validate := validator.New()
 
 	validate.RegisterCustomTypeFunc(CustomTypeAWSCredsFunc, AWSCredentials{})
@@ -353,11 +358,11 @@ func GetClusterDescriptor(descriptorPath string) (*DescriptorFile, error) {
 	validate.RegisterValidation("lte_param_if_exists", lteParamIfExists)
 	validate.RegisterValidation("required_if_for_bool", requiredIfForBool)
 
-	err = validate.Struct(descriptorFile)
+	err = validate.Struct(keosCluster)
 	if err != nil {
 		return nil, err
 	}
-	return &descriptorFile, nil
+	return &keosCluster, nil
 }
 
 func DecryptFile(filePath string, vaultPassword string) (string, error) {

@@ -21,7 +21,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,6 +31,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v3"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
+	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -41,40 +41,19 @@ import (
 //go:embed files/azure/azure-storage-classes.yaml
 var azureStorageClasses string
 
-var storageClassAZTemplate = StorageClassDef{
-	APIVersion: "storage.k8s.io/v1",
-	Kind:       "StorageClass",
-	Metadata: struct {
-		Annotations map[string]string `yaml:"annotations,omitempty"`
-		Name        string            `yaml:"name"`
-	}{
-		Annotations: map[string]string{
-			defaultScAnnotation: "true",
-		},
-		Name: "keos",
-	},
-	AllowVolumeExpansion: true,
-	Provisioner:          "disk.csi.azure.com",
-	Parameters:           make(map[string]interface{}),
-	VolumeBindingMode:    "WaitForFirstConsumer",
-}
-
-var standardAZParameters = commons.SCParameters{
-	SkuName: "StandardSSD_LRS",
-}
-
-var premiumAZParameters = commons.SCParameters{
-	SkuName: "Premium_LRS",
-}
+//go:embed files/azure/internal-ingress-nginx.yaml
+var azureInternalIngress []byte
 
 type AzureBuilder struct {
 	capxProvider     string
 	capxVersion      string
 	capxImageVersion string
+	capxManaged      bool
 	capxName         string
 	capxTemplate     string
 	capxEnvVars      []string
-	stClassName      string
+	scParameters     commons.SCParameters
+	scProvisioner    string
 	csiNamespace     string
 }
 
@@ -87,16 +66,44 @@ func (b *AzureBuilder) setCapx(managed bool) {
 	b.capxVersion = "v1.9.3"
 	b.capxImageVersion = "v1.9.3"
 	b.capxName = "capz"
-	b.stClassName = "keos"
+
 	b.csiNamespace = "kube-system"
+
 	if managed {
+		b.capxManaged = true
 		b.capxTemplate = "azure.aks.tmpl"
 	} else {
+		b.capxManaged = false
 		b.capxTemplate = "azure.tmpl"
 	}
 }
 
-func (b *AzureBuilder) setCapxEnvVars(p commons.ProviderParams) {
+func (b *AzureBuilder) setSC(p ProviderParams) {
+	if (p.StorageClass.Parameters != commons.SCParameters{}) {
+		b.scParameters = p.StorageClass.Parameters
+	}
+
+	if b.scParameters.Provisioner == "" {
+		b.scProvisioner = "disk.csi.azure.com"
+	} else {
+		b.scProvisioner = b.scParameters.Provisioner
+		b.scParameters.Provisioner = ""
+	}
+
+	if b.scParameters.SkuName == "" {
+		if p.StorageClass.Class == "premium" {
+			b.scParameters.SkuName = "Premium_LRS"
+		} else {
+			b.scParameters.SkuName = "StandardSSD_LRS"
+		}
+	}
+
+	if p.StorageClass.EncryptionKey != "" {
+		b.scParameters.DiskEncryptionSetID = p.StorageClass.EncryptionKey
+	}
+}
+
+func (b *AzureBuilder) setCapxEnvVars(p ProviderParams) {
 	b.capxEnvVars = []string{
 		"AZURE_CLIENT_SECRET=" + p.Credentials["ClientSecret"],
 		"EXP_MACHINE_POOL=true",
@@ -111,10 +118,12 @@ func (b *AzureBuilder) getProvider() Provider {
 		capxProvider:     b.capxProvider,
 		capxVersion:      b.capxVersion,
 		capxImageVersion: b.capxImageVersion,
+		capxManaged:      b.capxManaged,
 		capxName:         b.capxName,
 		capxTemplate:     b.capxTemplate,
 		capxEnvVars:      b.capxEnvVars,
-		stClassName:      b.stClassName,
+		scParameters:     b.scParameters,
+		scProvisioner:    b.scProvisioner,
 		csiNamespace:     b.csiNamespace,
 	}
 }
@@ -122,8 +131,8 @@ func (b *AzureBuilder) getProvider() Provider {
 func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
 	var c string
 	var err error
-	var cmd exec.Cmd
 
+	// Deploy CSI driver
 	c = "helm install azuredisk-csi-driver /stratio/helm/azuredisk-csi-driver " +
 		" --kubeconfig " + k +
 		" --namespace " + b.csiNamespace
@@ -132,29 +141,20 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
 		return errors.Wrap(err, "failed to deploy Azure Disk CSI driver Helm Chart")
 	}
 
-	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
-	if err := cmd.SetStdin(strings.NewReader(azureStorageClasses)).Run(); err != nil {
-		return errors.Wrap(err, "failed to create Azure Storage Classes")
-	}
-
 	return nil
-}
-
-func (b *AzureBuilder) setStorageClassParameters(storageClass string, params map[string]string) (string, error) {
-	return "", nil
 }
 
 func (b *AzureBuilder) getAzs(networks commons.Networks) ([]string, error) {
 	return []string{"1", "2", "3"}, nil
 }
 
-func installCloudProvider(n nodes.Node, descriptorFile commons.DescriptorFile, k string, clusterName string) error {
+func installCloudProvider(n nodes.Node, keosCluster commons.KeosCluster, k string, clusterName string) error {
 	var c string
 	var err error
 	var podsCidrBlock string
 
-	if descriptorFile.Networks.PodsCidrBlock != "" {
-		podsCidrBlock = descriptorFile.Networks.PodsCidrBlock
+	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
+		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
 	} else {
 		podsCidrBlock = "192.168.0.0/16"
 	}
@@ -216,7 +216,7 @@ func assignUserIdentity(i string, c string, r string, s map[string]string) error
 	return nil
 }
 
-func getAcrToken(p commons.ProviderParams, acrService string) (string, error) {
+func getAcrToken(p ProviderParams, acrService string) (string, error) {
 	creds, err := azidentity.NewClientSecretCredential(
 		p.Credentials["TenantID"], p.Credentials["ClientID"], p.Credentials["ClientSecret"], nil,
 	)
@@ -244,43 +244,53 @@ func getAcrToken(p commons.ProviderParams, acrService string) (string, error) {
 	return response["refresh_token"].(string), nil
 }
 
-func (b *AzureBuilder) configureStorageClass(n nodes.Node, k string, sc commons.StorageClass) error {
+func (b *AzureBuilder) configureStorageClass(n nodes.Node, k string) error {
+	var c string
+	var err error
 	var cmd exec.Cmd
 
-	cmd = n.Command("kubectl", "--kubeconfig", k, "annotate", "sc", "default", defaultScAnnotation+"-")
-	if err := cmd.SetStdin(strings.NewReader(azureStorageClasses)).Run(); err != nil {
-		return errors.Wrap(err, "failed to unannotate default Azure Storage Classes")
+	if b.capxManaged {
+		// Remove annotation from default storage class
+		c = "kubectl --kubeconfig " + k + " get sc | grep '(default)' | awk '{print $1}'"
+		output, err := commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to get default storage class")
+		}
+		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
+			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove annotation from default storage class")
+			}
+		}
 	}
 
-	params := b.getParameters(sc)
-	storageClass, err := insertParameters(storageClassAZTemplate, params)
+	if !b.capxManaged {
+		// Create Azure storage classes
+		cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
+		if err := cmd.SetStdin(strings.NewReader(azureStorageClasses)).Run(); err != nil {
+			return errors.Wrap(err, "failed to create Azure storage classes")
+		}
+	}
+
+	scTemplate.Parameters = b.scParameters
+	scTemplate.Provisioner = b.scProvisioner
+
+	scBytes, err := yaml.Marshal(scTemplate)
 	if err != nil {
 		return err
 	}
+	storageClass := strings.Replace(string(scBytes), "fsType", "csi.storage.k8s.io/fstype", -1)
 
 	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
 	if err = cmd.SetStdin(strings.NewReader(storageClass)).Run(); err != nil {
-		return errors.Wrap(err, "failed to create StorageClass")
+		return errors.Wrap(err, "failed to create default storage class")
 	}
+
 	return nil
-
 }
 
-func (b *AzureBuilder) getParameters(sc commons.StorageClass) commons.SCParameters {
-	if sc.EncryptionKey != "" {
-		sc.Parameters.DiskEncryptionSetID = sc.EncryptionKey
-	}
-	switch class := sc.Class; class {
-	case "standard":
-		return mergeSCParameters(sc.Parameters, standardAZParameters)
-	case "premium":
-		return mergeSCParameters(sc.Parameters, premiumAZParameters)
-	default:
-		return mergeSCParameters(sc.Parameters, standardAZParameters)
-	}
-}
-
-func (b *AzureBuilder) internalNginx(networks commons.Networks, credentialsMap map[string]string, ClusterID string) (bool, error) {
+func (b *AzureBuilder) internalNginx(networks commons.Networks, credentialsMap map[string]string, clusterName string) (bool, error) {
 	var resourceGroup string
 	os.Setenv("AZURE_CLIENT_ID", credentialsMap["ClientID"])
 	os.Setenv("AZURE_SECRET_ID", credentialsMap["ClientSecret"])
@@ -303,7 +313,7 @@ func (b *AzureBuilder) internalNginx(networks commons.Networks, credentialsMap m
 		if networks.ResourceGroup != "" {
 			resourceGroup = networks.ResourceGroup
 		} else {
-			resourceGroup = ClusterID
+			resourceGroup = clusterName
 		}
 		for _, subnet := range networks.Subnets {
 			publicSubnetID, _ := AzureFilterPublicSubnet(ctx, subnetsClient, resourceGroup, networks.VPCID, subnet.SubnetId)
@@ -330,9 +340,9 @@ func AzureFilterPublicSubnet(ctx context.Context, subnetsClient *armnetwork.Subn
 	}
 }
 
-func (b *AzureBuilder) getOverrideVars(descriptor commons.DescriptorFile, credentialsMap map[string]string) (map[string][]byte, error) {
+func (b *AzureBuilder) getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error) {
 	overrideVars := map[string][]byte{}
-	InternalNginxOVPath, InternalNginxOVValue, err := b.getInternalNginxOverrideVars(descriptor.Networks, credentialsMap, descriptor.ClusterID)
+	InternalNginxOVPath, InternalNginxOVValue, err := b.getInternalNginxOverrideVars(keosCluster.Spec.Networks, credentialsMap, keosCluster.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -347,18 +357,8 @@ func (b *AzureBuilder) getInternalNginxOverrideVars(networks commons.Networks, c
 	}
 
 	if requiredInternalNginx {
-		internalIngressFilePath := "files/" + b.capxProvider + "/internal-ingress-nginx.yaml"
-		internalIngressFile, err := internalIngressFiles.Open(internalIngressFilePath)
-		if err != nil {
-			return "", nil, errors.Wrap(err, "error opening the internal ingress nginx file")
-		}
-		defer internalIngressFile.Close()
-
-		internalIngressContent, err := ioutil.ReadAll(internalIngressFile)
-		if err != nil {
-			return "", nil, errors.Wrap(err, "error reading the internal ingress nginx file")
-		}
-		return "ingress-nginx.yaml", internalIngressContent, nil
+		return "ingress-nginx.yaml", azureInternalIngress, nil
 	}
+
 	return "", []byte(""), nil
 }
