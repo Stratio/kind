@@ -249,6 +249,20 @@ func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 	coreDNSSuffix := ""
 	coreDNSTemplate := "/kind/coredns-configmap.yaml"
 
+	if keosCluster.Spec.InfraProvider == "aws" && keosCluster.Spec.ControlPlane.Managed {
+		coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
+		if err != nil {
+			return errors.Wrap(err, "failed to get CoreDNS file")
+		}
+
+		c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to create CoreDNS configmap file")
+		}
+
+	}
+
 	// Generate the coredns configmap
 	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
 		coreDNSSuffix = "-aks"
@@ -267,22 +281,35 @@ func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 	return nil
 }
 
-func applyCustomCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
+func customCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
 	var c string
 	var err error
 
-	coreDNSTemplate := "/kind/coredns-configmap.yaml"
 	coreDNSPatchFile := "coredns"
+	coreDNSTemplate := "/kind/coredns-configmap.yaml"
+	coreDNSSuffix := ""
 
 	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
 		coreDNSPatchFile = "coredns-custom"
+		coreDNSSuffix = "-aks"
+	}
+
+	coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
+	if err != nil {
+		return errors.Wrap(err, "failed to get CoreDNS file")
+	}
+
+	c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create CoreDNS configmap file")
 	}
 
 	// Patch configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm " + coreDNSPatchFile + " --patch-file " + coreDNSTemplate
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
-		return errors.Wrap(err, "failed to customize coreDNS patching configmap")
+		return errors.Wrap(err, "failed to customize coreDNS patching ConfigMap")
 	}
 
 	// Rollout restart to catch the made changes

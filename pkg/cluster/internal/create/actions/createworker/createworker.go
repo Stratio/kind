@@ -419,7 +419,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		err = infra.configureStorageClass(n, kubeconfigPath)
 		if err != nil {
-			return errors.Wrap(err, "failed to configuring StorageClass in workload cluster")
+			return errors.Wrap(err, "failed to configure StorageClass in workload cluster")
 		}
 		ctx.Status.End(true) // End Installing StorageClass in workload cluster
 
@@ -551,7 +551,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
 			defer ctx.Status.End(false)
 
-			err = applyCustomCoreDNS(n, kubeconfigPath, *keosCluster)
+			err = customCoreDNS(n, kubeconfigPath, *keosCluster)
 			if err != nil {
 				return errors.Wrap(err, "failed to customized CoreDNS configuration")
 			}
