@@ -242,15 +242,16 @@ func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, allo
 	return nil
 }
 
-func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
+func customCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
 	var c string
 	var err error
 
-	coreDNSSuffix := ""
+	coreDNSPatchFile := "coredns"
 	coreDNSTemplate := "/kind/coredns-configmap.yaml"
+	coreDNSSuffix := ""
 
-	// Generate the coredns configmap
 	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
+		coreDNSPatchFile = "coredns-custom"
 		coreDNSSuffix = "-aks"
 	}
 
@@ -264,25 +265,12 @@ func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create CoreDNS configmap file")
 	}
-	return nil
-}
-
-func applyCustomCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
-	var c string
-	var err error
-
-	coreDNSTemplate := "/kind/coredns-configmap.yaml"
-	coreDNSPatchFile := "coredns"
-
-	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
-		coreDNSPatchFile = "coredns-custom"
-	}
 
 	// Patch configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm " + coreDNSPatchFile + " --patch-file " + coreDNSTemplate
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
-		return errors.Wrap(err, "failed to customize coreDNS patching configmap")
+		return errors.Wrap(err, "failed to customize coreDNS patching ConfigMap")
 	}
 
 	// Rollout restart to catch the made changes
