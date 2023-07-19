@@ -47,7 +47,7 @@ spec:
     - name: "coredns"
       version: "v1.9.3-eksbuild.3"
       {{- if gt (len .KeosCluster.Spec.Dns.Forwarders) 0 }}
-      configuration: 'file://example.json'
+      configuration: '{ \"corefile\": \".:53 {\\\n    errors\\\n    health\\\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\\\n      pods insecure\\\n      fallthrough in-addr.arpa ip6.arpa\\\n    }\\\n    prometheus :9153\\\n    forward .{{ range $i, $server := .KeosCluster.Spec.Dns.Forwarders }} {{ $server }}{{ end }} {\\\n      prefer_udp\\\n    }\\\n    cache 30\\\n    loop\\\n    reload\\\n    loadbalance\\\n}\\\n\" }'
       {{- end }}
       conflictResolution: "overwrite"
     - name: "kube-proxy"
