@@ -18,13 +18,20 @@ limitations under the License.
 package cluster
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
+
+	"syscall"
 	"time"
+
+	term "golang.org/x/term"
 
 	"github.com/spf13/cobra"
 
 	"sigs.k8s.io/kind/pkg/cluster"
+	"sigs.k8s.io/kind/pkg/cmd/kind/create/cluster/validation"
+
 	"sigs.k8s.io/kind/pkg/cmd"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/log"
@@ -34,13 +41,21 @@ import (
 )
 
 type flagpole struct {
-	Name       string
-	Config     string
-	ImageName  string
-	Retain     bool
-	Wait       time.Duration
-	Kubeconfig string
+	Name           string
+	Config         string
+	ImageName      string
+	Retain         bool
+	Wait           time.Duration
+	Kubeconfig     string
+	VaultPassword  string
+	DescriptorPath string
+	MoveManagement bool
+	AvoidCreation  bool
+	ForceDelete    bool
 }
+
+const clusterDefaultPath = "./cluster.yaml"
+const secretsDefaultPath = "./secrets.yml"
 
 // NewCommand returns a new cobra.Command for cluster creation
 func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
@@ -92,14 +107,61 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		"",
 		"sets kubeconfig path instead of $KUBECONFIG or $HOME/.kube/config",
 	)
+	cmd.Flags().StringVarP(
+		&flags.VaultPassword,
+		"vault-password",
+		"p",
+		"",
+		"sets vault password to encrypt secrets",
+	)
+	cmd.Flags().StringVarP(
+		&flags.DescriptorPath,
+		"descriptor",
+		"d",
+		"",
+		"allows you to indicate the name of the descriptor located in current or other directory. Default: cluster.yaml",
+	)
+	cmd.Flags().BoolVar(
+		&flags.MoveManagement,
+		"keep-mgmt",
+		false,
+		"by setting this flag the cluster management will be kept in the kind",
+	)
+	cmd.Flags().BoolVar(
+		&flags.AvoidCreation,
+		"avoid-creation",
+		false,
+		"by setting this flag the worker cluster won't be created",
+	)
+	cmd.Flags().BoolVar(
+		&flags.ForceDelete,
+		"delete-previous",
+		false,
+		"by setting this flag the local cluster container will be deleted",
+	)
+
 	return cmd
 }
 
 func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
+
+	err := validateFlags(flags)
+	if err != nil {
+		return err
+	}
+
 	provider := cluster.NewProvider(
 		cluster.ProviderWithLogger(logger),
 		runtime.GetDefault(logger),
 	)
+
+	if flags.DescriptorPath == "" {
+		flags.DescriptorPath = clusterDefaultPath
+	}
+	err = validation.InitValidator(flags.DescriptorPath)
+	if err != nil {
+		return err
+	}
 
 	// handle config flag, we might need to read from stdin
 	withConfig, err := configOption(flags.Config, streams.In)
@@ -107,12 +169,42 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		return err
 	}
 
+	if flags.VaultPassword == "" {
+		flags.VaultPassword, err = setPassword()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = validation.ExecuteSecretsValidations(secretsDefaultPath, flags.VaultPassword)
+	if err != nil {
+		return err
+	}
+
+	err = validation.ExecuteDescriptorValidations()
+	if err != nil {
+		return err
+	}
+
+	err = validation.ExecuteCommonsValidations()
+	if err != nil {
+		return err
+
+	}
+
 	// create the cluster
 	if err = provider.Create(
 		flags.Name,
+		flags.VaultPassword,
+		flags.DescriptorPath,
+		flags.MoveManagement,
+		flags.AvoidCreation,
 		withConfig,
 		cluster.CreateWithNodeImage(flags.ImageName),
 		cluster.CreateWithRetain(flags.Retain),
+		cluster.CreateWithMove(flags.MoveManagement),
+		cluster.CreateWithAvoidCreation(flags.AvoidCreation),
+		cluster.CreateWithForceDelete(flags.ForceDelete),
 		cluster.CreateWithWaitForReady(flags.Wait),
 		cluster.CreateWithKubeconfigPath(flags.Kubeconfig),
 		cluster.CreateWithDisplayUsage(true),
@@ -137,4 +229,47 @@ func configOption(rawConfigFlag string, stdin io.Reader) (cluster.CreateOption, 
 		return nil, errors.Wrap(err, "error reading config from stdin")
 	}
 	return cluster.CreateWithRawConfig(raw), nil
+}
+
+func setPassword() (string, error) {
+	firstPassword, err := requestPassword("Vault Password: ")
+	if err != nil {
+		return "", err
+	}
+	secondPassword, err := requestPassword("Rewrite Vault Password:")
+	if err != nil {
+		return "", err
+	}
+	if firstPassword != secondPassword {
+		return "", errors.New("The passwords do not match.")
+	}
+
+	return firstPassword, nil
+}
+
+func requestPassword(request string) (string, error) {
+	fmt.Print(request)
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return "", err
+	}
+	fmt.Print("\n")
+	return string(bytePassword), nil
+}
+
+func validateFlags(flags *flagpole) error {
+	count := 0
+	if flags.AvoidCreation {
+		count++
+	}
+	if flags.Retain {
+		count++
+	}
+	if flags.MoveManagement {
+		count++
+	}
+	if count > 1 {
+		return errors.New("Flags --retain, --avoid-creation, and --keep-mgmt are mutually exclusive")
+	}
+	return nil
 }
