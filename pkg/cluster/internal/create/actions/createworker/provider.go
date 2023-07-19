@@ -242,45 +242,6 @@ func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, allo
 	return nil
 }
 
-func prepareCustomCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
-	var c string
-	var err error
-
-	coreDNSSuffix := ""
-	coreDNSTemplate := "/kind/coredns-configmap.yaml"
-
-	if keosCluster.Spec.InfraProvider == "aws" && keosCluster.Spec.ControlPlane.Managed {
-		coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
-		if err != nil {
-			return errors.Wrap(err, "failed to get CoreDNS file")
-		}
-
-		c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
-		_, err = commons.ExecuteCommand(n, c)
-		if err != nil {
-			return errors.Wrap(err, "failed to create CoreDNS configmap file")
-		}
-
-	}
-
-	// Generate the coredns configmap
-	if keosCluster.Spec.InfraProvider == "azure" && keosCluster.Spec.ControlPlane.Managed {
-		coreDNSSuffix = "-aks"
-	}
-
-	coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
-	if err != nil {
-		return errors.Wrap(err, "failed to get CoreDNS file")
-	}
-
-	c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
-	_, err = commons.ExecuteCommand(n, c)
-	if err != nil {
-		return errors.Wrap(err, "failed to create CoreDNS configmap file")
-	}
-	return nil
-}
-
 func customCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
 	var c string
 	var err error

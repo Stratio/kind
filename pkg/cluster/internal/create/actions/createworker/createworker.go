@@ -187,18 +187,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	ctx.Status.End(true) // End Installing CAPx
 
-	// Prepare custom CoreDNS configuration
-	//	if keosCluster.Spec.Dns.Forwarders != nil && len(keosCluster.Spec.Dns.Forwarders) > 0 && awsEKSEnabled {
-	//		ctx.Status.Start("Customizing CoreDNS configuration 🪡")
-	//		defer ctx.Status.End(false)
-
-	//		err = prepareCustomCoreDNS(n, *keosCluster)
-	//		if err != nil {
-	//			return errors.Wrap(err, "failed to prepare customization of CoreDNS configuration")
-	//		}
-	//		ctx.Status.End(true) // End preparing CoreDNS configuration
-	//	}
-
 	ctx.Status.Start("Generating workload cluster manifests 📝")
 	defer ctx.Status.End(false)
 
@@ -410,6 +398,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to assign user identity to the workload Cluster")
 			}
+		}
+
+		// Wait for metrics-server deployment to be ready
+		c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy metrics-server -n kube-system --timeout=5m"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to create the worker Cluster")
 		}
 
 		ctx.Status.End(true) // End Preparing nodes in workload cluster
