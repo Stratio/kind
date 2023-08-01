@@ -1,0 +1,297 @@
+= Operaciones
+
+== Obtención del _kubeconfig_
+
+Para comunicarse con el APIserver del _cluster_ creado, es necesario el fichero _kubeconfig_, que se obtendrá de forma diferente según el proveedor _Cloud_ utilizado y la gestión del control-plane del _cluster_.
+
+* Para EKS, se obtendrá de la forma indicada por AWS:
+
+[source,bash]
+-----
+aws eks update-kubeconfig --region eu-west-1 --name stg-eks --kubeconfig /data/stratio/kubernetes/cluster-api/aws/workspace/stg-eks.kubeconfig
+-----
+
+* Para GCP, al finalizar el aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+
+[source,bash]
+-----
+ls ./.kube/config
+./.kube/config
+-----
+
+== Autenticación en EKS
+
+Si bien no forma parte de la operativa de _Stratio KEOS_, es importante resaltar la forma de permitir la https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[autenticación de otros usuarios en un _cluster_ de EKS] (el usuario creador del _cluster_ está autenticado por defecto).
+
+Para dar permisos de kubernetes-admin en el _cluster_, se agregará el ARN del usuario en el _ConfigMap_ indicado a continuación.
+
+[source,bash]
+----
+$ k -n kube-system edit cm aws-auth
+..
+data:
+  mapUsers: |
+    - groups:
+      - system:masters
+      userarn: <user_arn>
+      username: kubernetes-admin
+----
+
+== Operación de la infraestructura
+
+image::controllers.png[]
+
+Utilizando los objetos del apartado anterior, _Stratio KEOS_ permite realizar las siguientes operaciones interactuando únicamente con el APIserver.
+
+Serán los _controllers_ desplegados quienes, en los ciclos de reconciliación, realizarán las tareas necesarias.
+
+=== CRDs
+
+image::crds.png[]
+
+Para la gestión APIficada del _cluster_, se crean los siguientes grupos de objetos:
+
+- Para la definición de los nodos _workers_ se utilizarán _MachineDeployment_, _EKSConfigTemplate_ y _AWSMachineTemplate_.
+- Para definir parámetros del _control-plane_ (EKS), se utilizará el objeto _AWSManagedControlPlane_.
+- Para indicar los parámetros del _self-healing_, se utiliza un _MachineHealthCheck_ para todo el _cluster_.
+
+=== _Self-healing_
+
+image::self-healing.png[]
+
+La capacidad de _self-healing_ del _cluster_ se gestiona por el objeto _MachineHealthCheck_:
+
+[source,bash]
+----
+$ k -n cluster-example get mhc -o yaml
+...
+  spec:
+    clusterName: example
+    maxUnhealthy: 100%
+    nodeStartupTimeout: 5m0s
+    selector:
+      matchLabels:
+        keos.stratio.com/machine-role: example-worker-node
+    unhealthyConditions:
+    - status: Unknown
+      timeout: 1m0s
+      type: Ready
+    - status: "False"
+      timeout: 1m0s
+      type: Ready
+...
+----
+
+==== Prueba de _failover_ en un nodo
+
+En caso de fallo en un nodo, éste será detectado por un _controller_ y se procederá al reemplazo del mismo, eliminándolo y volviendo a crear otro del mismo grupo, lo que asegura las mismas características.
+
+Para simular un fallo en una VM, se eliminará desde la consola web del proveedor de _Cloud_.
+
+La recuperación del nodo comprende las siguientes fases y tiempos:
+
+[source,bash]
+----
+. Terminate VM from console: 0s
+. New VM is Provisioning: 50s
+. Old Machine is Deleted & the new one is Provisioned: 1m5s
+. New Machine is Running & new k8s node is NotReady: 1m 50s
+. New k8s node is Ready: 2m
+----
+
+=== Escalado estático
+
+Aunque se desaconseja el escalado manual, se presentan estas operaciones para casos sin autoescalado o nuevos grupos de nodos.
+
+==== Escalar un grupo de _workers_
+
+image::escalado-manual.png[]
+
+Para escalar manualmente un grupo de _workers_, se usa el objeto _MachineDeployment_, que soporta el comando _scale_ de kubectl:
+
+[source,bash]
+----
+kubectl -n cluster-stg-eks scale --replicas 3 MachineDeployment --all
+----
+
+Vemos el nuevo número de réplicas y los nuevos objetos Machine:
+
+[source,bash]
+----
+kubectl -n cluster-stg-eks get MachineDeployment
+kubectl -n cluster-stg-eks get Machine
+----
+
+==== Crear un nuevo grupo de _workers_
+
+===== EKS
+
+En EKS se deberán crear los siguientes tres objetos: _MachineDeployment_, _AWSMachineTemplate_ y _EKSConfigTemplate_.
+
+Una vez confeccionado el _manifest_, la creación del grupo consiste simplemente en aplicarlo al _cluster_ de la siguiente forma:
+
+[source,bash]
+----
+kubectl apply -f xref:attachment$example-eks-md.yaml[example-eks-md.yaml]
+----
+
+Para ver los objetos creados:
+
+[source,bash]
+----
+kubectl -n cluster-example get md,eksct,awsmt
+----
+
+===== GCP
+
+Para el caso de GCP, se crearán: _MachineDeployment_, _GCPMachineTemplate_ y _KubeadmConfigTemplate_.
+
+De la misma forma, se aplica el _manifest_ para crear el nuevo grupo de _workers_:
+
+[source,bash]
+----
+kubectl apply -f xref:attachment$example-gcp-md.yaml[example-gcp-md.yaml]
+----
+
+Para ver los objetos creados:
+
+[source,bash]
+----
+kubectl -n cluster-example get md,gcpmachinetemplate,kubeadmconfigtemplate
+----
+
+==== Escalado vertical
+
+El escalado vertical de un grupo de nodos puede realizarse de varias formas, todas ellas comenzarán por cambiar el tipo de instancia del objeto `<infra-controller>MachineTemplate`.
+
+TIP: A pesar de que oficialmente se indica que se cree un nuevo `<infra-controller>MachineTemplate` y se referencie desde el _MachineDeployment_, no se recomienda esta opción porque impide mantener la consistencia de nombres entre los objetos que gestionan los grupos de nodos.
+
+El método recomendado se basa en 3 simples pasos:
+
+1. Indicar el nuevo tipo de instancia en `<infra-controller>MachineTemplate` (_spec.template.spec.instanceType_). En algunos proveedores, este objeto deberá eliminarse y volver a crearse.
+2. Obtener la versión del nuevo objeto `<infra-controller>MachineTemplate` (_metadata.resourceVersion_).
+3. Editar el _MachineDeployment_ actualizando la versión obtenida en el paso anterior (_spec.template.spec.infrastructureRef.resourceVersion_).
+
+Como ejemplo, para un _cluster_ de EKS se haría de la siguiente forma:
+
+[source,bash]
+----
+export MACHINE_TYPE="t3.medium"
+export MACHINE_DEPLOYMENT="stg-eks-xlarge-md-2"
+export NAMESPACE="cluster-stg-eks"
+
+$ k -n $NAMESPACE patch awsmt $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"instanceType\": "$MACHINE_TYPE"}}}}"
+
+$ RESOURCE_VERSION=$(k -n $NAMESPACE get awsmt $MACHINE_DEPLOYMENT -o json | jq -r .metadata.resourceVersion)
+
+$ k -n $NAMESPACE patch md $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"infrastructureRef\": {\"resourceVersion\": \"$RESOURCE_VERSION\"}}}}}"
+----
+
+=== Autoescalado
+
+image::autoescalado.png[]
+
+Para el autoescalado de nodos, se utiliza _cluster-autoscaler_, quien detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere según los filtros de los despliegues.
+
+Esta operación se realiza en el APIserver, siendo los _controllers_ los encargados de crear las VMs en el proveedor de _Cloud_ y agregarlas al _cluster_ como nodos _workers_ de Kubernetes.
+
+Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirá el mínimo y máximo en el grupo de nodos _workers_ como _annotations_:
+
+[source,bash]
+----
+$ kubectl -n cluster-stg-eks edit MachineDeployment demo-eks-md-2
+
+- apiVersion: cluster.x-k8s.io/v1beta1
+  kind: MachineDeployment
+  metadata:
+    annotations:
+      cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "6"
+      cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "2"
+  ...
+----
+
+==== Prueba
+
+Para probar el autoescalado, se puede crear un _Deployment_ con suficientes réplicas de modo que no se puedan ejecutar en los nodos actuales:
+
+[source,bash]
+----
+kubectl create deploy test --replicas 1500 --image nginx:alpine
+----
+
+Al terminar la prueba, se elimina el _Deployment_:
+
+[source,bash]
+----
+kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
+----
+
+==== _Logs_
+
+Los _logs_ del _cluster-autoscaler_ se pueden ver desde su _Deployment_:
+
+[source,bash]
+----
+$ k -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
+----
+
+=== Actualización de versión
+
+La actualización del _cluster_ a una versión superior de Kubernetes se realizará en dos partes, primero el _control-plane_ y, una vez que este esté en la nueva versión, se procederá a la actualización de los nodos _workers_.
+
+==== _Control-plane_
+
+image::upgrade-cp.png[]
+
+Para la actualización del _control-plane_, se ejecutará un _patch_ de _spec.version_ en el objeto _AWSManagedControlPlane_.
+
+[source,bash]
+----
+$ kubectl -n cluster-example patch AWSManagedControlPlane example-control-plane --type merge -p '{"spec": {"version": "v1.24.0"}}'
+----
+
+==== _Workers_
+
+image::upgrade-w.png[]
+
+Para cada grupo de nodos _workers_ del _cluster_, se ejecutará un _patch_ de _spec.template.spec.version_ en el objeto _MachineDeployment_ correspondiente al grupo.
+
+[source,bash]
+----
+$ kubectl -n cluster-example patch MachineDeployment example-md-1 --type merge -p '{"spec": {"template": {"spec": {"version": "v1.24.0"}}}}'
+----
+
+NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión vieja. De esta forma, asegura siempre el número de nodos configurado.
+
+=== Eliminación del _cluster_
+
+Previo a la eliminación de los recusos del proveedor _Cloud_ generados por el _cloud-provisioner_, se deberán eliminar aquellos que han sido creados por el _keos-installer_ o cualquier automatismo externo.
+
+. Se crea un _cluster_ local indicando que no se genere ningún objeto en el  proveedor _Cloud_.
++
+[source,bash]
+-----
+[local]$ sudo ./bin/cloud-provisioner create cluster --name prod-cluster --descriptor cluster.yaml --vault-password <my-passphrase> --avoid-creation
+-----
++
+. Se mueve la gestión del _cluster_ _worker_ al _cluster_ local, utilizando el _kubeconfig_ correspondiente (nótese que para los _control-planes_ gestionados se necesitará el _kubeconfig_ del proveedor). Para asegurar este paso, se buscará el siguiente texto en la salida del comando: *Moving Cluster API objects Clusters=1*.
++
+[source,bash]
+-----
+[local]$ sudo clusterctl --kubeconfig $KUBECONFIG move -n cluster-prod-eks --to-kubeconfig /root/.kube/config
+-----
++
+. Se accede al _cluster_ local y se elimina el _cluster_ _worker_.
++
+[source,bash]
+-----
+[local]$ sudo docker exec -ti prod-eks-control-plane bash
+root@prod-eks-control-plane:/# k -n cluster-prod-eks delete cl --all
+-----
++
+. Finalmente, se elimina el _cluster_ local.
++
+[source,bash]
+-----
+[local]$ sudo ./bin/cloud-provisioner delete cluster --name prod-eks
+-----

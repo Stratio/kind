@@ -1,0 +1,91 @@
+= Arquitectura
+
+Arquitectura de referencia
+
+image::eks-reference-architecture.png[]
+
+== Objetos del proveedor del _Cloud_
+
+=== EKS
+
+En un *despliegue por defecto*, se crean los siguientes objetos en AWS (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
+
+* [silver]#1 VPC.#
+* [silver]#6 _subnets_ con sus respectivas tablas de rutas.#
+** [silver]#3 _subnets_ públicas (una por AZ).#
+** [silver]#3 _subnets_ privadas (también una por AZ).#
+* [silver]#1 _NAT gateway_ por cada _subnet_ pública.#
+* [silver]#1 _Internet gateway_ para la VPC.#
+* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los NAT gateways.#
+* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del Internet Gateway.#
+* 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_)
+* 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_)
+* 1 _cluster_ de Elastic Kubernetes Service (EKS) con _add-ons_ para EBS y CNI, _logging_ (si se ha especificado) y un proveedor OIDC.
+** 2 _Security Groups_ de EKS para el _control-plane_ y los nodos _Worker_.
+** 1 rol de IAM con la política AmazonEKSClusterPolicy.
+* VMs para _Workers_ (según descriptor del _cluster_ y autoescalado).
+** 1 Volumen EBS por volumen persistente.
+* 1 Balanceador de carga tipo _Network_ para la exposición de servicios.
+** 1 _Listener_ por puerto para cada _Service_ de tipo balanceador de carga.
+* Volumen EBS para cada volumen persistente.
+
+=== GCP
+
+* 1 Balanceador de carga tipo SSL/TCP para el APIserver.
+* 1 _Health Check_ para el _Unmanage Instance Group_.
+* 1 _CloudNat_ Asociando VPC.
+* 1 _Cloud Router_.
+* Reglas de _firewall_.
+* 1 _Unmanage Instance Group_ para el _control-plane_.
+* 1/3 VMs para el _control-plane_ (según descriptor del _cluster_).
+** 1 Volumen EBS por VM.
+* VMs para _workers_ (según el descriptor del _cluster_ y autoescalado).
+** 1 Volumen EBS por VM.
+* 1 Balanceador de carga L4 para la exposición de servicios.
+** 1 _Listener_ por puerto para cada _Service_ de tipo balanceador de carga.
+* Volumen EBS para cada volumen persistente.
+
+== Seguridad
+
+=== Acceso a IMDS en EKS
+
+Dado que los _pods_ ejecutados en un nodo de AWS pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedir el acceso a todos los _pods_ del _cluster_.
+
+A su vez, se habilita el proveedor OIDC de EKS para permitir el uso de roles de IAM para _Service Accounts_, asegurando el uso de políticas IAM con mínimos privilegios.
+
+=== Acceso al _endpoint_ del APIserver
+
+==== EKS
+
+Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el APIserver que se utilizará para el acceso al _cluster_ desde el instalador y operaciones del ciclo de vida.
+
+Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas de AWS Identity and Access Management (IAM) y el Role Based Access Control (RBAC) nativo de Kubernetes.
+
+==== GCP
+
+Para la exposición del APIserver, se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 443 accesible por red pública (la IP pública asignada es la misma que se configura en el _Kubeconfig_), y un _instance groups_ por AZ (1 o 3, según configuración de HA) con el nodo de _control-plane_ correspondiente.
+
+El _Health Check_ del servicio se hace por SSL, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
+
+== Almacenamiento
+
+=== Nodos
+
+A nivel de almacenamiento, se monta un único disco _root_ del que se puede definir su tipo, tamaño y encriptación.
+
+Ejemplo:
+
+[source,bash]
+----
+type: gcp2
+size: 384Gi
+encrypted: true
+----
+
+Estos discos se crean en la provisión inicial de los nodos _workers_, por lo que estos datos se pasan como parámetros del descriptor.
+
+=== _StorageClass_
+
+Por defecto, el _cluster_ disponibiliza una _StorageClass_ ("gp2" en AWS y "csi-gcp-pd" en GCP) para disco de bloques con _filesystem ext4_. Esta _StorageClass_ se crea con _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_.
+
+Se deberá tener en cuenta que los _PersistentVolumes_ creados a partir de esta _StorageClass_ tendrán afinidad con la zona donde se han consumido.

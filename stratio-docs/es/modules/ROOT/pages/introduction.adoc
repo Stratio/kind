@@ -1,0 +1,5 @@
+= Introducción
+
+_Stratio KEOS_ tiene la capacidad de desplegarse en diversos proveedores del _Cloud_. Actualmente, de forma nativa, se soporta tanto xref:ROOT:architecture.adoc#_gcp[Google Cloud Platform (GCP)] en modo no-gestionado, como Amazon Web Services (AWS) en modo gestionado con xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
+
+La versión de _Stratio KEOS_ en los proveedores del _Cloud_ es la 0.2.0.
