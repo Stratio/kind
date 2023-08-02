@@ -74,6 +74,8 @@ type Spec struct {
 
 	DockerRegistries []DockerRegistry `yaml:"docker_registries" validate:"required,dive"`
 
+	HelmRepository HelmRepository `yaml:"helm_repository" validate:"required"`
+
 	ExternalDomain string `yaml:"external_domain" validate:"fqdn"`
 
 	Security struct {
@@ -182,6 +184,7 @@ type ClusterCredentials struct {
 	ProviderCredentials         map[string]string
 	KeosRegistryCredentials     map[string]string
 	DockerRegistriesCredentials []map[string]interface{}
+	HelmRepositoryCredentials   map[string]string
 	GithubToken                 string
 }
 
@@ -191,6 +194,7 @@ type Credentials struct {
 	GCP              GCPCredentials              `yaml:"gcp" validate:"excluded_with=AWS AZURE"`
 	GithubToken      string                      `yaml:"github_token"`
 	DockerRegistries []DockerRegistryCredentials `yaml:"docker_registries"`
+	HelmRepository   HelmRepositoryCredentials   `yaml:"helm_repository"`
 }
 
 type AWSCredentials struct {
@@ -228,6 +232,17 @@ type DockerRegistry struct {
 	KeosRegistry bool   `yaml:"keos_registry" validate:"boolean"`
 }
 
+type HelmRepositoryCredentials struct {
+	URL  string `yaml:"url"`
+	User string `yaml:"user"`
+	Pass string `yaml:"pass"`
+}
+
+type HelmRepository struct {
+	AuthRequired bool   `yaml:"auth_required" validate:"required,boolean"`
+	URL          string `yaml:"url" validate:"required"`
+}
+
 type TemplateParams struct {
 	KeosCluster      KeosCluster
 	Credentials      map[string]string
@@ -255,8 +270,9 @@ type Secrets struct {
 	AZURE            AZURE                       `yaml:"azure"`
 	GCP              GCP                         `yaml:"gcp"`
 	GithubToken      string                      `yaml:"github_token"`
-	ExternalRegistry DockerRegistryCredentials   `yaml:"external_registry"`
+	DockerRegistry   DockerRegistryCredentials   `yaml:"docker_registry"`
 	DockerRegistries []DockerRegistryCredentials `yaml:"docker_registries"`
+	HelmRepository   HelmRepositoryCredentials   `yaml:"helm_repository"`
 }
 
 type EFS struct {
