@@ -6,27 +6,33 @@ image::eks-reference-architecture.png[]
 
 == Objetos del proveedor del _Cloud_
 
+En un *despliegue por defecto*, se crean los siguientes objetos en cada _cloud provider_ (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
+
 === EKS
 
-En un *despliegue por defecto*, se crean los siguientes objetos en AWS (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
-
 * [silver]#1 VPC.#
+
 * [silver]#6 _subnets_ con sus respectivas tablas de rutas.#
 ** [silver]#3 _subnets_ públicas (una por AZ).#
 ** [silver]#3 _subnets_ privadas (también una por AZ).#
+
 * [silver]#1 _NAT gateway_ por cada _subnet_ pública.#
 * [silver]#1 _Internet gateway_ para la VPC.#
 * [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los NAT gateways.#
 * [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del Internet Gateway.#
-* 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_)
-* 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_)
+* 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
+* 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
+
 * 1 _cluster_ de Elastic Kubernetes Service (EKS) con _add-ons_ para EBS y CNI, _logging_ (si se ha especificado) y un proveedor OIDC.
 ** 2 _Security Groups_ de EKS para el _control-plane_ y los nodos _Worker_.
 ** 1 rol de IAM con la política AmazonEKSClusterPolicy.
+
 * VMs para _Workers_ (según descriptor del _cluster_ y autoescalado).
-** 1 Volumen EBS por volumen persistente.
-* 1 Balanceador de carga tipo _Network_ para la exposición de servicios.
-** 1 _Listener_ por puerto para cada _Service_ de tipo balanceador de carga.
+** 1 Volumen EBS para cada volumen persistente.
+
+* 1 Balanceador de carga tipo _Network_ para la exposición de _Services_ tipo Load Balancer.
+** 1 _Listener_ por puerto para cada _Service_.
+
 * Volumen EBS para cada volumen persistente.
 
 === GCP
@@ -37,13 +43,47 @@ En un *despliegue por defecto*, se crean los siguientes objetos en AWS (en [silv
 * 1 _Cloud Router_.
 * Reglas de _firewall_.
 * 1 _Unmanage Instance Group_ para el _control-plane_.
+
 * 1/3 VMs para el _control-plane_ (según descriptor del _cluster_).
-** 1 Volumen EBS por VM.
+** 1 Persistent disk por VM.
+
 * VMs para _workers_ (según el descriptor del _cluster_ y autoescalado).
-** 1 Volumen EBS por VM.
-* 1 Balanceador de carga L4 para la exposición de servicios.
-** 1 _Listener_ por puerto para cada _Service_ de tipo balanceador de carga.
-* Volumen EBS para cada volumen persistente.
+** 1 Persistent disk por VM.
+
+* 1 Balanceador de carga L4 para la exposición de _Services_ tipo Load Balancer.
+** 1 _Listener_ por puerto para cada _Service_.
+
+* Persistent disk para cada volumen persistente.
+
+=== Azure no-gestionado
+
+* [silver]#1 Resource group.#
+* 1 Virtual Network.
+* 1 Route table para workers.
+* 1 NAT gateway para workers.
+* 2 Public IP address (apiserver y NATgw de workers).
+* 2 Network Security Group (control-plane y workers).
+* 1 LB público.
+
+* 1/3 VMs para el _control-plane_ (según descriptor del _cluster_).
+** 1 Disco de bloque por VM.
+** 1 Network interface por VM.
+
+* VMs para _workers_ (según el descriptor del _cluster_ y autoescalado).
+** 1 Disco de bloque por VM.
+** 1 Network interface por VM.
+
+* 1 Balanceador de carga para la exposición de _Services_ tipo Load Balancer.
+** 1 Frontend IP config para cada _service_.
+** 1 Health probe para cada _service_.
+** 1 LB rule para cada _service_.
+
+* Disco de bloque para cada volumen persistente.
+
+=== AKS
+
+
+
 
 == Seguridad
 
@@ -67,25 +107,40 @@ Para la exposición del APIserver, se crea un balanceador de carga con nombre `<
 
 El _Health Check_ del servicio se hace por SSL, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
 
+==== Azure no-gestionado
+
+Para la exposición del APIserver, se crea un balanceador de carga con nombre `<cluster_id>-public-lb` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_), y un _Backend pool_ con los nodos del _control-plane_.
+
+El _Health Check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
+
+==== AKS
+
+Para la exposición del APIserver, se crea un balanceador de carga con nombre `<cluster_id>-public-lb` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_), y un _Backend pool_ con los nodos del _control-plane_.
+
+El _Health Check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
+
 == Almacenamiento
 
-=== Nodos
+=== Nodos (control-plane y workers)
 
-A nivel de almacenamiento, se monta un único disco _root_ del que se puede definir su tipo, tamaño y encriptación.
+A nivel de almacenamiento, se monta un único disco _root_ del que se puede definir su tipo, tamaño y encriptación (se podrá especificar una clave de encriptación previamente creada).
 
 Ejemplo:
 
 [source,bash]
 ----
-type: gcp2
+type: gcp3
 size: 384Gi
 encrypted: true
+encryption_key: <key_name>
 ----
 
-Estos discos se crean en la provisión inicial de los nodos _workers_, por lo que estos datos se pasan como parámetros del descriptor.
+Estos discos se crean en la provisión inicial de los nodos, por lo que estos datos se pasan como parámetros del descriptor.
 
 === _StorageClass_
 
-Por defecto, el _cluster_ disponibiliza una _StorageClass_ ("gp2" en AWS y "csi-gcp-pd" en GCP) para disco de bloques con _filesystem ext4_. Esta _StorageClass_ se crea con _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_.
+Durante el aprovisionamiento se disponibiliza una _StorageClass_ (default) con nombre "keos" para disco de bloques. Ésta cuenta con los parámetros _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_. Los parámetros de esta _StorageClass_ se podrán configurar en el descriptor del cluster.
 
 Se deberá tener en cuenta que los _PersistentVolumes_ creados a partir de esta _StorageClass_ tendrán afinidad con la zona donde se han consumido.
+
+En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el provider, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
