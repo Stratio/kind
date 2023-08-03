@@ -32,7 +32,7 @@ type KEOSDescriptor struct {
 		URL          string `yaml:"url"`
 	} `yaml:"docker_registry"`
 	HelmRepository struct {
-		AuthRequired bool   `yaml:"auth_required,omitempty"`
+		AuthRequired *bool  `yaml:"auth_required,omitempty"`
 		URL          string `yaml:"url"`
 	} `yaml:"helm_registry"`
 	AWS struct {
@@ -100,10 +100,9 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 	}
 
 	// Helm repository
-
 	keosDescriptor.HelmRepository.URL = keosCluster.Spec.HelmRepository.URL
 	if !keosCluster.Spec.HelmRepository.AuthRequired {
-		keosDescriptor.HelmRepository.AuthRequired = keosCluster.Spec.HelmRepository.AuthRequired
+		keosDescriptor.HelmRepository.AuthRequired = &keosCluster.Spec.HelmRepository.AuthRequired
 	}
 
 	// AWS

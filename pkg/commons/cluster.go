@@ -239,7 +239,7 @@ type HelmRepositoryCredentials struct {
 }
 
 type HelmRepository struct {
-	AuthRequired bool   `yaml:"auth_required" validate:"required,boolean"`
+	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
 	URL          string `yaml:"url" validate:"required"`
 }
 
@@ -345,6 +345,9 @@ func (s Spec) Init() Spec {
 	s.ControlPlane.AWS.Logging.Authenticator = false
 	s.ControlPlane.AWS.Logging.ControllerManager = false
 	s.ControlPlane.AWS.Logging.Scheduler = false
+
+	// Helm
+	s.HelmRepository.AuthRequired = true
 
 	// Managed zones
 	s.Dns.ManageZone = true

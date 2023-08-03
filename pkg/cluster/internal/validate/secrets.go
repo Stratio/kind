@@ -163,13 +163,13 @@ func validateHelmCredentials(secrets commons.Secrets, spec commons.Spec) (map[st
 			existCredentials = true
 			err := validateStruct(helmRepository)
 			if err != nil {
-				return nil, errors.Wrap(err, "there aren't valid credentials for the registry: "+helmRepository.URL)
+				return nil, errors.Wrap(err, "there aren't valid credentials for the repository: "+helmRepository.URL)
 			}
 			registryMap := structs.Map(helmRepository)
 			resultHelmRepository = convertToMapStringString(registryMap)
 		}
 		if !existCredentials {
-			return nil, errors.New("there aren't valid credentials for the registry: " + helmRepository.URL)
+			return nil, errors.New("there aren't valid credentials for the repository: " + helmRepository.URL)
 		}
 	}
 	return resultHelmRepository, nil
