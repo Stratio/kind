@@ -36,7 +36,7 @@ Asimismo, se pueden indicar *grupos de nodos _worker_* con las siguientes opcion
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 * _ssh$$_$$key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).
@@ -155,7 +155,7 @@ Para este proveedor, el _control-plane_ se desplegará en máquinas virtuales, p
 * _node$$_$$image_: imagen de los nodos del _control-plane_. La imagen indicada deberá existir en el proyecto referenciado.
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 
 ==== Nodos _worker_
@@ -170,7 +170,7 @@ En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con la
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 * _ssh$$_$$key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).
@@ -256,7 +256,7 @@ A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando keos-insta
 === Prerrequisitos
 
 * Usuarios con los privilegios necesarios en Azure:
-** Crear una _Managed Identity_ con los roles: Contributor, AcrPull (sobre el ACR del cluster, opcional) y Managed Identity Operator. La referencia de esta identidad (Image ID) se utilizará en el descriptor del _cluster_ con el siguiente formato: _/subscriptions/<subscription_id>/resourcegroups/<nombre_resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity_name>_.
+** Crear una _Managed Identity_ con los roles: Contributor, AcrPull (sobre el ACR del cluster, opcional) y Managed Identity Operator. La referencia de esta identidad (Resource ID) se utilizará en el descriptor del _cluster_ (formato _/subscriptions/<subscription_id>/resourcegroups/<nombre_resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity_name>_).
 ** Crear una _App registration_ (creará una _Enterprise application_) y generar un _client secret_. El valor del _client secret_ y su _Secret ID_ se utilizarán para las credenciales solicitadas en el descriptor del _cluster_.
 * Zonas DNS privadas y públicas creadas en Azure (opcional).
 * Infraestructura personalizada creada en Azure (opcional).
@@ -283,7 +283,7 @@ Para este proveedor, el _control-plane_ se desplegará en máquinas virtuales, p
 * _node$$_$$image_: imagen de los nodos del _control-plane_ (opcional). La imagen indicada deberá existir en la cuenta.
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 
 ==== Nodos _worker_
@@ -298,7 +298,7 @@ En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con la
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 * _ssh$$_$$key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).
@@ -386,7 +386,7 @@ A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando keos-insta
 === Prerrequisitos
 
 * Usuarios con los privilegios necesarios en Azure:
-** Crear una _Managed Identity_ con los roles: Contributor, AcrPull (sobre el ACR del cluster, opcional) y Managed Identity Operator. La referencia de esta identidad (Image ID) se utilizará en el descriptor del _cluster_ con el siguiente formato: _/subscriptions/<subscription_id>/resourcegroups/<nombre_resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity_name>_.
+** Crear una _Managed Identity_ con los roles: Contributor, AcrPull (sobre el ACR del cluster, opcional) y Managed Identity Operator. La referencia de esta identidad (Resource ID) se utilizará en el descriptor del _cluster_ (formato _/subscriptions/<subscription_id>/resourcegroups/<nombre_resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity_name>_).
 ** Crear una _App registration_ (creará una _Enterprise application_) y generar un _client secret_. El valor del _client secret_ y su _Secret ID_ se utilizarán para las credenciales solicitadas en el descriptor del _cluster_.
 * Zonas DNS privadas y públicas creadas en Azure (opcional).
 * Infraestructura personalizada creada en Azure (opcional).
@@ -415,7 +415,7 @@ Asimismo, se pueden indicar *grupos de nodos _worker_* con las siguientes opcion
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root$$_$$volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp2).
+** _type_: tipo de disco (por defecto: gp3).
 ** _encrypted_: cifrado del disco (por defecto: _false_).
 * _ssh$$_$$key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).

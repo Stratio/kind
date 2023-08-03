@@ -335,7 +335,7 @@ spec:
     aws:
       region: eu-west-1
       access_key: AKIAT4..
-      account: '3683675..'
+      account_id: '3683675..'
       secret_key: wq3/Vsc..
     github_token: github_pat_11APW..
   k8s_version: v1.24.0
@@ -425,6 +425,7 @@ spec:
       client_email: keos@stratio.com
       project_id: gcp-prod
       region: europe-west4
+      client_id: "6767910929.."
     github_token: github_pat_11APW..
     docker_registries:
       - url: keosregistry.stratio.com/keos
@@ -490,7 +491,7 @@ Actualmente, este binario incluye las siguientes opciones:
 - `--keep-mgmt`: crea el cluster _worker_ pero deja su gestión en el _cluster_ local.
 - `--retain`: permite mantener el _cluster_ local aún sin gestión.
 
-Para crear un _cluster_, basta con un simple comando:
+Para crear un _cluster_, basta con un simple comando (ver particularidades de cada provider en las Quickstart guides):
 
 [source,bash]
 -----
