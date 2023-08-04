@@ -268,7 +268,7 @@ a|
 ----
 root_volume:
   size: 50
-  type: gp2
+  type: gp3
   encrypted: true
 ----
 |Si
@@ -479,9 +479,9 @@ spec:
     version: 0.8.1
 ----
 
-== Proveedor
+== Aprovisionamiento
 
-_Cloud-provisioner_ es una herramienta que facilita el aprovisionamiento de los elementos necesarios en el _cloud provider_ especificado para la creación de un _cluster_ de Kubernetes según el <<descriptor_del_cluster, descriptor>> especificado.
+_cloud-provisioner_ es una herramienta que facilita el aprovisionamiento de los elementos necesarios en el _cloud provider_ especificado para la creación de un _cluster_ de Kubernetes según el <<descriptor_del_cluster, descriptor>> especificado.
 
 Actualmente, este binario incluye las siguientes opciones:
 
@@ -523,4 +523,10 @@ Creating temporary cluster "stratio-pre" ...
 The cluster has been installed, please refer to _Stratio KEOS_ documentation on how to proceed.
 -----
 
-Una vez finalizado el proceso, tendrás los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
+Una vez finalizado el proceso, tendremos los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
+
+# TODO: Modificar parametros del LB en los providers de la 0.2? GCP y AzUre?
+
+# TODO: Agregar compilacion de las imagenes de GCP y Azure/AKS (con parametros para Elasticsearch y warning para Governance).
+
+Habrá que tener en cuenta las necesidades de Sistema Operativo de las aplicaciones que se haga uso del mismo (systemd units, DaemonSets, etc.).

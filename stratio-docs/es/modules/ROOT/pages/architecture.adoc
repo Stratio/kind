@@ -151,6 +151,8 @@ encryption_key: <key_name>
 
 Estos discos se crean en la provisión inicial de los nodos, por lo que estos datos se pasan como parámetros del descriptor.
 
+# TODO: Discos por defecto en standard y premium?
+
 === _StorageClass_
 
 Durante el aprovisionamiento se disponibiliza una _StorageClass_ (default) con nombre "keos" para disco de bloques. Ésta cuenta con los parámetros _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_. Los parámetros de esta _StorageClass_ se podrán personalizar en el descriptor del cluster.
