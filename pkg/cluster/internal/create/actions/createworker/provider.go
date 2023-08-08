@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/base64"
+	"io/ioutil"
 	"path/filepath"
 
 	"reflect"
@@ -34,6 +35,12 @@ import (
 
 //go:embed templates/*/*
 var ctel embed.FS
+
+//go:embed files/*/deny-all-egress-imds_gnetpol.yaml
+var denyAllEgressIMDSgnpFiles embed.FS
+
+//go:embed files/*/allow-egress-imds_gnetpol.yaml
+var allowEgressIMDSgnpFiles embed.FS
 
 const (
 	CAPICoreProvider         = "cluster-api:v1.4.3"
@@ -57,9 +64,9 @@ type PBuilder interface {
 	installCSI(n nodes.Node, k string) error
 	getProvider() Provider
 	configureStorageClass(n nodes.Node, k string) error
-	getAzs(networks commons.Networks) ([]string, error)
-	internalNginx(networks commons.Networks, credentialsMap map[string]string, clusterID string) (bool, error)
-	getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error)
+	getAzs(p ProviderParams, networks commons.Networks) ([]string, error)
+	internalNginx(p ProviderParams, networks commons.Networks) (bool, error)
+	getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error)
 }
 
 type Provider struct {
@@ -87,6 +94,7 @@ type Infra struct {
 }
 
 type ProviderParams struct {
+	ClusterName  string
 	Region       string
 	Managed      bool
 	Credentials  map[string]string
@@ -159,28 +167,46 @@ func (i *Infra) configureStorageClass(n nodes.Node, k string) error {
 	return i.builder.configureStorageClass(n, k)
 }
 
-func (i *Infra) internalNginx(networks commons.Networks, credentialsMap map[string]string, ClusterID string) (bool, error) {
-	requiredIntenalNginx, err := i.builder.internalNginx(networks, credentialsMap, ClusterID)
-	if err != nil {
-		return false, err
-	}
-	return requiredIntenalNginx, nil
+func (i *Infra) internalNginx(p ProviderParams, networks commons.Networks) (bool, error) {
+	return i.builder.internalNginx(p, networks)
 }
 
-func (i *Infra) getOverrideVars(keosCluster commons.KeosCluster, credentialsMap map[string]string) (map[string][]byte, error) {
-	overrideVars, err := i.builder.getOverrideVars(keosCluster, credentialsMap)
-	if err != nil {
-		return nil, err
-	}
-	return overrideVars, nil
+func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error) {
+	return i.builder.getOverrideVars(p, networks)
 }
 
-func (i *Infra) getAzs(networks commons.Networks) ([]string, error) {
-	azs, err := i.builder.getAzs(networks)
+func (i *Infra) getAzs(p ProviderParams, networks commons.Networks) ([]string, error) {
+	return i.builder.getAzs(p, networks)
+}
+
+func (p *Provider) getDenyAllEgressIMDSGNetPol() (string, error) {
+	denyAllEgressIMDSGNetPolLocalPath := "files/" + p.capxProvider + "/deny-all-egress-imds_gnetpol.yaml"
+	denyAllEgressIMDSgnpFile, err := denyAllEgressIMDSgnpFiles.Open(denyAllEgressIMDSGNetPolLocalPath)
 	if err != nil {
-		return nil, err
+		return "", errors.Wrap(err, "error opening the deny all egress IMDS file")
 	}
-	return azs, nil
+	defer denyAllEgressIMDSgnpFile.Close()
+	denyAllEgressIMDSgnpContent, err := ioutil.ReadAll(denyAllEgressIMDSgnpFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(denyAllEgressIMDSgnpContent), nil
+}
+
+func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
+	allowEgressIMDSGNetPolLocalPath := "files/" + p.capxProvider + "/allow-egress-imds_gnetpol.yaml"
+	allowEgressIMDSgnpFile, err := allowEgressIMDSgnpFiles.Open(allowEgressIMDSGNetPolLocalPath)
+	if err != nil {
+		return "", errors.Wrap(err, "error opening the allow egress IMDS file")
+	}
+	defer allowEgressIMDSgnpFile.Close()
+	allowEgressIMDSgnpContent, err := ioutil.ReadAll(allowEgressIMDSgnpFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(allowEgressIMDSgnpContent), nil
 }
 
 func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, allowCommonEgressNetPolPath string) error {
