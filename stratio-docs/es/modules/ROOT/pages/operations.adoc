@@ -267,6 +267,8 @@ El método recomendado se basa en 3 simples pasos:
 2. Obtener la versión del nuevo objeto `<provider_name>MachineTemplate` (_metadata.resourceVersion_).
 3. Editar el _MachineDeployment_ actualizando la versión obtenida en el paso anterior (_spec.template.spec.infrastructureRef.resourceVersion_).
 
+===== EKS
+
 Como ejemplo, para un _cluster_ de EKS se haría de la siguiente forma:
 
 [source,bash]
@@ -275,14 +277,33 @@ $ export MACHINE_TYPE="t3.medium"
 $ export MACHINE_DEPLOYMENT="example-eks-xlarge-md-2"
 $ export NAMESPACE="cluster-example-eks"
 
-$ kubectl -n $NAMESPACE patch awsmt $MACHINE_DEPLOYMENT --type merge ;-p "{\"spec\": {\"template\": {\"spec\": {\"instanceType\": "$MACHINE_TYPE"}}}}"
+$ kubectl -n $NAMESPACE patch <provider_name>MachineTemplate $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"instanceType\": \"$MACHINE_TYPE\"}}}}"
 
-$ RESOURCE_VERSION=$(kubectl -n $NAMESPACE get awsmt $MACHINE_DEPLOYMENT -o json | jq -r .metadata.resourceVersion)
+$ RESOURCE_VERSION=$(kubectl -n $NAMESPACE get <provider_name>MachineTemplate $MACHINE_DEPLOYMENT -o json | jq -r .metadata.resourceVersion)
 
-$ kubectl -n $NAMESPACE patch md $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"infrastructureRef\": {\"resourceVersion\": \"$RESOURCE_VERSION\"}}}}}"
+$ kubectl -n $NAMESPACE patch MachineDeployment $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"infrastructureRef\": {\"resourceVersion\": \"$RESOURCE_VERSION\"}}}}}"
 ----
 
-# TODO: AGREGAR ESCALADO VERTICAL PARA GCP y AzUre
+===== GCP y Azure no-gestionado
+
+Para estos providers, el procedimiento es muy similar al de EKS pero varía en que el objeto <provider_name>MachineTemplate no se puede editar, teniendo que eliminarlo y crear uno nuevo.
+
+[source,bash]
+----
+$ export MACHINE_TYPE="t3.medium"
+$ export MACHINE_DEPLOYMENT="example-eks-xlarge-md-2"
+$ export NAMESPACE="cluster-example-eks"
+$ export PROVIDER_NAME="gcp"
+
+$ kubectl -n $NAMESPACE get ${PROVIDER_NAME}machinetemplate $MACHINE_DEPLOYMENT -o yaml > /tmp/$MACHINE_DEPLOYMENT_gcpmt.yaml
+$ sed -i "s/ instanceType:.*/ instanceType: $MACHINE_TYPE/" /tmp/$MACHINE_DEPLOYMENT_gcpmt.yaml 
+$ kubectl delete -f /tmp/$MACHINE_DEPLOYMENT_gcpmt.yaml
+$ kubectl apply -f /tmp/$MACHINE_DEPLOYMENT_gcpmt.yaml
+
+$ RESOURCE_VERSION=$(kubectl -n $NAMESPACE get ${PROVIDER_NAME}MachineTemplate $MACHINE_DEPLOYMENT -o json | jq -r .metadata.resourceVersion)
+
+$ kubectl -n $NAMESPACE patch MachineDeployment $MACHINE_DEPLOYMENT --type merge -p "{\"spec\": {\"template\": {\"spec\": {\"infrastructureRef\": {\"resourceVersion\": \"$RESOURCE_VERSION\"}}}}}"
+----
 
 === Autoescalado
 
@@ -352,7 +373,12 @@ CAUTION: La actualización de la version de Kubernetes de los nodos en los clust
 
 image::upgrade-cp.png[]
 
-El upgrade del _control-plane_ en entornos productivos y especialmente en flavours no-gestionados deberá hacerse extremando todas las precauciones.
+El upgrade de un cluster en entornos productivos, y especialmente en flavours no-gestionados, deberá hacerse extremando todas las precauciones. En particular, antes del upgrade del cluster, se recomienda realizar un backup de los objetos que gestionan la infraestructura con el siguiente comando:
+
+[source,bash]
+----
+$ clusterctl --kubeconfig ./kubeconfig/path move -n cluster-<cluster_name> --to-directory ./backup/path/
+----
 
 En el caso de _control-plane_ gestionados, se deberá verificar que la versión deseada de Kubernetes está soportada por el provider.
 
@@ -372,18 +398,34 @@ Para iniciar la actualización, se ejecutará un _patch_ de _spec.version_ en el
 $ kubectl -n cluster-example patch AWSManagedControlPlane example-control-plane --type merge -p '{"spec": {"version": "v1.24.0"}}'
 ----
 
-===== GCP
+===== GCP y Azure no-gestionado
 
-# TODO: mover mgmt, GNPs se crean en 0.2?, verificar etcd !!!!
+La GlobalNetworkPolicy creada para el _control-plane_ en la fase de instalación de KEOS, se deberá modificar de modo que *permita toda la red de los nodos momentáneamente* mientras se ejecuta el upgrade.
 
-===== Azure no-gestionado
+Una vez finalizada la actualización, se deberán actualizar las IPs internas de los nodos y las de tunel asignadas a dichos nodos:
 
-La GlobalNetworkPolicy creada para el _control-plane_ se deberá actualizar con las IPs obtenidas con este comando:
+[source,bash]
+----
+$ kubectl get nodes -l node-role.kubernetes.io/control-plane= -ojson | jq -r '.items[].status.addresses[] | select(.type=="InternalIP").address + "\/32"' 
+----
 
 [source,bash]
 ----
 $ IPAMHANDLERS=$(kw get ipamhandles -oname | grep control-plane)
 $ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | keys[]' | sed 's/\/.*/\/32/'; done
+----
+
+Una forma de asegurar que el etcd está correcto después de actualizar un _control-plane_ no-gestionado es abrir una terminal en cualquier Pod de etcd, ver el status del cluster y comparar las IPs de los miembros registrados con las IPs de los nodos del _control-plane_.
+
+[source,bash]
+----
+$ k -n kube-system exec -ti etcd-<control-plane-node> sh
+
+$ alias e="etcdctl --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key --cacert=/etc/kubernetes/pki/etcd/ca.crt "
+$ e endpoint status
+$ e endpoint status -w table --cluster
+$ e member list
+$ e member remove <member-id>
 ----
 
 ===== AKS

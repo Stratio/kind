@@ -527,6 +527,13 @@ Una vez finalizado el proceso, tendremos los ficheros necesarios (_keos.yaml_ y 
 
 # TODO: Modificar parametros del LB en los providers de la 0.2? GCP y AzUre?
 
+Si para GCP (SSL al 443)!
+Si para Azure! (TCP al 6443)
+
+
 # TODO: Agregar compilacion de las imagenes de GCP y Azure/AKS (con parametros para Elasticsearch y warning para Governance).
+
+https://github.com/Stratio/kind/blob/branch-0.17.0-0.3/docs/azure/Image%20Builder/azure_image_builder.adoc#prerequisitos-globales
+
 
 Habrá que tener en cuenta las necesidades de Sistema Operativo de las aplicaciones que se haga uso del mismo (systemd units, DaemonSets, etc.).

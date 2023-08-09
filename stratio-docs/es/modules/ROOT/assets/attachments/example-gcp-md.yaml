@@ -59,4 +59,5 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             cloud-provider: gce
+            register-with-taints: gpu=true:NoSchedule
           name: '{{ ds.meta_data.local_hostname.split(".")[0] }}'

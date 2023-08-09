@@ -139,7 +139,7 @@ En este caso, el APIserver se expone públicamente y con la URL indicada en el _
 
 A nivel de almacenamiento, se monta un único disco _root_ del que se puede definir su tipo, tamaño y encriptación (se podrá especificar una clave de encriptación previamente creada).
 
-Ejemplo:
+[.underline]#Ejemplo:#
 
 [source,bash]
 ----
@@ -151,12 +151,115 @@ encryption_key: <key_name>
 
 Estos discos se crean en la provisión inicial de los nodos, por lo que estos datos se pasan como parámetros del descriptor.
 
-# TODO: Discos por defecto en standard y premium?
 
 === _StorageClass_
 
-Durante el aprovisionamiento se disponibiliza una _StorageClass_ (default) con nombre "keos" para disco de bloques. Ésta cuenta con los parámetros _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_. Los parámetros de esta _StorageClass_ se podrán personalizar en el descriptor del cluster.
+Durante el aprovisionamiento se disponibiliza una _StorageClass_ (default) con nombre "keos" para disco de bloques. Ésta cuenta con los parámetros _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_.
 
 Se deberá tener en cuenta que los _PersistentVolumes_ creados a partir de esta _StorageClass_ tendrán afinidad con la zona donde se han consumido.
 
+Desde el descriptor del cluster se permite indicar la clave de encriptación, la clase de discos o bien parámetros libres.
+
+[.underline]#Ejemplo con opciones básicas:#
+
+[source,bash]
+----
+spec:
+  infra_provider: aws
+  storageclass:
+    encryption_key: <my_simm_key>
+    class: premium
+----
+
+El parámetro _class_ puede ser "premium" o "standard", esto dependerá del _cloud provider_:
+
+
+[cols="1,2,2"]
+|===
+^|Provider ^|Standard class ^|Premium class
+
+|AWS
+|gp3
+|io2 (64k IOPS)
+
+|GCP
+|pd-standard
+|pd-ssd
+
+|Azure
+|StandardSSD_LRS
+|Premium_LRS
+
+|===
+
+[.underline]#Ejemplo con parámetros libres:#
+
+[source,bash]
+----
+spec:
+  infra_provider: gcp
+  storageclass:
+    parameters:
+      type: pd-extreme
+      provisioned-iops-on-create: 5000
+      disk-encryption-kms-key: <key_name>
+      labels: "key1=value1,key2=value2"
+----
+
+Estos últimos también dependen del _cloud provider_:
+
+[cols="1,2"]
+|===
+^|Provider ^|Parametro
+
+| All
+|fsType
+
+| AWS, GCP
+|type +
+labels
+
+|AWS
+|iopsPerGB +
+kmsKeyId +
+allowAutoIOPSPerGBIncrease +
+iops +
+throughput +
+encrypted +
+blockExpress +
+blockSize
+
+|GCP
+|provisioned-iops-on-create +
+replication-type +
+disk-encryption-kms-key
+
+|Azure
+|provisioner +
+skuName +
+kind +
+cachingMode +
+diskEncryptionType +
+diskEncryptionSetID +
+resourceGroup +
+tags +
+networkAccessPolicy +
+publicNetworkAccess +
+diskAccessID +
+enableBursting +
+enablePerformancePlus +
+subscriptionID
+
+|===
+
 En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el provider, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
+
+=== EFS
+# TODO: Agregar EFS
+
+
+
+== Tags en EKS
+# TODO: Agregar labels (mismo formato), tags para SCs
+
+

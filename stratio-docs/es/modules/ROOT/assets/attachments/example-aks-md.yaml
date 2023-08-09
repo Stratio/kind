@@ -40,5 +40,9 @@ spec:
     maxSize: 7
   nodeLabels:
     backup: "false"
+  taints:
+    - key: "gpu"
+      value: "true"
+      effect: "NoSchedule"
 ---
 

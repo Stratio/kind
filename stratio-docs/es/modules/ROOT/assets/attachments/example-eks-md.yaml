@@ -70,4 +70,5 @@ spec:
     spec:
       kubeletExtraArgs:
         node-labels: dynamic=true,
+        register-with-taints: gpu=true:NoSchedule,
 ---
