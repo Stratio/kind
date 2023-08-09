@@ -97,15 +97,15 @@ spec:
           cloud-provider: aws
       controllerManager:
         extraArgs:
-          bind-address: 0.0.0.0
+          bind-address: \"0.0.0.0\"
           cloud-provider: aws
       scheduler:
         extraArgs:
-          bind-address: 0.0.0.0
+          bind-address: \"0.0.0.0\"
       etcd:
         local:
           extraArgs:
-            listen-metrics-urls: http://0.0.0.0:2381
+            listen-metrics-urls: \"http://0.0.0.0:2381\"
     files:
       - content: |
           #!/bin/bash
@@ -113,12 +113,12 @@ spec:
           # this is a workaround to use a script with preKubeadmCommand to modify the kubeadm config files
           # https://github.com/kubernetes-sigs/cluster-api/issues/4512
           FILE=/run/kubeadm/kubeadm.yaml
-          if [ -f "\$FILE" ]; then
-          cat <<EOF>> "\$FILE"
+          if [ -f \"\$FILE\" ]; then
+          cat <<EOF>> \"\$FILE\"
           ---
           kind: KubeProxyConfiguration
           apiVersion: kubeproxy.config.k8s.io/v1alpha1
-          metricsBindAddress: "0.0.0.0:10249"
+          metricsBindAddress: \"0.0.0.0:10249\"
           EOF
           fi
         path: /usr/local/bin/set-kube-proxy-configuration.sh
@@ -161,7 +161,7 @@ spec:
       filesystems:
         {{- range $index, $vol := .KeosCluster.Spec.ControlPlane.ExtraVolumes }}
         - device: /dev/nvme{{ len (printf "a%*s" $index "") }}n1
-          filesystem: xfs
+          filesystem: ext4
           label: {{ $vol.Label }}
         {{- end }}
       partitions:
@@ -211,7 +211,7 @@ spec:
         {{- end }}
       {{- end }}
       rootVolume:
-        size: {{- if .KeosCluster.Spec.ControlPlane.RootVolume.Size }} {{ .KeosCluster.Spec.ControlPlane.RootVolume.Size }} {{ else }} 30 {{ end }}
+        size: {{- if .KeosCluster.Spec.ControlPlane.RootVolume.Size }} {{ .KeosCluster.Spec.ControlPlane.RootVolume.Size }} {{- else }} 30 {{- end }}
         {{- if .KeosCluster.Spec.ControlPlane.RootVolume.Type }}
         type: {{ .KeosCluster.Spec.ControlPlane.RootVolume.Type }}
         {{- end }}
@@ -283,7 +283,7 @@ spec:
         {{- end }}
       {{- end }}
       rootVolume:
-        size: {{- if $node.RootVolume.Size }} {{ $node.RootVolume.Size }} {{ else }} 30 {{ end }}
+        size: {{- if $node.RootVolume.Size }} {{ $node.RootVolume.Size }} {{- else }} 30 {{- end }}
         {{- if $node.RootVolume.Type }}
         type: {{ $node.RootVolume.Type }}
         {{- end }}
