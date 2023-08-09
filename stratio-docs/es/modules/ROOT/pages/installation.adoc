@@ -151,6 +151,8 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 |===
 
+NOTE: Cualquier cambio en spec.credentials debe hacerse con todas las credenciales en el descriptor del cluster y eliminando previamente el secrets.yml.
+
 === Redes
 
 Como se ha mencionado anteriormente, el instalador permite utilizar elementos de red del _cloud provider_ creados anteriormente (por ejemplo, por un equipo de seguridad de redes), posibilitando así las arquitecturas que mejor se adapten a nuestras necesidades.
