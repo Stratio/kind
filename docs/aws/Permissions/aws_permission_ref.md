@@ -204,7 +204,8 @@ kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl01 delete cluster eks-cl0
 | ec2:DeleteNatGateway | failed to delete NAT gateway "nat-0a0b0c0d0e0f0a0b0" | DeleteNatGateway | * | cloud-provisioner |
 | ec2:ReleaseAddress | failed to release ElasticIP "eipalloc-0b9b95649ebe9fe11": UnauthorizedOperation: | ReleaseAddress | * | cloud-provisioner |
 | ec2:DetachInternetGateway | failed to detach internet gateway "igw-027278b62139ce652": UnauthorizedOperation: You are not authorized | DetachInternetGateway | * | cloud-provisioner |
-|   |failed to delete subnet "subnet-0c5ff226c483b3818": UnauthorizedOperation | DeleteSubnet | * | cloud-provisioner |
+| ec2:DeleteSubnet |failed to delete subnet "subnet-0c5ff226c483b3818": UnauthorizedOperation | DeleteSubnet | * | cloud-provisioner |
+| ec2:DeleteInternetGateway | failed to delete internet gateway "igw-027278b62139ce652": UnauthorizedOperation: You are not authorized | DeleteInternetGateway | * | cloud-provisioner |
 
 **Test**: Keos Install
 
