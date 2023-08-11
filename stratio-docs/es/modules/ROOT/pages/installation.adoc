@@ -9,7 +9,7 @@
 Para el aprovisionamiento automatizado en EKS, se necesita ejecutar acciones sobre diversos servicios de AWS como ec2, ecr, eks, elasticloadbalancing, etc. Si bien la utilización o no de estas acciones dependerá del tipo de instalación, el proveedor valida que el usuario indicado tenga estos permisos para poder ejecutarse con normalidad.
 +
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
-** xref:attachment$stratio-eks-temp-policy.json[Descargar permisos temporales para EKS]
+** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
 
 * Sistemas operativos certificados
 
@@ -30,12 +30,6 @@ xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 Para los entornos en GCP, se deberá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
-
-== Infraestructura propia
-
-Si bien una de las ventajas de la creación de recursos automática en el aprovisionamiento es el gran dinamismo que otorga, por motivos de seguridad y cumplimiento de la normativa, muchas veces es necesario crear ciertos recursos previamente al despliegue de _Stratio KEOS_ en el proveedor de _Cloud_.
-
-En este sentido, el _Stratio Cloud Provisioner_ permite utilizar tanto un VPC como _subnets_ previamente creadas empleando el parámetro _networks_ en el descriptor del _cluster_, como ser verá a continuación.
 
 == Descriptor del _cluster_
 
@@ -526,6 +520,8 @@ The cluster has been installed, please refer to _Stratio KEOS_ documentation on 
 -----
 
 Una vez finalizado el proceso, tendremos los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
+
+NOTE: Dado que el fichero descriptor para la instalación (keos.yaml) se regenera en cada ejecución, se realiza un backup del anterior en el directorio local con la fecha correspondiente (p.ej. _keos.yaml.2023-07-05@11:19:17~_).
 
 # TODO: Modificar parametros del LB en los providers de la 0.2? GCP y AzUre?
 

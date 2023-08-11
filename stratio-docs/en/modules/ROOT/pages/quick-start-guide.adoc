@@ -7,7 +7,7 @@
 * For a user with the required privileges in AWS:
 ** Create a user for installation.
 ** Create policy according to xref:attachment$stratio-eks-policy.json[_stratio-eks-policy.json_].
-** Create policy according to xref:attachment$stratio-eks-temp-policy.json[_stratio-eks-policy.json_] (for provisioning only).
+** Create policy according to xref:attachment$stratio-aws-temp-policy.json[_stratio-aws-temp-policy.json_] (for provisioning only).
 ** Attach policies to the user.
 ** Create an access key.
 * Private and public hosted zones created in AWS (optional).
