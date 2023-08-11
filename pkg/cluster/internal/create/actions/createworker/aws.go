@@ -17,31 +17,35 @@ limitations under the License.
 package createworker
 
 import (
-	"bytes"
 	"context"
+	_ "embed"
 	"encoding/base64"
-	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
+	"sigs.k8s.io/kind/pkg/exec"
 )
+
+//go:embed files/aws/internal-ingress-nginx.yaml
+var awsInternalIngress []byte
 
 type AWSBuilder struct {
 	capxProvider     string
 	capxVersion      string
 	capxImageVersion string
+	capxManaged      bool
 	capxName         string
 	capxTemplate     string
 	capxEnvVars      []string
-	stClassName      string
+	scParameters     commons.SCParameters
+	scProvisioner    string
 	csiNamespace     string
 }
 
@@ -51,20 +55,19 @@ func newAWSBuilder() *AWSBuilder {
 
 func (b *AWSBuilder) setCapx(managed bool) {
 	b.capxProvider = "aws"
-	b.capxVersion = "v2.0.2"
-	b.capxImageVersion = "2.0.2-0.1.0"
+	b.capxVersion = "v2.2.0"
+	b.capxImageVersion = "v2.2.0"
 	b.capxName = "capa"
-	b.stClassName = "gp2"
+	b.capxManaged = managed
+	b.csiNamespace = "kube-system"
 	if managed {
 		b.capxTemplate = "aws.eks.tmpl"
-		b.csiNamespace = ""
 	} else {
 		b.capxTemplate = "aws.tmpl"
-		b.csiNamespace = ""
 	}
 }
 
-func (b *AWSBuilder) setCapxEnvVars(p commons.ProviderParams) {
+func (b *AWSBuilder) setCapxEnvVars(p ProviderParams) {
 	awsCredentials := "[default]\naws_access_key_id = " + p.Credentials["AccessKey"] + "\naws_secret_access_key = " + p.Credentials["SecretKey"] + "\nregion = " + p.Region + "\n"
 	b.capxEnvVars = []string{
 		"AWS_REGION=" + p.Region,
@@ -78,30 +81,68 @@ func (b *AWSBuilder) setCapxEnvVars(p commons.ProviderParams) {
 	}
 }
 
+func (b *AWSBuilder) setSC(p ProviderParams) {
+	if (p.StorageClass.Parameters != commons.SCParameters{}) {
+		b.scParameters = p.StorageClass.Parameters
+	}
+
+	b.scProvisioner = "ebs.csi.aws.com"
+
+	if b.scParameters.Type == "" {
+		if p.StorageClass.Class == "premium" {
+			b.scParameters.Type = "io2"
+			b.scParameters.IopsPerGB = "64000"
+		} else {
+			b.scParameters.Type = "gp3"
+		}
+	}
+
+	if p.StorageClass.EncryptionKey != "" {
+		b.scParameters.Encrypted = "true"
+		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
+	}
+}
+
 func (b *AWSBuilder) getProvider() Provider {
 	return Provider{
 		capxProvider:     b.capxProvider,
 		capxVersion:      b.capxVersion,
 		capxImageVersion: b.capxImageVersion,
+		capxManaged:      b.capxManaged,
 		capxName:         b.capxName,
 		capxTemplate:     b.capxTemplate,
 		capxEnvVars:      b.capxEnvVars,
-		stClassName:      b.stClassName,
+		scParameters:     b.scParameters,
+		scProvisioner:    b.scProvisioner,
 		csiNamespace:     b.csiNamespace,
 	}
 }
 
 func (b *AWSBuilder) installCSI(n nodes.Node, k string) error {
+	var c string
+	var err error
+
+	c = "helm install aws-ebs-csi-driver /stratio/helm/aws-ebs-csi-driver" +
+		" --kubeconfig " + k +
+		" --namespace " + b.csiNamespace
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy AWS EBS CSI driver Helm Chart")
+	}
+
 	return nil
 }
 
-func createCloudFormationStack(node nodes.Node, envVars []string) error {
+func createCloudFormationStack(n nodes.Node, envVars []string) error {
+	var c string
+	var err error
+
 	eksConfigData := `
 apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
 kind: AWSIAMConfiguration
 spec:
   bootstrapUser:
-    enable: true
+    enable: false
   eks:
     enable: true
     iamRoleCreation: false
@@ -114,72 +155,80 @@ spec:
     - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy`
 
 	// Create the eks.config file in the container
-	var raw bytes.Buffer
 	eksConfigPath := "/kind/eks.config"
-	cmd := node.Command("sh", "-c", "echo \""+eksConfigData+"\" > "+eksConfigPath)
-	if err := cmd.SetStdout(&raw).Run(); err != nil {
+	c = "echo \"" + eksConfigData + "\" > " + eksConfigPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
 		return errors.Wrap(err, "failed to create eks.config")
 	}
 
-	// Run clusterawsadm with the eks.config file previously created
-	// (this will create or update the CloudFormation stack in AWS)
-	raw = bytes.Buffer{}
-	cmd = node.Command("sh", "-c", "clusterawsadm bootstrap iam create-cloudformation-stack --config "+eksConfigPath)
-	cmd.SetEnv(envVars...)
-	if err := cmd.SetStdout(&raw).Run(); err != nil {
+	// Run clusterawsadm with the eks.config file previously created (this will create or update the CloudFormation stack in AWS)
+	c = "clusterawsadm bootstrap iam create-cloudformation-stack --config " + eksConfigPath
+	_, err = commons.ExecuteCommand(n, c, envVars)
+	if err != nil {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
 	return nil
 }
 
-func (b *AWSBuilder) getAzs() ([]string, error) {
-	if len(b.capxEnvVars) == 0 {
-		return nil, errors.New("Insufficient credentials.")
-	}
-	for _, cred := range b.capxEnvVars {
-		c := strings.Split(cred, "=")
-		envVar := c[0]
-		envValue := c[1]
-		os.Setenv(envVar, envValue)
-	}
+func (b *AWSBuilder) getAzs(p ProviderParams, networks commons.Networks) ([]string, error) {
+	var err error
+	var azs []string
+	var ctx = context.TODO()
 
-	sess, err := session.NewSession(&aws.Config{})
+	cfg, err := commons.AWSGetConfig(ctx, p.Credentials, p.Region)
 	if err != nil {
 		return nil, err
 	}
-	svc := ec2.New(sess)
-	result, err := svc.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{})
-	if err != nil {
-		return nil, err
-	}
-	if len(result.AvailabilityZones) < 3 {
-		return nil, errors.New("Insufficient Availability Zones in this region. Must have at least 3")
-	}
-	azs := make([]string, 3)
-	for i, az := range result.AvailabilityZones {
-		if i == 3 {
-			break
+	svc := ec2.NewFromConfig(cfg)
+	if len(networks.Subnets) > 0 {
+		azs, err = commons.AWSGetPrivateAZs(ctx, svc, networks.Subnets)
+		if err != nil {
+			return nil, err
 		}
-		azs[i] = *az.ZoneName
+	} else {
+		azs, err = commons.AWSGetAZs(ctx, svc)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return azs, nil
 }
 
-func getEcrToken(p commons.ProviderParams) (string, error) {
-	customProvider := credentials.NewStaticCredentialsProvider(
-		p.Credentials["AccessKey"], p.Credentials["SecretKey"], "",
-	)
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithCredentialsProvider(customProvider),
-		config.WithRegion(p.Region),
-	)
+func (b *AWSBuilder) internalNginx(p ProviderParams, networks commons.Networks) (bool, error) {
+	var err error
+	var ctx = context.TODO()
+
+	cfg, err := commons.AWSGetConfig(ctx, p.Credentials, p.Region)
+	if err != nil {
+		return false, err
+	}
+	svc := ec2.NewFromConfig(cfg)
+	if len(networks.Subnets) > 0 {
+		for _, s := range networks.Subnets {
+			isPrivate, err := commons.AWSIsPrivateSubnet(ctx, svc, &s.SubnetId)
+			if err != nil {
+				return false, err
+			}
+			if !isPrivate {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func getEcrToken(p ProviderParams) (string, error) {
+	var err error
+	var ctx = context.TODO()
+
+	cfg, err := commons.AWSGetConfig(ctx, p.Credentials, p.Region)
 	if err != nil {
 		return "", err
 	}
-
 	svc := ecr.NewFromConfig(cfg)
-	token, err := svc.GetAuthorizationToken(context.TODO(), &ecr.GetAuthorizationTokenInput{})
+	token, err := svc.GetAuthorizationToken(ctx, &ecr.GetAuthorizationTokenInput{})
 	if err != nil {
 		return "", err
 	}
@@ -190,4 +239,75 @@ func getEcrToken(p commons.ProviderParams) (string, error) {
 	}
 	parts := strings.SplitN(string(data), ":", 2)
 	return parts[1], nil
+}
+
+func (b *AWSBuilder) configureStorageClass(n nodes.Node, k string) error {
+	var c string
+	var err error
+	var cmd exec.Cmd
+
+	if b.capxManaged {
+		// Remove annotation from default storage class
+		c = "kubectl --kubeconfig " + k + ` get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
+		output, err := commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to get default storage class")
+		}
+		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
+			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove annotation from default storage class")
+			}
+		}
+	}
+
+	scTemplate.Parameters = b.scParameters
+	scTemplate.Provisioner = b.scProvisioner
+
+	scBytes, err := yaml.Marshal(scTemplate)
+	if err != nil {
+		return err
+	}
+	storageClass := strings.Replace(string(scBytes), "fsType", "csi.storage.k8s.io/fstype", -1)
+
+	if b.scParameters.Labels != "" {
+		var tags string
+		re := regexp.MustCompile(`\s*labels: (.*,?)`)
+		labels := re.FindStringSubmatch(storageClass)[1]
+		for i, label := range strings.Split(labels, ",") {
+			tags += "\n    tagSpecification_" + strconv.Itoa(i+1) + ": \"" + strings.TrimSpace(label) + "\""
+		}
+		storageClass = re.ReplaceAllString(storageClass, tags)
+	}
+
+	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
+	if err = cmd.SetStdin(strings.NewReader(storageClass)).Run(); err != nil {
+		return errors.Wrap(err, "failed to create default storage class")
+	}
+
+	return nil
+}
+
+func (b *AWSBuilder) getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error) {
+	var overrideVars map[string][]byte
+
+	// Add override vars internal nginx
+	requiredInternalNginx, err := b.internalNginx(p, networks)
+	if err != nil {
+		return nil, err
+	}
+	if requiredInternalNginx {
+		overrideVars = addOverrideVar("ingress-nginx.yaml", awsInternalIngress, overrideVars)
+	}
+
+	// Add override vars for storage class
+	if commons.Contains([]string{"io1", "io2"}, b.scParameters.Type) {
+		overrideVars = addOverrideVar("storage-class.yaml", []byte("storage_class_pvc_size: 4Gi"), overrideVars)
+	}
+	if commons.Contains([]string{"st1", "sc1"}, b.scParameters.Type) {
+		overrideVars = addOverrideVar("storage-class.yaml", []byte("storage_class_pvc_size: 125Gi"), overrideVars)
+	}
+
+	return overrideVars, nil
 }

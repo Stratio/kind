@@ -216,6 +216,12 @@ kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl01 delete cluster eks-cl0
 | iam:ListRoleTags | not authorized to perform: iam:ListRoleTags on resource: role eks-iam-for-sa-external-dns-role-eks-cl01 | ListRoleTags | arn:aws:iam::268367799918:role/* | keos |
 | route53:ListHostedZones | not authorized to perform: route53:ListHostedZones | ListHostedZones | * | keos |
 | iam:PutRolePolicy | not authorized to perform: iam:PutRolePolicy on resource: role eks-iam-for-sa-external-dns-role-eks-cl01 | PutRolePolicy | arn:aws:iam::268367799918:role/* | keos |
+| iam:UpdateAssumeRolePolicy | not authorized to perform: iam:UpdateAssumeRolePolicy on resource: role eks-iam-for-sa-external-dns-role-eks-cl01 | UpdateAssumeRolePolicy | arn:aws:iam::268367799918:role/* | keos |
+
+**cluster-api-provider-aws v2.1.4-0.4.0**
+| Permission | Needed for | Description | Resource | Application |
+| --- | --- | --- | --- | --- |
+| ec2:DescribeInstanceTypes | not authorized to perform: ec2:DescribeInstanceTypes | DescribeInstanceTypes | * | cluster-api-provider-aws |
 
 **AWS Unmanaged**: Create EC2 cluster
 | Permission | Needed for | Description | Resource | Application |
@@ -230,3 +236,4 @@ kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl01 delete cluster eks-cl0
 | elasticloadbalancing:RegisterInstancesWithLoadBalancer | not authorized to perform: elasticloadbalancing:RegisterInstancesWithLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
 | elasticloadbalancing:DeleteLoadBalancer | not authorized to perform: elasticloadbalancing:RegisterInstancesWithLoadBalancer | arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/* | cloud-provisioner |
 | ec2:RevokeSecurityGroupIngress | not authorized to perform this operation | arn:aws:ec2:*:268367799918:security-group/* | cloud-provisioner |
+

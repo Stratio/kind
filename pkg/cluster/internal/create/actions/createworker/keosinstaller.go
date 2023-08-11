@@ -18,17 +18,23 @@ package createworker
 
 import (
 	"os"
+	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/commons"
 )
 
 type KEOSDescriptor struct {
-	ExternalRegistry struct {
+	DockerRegistry struct {
 		AuthRequired bool   `yaml:"auth_required"`
 		Type         string `yaml:"type"`
 		URL          string `yaml:"url"`
-	} `yaml:"external_registry"`
+	} `yaml:"docker_registry"`
+	HelmRepository struct {
+		AuthRequired bool   `yaml:"auth_required"`
+		URL          string `yaml:"url"`
+	} `yaml:"helm_repository"`
 	AWS struct {
 		Enabled bool `yaml:"enabled"`
 		EKS     bool `yaml:"eks"`
@@ -61,62 +67,78 @@ type KEOSDescriptor struct {
 		Flavour         string `yaml:"flavour"`
 		K8sInstallation bool   `yaml:"k8s_installation"`
 		Storage         struct {
-			DefaultStorageClass string   `yaml:"default_storage_class"`
+			DefaultStorageClass string   `yaml:"default_storage_class,omitempty"`
 			Providers           []string `yaml:"providers"`
+			Config              struct {
+				CSIAWS struct {
+					EFS      []EFSConfig `yaml:"efs"`
+					KMSKeyID string      `yaml:"kms_key_id,omitempty"`
+				} `yaml:"csi-aws"`
+			} `yaml:"config,omitempty"`
 		} `yaml:"storage"`
-	} `yaml:"keos"`
+	}
 }
 
-func createKEOSDescriptor(descriptorFile commons.DescriptorFile, storageClass string) error {
+type EFSConfig struct {
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
+	Permissions string `yaml:"permissions"`
+}
+
+func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) error {
 
 	var keosDescriptor KEOSDescriptor
 	var err error
 
 	// External registry
-	for _, registry := range descriptorFile.DockerRegistries {
+	for _, registry := range keosCluster.Spec.DockerRegistries {
 		if registry.KeosRegistry {
-			keosDescriptor.ExternalRegistry.URL = registry.URL
-			keosDescriptor.ExternalRegistry.AuthRequired = registry.AuthRequired
-			keosDescriptor.ExternalRegistry.Type = registry.Type
+			keosDescriptor.DockerRegistry.URL = registry.URL
+			keosDescriptor.DockerRegistry.AuthRequired = registry.AuthRequired
+			keosDescriptor.DockerRegistry.Type = registry.Type
 		}
 	}
 
+	// Helm repository
+	keosDescriptor.HelmRepository.URL = keosCluster.Spec.HelmRepository.URL
+	keosDescriptor.HelmRepository.AuthRequired = keosCluster.Spec.HelmRepository.AuthRequired
+
 	// AWS
-	if descriptorFile.InfraProvider == "aws" {
+	if keosCluster.Spec.InfraProvider == "aws" {
 		keosDescriptor.AWS.Enabled = true
-		keosDescriptor.AWS.EKS = descriptorFile.ControlPlane.Managed
+		keosDescriptor.AWS.EKS = keosCluster.Spec.ControlPlane.Managed
 	}
 
 	// Azure
-	if descriptorFile.InfraProvider == "azure" {
+	if keosCluster.Spec.InfraProvider == "azure" {
 		keosDescriptor.Azure.Enabled = true
-		keosDescriptor.Azure.AKS = descriptorFile.ControlPlane.Managed
-		keosDescriptor.Azure.ResourceGroup = descriptorFile.ClusterID
+		keosDescriptor.Azure.AKS = keosCluster.Spec.ControlPlane.Managed
+		keosDescriptor.Azure.ResourceGroup = keosCluster.Metadata.Name
 	}
 
 	// GCP
-	if descriptorFile.InfraProvider == "gcp" {
+	if keosCluster.Spec.InfraProvider == "gcp" {
 		keosDescriptor.GCP.Enabled = true
-		keosDescriptor.GCP.GKE = descriptorFile.ControlPlane.Managed
+		keosDescriptor.GCP.GKE = keosCluster.Spec.ControlPlane.Managed
 	}
 
 	// Keos
-	keosDescriptor.Keos.ClusterID = descriptorFile.ClusterID
+	keosDescriptor.Keos.ClusterID = keosCluster.Metadata.Name
 	keosDescriptor.Keos.Domain = "cluster.local"
-	if descriptorFile.ExternalDomain != "" {
-		keosDescriptor.Keos.ExternalDomain = descriptorFile.ExternalDomain
+	if keosCluster.Spec.ExternalDomain != "" {
+		keosDescriptor.Keos.ExternalDomain = keosCluster.Spec.ExternalDomain
 	}
-	keosDescriptor.Keos.Flavour = descriptorFile.Keos.Flavour
+	keosDescriptor.Keos.Flavour = keosCluster.Spec.Keos.Flavour
 
 	// Keos - Calico
-	if !descriptorFile.ControlPlane.Managed {
-		if descriptorFile.InfraProvider == "azure" {
+	if !keosCluster.Spec.ControlPlane.Managed {
+		if keosCluster.Spec.InfraProvider == "azure" {
 			keosDescriptor.Keos.Calico.VXLan = true
 		} else {
 			keosDescriptor.Keos.Calico.Ipip = true
 		}
-		if descriptorFile.Networks.PodsCidrBlock != "" {
-			keosDescriptor.Keos.Calico.Pool = descriptorFile.Networks.PodsCidrBlock
+		if keosCluster.Spec.Networks.PodsCidrBlock != "" {
+			keosDescriptor.Keos.Calico.Pool = keosCluster.Spec.Networks.PodsCidrBlock
 		} else {
 			keosDescriptor.Keos.Calico.Pool = "192.168.0.0/16"
 		}
@@ -125,16 +147,52 @@ func createKEOSDescriptor(descriptorFile commons.DescriptorFile, storageClass st
 
 	// Keos - Storage
 	keosDescriptor.Keos.Storage.DefaultStorageClass = storageClass
-	keosDescriptor.Keos.Storage.Providers = []string{"custom"}
+	if keosCluster.Spec.StorageClass.EFS.Name != "" {
+		keosDescriptor.Keos.Storage.Providers = []string{"csi-aws"}
+
+		name := keosCluster.Spec.StorageClass.EFS.Name
+		id := keosCluster.Spec.StorageClass.EFS.ID
+		permissions := keosCluster.Spec.StorageClass.EFS.Permissions
+
+		if permissions == "" {
+			permissions = "700"
+		}
+		keosDescriptor.Keos.Storage.Config.CSIAWS.EFS = []EFSConfig{
+			{
+				Name:        name,
+				ID:          id,
+				Permissions: permissions,
+			},
+		}
+		if keosCluster.Spec.StorageClass.EncryptionKey != "" {
+			keosDescriptor.Keos.Storage.Config.CSIAWS.KMSKeyID = keosCluster.Spec.StorageClass.EncryptionKey
+		}
+	} else {
+		keosDescriptor.Keos.Storage.Providers = []string{"custom"}
+	}
 
 	// Keos - External dns
-	if !descriptorFile.Dns.ManageZone {
-		keosDescriptor.Keos.Dns.ExternalDns.Enabled = &descriptorFile.Dns.ManageZone
+	if !keosCluster.Spec.Dns.ManageZone {
+		keosDescriptor.Keos.Dns.ExternalDns.Enabled = &keosCluster.Spec.Dns.ManageZone
 	}
 
 	keosYAMLData, err := yaml.Marshal(keosDescriptor)
 	if err != nil {
 		return err
+	}
+
+	// Rotate keos.yaml
+	keosFilename := "keos.yaml"
+
+	if _, err := os.Stat(keosFilename); err == nil {
+		timestamp := time.Now().Format("2006-01-02@15:04:05")
+		backupKeosFilename := keosFilename + "." + timestamp + "~"
+		originalKeosFilePath := filepath.Join(".", keosFilename)
+		backupKeosFilePath := filepath.Join(".", backupKeosFilename)
+
+		if err := os.Rename(originalKeosFilePath, backupKeosFilePath); err != nil {
+			return err
+		}
 	}
 
 	// Write file to disk
