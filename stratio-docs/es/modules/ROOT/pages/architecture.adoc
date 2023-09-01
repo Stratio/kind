@@ -507,4 +507,3 @@ Tabla de registries soportados según provider/flavour:
 ^|AKS
 ^|acr
 |===
-

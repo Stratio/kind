@@ -15,7 +15,7 @@ Para el aprovisionamiento automatizado en EKS, se necesita ejecutar acciones sob
 +
 Para asegurar las funcionalidades soportadas por el _control-plane_ gestionado de EKS, se deberá utilizar cualquier AMI provista por AWS específicamente para este fin.
 +
-Las https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMI optimizadas para Amazon EKS] se crean sobre el sistema operativo Amazon Linux 2.
+Las https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMI optimizadas para Amazon EKS] se crean sobre el sistema operativo _Amazon Linux 2_.
 
 === GCP
 
@@ -23,7 +23,7 @@ Las https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMI 
 +
 Para los despliegues en Google Cloud Platform, se necesitarán principalmente permisos en _compute_ (instancias, discos, imágenes, _routers_, redes, etc.). Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados.
 +
-xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
+** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 
 * Sistemas operativos certificados
 +
@@ -31,27 +31,20 @@ Para los entornos en GCP, se deberá utilizar https://github.com/kubernetes-sigs
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
-# TODO: Agregar prerreqs de Azure y AKS !!
-
 === Azure no-gestionado
 
 * Permisos
 +
-Para los despliegues en Azure no-gestionado, se necesitarán principalmente permisos en _compute_ (instancias, discos, imágenes, _routers_, redes, etc.). Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados.
+Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados, pero en este caso además se requiere un role para los nodos del cluster (indicado en el descriptor en _spec.security.nodes_identity_).
 +
-xref:attachment$stratio-azure-permissions.list[Descargar permisos para Azure]
+** xref:attachment$stratio-azure-role.json[Descargar permisos para Azure]
+** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para nodos de Azure]
 
 * Sistemas operativos certificados
 +
 Para los entornos en Azure, se podrá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_. Para mayor detalle en la construcción de las imágenes ver la xref:ROOT:azure_image_builder.adoc[guía para Azure].
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el controller de este _cloud provider_.
-
-# TODO: Completar info:
-
-
-> donde estan las policies para Azure y AKS ? son las mismas ? No. para AKS no esta. 
-
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
@@ -59,9 +52,11 @@ El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04
 
 * Permisos
 +
-.
+Para este tipo de clusters se deberá desplegar utilizando una identidad con los roles Contributor, Managed Identity Operator, y la política de AcrPull para el ACR. 
+
+Al igual que para el caso anterior, se requiere un role para los nodos del cluster (indicado en el descriptor en _spec.security.nodes_identity_).
 +
-xref:attachment$stratio-azure-permissions.list[Descargar permisos para Azure]
+xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para nodos de Azure]
 
 * Sistemas operativos certificados
 +
@@ -448,7 +443,7 @@ spec:
   keos:
     domain: cluster.local
     flavour: production
-    version: 0.8.1
+    version: 0.8.2
 ----
 
 ==== GCP
@@ -497,9 +492,9 @@ spec:
   k8s_version: v1.24.12
   region: europe-west4
   docker_registries:
-    - url: keosregistry.stratio.com/keos
-      auth_required: true
-      type: generic
+    - url: eosregistry.azurecr.io/keos
+      auth_required: false
+      type: acr
       keos_registry: true
   dns:
     manage_zone: false
@@ -539,7 +534,134 @@ spec:
   keos:
     domain: cluster.local
     flavour: production
-    version: 0.8.1
+    version: 0.8.2
+----
+
+==== Azure no-gestionado
+
+En este ejemplo se pueden ver las siguientes particularidades:
+
+* _Cluster_ en Azure con _control-plane_ no gestionado.
+* Uso de ACR como _Docker registry_ (no necesita credenciales).
+* Uso de un CIDR específico para Pods.
+* Características de las VMs para el _control-plane_:
+** Con alta disponibilidad (se despliegan 3 instancias).
+** Con tipo de instancia específico.
+** Sin imagen específica (opcional para este _cloud provider_).
+** Con personalizaciones en el disco.
+* Grupo de nodos _workers_:
+** Con imagen específica (opcional para este _cloud provider_). Nota: las versiones de los componentes de la imagen deberán estar alineadas con la versión de Kubernetes indicada.
+** Con etiquetas de K8s.
+** Con rangos de autoescalado.
+** Con personalizaciones en el disco.
+
+[source,bash]
+----
+apiVersion: installer.stratio.com/v1beta1
+kind: KeosCluster
+spec:
+  cluster_id: azure-prod
+  infra_provider: azure
+  credentials:
+    client_id: ee435ab0..
+    client_secret: lSF8Q~n..
+    subscription_id: '6e2a38cd-e..'
+    tenant_id: '9c2f8eb6-5..'
+  k8s_version: v1.24.13
+  region: westeurope
+  docker_registries:
+    - url: eosregistry.azurecr.io/keos
+      auth_required: false
+      type: acr
+      keos_registry: true
+  networks:
+      pods_cidr: 172.16.0.0/20
+  security:
+    nodes_identity: "/subscriptions/6e2a38cd-../stratio-nodes"
+  control_plane:
+    managed: false
+    size: Standard_D8_v3
+    root_volume:
+      size: 50
+      type: Standard_LRS
+  worker_nodes:
+    - name: azure-prod-std
+      quantity: 3
+      max_size: 18
+      min_size: 3
+      size: Standard_D8_v3
+      labels:
+        backup: false
+      root_volume:
+        size: 50
+        type: Standard_LRS
+      node_image: "/subscriptions/6e2a38cd-../images/capi-ubuntu-2204-1687262553"
+  external_domain: domain.ext
+  keos:
+    domain: cluster.local
+    flavour: production
+    version: 0.8.2
+----
+
+==== AKS
+
+En este ejemplo se pueden ver las siguientes particularidades:
+
+* _Cluster_ en Azure con _control-plane_ gestionado (AKS).
+* Kubernetes versión 1.24.11 (deberá estar soportada por Azure).
+* Uso de ACR como _Docker registry_ (no necesita credenciales).
+* Con tier _Paid_ de AKS (recomendado para producción).
+* Grupo de nodos _workers_:
+** Instancias tipo Standard_D8s_v3 para poder soportar volúmenes premium.
+** Con etiquetas de K8s.
+** Con rangos de autoescalado.
+** Con personalizaciones en el disco.
+
+[source,bash]
+----
+apiVersion: installer.stratio.com/v1beta1
+kind: KeosCluster
+spec:
+  cluster_id: aks-prod
+  infra_provider: azure
+  credentials:
+    client_id: ee435ab0..
+    client_secret: lSF8Q~n..
+    subscription_id: '6e2a38cd-e..'
+    tenant_id: '9c2f8eb6-5..'
+  k8s_version: v1.24.0
+  region: westeurope
+  docker_registries:
+      - url: eosregistry.azurecr.io/keos
+        auth_required: false
+        type: acr
+        keos_registry: true
+  networks:
+      pods_cidr: 172.16.0.0/20
+  storageclass:
+      encryption_key: myKey
+      class: premium
+  control_plane:
+      azure:
+          identity_id: "/subscriptions/6e2a38cd-../stratio-nodes"
+          tier: Paid
+      managed: true
+  worker_nodes:
+      - name: aks-prod-prem
+        quantity: 3
+        max_size: 21
+        min_size: 3
+        size: Standard_D8s_v3
+        labels:
+          premium_sc: "true"
+        root_volume:
+          size: 50
+          type: Managed
+  external_domain: domain.ext
+  keos:
+      domain: cluster.local
+      flavour: production
+      version: 0.8.2
 ----
 
 == Creación del cluster

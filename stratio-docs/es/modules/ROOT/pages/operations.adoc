@@ -12,7 +12,7 @@ Para comunicarse con el APIserver del _cluster_ creado, es necesario el fichero 
 aws eks update-kubeconfig --region eu-west-1 --name example-eks --kubeconfig ./example-eks.kubeconfig
 -----
 
-* Para GCP, Azure no-gestionado y AKS, al finalizar el aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+* Para GCP, Azure no-gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 
 [source,bash]
 -----
@@ -500,14 +500,3 @@ root@example-eks-control-plane:/#
 -----
 [local]$ sudo ./bin/cloud-provisioner delete cluster --name example-eks
 -----
-
-== MachineDeployment vs MachinePool
-
-AKS obligatorio, MD ni se le espera
-EKS y GKE ya soportan MPs (en AWS estan en experimental)
-MPM en PRs
-
-MD: operación mas rápida, problemas más controlados
-MP: mayor tiempo en las operaciones, menor visibilidad y control
-
-# TODO: HACER COMPARATIVA!!
