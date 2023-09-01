@@ -504,7 +504,10 @@ root@example-eks-control-plane:/#
 == MachineDeployment vs MachinePool
 
 AKS obligatorio, MD ni se le espera
-EKS y GKE ya soportan MPs
+EKS y GKE ya soportan MPs (en AWS estan en experimental)
 MPM en PRs
+
+MD: operación mas rápida, problemas más controlados
+MP: mayor tiempo en las operaciones, menor visibilidad y control
 
 # TODO: HACER COMPARATIVA!!
