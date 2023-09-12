@@ -243,14 +243,14 @@ func getAcrToken(p ProviderParams, acrService string) (string, error) {
 		"access_token": {aadToken.Token},
 	}
 	jsonResponse, err := http.PostForm(fmt.Sprintf("https://%s/oauth2/exchange", acrService), formData)
-	if err != nil {
+        if jsonResponse.StatusCode != http.StatusOK {
+                return "", errors.New("failed to obtain ACR token with provided credentials, check asssigned roles")
+        } else if err != nil {
 		return "", err
 	}
 	var response map[string]interface{}
-        err = json.NewDecoder(jsonResponse.Body).Decode(&response)
-        if err != nil {
-                return "", errors.Wrap(err, "failed to obtain ACR token with provided credentials")
-        }
+        json.NewDecoder(jsonResponse.Body).Decode(&response)
+
 	return response["refresh_token"].(string), nil
 }
 
