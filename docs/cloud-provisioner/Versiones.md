@@ -4,7 +4,7 @@
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.24.7 | 2022-10-26   | v1.27.0        | 2022-04-11          |
+| v1.27.0 | 2023-04-11   | v1.28.0        | 2023-08-15          |
 
 Files:   
 *   pkg/apis/config/defaults/image.go  
@@ -14,7 +14,7 @@ Files:
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.3.2  | 2023-01-10   | v1.4.1         | 2023-04-04       |
+| v1.5.1  | 2023-08-29   | v1.5.1         | 2023-08-29          |
 
 Files:   
 *   DEPENDENCIES
