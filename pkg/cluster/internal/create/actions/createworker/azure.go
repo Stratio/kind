@@ -249,7 +249,7 @@ func getAcrToken(p ProviderParams, acrService string) (string, error) {
 	var response map[string]interface{}
         err = json.NewDecoder(jsonResponse.Body).Decode(&response)
         if err != nil {
-                return "", err
+                return "", errors.Wrap(err, "failed to obtain ACR token with provided credentials")
         }
 	return response["refresh_token"].(string), nil
 }
