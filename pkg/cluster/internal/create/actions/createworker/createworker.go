@@ -404,7 +404,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
-		if !a.keosCluster.Spec.ControlPlane.Managed && a.keosCluster.Spec.ControlPlane.HighlyAvailable {
+		if !a.keosCluster.Spec.ControlPlane.Managed && *a.keosCluster.Spec.ControlPlane.HighlyAvailable {
 			// Wait for all control planes to be ready
 			c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath=\"{.status.readyReplicas}\"=3 --timeout 10m kubeadmcontrolplanes " + a.keosCluster.Metadata.Name + "-control-plane"
 			_, err = commons.ExecuteCommand(n, c)
@@ -566,7 +566,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
-				return errors.Wrap(err, "failed to deploy cluster-autoscaler in workload cluster")
+				time.Sleep(5 * time.Second)
+				_, err = commons.ExecuteCommand(n, c)
+				if err != nil {
+					return errors.Wrap(err, "failed to deploy cluster-autoscaler in workload cluster")
+				}
 			}
 
 			ctx.Status.End(true)

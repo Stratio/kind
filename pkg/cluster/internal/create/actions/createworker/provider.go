@@ -51,8 +51,8 @@ const (
 
 	scName = "keos"
 
-	keosClusterChart = "0.1.0-SNAPSHOT"
-	keosClusterImage = "0.1.0-SNAPSHOT"
+	keosClusterChart = "0.1.0-f95b77e"
+	keosClusterImage = "0.1.0-f95b77e"
 )
 
 const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
@@ -244,8 +244,7 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 			keosCluster.Spec.ControlPlane.AWS = commons.AWSCP{}
 		}
 		if keosCluster.Spec.ControlPlane.Managed {
-			// Setting the parameter to false, hides it from the KeosCluster object
-			keosCluster.Spec.ControlPlane.HighlyAvailable = false
+			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
 		}
 		keosCluster.Spec.Keos = struct {
 			Flavour string `yaml:"flavour,omitempty"`
@@ -321,7 +320,11 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 	}
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy keoscluster-controller-manager chart")
+		time.Sleep(5 * time.Second)
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to deploy keoscluster-controller-manager chart")
+		}
 	}
 
 	// Wait for keoscluster-controller-manager deployment
