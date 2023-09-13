@@ -246,7 +246,7 @@ func getAcrToken(p ProviderParams, acrService string) (string, error) {
         if err != nil {
                 return "", err
         } else if jsonResponse.StatusCode == http.StatusUnauthorized {
-                return "", errors.New("failed to obtain ACR token with provided credentials, check asssigned roles")
+                return "", errors.New("Failed to obtain the ACR token with the provided credentials, please check the roles assigned to the correspondent Azure AD app")
         }
 
 	var response map[string]interface{}
