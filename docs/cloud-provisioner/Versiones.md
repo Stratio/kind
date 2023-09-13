@@ -19,24 +19,30 @@ Files:
 Files:   
 *   DEPENDENCIES
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
-*   pkg/cluster/internal/create/actions/createworker/provider.go
 
 > [clusterawsadm](https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases)
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v2.0.2  | 2022-12-01   | v2.0.2         | 2022-12-01          |
+| v2.2.1  | 2023-07-20   | v2.2.1         | 2022-07-20          |
 
 Files:  
 *   DEPENDENCIES
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
-*   pkg/cluster/internal/create/actions/createworker/aws.go
+
+> [pause](https://github.com/kubernetes/kubernetes/blob/master/build/pause/CHANGELOG.md)
+| Version | Release Date | Latest Version | Latest Release Date |
+| ------- | ------------ | -------------- | ------------------- |
+| v.3.9   | 2023-06-16   | v.3.9          | 2023-06-16          |
+
+Files:
+*   DEPENDENCIES
 
 > [Helm](https://github.com/helm/helm/releases)
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v3.11.0  | 2022-01-18   | v3.11.3         | 2023-04-12          |
+| v3.11.3 | 2023-12-04   | v3.12.3        | 2023-08-10          |
 
 Files:  
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
@@ -45,28 +51,52 @@ Files:
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v9.25.0  | 2022-02-21   | v9.28.0         | 2023-04-04          |
+| v9.29.1 (chart) | 2022-06-15   | v9.29.3        | 2023-08-29          |
+| v1.27.2 (cluster-autoscaler) | 2023-05-29   | v1.28.0        | 2023-08-31          |
 
 Files:  
 *   DEPENDENCIES
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
 
-> [Tigera_operator](https://github.com/projectcalico/calico/releases)
+> [Tigera_operator](https://github.com/projectcalico/calico/releases) (https://github.com/tigera/operator/releases)
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v3.22.3  | 2022-05-21   | v3.25.1         | 2023-03-31          |
+| v1.30.5 (tigera) | 2023-08-05   | v1.31.0        | 2023-09-01          |
+| v3.26.1 (calicoctl)(Tigera chart) | 2022-06-17   | v3.26.1        | 2022-06-17          |
 
 Files:  
 *   DEPENDENCIES
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
 *   pkg/cluster/internal/create/actions/createworker/templates/common/calico-helm-values.tmpl
 
-> [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/releases)
+> [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/releases) (eksctl utils describe-addon-versions --kubernetes-version 1.26 --name aws-ebs-csi-driver | grep AddonVersion)
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.14.1-eksbuild.1  | 2022-01-05   | v1.17.0         | 2023-03-14          |
+| v1.19.0-eksbuild.2 (EKS)  |    |   v1.22.0-eksbuild.2       |           |
+| v2.20.0 (AWS unmanaged)| 2023-06-20     | v2.22.0         | 2023-08-16          |
+
+Files:  
+*   DEPENDENCIES
+*   pkg/cluster/internal/providers/docker/stratio/Dockerfile
+*   pkg/cluster/internal/create/actions/cluster/templates/aws/aws.eks.tmpl
+
+> [coredns](eksctl utils describe-addon-versions --kubernetes-version 1.26 --name coredns | grep AddonVersion)
+
+| Version | Release Date | Latest Version | Latest Release Date |
+| ------- | ------------ | -------------- | ------------------- |
+| v1.9.3-eksbuild.3 (EKS)  |    |   v1.9.3-eksbuild.3       |           |
+
+Files:  
+*   DEPENDENCIES
+*   pkg/cluster/internal/create/actions/cluster/templates/aws/aws.eks.tmpl
+
+> [kube-proxy](eksctl utils describe-addon-versions --kubernetes-version 1.26 --name kube-proxy | grep AddonVersion)
+
+| Version | Release Date | Latest Version | Latest Release Date |
+| ------- | ------------ | -------------- | ------------------- |
+| v1.24.15-eksbuild.2 (EKS)  |    |   v1.26.7-eksbuild.2       |           |
 
 Files:  
 *   DEPENDENCIES
@@ -76,21 +106,40 @@ Files:
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.12.1-eksbuild.1  | 2023-01-05   | v1.12.6-eksbuild.1         | 2023-03-20          |
+| v1.12.6-eksbuild.2  | 2023-03-20   | v1.14.1-eksbuild.1         | 2023-09-08          |
 
 Files:  
 *   DEPENDENCIES
+*   pkg/cluster/internal/providers/docker/stratio/Dockerfile
 *   pkg/cluster/internal/create/actions/cluster/templates/aws/aws.eks.tmpl
+
+> [cluster-api-aws / cluster-api-aws-templates](https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases)
+| Version | Release Date | Latest Version | Latest Release Date |
+| ------- | ------------ | -------------- | ------------------- |
+| v2.2.1  | 2023-07-20   | v2.2.1         | 2022-07-20          |
+
+Files:  
+*   DEPENDENCIES
+*   pkg/cluster/internal/create/actions/createworker/aws.go
 
 > [cluster-api-gcp / cluster-api-gcp-templates](https://github.com/kubernetes-sigs/cluster-api-provider-gcp/releases)
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.2.1  | 2022-11-28   | v1.3.0         | 2023-03-17          |
+| v1.4.0  | 2023-07-17   | v1.4.0         | 2023-07-17          |
 
 Files:  
 *   DEPENDENCIES
 *   pkg/cluster/internal/create/actions/createworker/gcp.go
+
+> [cluster-api-azure / cluster-api-azure-templates](https://github.com/kubernetes-sigs/cluster-api-provider-azure/releases)
+| Version | Release Date | Latest Version | Latest Release Date |
+| ------- | ------------ | -------------- | ------------------- |
+| v1.10.3 | 2023-09-06   | v1.10.3        | 2023-09-06          |
+
+Files:
+*   DEPENDENCIES
+*   pkg/cluster/internal/create/actions/createworker/azure.go
 
 > [gcp-compute-persistent-disk-csi-driver](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/releases)
 
@@ -151,3 +200,7 @@ Files:
 Files:  
 *  DEPENDENCIES
 *  pkg/cluster/internal/create/actions/createworker/files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
+
+
+PDTE:
+pause
