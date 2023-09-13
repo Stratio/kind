@@ -74,7 +74,7 @@ Files:
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.19.0-eksbuild.2 (EKS)  |    |   v1.22.0-eksbuild.2       |           |
+| v1.19.0-eksbuild.2 (EKS)  |  2023-05-16  |   v1.22.0-eksbuild.2       | 2023-08-16          |
 | v2.20.0 (AWS unmanaged)| 2023-06-20     | v2.22.0         | 2023-08-16          |
 
 Files:  
