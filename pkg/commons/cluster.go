@@ -81,7 +81,7 @@ type Spec struct {
 	ControlPlane struct {
 		Managed         bool                `yaml:"managed" validate:"boolean"`
 		NodeImage       string              `yaml:"node_image,omitempty"`
-		HighlyAvailable bool                `yaml:"highly_available" validate:"boolean"`
+		HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
 		Size            string              `yaml:"size,omitempty" validate:"required_if=Managed false"`
 		RootVolume      RootVolume          `yaml:"root_volume,omitempty"`
 		Tags            []map[string]string `yaml:"tags,omitempty"`
@@ -140,7 +140,7 @@ type WorkerNodes []struct {
 	ZoneDistribution string            `yaml:"zone_distribution,omitempty" validate:"omitempty,oneof='balanced' 'unbalanced'"`
 	AZ               string            `yaml:"az,omitempty"`
 	SSHKey           string            `yaml:"ssh_key,omitempty"`
-	Spot             bool              `yaml:"spot" validate:"boolean"`
+	Spot             bool              `yaml:"spot,omitempty" validate:"boolean"`
 	Labels           map[string]string `yaml:"labels,omitempty"`
 	Taints           []string          `yaml:"taints,omitempty"`
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"required_with=NodeGroupMinSize,numeric,omitempty"`
@@ -326,7 +326,8 @@ type SCParameters struct {
 
 // Init sets default values for the Spec
 func (s Spec) Init() Spec {
-	s.ControlPlane.HighlyAvailable = true
+	highlyAvailable := true
+	s.ControlPlane.HighlyAvailable = &highlyAvailable
 
 	// AKS
 	s.ControlPlane.Azure.Tier = "Paid"
@@ -381,16 +382,6 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, error) {
 		return nil, err
 	}
 
-	// Clean keosCluster data
-	if keosCluster.Spec.InfraProvider != "azure" || (keosCluster.Spec.InfraProvider == "azure" && !keosCluster.Spec.ControlPlane.Managed) {
-		keosCluster.Spec.ControlPlane.Azure = AzureCP{}
-	}
-	if keosCluster.Spec.InfraProvider != "aws" || (keosCluster.Spec.InfraProvider == "aws" && !keosCluster.Spec.ControlPlane.Managed) {
-		keosCluster.Spec.ControlPlane.AWS = AWSCP{}
-		keosCluster.Spec.Security.AWS = struct {
-			CreateIAM bool `yaml:"create_iam" validate:"boolean"`
-		}{}
-	}
 	keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 
 	return &keosCluster, nil

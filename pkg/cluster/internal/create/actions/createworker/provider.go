@@ -51,8 +51,8 @@ const (
 
 	scName = "keos"
 
-	keosClusterChart = "0.1.0-M4"
-	keosClusterImage = "0.1.0-SNAPSHOT"
+	keosClusterChart = "0.1.0-f95b77e"
+	keosClusterImage = "0.1.0-f95b77e"
 )
 
 const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
@@ -225,7 +225,7 @@ func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
 	return string(allowEgressIMDSgnpContent), nil
 }
 
-func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, kubeconfigPath string) error {
+func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, kubeconfigPath string, firstInstallation bool) error {
 	var c string
 	var err error
 	var helmRepository helmRepository
@@ -237,6 +237,15 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 		keosCluster.Spec.Security.AWS = struct {
 			CreateIAM bool "yaml:\"create_iam\" validate:\"boolean\""
 		}{}
+		if keosCluster.Spec.InfraProvider != "azure" || (keosCluster.Spec.InfraProvider == "azure" && !keosCluster.Spec.ControlPlane.Managed) {
+			keosCluster.Spec.ControlPlane.Azure = commons.AzureCP{}
+		}
+		if keosCluster.Spec.InfraProvider != "aws" || (keosCluster.Spec.InfraProvider == "aws" && !keosCluster.Spec.ControlPlane.Managed) {
+			keosCluster.Spec.ControlPlane.AWS = commons.AWSCP{}
+		}
+		if keosCluster.Spec.ControlPlane.Managed {
+			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
+		}
 		keosCluster.Spec.Keos = struct {
 			Flavour string `yaml:"flavour,omitempty"`
 			Version string `yaml:"version,omitempty"`
@@ -268,18 +277,20 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 				return errors.Wrap(err, "failed to add helm repository: "+helmRepository.url)
 			}
 		}
-		// Pull cluster operator helm chart
-		c = "helm pull cluster-operator --repo " + helmRepository.url +
-			" --version " + keosClusterChart +
-			" --untar --untardir /stratio/helm"
-		_, err = commons.ExecuteCommand(n, c)
-		if err != nil {
-			return errors.Wrap(err, "failed to pull cluster operator helm chart")
+		if firstInstallation {
+			// Pull cluster operator helm chart
+			c = "helm pull cluster-operator --repo " + helmRepository.url +
+				" --version " + keosClusterChart +
+				" --untar --untardir /stratio/helm"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to pull cluster operator helm chart")
+			}
 		}
 	}
 
 	// Create the docker registries credentials secret for keoscluster-controller-manager
-	if clusterCredentials.DockerRegistriesCredentials != nil {
+	if clusterCredentials.DockerRegistriesCredentials != nil && firstInstallation {
 		jsonDockerRegistriesCredentials, err := json.Marshal(clusterCredentials.DockerRegistriesCredentials)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal docker registries credentials")
@@ -309,7 +320,11 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 	}
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy keoscluster-controller-manager chart")
+		time.Sleep(5 * time.Second)
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to deploy keoscluster-controller-manager chart")
+		}
 	}
 
 	// Wait for keoscluster-controller-manager deployment

@@ -243,11 +243,15 @@ func getAcrToken(p ProviderParams, acrService string) (string, error) {
 		"access_token": {aadToken.Token},
 	}
 	jsonResponse, err := http.PostForm(fmt.Sprintf("https://%s/oauth2/exchange", acrService), formData)
-	if err != nil {
-		return "", err
-	}
+        if err != nil {
+                return "", err
+        } else if jsonResponse.StatusCode == http.StatusUnauthorized {
+                return "", errors.New("Failed to obtain the ACR token with the provided credentials, please check the roles assigned to the correspondent Azure AD app")
+        }
+
 	var response map[string]interface{}
-	json.NewDecoder(jsonResponse.Body).Decode(&response)
+        json.NewDecoder(jsonResponse.Body).Decode(&response)
+
 	return response["refresh_token"].(string), nil
 }
 
@@ -318,9 +322,9 @@ func (b *AzureBuilder) internalNginx(p ProviderParams, networks commons.Networks
 			resourceGroup = p.ClusterName
 		}
 		for _, s := range networks.Subnets {
-			publicSubnetID, _ := AzureFilterPublicSubnet(ctx, subnetsClient, resourceGroup, networks.VPCID, s.SubnetId)
-			if len(publicSubnetID) > 0 {
-				return false, nil
+			publicSubnetID, err := AzureFilterPublicSubnet(ctx, subnetsClient, resourceGroup, networks.VPCID, s.SubnetId)
+			if err != nil || len(publicSubnetID) > 0 {
+				return false, err
 			}
 		}
 		return true, nil
@@ -342,7 +346,7 @@ func AzureFilterPublicSubnet(ctx context.Context, subnetsClient *armnetwork.Subn
 }
 
 func (b *AzureBuilder) getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error) {
-	var overrideVars map[string][]byte
+	var overrideVars = make(map[string][]byte)
 
 	requiredInternalNginx, err := b.internalNginx(p, networks)
 	if err != nil {

@@ -247,7 +247,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Installing keos cluster operator 💻")
 	defer ctx.Status.End(false)
 
-	err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "")
+	err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", true)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cluster operator")
 	}
@@ -404,7 +404,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
-		if !a.keosCluster.Spec.ControlPlane.Managed && a.keosCluster.Spec.ControlPlane.HighlyAvailable {
+		if !a.keosCluster.Spec.ControlPlane.Managed && *a.keosCluster.Spec.ControlPlane.HighlyAvailable {
 			// Wait for all control planes to be ready
 			c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath=\"{.status.readyReplicas}\"=3 --timeout 10m kubeadmcontrolplanes " + a.keosCluster.Metadata.Name + "-control-plane"
 			_, err = commons.ExecuteCommand(n, c)
@@ -566,7 +566,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
-				return errors.Wrap(err, "failed to deploy cluster-autoscaler in workload cluster")
+				time.Sleep(5 * time.Second)
+				_, err = commons.ExecuteCommand(n, c)
+				if err != nil {
+					return errors.Wrap(err, "failed to deploy cluster-autoscaler in workload cluster")
+				}
 			}
 
 			ctx.Status.End(true)
@@ -575,7 +579,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
 		defer ctx.Status.End(false)
 
-		err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, kubeconfigPath)
+		err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, kubeconfigPath, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
 		}
@@ -631,6 +635,12 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Moving the management role 🗝️")
 			defer ctx.Status.End(false)
 
+			c = "helm uninstall cluster-operator -n kube-system"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "Uninstalling cluster-operator")
+			}
+
 			// Create namespace for CAPI clusters (it must exists) in worker cluster
 			c = "kubectl --kubeconfig " + kubeconfigPath + " create ns " + capiClustersNamespace
 			_, err = commons.ExecuteCommand(n, c)
@@ -645,15 +655,24 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to pivot management role to worker cluster")
 			}
 
-			ctx.Status.End(true) // End Moving the management role
-
-			ctx.Status.Start("Moving the cluster-operator 🗝️")
+			// Wait for keoscluster-controller-manager deployment to be ready
+			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to wait for keoscluster controller ready")
+			}
 
 			// Move keoscluster to workload cluster
-			c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o yaml | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
+			c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
 				return errors.Wrap(err, "failed to move keoscluster to workload cluster")
+			}
+
+			c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
 			}
 
 			// Delete keoscluster in management cluster
@@ -661,6 +680,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
 				return errors.Wrap(err, "failed to delete keoscluster in management cluster")
+			}
+
+			err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", false)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy cluster operator")
 			}
 
 			ctx.Status.End(true) // End Moving the cluster-operator
