@@ -7,7 +7,7 @@
 * Usuario con los privilegios necesarios en AWS:
 ** Crear usuario para la instalación.
 ** Crear política según xref:attachment$stratio-eks-policy.json[_stratio-eks-policy.json_].
-** Crear política según xref:attachment$stratio-aws-temp-policy.json[_stratio-temp-policy.json_] (sólo para el aprovisionamiento).
+** Crear política según xref:attachment$stratio-eks-temp-policy.json[_stratio-eks-temp-policy.json_] (sólo para el aprovisionamiento).
 ** Adjuntar políticas al usuario.
 ** Crear una clave de acceso.
 * Zonas DNS privadas y públicas creadas en AWS (opcional).
