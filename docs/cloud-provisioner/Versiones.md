@@ -31,6 +31,7 @@ Files:
 *   pkg/cluster/internal/providers/docker/stratio/Dockerfile
 
 > [pause](https://github.com/kubernetes/kubernetes/blob/master/build/pause/CHANGELOG.md)
+
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
 | v.3.9   | 2023-06-16   | v.3.9          | 2023-06-16          |
