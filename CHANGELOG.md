@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.0-0.3.1 (upcomming)
+
+* Add status in KeosCluster
+* Bump Azure provider to 1.10.4
+
 ## 0.17.0-0.3.0 (2023-09-15)
 
 * Customize coredns configuration
