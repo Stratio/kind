@@ -220,10 +220,12 @@ _Stratio KEOS_ no gestionará el ciclo de vida de los objetos creados previament
 [cols="1,4,2,1"]
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
+
 |vpc$$_$$id
 |VPC ID.
 |vpc-0264503b8761ff69f
 |Sí
+
 |_subnets_
 |_Array_ de _subnet_'s IDs.
 a|
@@ -232,8 +234,8 @@ a|
 - subnet_id: subnet-0df..
 - subnet_id: subnet-887..
 ----
-
 |Sí
+
 |===
 
 === _control-plane_
@@ -252,6 +254,7 @@ a|
 logging:
   api_server: true
 ----
+
 |Sí
 
 |managed
@@ -316,6 +319,7 @@ labels:
   disktype: standard
   gpus: true
 ----
+
 |Si
 
 |root$$_$$volume
@@ -328,6 +332,7 @@ root_volume:
   type: gp3
   encrypted: true
 ----
+
 |Si
 
 |ssh$$_$$key
