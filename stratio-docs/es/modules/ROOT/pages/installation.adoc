@@ -273,7 +273,6 @@ En este apartado se especifican los grupos de nodos _worker_ y sus característi
 
 Las imágenes utilizadas deberán estar soportadas por EKS link://repost.aws/knowledge-center/eks-custom-linux-ami/[Creación de AMI personalizada para EKS]
 
-
 [cols="1,4,2,1"]
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
