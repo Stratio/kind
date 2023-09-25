@@ -232,6 +232,7 @@ a|
 - subnet_id: subnet-0df..
 - subnet_id: subnet-887..
 ----
+
 |Sí
 |===
 
