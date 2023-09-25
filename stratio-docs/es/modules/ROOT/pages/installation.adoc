@@ -229,7 +229,7 @@ _Stratio KEOS_ no gestionará el ciclo de vida de los objetos creados previament
 |_subnets_
 |_Array_ de _subnet_'s IDs.
 a|
-[source,bash]
+[,shell]
 ----
 - subnet_id: subnet-0df..
 - subnet_id: subnet-887..
