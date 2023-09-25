@@ -64,6 +64,7 @@
 | eks:DescribeAddonVersions | failed reconciling eks addons: getting installed eks addons | DescribeAddonVersions | * | cloud-provisioner |
 | ec2:DescribeImages | failed to get root volume | DescribeImages | * | cloud-provisioner |
 | ec2:RunInstances | Not authorized to perform: ec2:RunInstances | RunInstances | * | cloud-provisioner |
+| iam:CreatePolicyVersion | failed to create policy version | CreatePolicyVersion | arn:aws:iam::268367799918:policy/* | cloud-provisioner |
 
 **Test:** cloud-provisioner create cluster --name eks-cl01 --retain --vault-password 123456 (same permissions as --keep-mgmt)
 
