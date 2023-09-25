@@ -210,8 +210,7 @@ logging:
 
 This section specifies the worker node groups and their characteristics. 
 
-The images used must be supported by EKS:
-https://repost.aws/knowledge-center/eks-custom-linux-ami[Custom Linux AMI for Amazon EKS]
+The images used must be supported by EKS, link:repost.aws/knowledge-center/eks-custom-linux-ami/[Custom Linux AMI for Amazon EKS]
 
 [cols="1,4,2,1"]
 |===
