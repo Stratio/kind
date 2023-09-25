@@ -171,6 +171,7 @@ _Stratio KEOS_ will not manage the lifecycle of previously created objects.
 |_subnets_
 |Array of subnet IDs.
 a|
+
 [source,bash]
 ----
 - subnet_id: subnet-0df..
