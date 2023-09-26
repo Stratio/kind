@@ -137,6 +137,7 @@ Cluster/eks-cl01                                                True            
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
 | ec2:TerminateInstances | failed to terminate instance | TerminateInstances | * | cloud-provisioner |
+| ec2:ModifyNetworkInterfaceAttribute  | failed to modify network interface attribute | ModifyNetworkInterfaceAttribute | * | cloud-provisioner |
 
 **Test:** Scale Manually (up/dpwn) kubectl -n cluster-eks-cl01 scale --replicas 3 machinedeployments --all (same as above)
 
