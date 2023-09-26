@@ -177,6 +177,7 @@
                 "ec2:DescribeNetworkInterfaces",
                 "ec2:DescribeAvailabilityZones",
                 "ec2:DescribeNetworkInterfaceAttribute",
+                "ec2:ModifyNetworkInterfaceAttribute",
                 "ec2:CreateSecurityGroup",
                 "ec2:DeleteInternetGateway",
                 "eks:DescribeAddonVersions",
