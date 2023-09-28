@@ -158,7 +158,8 @@
                 "ec2:DeleteNatGateway",
                 "ec2:DeleteVpc",
                 "ec2:CreateSubnet",
-                "ec2:DescribeSubnets"
+                "ec2:DescribeSubnets",
+                "eks:UpdateAddon"                
             ],
             "Resource": "*"
         },
@@ -169,7 +170,6 @@
                 "eks:UpdateClusterVersion",
                 "elasticloadbalancing:CreateLoadBalancer",
                 "ecr:GetDownloadUrlForLayer",
-                "eks:UpdateAddon",
                 "secretsmanager:CreateSecret",
                 "eks:ListAddons",
                 "secretsmanager:DeleteSecret",
