@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.3.2 (upcoming)
+
+* Bump cluster-operator due to hotfix
+
 ## 0.17.0-0.3.1 (2023-09-28)
 
 * Add status in KeosCluster
