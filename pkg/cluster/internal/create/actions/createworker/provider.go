@@ -51,8 +51,8 @@ const (
 
 	scName = "keos"
 
-	keosClusterChart = "0.1.2-ad1d89c"
-	keosClusterImage = "0.1.2-ad1d89c"
+	keosClusterChart = "0.1.2-6091b30"
+	keosClusterImage = "0.1.2-6091b30"
 )
 
 const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"

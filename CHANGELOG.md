@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.3.2 (2023-09-28)
+## 0.17.0-0.3.2 (upcoming)
 
 * Bump cluster-operator due to hotfix
 
