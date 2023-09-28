@@ -10,7 +10,6 @@
                 "eks:UpdateClusterConfig",
                 "secretsmanager:CreateSecret",
                 "ecr:GetDownloadUrlForLayer",
-                "eks:UpdateAddon",
                 "secretsmanager:DeleteSecret",
                 "eks:ListAddons",
                 "eks:DescribeAddon",
@@ -189,7 +188,8 @@
                 "ec2:DeleteNatGateway",
                 "ec2:DeleteVpc",
                 "ec2:CreateSubnet",
-                "ec2:DescribeSubnets"
+                "ec2:DescribeSubnets",
+                "eks:UpdateAddon"                
             ],
             "Resource": "*"
         },

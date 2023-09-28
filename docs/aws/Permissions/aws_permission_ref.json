@@ -124,7 +124,6 @@
             "Action": [
                 "eks:UpdateClusterVersion",
                 "secretsmanager:CreateSecret",
-                "eks:UpdateAddon",
                 "secretsmanager:DeleteSecret",
                 "eks:ListAddons",
                 "ec2:CreateVpc",
@@ -205,7 +204,8 @@
                 "ec2:DeleteNatGateway",
                 "ec2:DeleteVpc",
                 "ec2:CreateSubnet",
-                "ec2:DescribeSubnets"
+                "ec2:DescribeSubnets",
+                "eks:UpdateAddon"                
             ],
             "Resource": "*"
         },
