@@ -1,7 +1,7 @@
 # AZURE Permissions
 
 Requirements:
-- Service Principal (cloud-provisioner creedentials)
+- Service Principal (cloud-provisioner credentials)
   - Application Id = descriptor (client_id)
   - AAD - Application Secret ID = descriptor (client_secret)
 - Resource group (capz for example) (control-plane and workers identities)

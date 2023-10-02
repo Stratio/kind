@@ -1,0 +1,20 @@
+{
+    "id": "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65/providers/Microsoft.Authorization/roleDefinitions/6a56fdc0-c426-4fff-9284-c6123bb1ff96",
+    "properties": {
+        "roleName": "capz-role-restricted-aks",
+        "description": "Restricted role for testing permissions aks",
+        "assignableScopes": [
+            "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65"
+        ],
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.ContainerRegistry/registries/pull/read"
+                ],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": []
+            }
+        ]
+    }
+}
