@@ -73,6 +73,7 @@ type PBuilder interface {
 	configureStorageClass(n nodes.Node, k string) error
 	internalNginx(p ProviderParams, networks commons.Networks) (bool, error)
 	getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error)
+	getRegistryCredentials(p ProviderParams, u string) (string, string, error)
 }
 
 type Provider struct {
@@ -188,6 +189,10 @@ func (i *Infra) internalNginx(p ProviderParams, networks commons.Networks) (bool
 
 func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error) {
 	return i.builder.getOverrideVars(p, networks)
+}
+
+func (i *Infra) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
+	return i.builder.getRegistryCredentials(p, u)
 }
 
 func (p *Provider) getDenyAllEgressIMDSGNetPol() (string, error) {
