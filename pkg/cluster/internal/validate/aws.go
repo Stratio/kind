@@ -60,7 +60,7 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 		return errors.New("spec.region: " + spec.Region + " region does not exist")
 	}
 
-	azs, err := getAwsAzs(ctx, cfg, spec.Region)
+	azs, err := getAWSAzs(ctx, cfg, spec.Region)
 	if err != nil {
 		return err
 	}
@@ -160,14 +160,14 @@ func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) 
 		}
 	}
 	if spec.Networks.VPCID != "" {
-		vpcs, _ := getAwsVPCs(cfg)
+		vpcs, _ := getAWSVPCs(cfg)
 		if len(vpcs) > 0 && !commons.Contains(vpcs, spec.Networks.VPCID) {
 			return errors.New("\"vpc_id\": " + spec.Networks.VPCID + " does not exist")
 		}
 		if len(spec.Networks.Subnets) == 0 {
 			return errors.New("\"subnets\": are required when \"vpc_id\" is set")
 		} else {
-			subnets, _ := getAwsSubnets(spec.Networks.VPCID, cfg)
+			subnets, _ := getAWSSubnets(spec.Networks.VPCID, cfg)
 			if len(subnets) > 0 {
 				for _, subnet := range spec.Networks.Subnets {
 					if !commons.Contains(subnets, subnet.SubnetId) {
@@ -249,7 +249,7 @@ func getAWSRegions(config aws.Config) ([]string, error) {
 	return regions, nil
 }
 
-func getAwsVPCs(config aws.Config) ([]string, error) {
+func getAWSVPCs(config aws.Config) ([]string, error) {
 	vpcs := []string{}
 
 	client := ec2.NewFromConfig(config)
@@ -264,7 +264,7 @@ func getAwsVPCs(config aws.Config) ([]string, error) {
 	return vpcs, nil
 }
 
-func getAwsSubnets(vpcId string, config aws.Config) ([]string, error) {
+func getAWSSubnets(vpcId string, config aws.Config) ([]string, error) {
 	subnets := []string{}
 
 	client := ec2.NewFromConfig(config)
@@ -405,7 +405,7 @@ func validateAWSAZs(ctx context.Context, cfg aws.Config, spec commons.Spec) erro
 	return nil
 }
 
-func getAwsAzs(ctx context.Context, cfg aws.Config, region string) ([]string, error) {
+func getAWSAzs(ctx context.Context, cfg aws.Config, region string) ([]string, error) {
 	var azs []string
 	svc := ec2.NewFromConfig(cfg)
 	result, err := svc.DescribeAvailabilityZones(ctx, &ec2.DescribeAvailabilityZonesInput{})
