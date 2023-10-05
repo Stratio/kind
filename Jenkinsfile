@@ -10,6 +10,7 @@ hose {
     UPSTREAM_VERSION = '0.17.0'
     DEPLOYONPRS = true
     GRYPE_TEST = false
+    BUILDTOOL_INSTALL = 'make'
     MODULE_LIST = [ "paas.cloud-provisioner:cloud-provisioner:tar.gz"]
 
     DEV = { config ->

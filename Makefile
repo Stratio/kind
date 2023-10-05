@@ -119,6 +119,9 @@ package:
 deploy:
 	bin/deploy.sh $(version)
 
+acceptance-test:
+	bin/acceptance-test.sh $(version)
+
 change-version:
 	bin/change-version.sh $(version)
 
