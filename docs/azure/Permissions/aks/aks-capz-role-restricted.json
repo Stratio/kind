@@ -1,20 +1,27 @@
 {
-    "id": "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65/providers/Microsoft.Authorization/roleDefinitions/6a56fdc0-c426-4fff-9284-c6123bb1ff96",
-    "properties": {
-        "roleName": "capz-role-restricted-aks",
-        "description": "Restricted role for testing permissions aks",
-        "assignableScopes": [
-            "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65"
-        ],
-        "permissions": [
-            {
-                "actions": [
-                    "Microsoft.ContainerRegistry/registries/pull/read"
-                ],
-                "notActions": [],
-                "dataActions": [],
-                "notDataActions": []
-            }
-        ]
-    }
-}
+    "Name": "capz-role-restricted-aks",
+    "IsCustom": true,
+    "Description": "Restricted role for testing permissions aks",
+    "Actions": [
+        "Microsoft.ContainerRegistry/registries/pull/read",
+        "Microsoft.Resources/subscriptions/resourcegroups/read",
+        "Microsoft.Resources/subscriptions/resourcegroups/write",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/virtualNetworks/write",
+        "Microsoft.Resources/tags/read",
+        "Microsoft.Network/virtualNetworks/subnets/read",
+        "Microsoft.Network/virtualNetworks/subnets/write",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerService/managedClusters/write",
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+        "Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action",
+        "Microsoft.ContainerService/managedClusters/agentPools/read"
+    ],
+    "NotActions": [
+        "Microsoft.Compute/galleries/share/action"
+    ],
+    "AssignableScopes": [
+        "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65"
+    ]
+}   
