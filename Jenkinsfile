@@ -15,6 +15,8 @@ hose {
     DEV = { config ->
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
+    }
+    INSTALL = { config ->
         doAT(conf: config, configFiles: ['Clouds-EKS' : 'credentials'])
     }
     BUILDTOOL_MEMORY_REQUEST = "1024Mi"
