@@ -120,10 +120,22 @@ func validateVPCCidr(descriptorFile commons.DescriptorFile) error {
 }
 
 func eksAZValidation(descriptorFile commons.DescriptorFile, secretsFile commons.SecretsFile) error {
+	var AccessKey string
+	var SecretKey string
+
+	_, err := os.Stat("./secrets.yml")
+	if err != nil {
+		AccessKey = descriptorFile.Credentials.AWS.AccessKey
+		SecretKey = descriptorFile.Credentials.AWS.SecretKey
+	} else {
+		AccessKey = secretsFile.Secrets.AWS.Credentials.AccessKey
+		SecretKey = secretsFile.Secrets.AWS.Credentials.SecretKey
+	}
+
 	awsCredentials := []string{
 		"AWS_REGION=" + descriptorFile.Region,
-		"AWS_ACCESS_KEY_ID=" + secretsFile.Secrets.AWS.Credentials.AccessKey,
-		"AWS_SECRET_ACCESS_KEY=" + secretsFile.Secrets.AWS.Credentials.SecretKey,
+		"AWS_ACCESS_KEY_ID=" + AccessKey,
+		"AWS_SECRET_ACCESS_KEY=" + SecretKey,
 	}
 	for _, cred := range awsCredentials {
 		c := strings.Split(cred, "=")
