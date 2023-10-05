@@ -15,10 +15,13 @@ hose {
     DEV = { config ->
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
+        doDocker(conf: config)
+//         doAT(conf: config, configFiles: ['Clouds-EKS' : 'credentials'])
     }
     INSTALL = { config ->
-        doAT(conf: config, configFiles: ['Clouds-EKS' : 'credentials'])
+        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'stratio/kind:%%VERSION'], configFiles: ['Clouds-EKS' : 'credentials'])
     }
+
     BUILDTOOL_MEMORY_REQUEST = "1024Mi"
     BUILDTOOL_MEMORY_LIMIT = "4096Mi"
 }
