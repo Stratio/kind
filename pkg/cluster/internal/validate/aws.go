@@ -52,6 +52,14 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 		return err
 	}
 
+	regions, err := getAWSRegions(cfg)
+	if err != nil {
+		return err
+	}
+	if !commons.Contains(regions, spec.Region) {
+		return errors.New("spec.region: " + spec.Region + " region does not exist")
+	}
+
 	azs, err := getAwsAzs(ctx, cfg, spec.Region)
 	if err != nil {
 		return err
@@ -216,6 +224,29 @@ func validateAWSPodsNetwork(podsNetwork string) error {
 		return errors.New("\"pods_cidr\": CIDR block must be between " + validRange1.String() + " and " + validRange2.String())
 	}
 	return nil
+}
+
+func getAWSRegions(config aws.Config) ([]string, error) {
+	regions := []string{}
+
+	// Use a default region to authenticate
+	config.Region = *aws.String("eu-west-1")
+
+	client := ec2.NewFromConfig(config)
+
+	// Describe regions
+	describeRegionsOpts := &ec2.DescribeRegionsInput{}
+	output, err := client.DescribeRegions(context.Background(), describeRegionsOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract region names
+	for _, region := range output.Regions {
+		regions = append(regions, *region.RegionName)
+	}
+
+	return regions, nil
 }
 
 func getAwsVPCs(config aws.Config) ([]string, error) {
