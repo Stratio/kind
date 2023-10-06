@@ -120,7 +120,7 @@ deploy:
 	bin/deploy.sh $(version)
 
 acceptance-test:
-	bin/acceptance-test.sh $(version)
+	python3 bin/at.py
 
 change-version:
 	bin/change-version.sh $(version)
