@@ -6,4 +6,6 @@ print(os.environ['credentials'])
 
 with open(os.environ['credentials']) as f:
     contents = f.readlines()
-    print(yaml.dump(contents))
+    yamlContent = yaml.dump(contents)
+    print(yamlContent["cuenta"])
+    print(yamlContent["usuario"])
