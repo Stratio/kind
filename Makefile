@@ -89,7 +89,7 @@ test:
 # ================================= Cleanup ====================================
 # standard cleanup target
 clean:
- 	find $(OUT_DIR)/ -name 'cloud-provisioner*' -delete && rm -rf "$(OUT_DIR)/.gimme"
+	find $(OUT_DIR)/ -name 'cloud-provisioner*' -delete && rm -rf "$(OUT_DIR)/.gimme"
 ################################################################################
 # ============================== Auto-Update ===================================
 # update generated code, gofmt, etc.
