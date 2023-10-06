@@ -105,7 +105,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	provider := infra.buildProvider(providerParams)
 
 	awsEKSEnabled := a.keosCluster.Spec.InfraProvider == "aws" && a.keosCluster.Spec.ControlPlane.Managed
-	isMachinePool := a.keosCluster.Spec.InfraProvider != "aws" && a.keosCluster.Spec.ControlPlane.Managed
+	azureAKSEnabled := a.keosCluster.Spec.InfraProvider == "azure" && a.keosCluster.Spec.ControlPlane.Managed
 
 	ctx.Status.Start("Installing CAPx 🎖️")
 	defer ctx.Status.End(false)
@@ -118,11 +118,21 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
-	if keosRegistry.registryType != "generic" {
-		keosRegistry.user, keosRegistry.pass, err = infra.getRegistryCredentials(providerParams, keosRegistry.url)
+	if keosRegistry.registryType == "ecr" {
+		ecrToken, err := getEcrToken(providerParams, keosRegistry.url)
 		if err != nil {
-			return errors.Wrap(err, "failed to get docker registry credentials")
+			return errors.Wrap(err, "failed to get ECR auth token")
 		}
+		keosRegistry.user = "AWS"
+		keosRegistry.pass = ecrToken
+	} else if keosRegistry.registryType == "acr" {
+		acrService := strings.Split(keosRegistry.url, "/")[0]
+		acrToken, err := getAcrToken(providerParams, acrService)
+		if err != nil {
+			return errors.Wrap(err, "failed to get ACR auth token")
+		}
+		keosRegistry.user = "00000000-0000-0000-0000-000000000000"
+		keosRegistry.pass = acrToken
 	} else {
 		keosRegistry.user = a.clusterCredentials.KeosRegistryCredentials["User"]
 		keosRegistry.pass = a.clusterCredentials.KeosRegistryCredentials["Pass"]
@@ -130,7 +140,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	// Create docker-registry secret for keos cluster
 	c = "kubectl -n kube-system create secret docker-registry regcred" +
-		" --docker-server=" + strings.Split(keosRegistry.url, "/")[0] +
+		" --docker-server=" + keosRegistry.url +
 		" --docker-username=" + keosRegistry.user +
 		" --docker-password=" + keosRegistry.pass
 	_, err = commons.ExecuteCommand(n, c)
@@ -205,7 +215,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Installing keos cluster operator 💻")
 	defer ctx.Status.End(false)
 
-	err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", true)
+	err = provider.deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", true)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cluster operator")
 	}
@@ -309,36 +319,36 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			ctx.Status.End(true)
+		}
 
-			if provider.capxProvider == "gcp" {
-				// XXX Ref kubernetes/kubernetes#86793 Starting from v1.18, gcp cloud-controller-manager requires RBAC to patch,update service/status (in-tree)
-				ctx.Status.Start("Creating Kubernetes RBAC for internal loadbalancing 🔐")
-				defer ctx.Status.End(false)
+		if provider.capxProvider == "gcp" {
+			// XXX Ref kubernetes/kubernetes#86793 Starting from v1.18, gcp cloud-controller-manager requires RBAC to patch,update service/status (in-tree)
+			ctx.Status.Start("Creating Kubernetes RBAC for internal loadbalancing 🔐")
+			defer ctx.Status.End(false)
 
-				requiredInternalNginx, err := infra.internalNginx(providerParams, a.keosCluster.Spec.Networks)
-				if err != nil {
-					return err
-				}
-
-				if requiredInternalNginx {
-					rbacInternalLoadBalancingPath := "/kind/internalloadbalancing_rbac.yaml"
-
-					// Deploy Kubernetes RBAC internal loadbalancing
-					c = "echo \"" + rbacInternalLoadBalancing + "\" > " + rbacInternalLoadBalancingPath
-					_, err = commons.ExecuteCommand(n, c)
-					if err != nil {
-						return errors.Wrap(err, "failed to write the kubernetes RBAC internal loadbalancing")
-					}
-
-					c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + rbacInternalLoadBalancingPath
-					_, err = commons.ExecuteCommand(n, c)
-					if err != nil {
-						return errors.Wrap(err, "failed to the kubernetes RBAC internal loadbalancing")
-					}
-				}
-
-				ctx.Status.End(true)
+			requiredInternalNginx, err := infra.internalNginx(providerParams, a.keosCluster.Spec.Networks)
+			if err != nil {
+				return err
 			}
+
+			if requiredInternalNginx {
+				rbacInternalLoadBalancingPath := "/kind/internalloadbalancing_rbac.yaml"
+
+				// Deploy Kubernetes RBAC internal loadbalancing
+				c = "echo \"" + rbacInternalLoadBalancing + "\" > " + rbacInternalLoadBalancingPath
+				_, err = commons.ExecuteCommand(n, c)
+				if err != nil {
+					return errors.Wrap(err, "failed to write the kubernetes RBAC internal loadbalancing")
+				}
+
+				c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + rbacInternalLoadBalancingPath
+				_, err = commons.ExecuteCommand(n, c)
+				if err != nil {
+					return errors.Wrap(err, "failed to the kubernetes RBAC internal loadbalancing")
+				}
+			}
+
+			ctx.Status.End(true)
 		}
 
 		ctx.Status.Start("Preparing nodes in workload cluster 📦")
@@ -352,21 +362,27 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
-		if isMachinePool {
-			// Wait for all the machine pools to be ready
-			c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=Ready --timeout=15m --all mp"
-		} else {
+		if provider.capxProvider != "azure" || !a.keosCluster.Spec.ControlPlane.Managed {
 			// Wait for all the machine deployments to be ready
 			c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=Ready --timeout=15m --all md"
-		}
-		_, err = commons.ExecuteCommand(n, c)
-		if err != nil {
-			return errors.Wrap(err, "failed to create the worker Cluster")
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to create the worker Cluster")
+			}
 		}
 
 		if !a.keosCluster.Spec.ControlPlane.Managed && *a.keosCluster.Spec.ControlPlane.HighlyAvailable {
 			// Wait for all control planes to be ready
 			c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath=\"{.status.readyReplicas}\"=3 --timeout 10m kubeadmcontrolplanes " + a.keosCluster.Metadata.Name + "-control-plane"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to create the worker Cluster")
+			}
+		}
+
+		if azureAKSEnabled {
+			// Wait for metrics-server deployment to be ready
+			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy metrics-server -n kube-system --timeout=5m"
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
 				return errors.Wrap(err, "failed to create the worker Cluster")
@@ -436,7 +452,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.End(true) // End Installing CAPx in workload cluster
 
 		// Use Calico as network policy engine in managed systems
-		if provider.capxProvider != "azure" && !isMachinePool {
+		if provider.capxProvider != "azure" {
 			ctx.Status.Start("Configuring Network Policy Engine in workload cluster 🚧")
 			defer ctx.Status.End(false)
 
@@ -497,7 +513,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.End(true) // End Installing Network Policy Engine in workload cluster
 		}
 
-		if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
+		if a.keosCluster.Spec.DeployAutoscaler && !azureAKSEnabled {
 			ctx.Status.Start("Installing cluster-autoescaler in workload cluster 🗚")
 			defer ctx.Status.End(false)
 
@@ -521,7 +537,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
 		defer ctx.Status.End(false)
 
-		err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, kubeconfigPath, true)
+		err = provider.deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, kubeconfigPath, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
 		}
@@ -624,7 +640,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to delete keoscluster in management cluster")
 			}
 
-			err = deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", false)
+			err = provider.deployClusterOperator(n, a.keosCluster, a.clusterCredentials, keosRegistry, "", false)
 			if err != nil {
 				return errors.Wrap(err, "failed to deploy cluster operator")
 			}
