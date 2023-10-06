@@ -4,8 +4,8 @@ import yaml
 print("Hello world!")
 print(os.environ['credentials'])
 
-with open(os.environ['credentials']) as f:
-    contents = f.readlines()
-    yamlContent = yaml.dump(contents)
-    print(yamlContent["cuenta"])
-    print(yamlContent["usuario"])
+jsonContent = json.load(os.environ['credentials'])
+f = open(os.environ['credentials'])
+jsonContent = json.load(f)
+print(jsonContent)
+print(jsonContent["cuenta"])
