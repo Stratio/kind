@@ -1,10 +1,8 @@
 {
-    "Name": "capz-role-controlplane",
+    "Name": "capz-role-test-controlplane",
     "IsCustom": true,
     "Description": "Control-plane role for testing",
     "Actions": [
-        "Microsoft.Authorization/*/read",
-        "Microsoft.ContainerRegistry/registries/pull/read"
     ],
     "NotActions": [
         "Microsoft.Compute/galleries/share/action"

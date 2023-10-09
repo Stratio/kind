@@ -40,9 +40,10 @@ Requirements:
 | --- | --- | --- | --- | --- |
 | Microsoft.ContainerRegistry/registries/pull/read | Get ACR auth token | failed to authorize: failed to fetch anonymous token | Microsoft.ContainerRegistry | Provisioner |
 
-**Test:** cloud-provisioner create cluster --name jazure1 --retain --vault-password 123456 (same permissions as --keep-mgmt) (same as above) (OK)
+**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 (same permissions as --keep-mgmt) (same as above) (OK)
 
-**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-azure1 --dry-run
+**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure --dry-run (OK)  
+**Note:** Stop cluster-operaor before perform the operation (kw scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)  
 Performing move...
 ********************************************************
 This is a dry-run move, will not perform any real action
@@ -53,7 +54,8 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-azure1 (no needed additonal permissions)  
+❯ clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure (no needed additonal permissions)  
+**Note:** Stop cluster-operator before perform the operation (k scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)  
 Performing move...  
 Discovering Cluster API objects  
 Moving Cluster API objects Clusters=1  
@@ -61,7 +63,8 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ clusterctl move --to-kubeconfig remote_kubeconfig --kubeconfig local_kubeconfig --namespace cluster-azure1
+❯ clusterctl move --to-kubeconfig remote_kubeconfig --kubeconfig local_kubeconfig --namespace cluster-jazure
+**Note:** start cluster-operator after perform the operation (k scale deploy keoscluster-controller-manager --replicas 2 -n kube-system)
 Performing move...  
 Discovering Cluster API objects  
 Moving Cluster API objects Clusters=1  
@@ -69,19 +72,17 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ cluclusterctl --kubeconfig remote_kubeconfig describe cluster azure1 -n cluster-azure1  
-NAME                                                       READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/azure1                                             True                     118m
-├─ClusterInfrastructure - AzureCluster/azure1              True                     118m
-├─ControlPlane - KubeadmControlPlane/azure1-control-plane  True                     118m
-│ └─3 Machines...                                          True                     118m
+❯ oot@jazure-control-plane:/# clusterctl --kubeconfig /kind/worker-cluster.kubeconfig describe cluster jazure -n cluster-jazure -v 5
+Using configuration File="/root/.cluster-api/clusterctl.yaml"
+NAME                                                  READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/jazure                                        True                     6m45s
+├─ClusterInfrastructure - AzureManagedCluster/jazure
+├─ControlPlane - AzureManagedControlPlane/jazure      True                     6m45s
 └─Workers
-  ├─MachineDeployment/azure1w1-md-0                        True                     118m
-  │ └─Machine/azure1w1-md-0-7fddd56cbdxcw8c4-x2648         True                     118m
-  ├─MachineDeployment/azure1w1-md-1                        True                     13m
-  │ └─5 Machines...                                        True                     24m    
-  └─MachineDeployment/azure1w1-md-2                        True                     118m
-    └─Machine/azure1w1-md-2-7c9f4b574x96488-fr6xx          True                     118m 
+  ├─MachinePool/jazure1-mp-0                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp0. Object wi ...
+  ├─MachinePool/jazure1-mp-1                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp1. Object wi ...
+  └─MachinePool/jazure1-mp-2                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp2. Object wi ...
+Using configuration File="/root/.cluster-api/clusterctl.yaml" 
 
 **Test:** Auto-Scale (up/down) (deploy "n" nginx pods and check if the nodes are scaled up)
 
