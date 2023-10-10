@@ -59,8 +59,8 @@ func newAzureBuilder() *AzureBuilder {
 
 func (b *AzureBuilder) setCapx(managed bool) {
 	b.capxProvider = "azure"
-	b.capxVersion = "v1.11.2"
-	b.capxImageVersion = "v1.11.2"
+	b.capxVersion = "v1.11.3"
+	b.capxImageVersion = "v1.11.3"
 	b.capxName = "capz"
 	b.capxManaged = managed
 	b.csiNamespace = "kube-system"
