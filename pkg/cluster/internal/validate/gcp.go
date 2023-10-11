@@ -44,7 +44,7 @@ func validateGCP(spec commons.Spec, providerSecrets map[string]string) error {
 
 	credentialsJson := getGCPCreds(providerSecrets)
 
-	regions, err := getGoogleRegions(credentialsJson)
+	regions, err := getGCPRegions(credentialsJson)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func validateGCPNetwork(network commons.Networks, credentialsJson string, region
 	return nil
 }
 
-func getGoogleRegions(credentialsJson string) ([]string, error) {
+func getGCPRegions(credentialsJson string) ([]string, error) {
 	var regions_names []string
 	var ctx = context.Background()
 
