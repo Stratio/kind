@@ -15,7 +15,7 @@ filePath = os.environ['credentials']
 with open(filePath, "r") as stream:
     try:
         print(yaml.safe_load(stream))
-      fileContent = yaml.safe_load(stream)
+        fileContent = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
 print(fileContent.aws)
