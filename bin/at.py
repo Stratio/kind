@@ -2,6 +2,7 @@ import os
 import json
 
 print("Hello world!")
+print(os.environ['groups'])
 print(os.environ['credentials'])
 
 f = open(os.environ['credentials'])
