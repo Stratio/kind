@@ -20,7 +20,7 @@ hose {
 //         doAT(conf: config, configFiles: ['Clouds-EKS' : 'credentials'])
     }
     INSTALL = { config ->
-        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'stratio/kind:%%VERSION'], configFiles: ['Clouds-EKS' : 'credentials'])
+        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'stratio/kind:%%VERSION'], configFiles: ['Clouds-EKS-yaml' : 'credentials'])
     }
 
     BUILDTOOL_MEMORY_REQUEST = "1024Mi"
