@@ -10,4 +10,5 @@ filePath = os.environ['credentials']
 # Open the file and load the file
 with open(filePath) as f:
     data = yaml.load(f, Loader=SafeLoader)
+    print(data)
     print(data['credentials']['aws'])
