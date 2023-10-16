@@ -18,4 +18,4 @@ with open(filePath, "r") as stream:
         fileContent = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
-print(fileContent.aws)
+print(fileContent.usuario)
