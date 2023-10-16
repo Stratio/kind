@@ -1,21 +1,13 @@
 import os
-import json
 import yaml
+from yaml.loader import SafeLoader
 
 print("Hello world!")
 print(os.environ['groups'])
 print(os.environ['credentials'])
 
-# f = open(os.environ['credentials'])
-# jsonContent = json.load(f)
-# print(jsonContent)
-# print(jsonContent["cuenta"])
-
 filePath = os.environ['credentials']
-with open(filePath, "r") as stream:
-    try:
-        print(yaml.safe_load(stream))
-        fileContent = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
-print(fileContent['usuario'])
+# Open the file and load the file
+with open(filePath) as f:
+    data = yaml.load(f, Loader=SafeLoader)
+    print(data['credentials']['usuario'])
