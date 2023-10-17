@@ -10,13 +10,13 @@ Requirements:
 
 ### Permissions Table
 
-**Test:** cloud-provisioner create cluster --name jazure --vault-password "123456"  -d cluster-aks.yaml --delete-previous --avoid-creation (OK)
+**Test:** cloud-provisioner create cluster --name jazure --vault-password "123456"  -d cluster-aks.yaml --delete-previous --avoid-creation  
 
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
 | Microsoft.ContainerRegistry/registries/pull/read | Get ACR auth token | Failed to obtain the ACR token with the provided credentials | Microsoft.ContainerRegistry | Provisioner |
 
-**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 --keep-mgmt (OK) (CAPZ)
+**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 --keep-mgmt (CAPZ)
 
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
@@ -33,17 +33,14 @@ Requirements:
 | Microsoft.ManagedIdentity/userAssignedIdentities/assign/action | userAssignedIdentities assign | does not have permission to perform action 'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action' | Microsoft.ManagedIdentity | Provisioner |
 | Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action | listClusterAdminCredential | does not have permission to perform action 'Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action' | Microsoft.ContainerService | Provisioner |
 | Microsoft.ContainerService/managedClusters/agentPools/read | Get AKS AgentPool | does not have authorization to perform action 'Microsoft.ContainerService/managedClusters/agentPools/read' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx/providers/Microsoft.ContainerService/managedClusters/jazure/agentPools/jazure1mp1 | Microsoft.ContainerService | Provisioner |
+| Microsoft.Compute/virtualMachineScaleSets/* | Failed to find scale set over resource group machine pool | failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp0 | Microsoft.Compute | Provisioner |
+| "Microsoft.ManagedIdentity/userAssignedIdentities/*/read" "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action" "Microsoft.Authorization/*/read" "Microsoft.Insights/alertRules/*" "Microsoft.Resources/subscriptions/resourceGroups/read" "Microsoft.Resources/deployments/*" "Microsoft.Support/*" | failed to reconcile AzureManagedControlPlane | The cluster using user-assigned managed identity must be granted 'Managed Identity Operator' role to assign kubelet identity. | Microsoft.ManagedIdentity Microsoft.Insights Microsoft.Resources Microsoft.Support | Provisioner |
+| Microsoft.ContainerRegistry/registries/pull/read | Get ACR auth token | Failed to authorize: failed to fetch anonymous token | Microsoft.ContainerRegistry | Provisioner |
 
-**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 --keep-mgmt (OK) (nodes/control-plane)
+**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 (same permissions as --keep-mgmt) (same as above)  
 
-| Permission | Needed for | Description | Resource | Application |
-| --- | --- | --- | --- | --- |
-| Microsoft.ContainerRegistry/registries/pull/read | Get ACR auth token | failed to authorize: failed to fetch anonymous token | Microsoft.ContainerRegistry | Provisioner |
-
-**Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 (same permissions as --keep-mgmt) (same as above) (OK)
-
-**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure --dry-run (OK)  
-**Note:** Stop cluster-operaor before perform the operation (kw scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)  
+**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure --dry-run    
+**Note:** Stop cluster-operator before perform the operation (kw scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)  
 Performing move...
 ********************************************************
 This is a dry-run move, will not perform any real action
@@ -72,61 +69,27 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ oot@jazure-control-plane:/# clusterctl --kubeconfig /kind/worker-cluster.kubeconfig describe cluster jazure -n cluster-jazure -v 5
-Using configuration File="/root/.cluster-api/clusterctl.yaml"
+❯ clusterctl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig describe cluster jazure -n cluster-jazure
 NAME                                                  READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/jazure                                        True                     6m45s
+Cluster/jazure                                        True                     24m
 ├─ClusterInfrastructure - AzureManagedCluster/jazure
-├─ControlPlane - AzureManagedControlPlane/jazure      True                     6m45s
+├─ControlPlane - AzureManagedControlPlane/jazure      True                     24m
 └─Workers
-  ├─MachinePool/jazure1-mp-0                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp0. Object wi ...
-  ├─MachinePool/jazure1-mp-1                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp1. Object wi ...
-  └─MachinePool/jazure1-mp-2                          False  Error     Failed  6m35s  failed to find vm scale set in resource group jazure-nodes matching pool named jazure1mp2. Object wi ...
-Using configuration File="/root/.cluster-api/clusterctl.yaml" 
+  ├─MachinePool/jazure1-mp-0                          True                     94s
+  ├─MachinePool/jazure1-mp-1                          True                     94s
+  └─MachinePool/jazure1-mp-2                          True                     94s
 
-**Test:** Auto-Scale (up/down) (deploy "n" nginx pods and check if the nodes are scaled up)
-
-| NAMESPACE | NAME | CLUSTER | REPLICAS | READY | UPDATED | UNAVAILABLE | PHASE  | AGE | VERSION
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cluster-azure1 | azure1w1-md-0 | azure1 | 6 | 1 | 6 | 5 | ScalingUp | 3m53s | v1.24.10 | 
-| cluster-azure1 | azure1w1-md-1 | azure1 | 1 | 1 | 1 | 0 | Running   | 3m50s | v1.24.10 |
-| cluster-azure1 | azure1w1-md-2 | azure1 | 2 | 1 | 2 | 1 | ScalingUp | 3m51s | v1.24.10 |
-
-| NAMESPACE | NAME | CLUSTER | REPLICAS | READY | UPDATED | UNAVAILABLE | PHASE  | AGE | VERSION
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cluster-azure1 | azure1w1-md-0 | azure1 | 6 | 6 | 6 | |0 | Running | 6m27s | v1.24.10 |
-| cluster-azure1 | azure1w1-md-1 | azure1 | 1 | 1 | 1 | |0 | Running | 6m24s | v1.24.10 |
-| cluster-azure1 | azure1w1-md-2 | azure1 | 2 | 2 | 2 | |0 | Running | 6m25s | v1.24.10 |
-
-| NAMESPACE | NAME | CLUSTER | REPLICAS | READY | UPDATED | UNAVAILABLE | PHASE  | AGE | VERSION
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cluster-azure1 | azure1w1-md-0 | azure1 | 6 | 1 | 6 | 5 | ScalingDown | 19m | v1.24.10 | 
-| cluster-azure1 | azure1w1-md-1 | azure1 | 1 | 1 | 1 | 0 | Running   | 19m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-2 | azure1 | 2 | 1 | 2 | 1 | ScalingDown | 19m | v1.24.10 |
-
-| NAMESPACE | NAME | CLUSTER | REPLICAS | READY | UPDATED | UNAVAILABLE | PHASE  | AGE | VERSION
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cluster-azure1 | azure1w1-md-0 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-1 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-2 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
+**Test:** scale up with cluster-operator
 
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
-| Microsoft.Compute/virtualMachines/delete | Delete virtualMachines | does not have authorization to perform action 'Microsoft.Compute/virtualMachines/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx/providers/Microsoft.Compute/virtualMachines/xxxxxx-1-md-0 | Microsoft.Compute | Provisioner |
-| Microsoft.Compute/virtualMachines/extensions/delete | Delete virtualMachines/extensions | does not have authorization to perform action 'Microsoft.Compute/virtualMachines/extensions/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx/providers/Microsoft.Compute/virtualMachines/xxxxxx-md-0/extensions/CAPZ.Linux.Bootstrapping | Microsoft.Compute | Provisioner |
-| Microsoft.Compute/disks/delete | Delete disks | does not have authorization to perform action 'Microsoft.Compute/disks/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx/providers/Microsoft.Compute/disks/xxxxxx--md-0_OsDisk | Microsoft.Compute | Provisioner |
+| Microsoft.ContainerService/managedClusters/agentPools/write | Scale up | does not have authorization to perform action 'Microsoft.ContainerService/managedClusters/agentPools/write' over scope '/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65/resourceGroups/jazure/providers/Microsoft.ContainerService/managedClusters/jazure/agentPools/jazure1mp1' | Microsoft.ContainerService | Provisioner |
 
-
-**Test:** Scale Manually (up/dpwn) kubectl -n cluster-azure1 scale --replicas 3 machinedeployments --all (same as above)
-
-**Test:** Create new MachineDeployment Manually (same as above) (scale ok)
-
-| NAMESPACE | NAME | CLUSTER | REPLICAS | READY | UPDATED | UNAVAILABLE | PHASE  | AGE | VERSION
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| cluster-azure1 | azure1w1-md-0 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-1 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-2 | azure1 | 1 | 1 | 1 | |0 | Running | 26m | v1.24.10 |
-| cluster-azure1 | azure1w1-md-3 | azure1 | 1 | 1 | 1 | |0 | Running | 48s | v1.24.10 |
+| NAME |      CLUSTER  | DESIRED |  REPLICAS |  PHASE  |   AGE   |  VERSION
+| --- | --- | --- | --- | --- | --- | --- |
+| jazure1-mp-0  | jazure  |  1  |       1    |      Running    | 7m11s  | v1.26.3 |
+| jazure1-mp-1  | jazure  |  1  |       1    |      Running    | 7m11s  | v1.26.3 |
+| jazure1-mp-2  | jazure  |  2  |       1    |      ScalingUp  | 7m10s  | v1.26.3 |
 
 **Test:** Destroy Machine on Azure UI (self-healing) (azure1w1-md-2) (same as above)
 

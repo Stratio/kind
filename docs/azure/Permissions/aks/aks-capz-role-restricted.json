@@ -16,7 +16,8 @@
         "Microsoft.Network/virtualNetworks/subnets/join/action",
         "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
         "Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action",
-        "Microsoft.ContainerService/managedClusters/agentPools/read"
+        "Microsoft.ContainerService/managedClusters/agentPools/read",
+        "Microsoft.Compute/virtualMachineScaleSets/*"
     ],
     "NotActions": [
         "Microsoft.Compute/galleries/share/action"
