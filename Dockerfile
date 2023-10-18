@@ -2,11 +2,11 @@ FROM stratio/cloud-testing-suite:0.1.0-SNAPSHOT
 
 RUN apt-get update && apt-get -y install sudo
 
-VOLUME /var/lib/docker
-
 RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
 
 USER docker
+
+VOLUME /var/lib/docker
 
 COPY bin/cloud-provisioner.tar.gz /CTS/resources/bin/
 
