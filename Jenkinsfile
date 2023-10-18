@@ -1,11 +1,10 @@
-@Library('libpipelines') _
+@Library('libpipelines@add-AT-clouds-features') _
 
 hose {
-    EMAIL = 'eos'
+    EMAIL = 'cd'
     BUILDTOOL = 'make'
     DEVTIMEOUT = 30
     BUILDTOOL_IMAGE = 'golang:1.19'
-    ANCHORE_POLICY = "production"
     VERSIONING_TYPE = 'stratioVersion-3-3'
     UPSTREAM_VERSION = '0.17.0'
     DEPLOYONPRS = true
@@ -17,7 +16,7 @@ hose {
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
         doDocker(conf: config)
-//         doAT(conf: config, configFiles: ['Clouds-EKS' : 'credentials'])
+        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'qa.int.stratio.com:8443/stratio/kind:%%VERSION'],  configFiles: [[fileId: "Clouds-EKS-yaml", variable: "credentials"]])
     }
     INSTALL = { config ->
         doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'stratio/kind:%%VERSION'], configFiles: ['Clouds-EKS-yaml' : 'credentials'])
