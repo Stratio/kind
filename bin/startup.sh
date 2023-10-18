@@ -2,11 +2,10 @@
 
 dockerd &
 if [ "$1" == "eks-smoke" ]; then
-  python3 -m pytest --help &&
+  cd /CTS &&
   echo "$PWD" &&
   ls -la &&
-  cd .. &&
-  ls -la &&
+  python3 -m pytest --help &&
   python3 -m pytest -s ./CTS/tests/001_provision_cluster.py ./CTS/tests/002_smoke_tests.py ./CTS/tests/999_delete_cluster.py --cluster_name=eks-smoke-$(date +%s) --cloud_provider=aws --managed=True
 elif [ "$1" == "aws-smoke" ]; then
   python3 -m pytest -s ./CTS/tests/001_provision_cluster.py ./CTS/tests/002_smoke_tests.py ./CTS/tests/999_delete_cluster.py --cluster_name=aws-smoke-$(date +%s) --cloud_provider=aws --managed=False
