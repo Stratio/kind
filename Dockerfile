@@ -8,6 +8,4 @@ USER docker
 
 COPY bin/cloud-provisioner.tar.gz /CTS/resources/bin/
 
-WORKDIR /CTS
-
 CMD ["bash"]
