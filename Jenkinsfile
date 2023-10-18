@@ -16,7 +16,7 @@ hose {
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
         doDocker(conf: config)
-        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'qa.int.stratio.com:8443/stratio/kind:%%VERSION'],  configFiles: [[fileId: "Clouds-EKS-yaml", variable: "credentials"]])
+        doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'qa.int.stratio.com:8443/stratio/kind:%%VERSION'],  configFiles: [[fileId: "Clouds-EKS-yaml", variable: "credentials"]], runOnPR: true)
     }
     INSTALL = { config ->
         doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE' : 'stratio/kind:%%VERSION'], configFiles: ['Clouds-EKS-yaml' : 'credentials'])
