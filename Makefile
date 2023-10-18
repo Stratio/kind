@@ -120,7 +120,7 @@ deploy:
 	bin/deploy.sh $(version)
 
 acceptance-test:
-	vin/startup.sh
+	vin/startup.sh $(groups)
 
 change-version:
 	bin/change-version.sh $(version)
