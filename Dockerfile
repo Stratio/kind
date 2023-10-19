@@ -8,8 +8,6 @@ USER docker
 
 VOLUME /var/lib/docker
 
-RUN chmod 0777 /CTS/startup.sh
-
 COPY bin/cloud-provisioner.tar.gz /CTS/resources/bin/
 
 CMD ["bash"]
