@@ -476,6 +476,18 @@ func (p *Provider) installCAPXWorker(n nodes.Node, kubeconfigPath string, allowA
 		return errors.Wrap(err, "failed to install CAPX in workload cluster")
 	}
 
+	if p.capxProvider == "azure" {
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch ds capz-nmi -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to assigned priorityClass to nmi")
+		}
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status ds capz-nmi --timeout 60s"
+		if err != nil {
+			return errors.Wrap(err, "failed to check rollout status for nmi")
+		}
+	}
+
 	// Scale CAPX to 2 replicas
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system scale --replicas 2 deploy " + p.capxName + "-controller-manager"
 	_, err = commons.ExecuteCommand(n, c)
@@ -523,6 +535,18 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 	_, err = commons.ExecuteCommand(n, c, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")
+	}
+
+	if p.capxProvider == "azure" {
+		c = "kubectl -n " + p.capxName + "-system patch ds capz-nmi -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to assigned priorityClass to nmi")
+		}
+		c = "kubectl -n " + p.capxName + "-system rollout status ds capz-nmi --timeout 30s"
+		if err != nil {
+			return errors.Wrap(err, "failed to check rollout status for nmi")
+		}
 	}
 
 	return nil
