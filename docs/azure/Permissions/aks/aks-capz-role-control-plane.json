@@ -3,6 +3,7 @@
     "IsCustom": true,
     "Description": "",
     "Actions": [
+        "Microsoft.ContainerRegistry/registries/pull/read",
         "Microsoft.ManagedIdentity/userAssignedIdentities/*/read",
         "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
         "Microsoft.Authorization/*/read",
