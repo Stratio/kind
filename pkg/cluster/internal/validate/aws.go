@@ -28,6 +28,7 @@ import (
 	"github.com/apparentlymart/go-cidr/cidr"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"golang.org/x/exp/slices"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -51,6 +52,19 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 		return err
 	}
 
+	regions, err := getAWSRegions(cfg)
+	if err != nil {
+		return err
+	}
+	if !commons.Contains(regions, spec.Region) {
+		return errors.New("spec.region: " + spec.Region + " region does not exist")
+	}
+
+	azs, err := getAWSAzs(ctx, cfg, spec.Region)
+	if err != nil {
+		return err
+	}
+
 	if (spec.StorageClass != commons.StorageClass{}) {
 		if err = validateAWSStorageClass(spec.StorageClass, spec.WorkerNodes); err != nil {
 			return errors.Wrap(err, "spec.storageclass: Invalid value")
@@ -64,8 +78,8 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 	}
 
 	for i, dr := range spec.DockerRegistries {
-		if dr.Type == "acr" {
-			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": acr is not supported in AWS")
+		if dr.Type != "ecr" && dr.Type != "generic" {
+			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only 'ecr' or 'generic' are supported in aws clusters")
 		}
 	}
 
@@ -100,6 +114,13 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 		if wn.NodeImage != "" {
 			if !isAWSNodeImage(wn.NodeImage) {
 				return errors.New("spec.worker_nodes." + wn.Name + ": \"node_image\": must have the format " + AWSNodeImageFormat)
+			}
+		}
+		if wn.AZ != "" {
+			if len(azs) > 0 {
+				if !commons.Contains(azs, wn.AZ) {
+					return errors.New(wn.AZ + " does not exist in this region, azs: " + fmt.Sprint(azs))
+				}
 			}
 		}
 		if err := validateVolumeType(wn.RootVolume.Type, AWSVolumes); err != nil {
@@ -139,8 +160,21 @@ func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) 
 		}
 	}
 	if spec.Networks.VPCID != "" {
+		vpcs, _ := getAWSVPCs(cfg)
+		if len(vpcs) > 0 && !commons.Contains(vpcs, spec.Networks.VPCID) {
+			return errors.New("\"vpc_id\": " + spec.Networks.VPCID + " does not exist")
+		}
 		if len(spec.Networks.Subnets) == 0 {
 			return errors.New("\"subnets\": are required when \"vpc_id\" is set")
+		} else {
+			subnets, _ := getAWSSubnets(spec.Networks.VPCID, cfg)
+			if len(subnets) > 0 {
+				for _, subnet := range spec.Networks.Subnets {
+					if !commons.Contains(subnets, subnet.SubnetId) {
+						return errors.New("\"subnets\": " + subnet.SubnetId + " does not belong to vpc with id: " + spec.Networks.VPCID)
+					}
+				}
+			}
 		}
 	} else {
 		if len(spec.Networks.Subnets) > 0 {
@@ -190,6 +224,67 @@ func validateAWSPodsNetwork(podsNetwork string) error {
 		return errors.New("\"pods_cidr\": CIDR block must be between " + validRange1.String() + " and " + validRange2.String())
 	}
 	return nil
+}
+
+func getAWSRegions(config aws.Config) ([]string, error) {
+	regions := []string{}
+
+	// Use a default region to authenticate
+	config.Region = *aws.String("eu-west-1")
+
+	client := ec2.NewFromConfig(config)
+
+	// Describe regions
+	describeRegionsOpts := &ec2.DescribeRegionsInput{}
+	output, err := client.DescribeRegions(context.Background(), describeRegionsOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract region names
+	for _, region := range output.Regions {
+		regions = append(regions, *region.RegionName)
+	}
+
+	return regions, nil
+}
+
+func getAWSVPCs(config aws.Config) ([]string, error) {
+	vpcs := []string{}
+
+	client := ec2.NewFromConfig(config)
+	DescribeVpcOpts := &ec2.DescribeVpcsInput{}
+	output, err := client.DescribeVpcs(context.Background(), DescribeVpcOpts)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, vpc := range output.Vpcs {
+		vpcs = append(vpcs, *vpc.VpcId)
+	}
+	return vpcs, nil
+}
+
+func getAWSSubnets(vpcId string, config aws.Config) ([]string, error) {
+	subnets := []string{}
+
+	client := ec2.NewFromConfig(config)
+	vpc_id_filterName := "vpc-id"
+	DescribeSubnetOpts := &ec2.DescribeSubnetsInput{
+		Filters: []types.Filter{
+			{
+				Name:   &vpc_id_filterName,
+				Values: []string{vpcId},
+			},
+		},
+	}
+	output, err := client.DescribeSubnets(context.Background(), DescribeSubnetOpts)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, subnet := range output.Subnets {
+		subnets = append(subnets, *subnet.SubnetId)
+	}
+	return subnets, nil
 }
 
 func validateAWSStorageClass(sc commons.StorageClass, wn commons.WorkerNodes) error {
@@ -308,4 +403,19 @@ func validateAWSAZs(ctx context.Context, cfg aws.Config, spec commons.Spec) erro
 	}
 
 	return nil
+}
+
+func getAWSAzs(ctx context.Context, cfg aws.Config, region string) ([]string, error) {
+	var azs []string
+	svc := ec2.NewFromConfig(cfg)
+	result, err := svc.DescribeAvailabilityZones(ctx, &ec2.DescribeAvailabilityZonesInput{})
+	if err != nil {
+		return nil, err
+	}
+	for _, az := range result.AvailabilityZones {
+		if *az.RegionName == region {
+			azs = append(azs, *az.ZoneName)
+		}
+	}
+	return azs, nil
 }

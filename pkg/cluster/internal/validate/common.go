@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/exp/slices"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 )
@@ -30,6 +31,8 @@ const (
 	MaxWorkerNodeNameLength = 25
 	MinWorkerNodeNameLength = 3
 )
+
+var k8sVersionSupported = []string{"1.24", "1.25", "1.26", "1.27", "1.28"}
 
 func validateCommon(spec commons.Spec) error {
 	var err error
@@ -46,9 +49,14 @@ func validateCommon(spec commons.Spec) error {
 }
 
 func validateK8SVersion(v string) error {
-	var isVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}$`).MatchString
+	var isVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}(-gke.\d{3,4})?$`).MatchString
 	if !isVersion(v) {
-		return errors.New("spec: Invalid value: \"k8s_version\": must have the format 'v1.24.2'")
+		return errors.New("spec: Invalid value: \"k8s_version\": regex used for validation is '^v\\d.\\d{2}.\\d{1,2}(-gke.\\d{3,4})?$'")
+	}
+	K8sVersionMM := strings.Split(v, ".")
+	k8sVersion := strings.Join(K8sVersionMM[:2], ".")
+	if !slices.Contains(k8sVersionSupported, strings.ReplaceAll(k8sVersion, "v", "")) {
+		return errors.New("spec: Invalid value: \"k8s_version\": kubernetes versions supported: " + fmt.Sprint(strings.Join(k8sVersionSupported, ", ")))
 	}
 	return nil
 }

@@ -17,12 +17,19 @@ limitations under the License.
 package validate
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
+	b64 "encoding/base64"
+
+	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/option"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 )
@@ -31,9 +38,24 @@ var GCPVolumes = []string{"pd-balanced", "pd-ssd", "pd-standard", "pd-extreme"}
 var isGCPNodeImage = regexp.MustCompile(`^projects/[\w-]+/global/images/[\w-]+$`).MatchString
 var GCPNodeImageFormat = "projects/[PROJECT_ID]/global/images/[IMAGE_NAME]"
 
-func validateGCP(spec commons.Spec) error {
+func validateGCP(spec commons.Spec, providerSecrets map[string]string) error {
 	var err error
+	var isGKEVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}-gke.\d{3,4}$`).MatchString
 
+	credentialsJson := getGCPCreds(providerSecrets)
+
+	regions, err := getGCPRegions(credentialsJson)
+	if err != nil {
+		return err
+	}
+	if !commons.Contains(regions, spec.Region) {
+		return errors.New("spec.region: " + spec.Region + " region does not exist")
+	}
+
+	azs, err := getGoogleAZs(credentialsJson, spec.Region)
+	if err != nil {
+		return err
+	}
 	if (spec.StorageClass != commons.StorageClass{}) {
 		if err = validateGCPStorageClass(spec); err != nil {
 			return errors.Wrap(err, "spec.storageclass: Invalid value")
@@ -41,18 +63,25 @@ func validateGCP(spec commons.Spec) error {
 	}
 
 	if !reflect.ValueOf(spec.Networks).IsZero() {
-		if err = validateGCPNetwork(spec.Networks); err != nil {
+		if err = validateGCPNetwork(spec.Networks, credentialsJson, spec.Region); err != nil {
 			return errors.Wrap(err, "spec.networks: Invalid value")
 		}
 	}
 
 	for i, dr := range spec.DockerRegistries {
-		if dr.Type != "generic" {
-			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": GCP only supports generic docker registries")
+		if dr.Type != "gar" && dr.Type != "gcr" && spec.ControlPlane.Managed {
+			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only 'gar' and 'gcr' are supported in gcp managed clusters")
+		}
+		if dr.Type != "gar" && dr.Type != "gcr" && dr.Type != "generic" {
+			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only 'gar', 'gcr' and 'generic' are supported in gcp unmanaged clusters")
 		}
 	}
 
-	if !spec.ControlPlane.Managed {
+	if spec.ControlPlane.Managed {
+		if !isGKEVersion(spec.K8SVersion) {
+			return errors.New("spec: Invalid value: \"k8s_version\": must have the format 'v1.27.3-gke-1400'")
+		}
+	} else {
 		if spec.ControlPlane.NodeImage == "" || !isGCPNodeImage(spec.ControlPlane.NodeImage) {
 			return errors.New("spec.control_plane: Invalid value: \"node_image\": is required and have the format " + GCPNodeImageFormat)
 		}
@@ -64,18 +93,27 @@ func validateGCP(spec commons.Spec) error {
 				return errors.Wrap(err, "spec.control_plane.extra_volumes["+strconv.Itoa(i)+"]: Invalid value: \"type\"")
 			}
 		}
+		for _, wn := range spec.WorkerNodes {
+			if wn.NodeImage == "" || !isGCPNodeImage(wn.NodeImage) {
+				return errors.New("spec.worker_nodes." + wn.Name + ": \"node_image\": is required and have the format " + GCPNodeImageFormat)
+			}
+			if err := validateVolumeType(wn.RootVolume.Type, GCPVolumes); err != nil {
+				return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".root_volume: Invalid value: \"type\"")
+			}
+			for i, ev := range wn.ExtraVolumes {
+				if err := validateVolumeType(ev.Type, GCPVolumes); err != nil {
+					return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".extra_volumes["+strconv.Itoa(i)+"]: Invalid value: \"type\"")
+				}
+			}
+		}
 	}
 
 	for _, wn := range spec.WorkerNodes {
-		if wn.NodeImage == "" || !isGCPNodeImage(wn.NodeImage) {
-			return errors.New("spec.worker_nodes." + wn.Name + ": \"node_image\": is required and have the format " + GCPNodeImageFormat)
-		}
-		if err := validateVolumeType(wn.RootVolume.Type, GCPVolumes); err != nil {
-			return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".root_volume: Invalid value: \"type\"")
-		}
-		for i, ev := range wn.ExtraVolumes {
-			if err := validateVolumeType(ev.Type, GCPVolumes); err != nil {
-				return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".extra_volumes["+strconv.Itoa(i)+"]: Invalid value: \"type\"")
+		if wn.AZ != "" {
+			if len(azs) > 0 {
+				if !commons.Contains(azs, wn.AZ) {
+					return errors.New(wn.AZ + " does not exist in this region, azs: " + fmt.Sprint(azs))
+				}
 			}
 		}
 	}
@@ -154,10 +192,21 @@ func validateGCPStorageClass(spec commons.Spec) error {
 	return nil
 }
 
-func validateGCPNetwork(network commons.Networks) error {
+func validateGCPNetwork(network commons.Networks, credentialsJson string, region string) error {
 	if network.VPCID != "" {
-		if len(network.Subnets) == 0 {
-			return errors.New("\"subnets\": are required when \"vpc_id\" is set")
+		vpcs, _ := getGoogleVPCs(credentialsJson)
+		if len(vpcs) > 0 && !commons.Contains(vpcs, network.VPCID) {
+			return errors.New("\"vpc_id\": " + network.VPCID + " does not exist")
+		}
+		if len(network.Subnets) != 1 {
+			return errors.New("\"subnet\": when \"vpc_id\" is set, one subnet must be specified")
+		}
+		if network.Subnets[0].SubnetId == "" {
+			return errors.New("\"subnet_id\": required")
+		}
+		subnets, _ := getGoogleSubnets(credentialsJson, region, network.VPCID)
+		if !commons.Contains(subnets, network.Subnets[0].SubnetId) {
+			return errors.New("\"subnets\": " + network.Subnets[0].SubnetId + " does not belong to vpc with id: " + network.VPCID)
 		}
 	} else {
 		if len(network.Subnets) > 0 {
@@ -173,4 +222,148 @@ func validateGCPNetwork(network commons.Networks) error {
 		}
 	}
 	return nil
+}
+
+func getGCPRegions(credentialsJson string) ([]string, error) {
+	var regions_names []string
+	var ctx = context.Background()
+
+	gcpCreds := map[string]string{}
+	err := json.Unmarshal([]byte(credentialsJson), &gcpCreds)
+	if err != nil {
+		return []string{}, err
+	}
+
+	cfg := option.WithCredentialsJSON([]byte(credentialsJson))
+	computeService, err := compute.NewService(ctx, cfg)
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	regions, err := computeService.Regions.List(string(gcpCreds["project_id"])).Do()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, region := range regions.Items {
+		if !commons.Contains(regions_names, region.Name) {
+			regions_names = append(regions_names, region.Name)
+		}
+	}
+
+	return regions_names, nil
+
+}
+
+func getGoogleVPCs(credentialsJson string) ([]string, error) {
+	var network_names []string
+	var ctx = context.Background()
+
+	gcpCreds := map[string]string{}
+	err := json.Unmarshal([]byte(credentialsJson), &gcpCreds)
+	if err != nil {
+		return []string{}, err
+	}
+
+	cfg := option.WithCredentialsJSON([]byte(credentialsJson))
+	computeService, err := compute.NewService(ctx, cfg)
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	networks, err := computeService.Networks.List(string(gcpCreds["project_id"])).Do()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, network := range networks.Items {
+		network_names = append(network_names, network.Name)
+	}
+
+	return network_names, nil
+
+}
+
+func getGoogleSubnets(credentialsJson string, region string, vpcId string) ([]string, error) {
+	var subnetwork_names []string
+	var ctx = context.Background()
+
+	gcpCreds := map[string]string{}
+	err := json.Unmarshal([]byte(credentialsJson), &gcpCreds)
+	if err != nil {
+		return []string{}, err
+	}
+
+	cfg := option.WithCredentialsJSON([]byte(credentialsJson))
+	computeService, err := compute.NewService(ctx, cfg)
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	subnetworks, err := computeService.Subnetworks.List(string(gcpCreds["project_id"]), region).Do()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, subnetwork := range subnetworks.Items {
+		networkParts := strings.Split(subnetwork.Network, "/")
+		networkId := networkParts[len(networkParts)-1]
+		if networkId == vpcId {
+			subnetwork_names = append(subnetwork_names, subnetwork.Name)
+		}
+	}
+
+	return subnetwork_names, nil
+
+}
+
+func getGoogleAZs(credentialsJson string, region string) ([]string, error) {
+	var zones_names []string
+	var ctx = context.Background()
+
+	gcpCreds := map[string]string{}
+	err := json.Unmarshal([]byte(credentialsJson), &gcpCreds)
+	if err != nil {
+		return []string{}, err
+	}
+
+	cfg := option.WithCredentialsJSON([]byte(credentialsJson))
+	computeService, err := compute.NewService(ctx, cfg)
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	zones, err := computeService.Zones.List(string(gcpCreds["project_id"])).Filter("name=" + region + "*").Do()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, zone := range zones.Items {
+		zones_names = append(zones_names, zone.Name)
+	}
+
+	return zones_names, nil
+}
+
+func getGCPCreds(providerSecrets map[string]string) string {
+	data := map[string]interface{}{
+		"type":                        "service_account",
+		"project_id":                  providerSecrets["ProjectID"],
+		"private_key_id":              providerSecrets["PrivateKeyID"],
+		"private_key":                 providerSecrets["PrivateKey"],
+		"client_email":                providerSecrets["ClientEmail"],
+		"client_id":                   providerSecrets["ClientID"],
+		"auth_uri":                    "https://accounts.google.com/o/oauth2/auth",
+		"token_uri":                   "https://accounts.google.com/o/oauth2/token",
+		"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+		"client_x509_cert_url":        "https://www.googleapis.com/robot/v1/metadata/x509/" + url.QueryEscape(providerSecrets["ClientEmail"]),
+	}
+	jsonData, _ := json.Marshal(data)
+	credentials := b64.StdEncoding.EncodeToString([]byte(jsonData))
+	credentialsJson, _ := b64.StdEncoding.DecodeString(credentials)
+	return string(credentialsJson)
 }

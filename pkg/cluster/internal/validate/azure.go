@@ -27,6 +27,8 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
 	"golang.org/x/exp/slices"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -44,10 +46,23 @@ var isAzureIdentity = regexp.MustCompile(`(?i)^\/subscriptions\/[\w-]+\/resource
 var AzureIdentityFormat = "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.ManagedIdentity/userAssignedIdentities/[IDENTITY_NAME]"
 var isPremium = regexp.MustCompile(`^(Premium|Ultra).*$`).MatchString
 
-func validateAzure(spec commons.Spec, providerSecrets map[string]string) error {
+func validateAzure(spec commons.Spec, providerSecrets map[string]string, clusterName string) error {
 	var err error
 
 	creds, err := validateAzureCredentials(providerSecrets)
+	if err != nil {
+		return err
+	}
+
+	regions, err := getAzureRegions(creds, providerSecrets["SubscriptionID"])
+	if err != nil {
+		return err
+	}
+	if !commons.Contains(regions, spec.Region) {
+		return errors.New("spec.region: " + spec.Region + " region does not exist")
+	}
+
+	azs, err := getAzureAzs(creds, providerSecrets["SubscriptionID"], spec.Region)
 	if err != nil {
 		return err
 	}
@@ -58,7 +73,7 @@ func validateAzure(spec commons.Spec, providerSecrets map[string]string) error {
 		}
 	}
 	if !reflect.ValueOf(spec.Networks).IsZero() {
-		if err = validateAzureNetwork(spec.Networks, spec.ControlPlane.Managed); err != nil {
+		if err = validateAzureNetwork(spec.Networks, spec, creds, providerSecrets["SubscriptionID"], clusterName); err != nil {
 			return errors.Wrap(err, "spec.networks: Invalid value")
 		}
 	}
@@ -72,11 +87,11 @@ func validateAzure(spec commons.Spec, providerSecrets map[string]string) error {
 	}
 
 	for i, dr := range spec.DockerRegistries {
-		if dr.Type == "ecr" {
-			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": ecr is not supported in Azure/AKS")
-		}
 		if dr.Type != "acr" && spec.ControlPlane.Managed {
-			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only acr is supported in AKS")
+			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only acr is supported in azure managed clusters")
+		}
+		if dr.Type != "acr" && dr.Type != "generic" {
+			return errors.New("spec.docker_registries[" + strconv.Itoa(i) + "]: Invalid value: \"type\": only acr and generic are supported in azure unmanaged clusters")
 		}
 	}
 
@@ -119,6 +134,13 @@ func validateAzure(spec commons.Spec, providerSecrets map[string]string) error {
 			}
 			if err := validateVolumeType(wn.RootVolume.Type, AzureVolumes); err != nil {
 				return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".root_volume: Invalid value: \"type\"")
+			}
+			if wn.AZ != "" {
+				if len(azs) > 0 {
+					if !commons.Contains(azs, wn.AZ) {
+						return errors.New(wn.AZ + " does not exist in this region, azs: " + fmt.Sprint(azs))
+					}
+				}
 			}
 			premiumStorage := hasAzurePremiumStorage(wn.Size)
 			if isPremium(wn.RootVolume.Type) && !premiumStorage {
@@ -221,12 +243,24 @@ func validateAzureStorageClass(sc commons.StorageClass, wn commons.WorkerNodes) 
 	return nil
 }
 
-func validateAzureNetwork(network commons.Networks, managed bool) error {
+func validateAzureNetwork(network commons.Networks, spec commons.Spec, creds *azidentity.ClientSecretCredential, subscription string, clusterName string) error {
+	rg := clusterName
 	if network.VPCID != "" {
+
+		if spec.Networks.ResourceGroup != "" {
+			rg = spec.Networks.ResourceGroup
+		}
+		vpcs, err := getAzureVpcs(creds, subscription, spec.Region, rg)
+		if err != nil {
+			return err
+		}
+		if len(vpcs) > 0 && !commons.Contains(vpcs, network.VPCID) {
+			return errors.New("\"vpc_id\": " + network.VPCID + " does not exist in this resourceGroup")
+		}
 		if len(network.Subnets) == 0 {
 			return errors.New("\"subnets\": are required when \"vpc_id\" is set")
 		}
-		if managed && network.VPCCidrBlock == "" {
+		if spec.ControlPlane.Managed && network.VPCCidrBlock == "" {
 			return errors.New("\"vpc_cidr\": is required when \"vpc_id\" is set")
 		}
 	} else {
@@ -234,7 +268,7 @@ func validateAzureNetwork(network commons.Networks, managed bool) error {
 			return errors.New("\"vpc_id\": is required when \"subnets\" is set")
 		}
 		if network.VPCCidrBlock != "" {
-			if managed {
+			if spec.ControlPlane.Managed {
 				return errors.New("\"vpc_id\": is required when \"vpc_cidr\" is set")
 			} else {
 				return errors.New("\"vpc_cidr\": is only supported in azure managed clusters")
@@ -242,11 +276,18 @@ func validateAzureNetwork(network commons.Networks, managed bool) error {
 		}
 	}
 	if len(network.Subnets) > 0 {
+		subnets, err := getAzureSubnets(creds, subscription, rg, network.VPCID)
+		if err != nil {
+			return err
+		}
 		for _, s := range network.Subnets {
 			if s.SubnetId == "" {
 				return errors.New("\"subnet_id\": is required")
 			}
-			if managed {
+			if len(subnets) > 0 && !commons.Contains(subnets, s.SubnetId) {
+				return errors.New("\"subnet_id\": " + s.SubnetId + " does not belong to VPC: " + network.VPCID + " and resourceGroup: " + rg)
+			}
+			if spec.ControlPlane.Managed {
 				if s.CidrBlock == "" {
 					return errors.New("\"cidr\": is required")
 				}
@@ -280,7 +321,9 @@ func validateAKSVersion(spec commons.Spec, creds *azidentity.ClientSecretCredent
 	for _, v := range res.KubernetesVersionListResult.Values {
 		for _, p := range v.PatchVersions {
 			for _, u := range p.Upgrades {
-				availableVersions = append(availableVersions, *u)
+				if !commons.Contains(availableVersions, *u) {
+					availableVersions = append(availableVersions, *u)
+				}
 			}
 		}
 	}
@@ -306,4 +349,97 @@ func validateAKSNodes(wn commons.WorkerNodes) error {
 
 func hasAzurePremiumStorage(s string) bool {
 	return strings.Contains(strings.ToLower(strings.ReplaceAll(s, "Standard_", "")), "s")
+}
+
+func getAzureAzs(creds *azidentity.ClientSecretCredential, subscription string, region string) ([]string, error) {
+	azs := []string{}
+
+	ctx := context.Background()
+	clientFactory, err := armsubscriptions.NewClientFactory(creds, nil)
+	if err != nil {
+		return []string{}, err
+	}
+	pager := clientFactory.NewClient().NewListLocationsPager(subscription, &armsubscriptions.ClientListLocationsOptions{IncludeExtendedLocations: nil})
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return []string{}, err
+		}
+		for _, v := range page.Value {
+			if *v.Name == region {
+				for _, az := range v.AvailabilityZoneMappings {
+					azs = append(azs, *az.LogicalZone)
+				}
+				break
+			}
+		}
+	}
+
+	return azs, nil
+}
+
+func getAzureRegions(creds *azidentity.ClientSecretCredential, subscription string) ([]string, error) {
+	regions := []string{}
+
+	ctx := context.Background()
+	clientFactory, err := armsubscriptions.NewClientFactory(creds, nil)
+	if err != nil {
+		return []string{}, err
+	}
+
+	pager := clientFactory.NewClient().NewListLocationsPager(subscription, &armsubscriptions.ClientListLocationsOptions{IncludeExtendedLocations: nil})
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return []string{}, err
+		}
+		for _, v := range page.Value {
+			if !commons.Contains(regions, *v.Name) {
+				regions = append(regions, *v.Name)
+			}
+		}
+	}
+	return regions, nil
+}
+
+func getAzureVpcs(creds *azidentity.ClientSecretCredential, subscription string, region string, resourceGroup string) ([]string, error) {
+	ctx := context.Background()
+	vpcs := []string{}
+	clientFactory, err := armnetwork.NewClientFactory(subscription, creds, nil)
+	if err != nil {
+		return []string{}, err
+	}
+	pager := clientFactory.NewVirtualNetworksClient().NewListPager(resourceGroup, nil)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return []string{}, err
+		}
+		for _, v := range page.Value {
+			if *v.Location == region {
+				vpcs = append(vpcs, *v.Name)
+			}
+		}
+	}
+	return vpcs, nil
+}
+
+func getAzureSubnets(creds *azidentity.ClientSecretCredential, subscription string, resourceGroup string, vpcId string) ([]string, error) {
+	ctx := context.Background()
+	subnets := []string{}
+	clientFactory, err := armnetwork.NewClientFactory(subscription, creds, nil)
+	if err != nil {
+		return []string{}, err
+	}
+	pager := clientFactory.NewSubnetsClient().NewListPager(resourceGroup, vpcId, nil)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return []string{}, err
+		}
+		for _, v := range page.Value {
+			subnets = append(subnets, *v.Name)
+		}
+	}
+	return subnets, nil
 }
