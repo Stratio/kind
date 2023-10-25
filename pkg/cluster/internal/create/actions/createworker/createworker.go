@@ -360,7 +360,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to create the worker Cluster")
 			}
 			// Wait for all container metrics to be available
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deployment metrics-server --timeout=30s"
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deployment metrics-server --timeout=90s"
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
 				return errors.Wrap(err, "failed to wait for container metrics to be available")
