@@ -415,7 +415,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		if azureAKSEnabled {
 			// Wait for metrics-server deployment to be ready
-			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy metrics-server -n kube-system --timeout=5m"
+			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy metrics-server -n kube-system --timeout=90s"
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
 				return errors.Wrap(err, "failed to create the worker Cluster")
@@ -547,7 +547,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		if a.keosCluster.Spec.DeployAutoscaler && !azureAKSEnabled {
-			ctx.Status.Start("Installing cluster-autoescaler in workload cluster 🗚")
+			ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
 			defer ctx.Status.End(false)
 
 			c = "helm install cluster-autoscaler /stratio/helm/cluster-autoscaler" +

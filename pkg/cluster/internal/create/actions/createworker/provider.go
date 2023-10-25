@@ -279,8 +279,7 @@ func deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, cluste
 		}
 		if firstInstallation {
 			// Pull cluster operator helm chart
-			c = "helm pull cluster-operator --repo " + helmRepository.url +
-				" --version " + keosClusterChart +
+			c = "helm pull stratio-helm-repo/cluster-operator --version " + keosClusterChart +
 				" --untar --untardir /stratio/helm"
 			_, err = commons.ExecuteCommand(n, c)
 			if err != nil {
