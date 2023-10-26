@@ -1,6 +1,10 @@
 :caution-caption: ⛔
 = Arquitectura
 
+Arquitectura de referencia:
+
+image::eks-reference-architecture.png[]
+
 == Introducción
 
 image::arq-intro.png[]
@@ -234,7 +238,6 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
-
 == Seguridad
 
 === Autenticación
@@ -310,7 +313,6 @@ El _Health Check_ del servicio se hace por TCP, pero se recomienda cambiar a HTT
 ==== AKS
 
 En este caso, el APIserver se expone públicamente y con la URL indicada en el _kubeconfig_.
-
 
 == Almacenamiento
 
@@ -440,6 +442,7 @@ a|
      enablePerformancePlus
      subscriptionID
 ----
+
 |===
 
 En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el provider, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
@@ -461,7 +464,6 @@ spec:
 Con estos datos, se renderizará el keos.yaml de tal forma que en la ejecución del keos-installer se despliegue el driver y se configure la _StorageClass_ correspondiente.
 
 NOTE: Esta funcionalidad está pensada para infraestructura personalizada, ya que el filesystem de EFS deberá asociarse a un VPC existente en su creación.
-
 
 == Tags en EKS
 
