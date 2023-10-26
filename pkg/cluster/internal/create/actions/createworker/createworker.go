@@ -547,7 +547,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		if a.keosCluster.Spec.DeployAutoscaler && !azureAKSEnabled {
-			ctx.Status.Start("Installing cluster-autoescaler in workload cluster 🗚")
+			ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
 			defer ctx.Status.End(false)
 
 			c = "helm install cluster-autoscaler /stratio/helm/cluster-autoscaler" +
