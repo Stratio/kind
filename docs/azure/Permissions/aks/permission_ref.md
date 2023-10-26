@@ -107,6 +107,3 @@ kubectl --kubeconfig local_kubeconfig -n cluster-azure1 delete cluster --all
 | Microsoft.Resources/subscriptions/resourcegroups/delete | Delete ResourceGroup | does not have authorization to perform action 'Microsoft.Resources/subscriptions/resourcegroups/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx | Microsoft.Resources | Provisioner |
 
 **Test**: Keos Install (same as above) (no-modules)
-
-| Permission | Needed for | Description | Resource | Application |
-| --- | --- | --- | --- | --- |
