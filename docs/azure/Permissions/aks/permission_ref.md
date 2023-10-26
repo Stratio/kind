@@ -80,7 +80,7 @@ Cluster/jazure                                        True                     2
   ├─MachinePool/jazure1-mp-1                          True                     94s  
   └─MachinePool/jazure1-mp-2                          True                     94s  
 
-**Test:** scale up with cluster-operator
+**Test:** scale up with cluster-operator / manual
 
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
