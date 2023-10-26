@@ -5,8 +5,8 @@ Requirements:
   - Application Id = descriptor (client_id)
   - AAD - Application Secret ID = descriptor (client_secret)
 - Resource group (capz for example) (control-plane and workers identities)
-  - Managed Identity (capz-agentpool-restricted) --> Azure roles Assignments (capz-test-role-node)
-  - Managed Identity (capz-control-plane-restricted) --> Azure roles Assignments (capz-test-role-control-plane)
+  - Managed Identity (capz-test-agp-restricted) --> Azure roles Assignments (aks-capz-test-role-node)
+  - Managed Identity (capz-test-controlplane) --> Azure roles Assignments (aks-capz-test-role-control-plane)
 
 ### Permissions Table
 
@@ -39,8 +39,8 @@ Requirements:
 
 **Test:** cloud-provisioner create cluster --name jazure --retain --vault-password 123456 (same permissions as --keep-mgmt) (same as above)
 
-**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure --dry-run  
-**Note:** Stop cluster-operator before perform the operation (kw scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)
+**Test:** clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure --dry-run
+
 Performing move...
 ********************************************************
 This is a dry-run move, will not perform any real action
@@ -51,8 +51,8 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure (no needed additonal permissions)  
-**Note:** Stop cluster-operator before perform the operation (k scale deploy keoscluster-controller-manager --replicas 0 -n kube-system)  
+❯ clusterctl move --kubeconfig remote_kubeconfig --to-kubeconfig local_kubeconfig --namespace cluster-jazure (no needed additonal permissions)
+
 Performing move...  
 Discovering Cluster API objects  
 Moving Cluster API objects Clusters=1  
@@ -60,8 +60,8 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ clusterctl move --to-kubeconfig remote_kubeconfig --kubeconfig local_kubeconfig --namespace cluster-jazure  
-**Note:** start cluster-operator after perform the operation (k scale deploy keoscluster-controller-manager --replicas 2 -n kube-system)
+❯ clusterctl move --to-kubeconfig remote_kubeconfig --kubeconfig local_kubeconfig --namespace cluster-jazure
+
 Performing move...  
 Discovering Cluster API objects  
 Moving Cluster API objects Clusters=1  
@@ -69,7 +69,8 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster  
 Deleting objects from the source cluster  
 
-❯ clusterctl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig describe cluster jazure -n cluster-jazure  
+❯ clusterctl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig describe cluster jazure -n cluster-jazure
+
 NAME                                                  READY  SEVERITY  REASON  SINCE  MESSAGE  
 Cluster/jazure                                        True                     24m  
 ├─ClusterInfrastructure - AzureManagedCluster/jazure  
@@ -105,7 +106,7 @@ kubectl --kubeconfig local_kubeconfig -n cluster-azure1 delete cluster --all
 | Microsoft.Network/virtualNetworks/delete | Delete VirtualNetwork | does not have authorization to perform action 'Microsoft.Network/virtualNetworks/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx/providers/Microsoft.Network/virtualNetworks/jazure | Microsoft.Network | Provisioner |
 | Microsoft.Resources/subscriptions/resourcegroups/delete | Delete ResourceGroup | does not have authorization to perform action 'Microsoft.Resources/subscriptions/resourcegroups/delete' over scope '/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/xxxxxx | Microsoft.Resources | Provisioner |
 
-**Test**: Keos Install
+**Test**: Keos Install (same as above) (no-modules)
 
 | Permission | Needed for | Description | Resource | Application |
 | --- | --- | --- | --- | --- |
