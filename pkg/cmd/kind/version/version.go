@@ -32,16 +32,16 @@ func Version() string {
 	v := versionCore
 	// add pre-release version info if we have it
 	if versionPreRelease != "" {
-		v += "-" + versionPreRelease
-		// If gitCommitCount was set, add to the pre-release version
-		if gitCommitCount != "" {
-			v += "." + gitCommitCount
+		// If gitTag was set, set it as version
+		if gitTag != "" {
+			v = gitTag
+		} else {
+			v += "-" + versionPreRelease
 		}
-		// if commit was set, add the + <build>
-		// we only do this for pre-release versions
+		// otherwise if commit was set, add to the pre-release version
 		if gitCommit != "" {
 			// NOTE: use 14 character short hash, like Kubernetes
-			v += "+" + truncate(gitCommit, 14)
+			v += " GitCommit:" + truncate(gitCommit, 14)
 		}
 	}
 	return v
@@ -50,15 +50,20 @@ func Version() string {
 // DisplayVersion is Version() display formatted, this is what the version
 // subcommand prints
 func DisplayVersion() string {
-	return "kind v" + Version() + " " + runtime.Version() + " " + runtime.GOOS + "/" + runtime.GOARCH
+	return "cloud-provisioner Version:" + Version() + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
 }
 
 // versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
-const versionCore = "0.18.0"
+
+const versionCore = "0.17.0-0.4.0"
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0
-const versionPreRelease = "alpha"
+const versionPreRelease = "SNAPSHOT"
+
+// gitTag is the git tag used to build the kind binary, if available.
+// It is injected at build time.
+var gitTag = ""
 
 // gitCommitCount count the commits since the last release.
 // It is injected at build time.
@@ -73,8 +78,8 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Args:  cobra.NoArgs,
 		Use:   "version",
-		Short: "Prints the kind CLI version",
-		Long:  "Prints the kind CLI version",
+		Short: "Prints the cloud-provisioner CLI version",
+		Long:  "Prints the cloud-provisioner CLI version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if logger.V(0).Enabled() {
 				// if not -q / --quiet, show lots of info

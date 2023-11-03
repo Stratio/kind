@@ -80,6 +80,28 @@ func CreateWithRetain(retain bool) CreateOption {
 	})
 }
 
+func CreateWithMove(move bool) CreateOption {
+	return createOptionAdapter(func(o *internalcreate.ClusterOptions) error {
+		o.Retain = move || o.Retain
+		return nil
+	})
+}
+
+func CreateWithAvoidCreation(avoidCreation bool) CreateOption {
+	return createOptionAdapter(func(o *internalcreate.ClusterOptions) error {
+		o.Retain = avoidCreation || o.Retain
+		return nil
+	})
+}
+
+// CreateWithWaitForceDelete removes local cluster container
+func CreateWithForceDelete(forceDelete bool) CreateOption {
+	return createOptionAdapter(func(o *internalcreate.ClusterOptions) error {
+		o.ForceDelete = forceDelete
+		return nil
+	})
+}
+
 // CreateWithWaitForReady configures a maximum wait time for the control plane
 // node(s) to be ready. By default no waiting is performed
 func CreateWithWaitForReady(waitTime time.Duration) CreateOption {

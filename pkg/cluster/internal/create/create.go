@@ -25,6 +25,7 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/delete"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers"
+	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/internal/apis/config"
 	"sigs.k8s.io/kind/pkg/internal/apis/config/encoding"
@@ -34,11 +35,9 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	configaction "sigs.k8s.io/kind/pkg/cluster/internal/create/actions/config"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/createworker"
-	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcapi"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installcni"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/installstorage"
-	"sigs.k8s.io/kind/pkg/cluster/internal/create/keosinstaller"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadminit"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions/kubeadmjoin"
@@ -57,6 +56,17 @@ const (
 type ClusterOptions struct {
 	Config       *config.Cluster
 	NameOverride string // overrides config.Name
+
+	// Stratio
+	VaultPassword      string
+	DescriptorPath     string
+	MoveManagement     bool
+	AvoidCreation      bool
+	KeosCluster        commons.KeosCluster
+	ClusterCredentials commons.ClusterCredentials
+
+	// Force local container delete before creating the cluster if it already exists
+	ForceDelete bool
 	// NodeImage overrides the nodes' images in Config if non-zero
 	NodeImage      string
 	Retain         bool
@@ -83,7 +93,13 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 	// Check if the cluster name already exists
 	if err := alreadyExists(p, opts.Config.Name); err != nil {
-		return err
+		if opts.ForceDelete {
+			// Delete current cluster container
+			_ = delete.Cluster(nil, p, opts.Config.Name, "")
+		} else {
+			return errors.Errorf("A cluster with the name %q already exists \n"+
+				"Please use a different cluster name or delete the current container with --delete-previous flag", opts.Config.Name)
+		}
 	}
 
 	// warn if cluster name might typically be too long
@@ -135,12 +151,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 		// add Stratio step
 		actionsToRun = append(actionsToRun,
-			installcapi.NewAction(), // install ClusterAPI in local
-		)
-
-		// add Stratio step
-		actionsToRun = append(actionsToRun,
-			createworker.NewAction(), // create worker k8s cluster
+			createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation, opts.KeosCluster, opts.ClusterCredentials), // create worker k8s cluster
 		)
 	}
 
@@ -173,16 +184,6 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	if err != nil {
 		return err
 	}
-
-	// add Stratio action: generate the KEOS descriptor
-	actionsContext.Status.Start("Generating the KEOS descriptor 📝")
-	defer actionsContext.Status.End(false)
-
-	err = keosinstaller.CreateKEOSDescriptor()
-	if err != nil {
-		return err
-	}
-	actionsContext.Status.End(true) // End Generating KEOS descriptor
 
 	// add Stratio action: delete the local cluster
 	if !opts.Retain {
