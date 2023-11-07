@@ -589,6 +589,7 @@ metadata:
   namespace: cluster-` + clusterID + `
 spec:
   clusterName: ` + clusterID + `
+  maxUnhealthy: 33%
   nodeStartupTimeout: 300s
   selector:
     matchLabels:
