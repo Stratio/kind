@@ -588,6 +588,7 @@ metadata:
 spec:
   clusterName: ` + clusterID + `
   nodeStartupTimeout: 300s
+  maxUnhealthy: 33%
   selector:
     matchLabels:
       keos.stratio.com/machine-role: ` + clusterID + machineRole + `
