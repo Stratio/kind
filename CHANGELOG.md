@@ -2,8 +2,10 @@
 
 ## 0.17.0-0.3.4 (2023-11-16)
 
-* [Core] Conditionally increase replicas for capi controller manager services
+* [Core] Conditionally increase replicas for capi controllers
 * [Core] Add PDB and PriorityClass to capx components
+* [Core] Fix authentication for helm repositories
+* [Azure] Add PriorityClass to NMI components
 * [Core] Add upgrade script from 0.2 to 0.3
 
 ## 0.17.0-0.3.3 (2023-10-11)
