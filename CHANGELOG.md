@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.3.4 (2023-11-16)
+## 0.17.0-0.3.4 (upcoming)
 
 * [Core] Conditionally increase replicas for capi controllers
 * [Core] Add PDB and PriorityClass to capx components
