@@ -303,15 +303,6 @@ image::upgrade-cp.png[]
 
 image::upgrade-w.png[]
 
-Para iniciar la actualización, una vez satisfechos los prerrequisitos se ejecutará un _patch_ de _spec.k8s++_++version_ en el objeto _KeosCluster_:
-
-[source,bash]
-----
-kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.28.1"}}'
-----
-
-NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión vieja. De esta forma, asegura siempre el número de nodos configurado.
-
 ==== Prerrequisitos
 
 La actualización de versión de un _cluster_ en entornos productivos y especialmente en _flavours_ no gestionados deberá hacerse extremando todas las precauciones. En particular, antes de actualizar se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura con el siguiente comando:
@@ -357,6 +348,17 @@ Al igual que para otros flavours gestionados, antes de lanzar la actualización 
 ----
 az aks get-versions --location <region> --output table
 ----
+
+==== Iniciar la actualización
+
+Para iniciar la actualización, una vez satisfechos los prerrequisitos se ejecutará un _patch_ de _spec.k8s++_++version_ en el objeto _KeosCluster_:
+
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.28.1"}}'
+----
+
+NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión vieja. De esta forma, asegura siempre el número de nodos configurado.
 
 ==== Verificación de etcd
 
