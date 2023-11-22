@@ -1,0 +1,22 @@
+= Cloud Provisioner Permissions (AWS)
+:toc:
+
+== Introduction
+
+This documentation provides information about the opertions and associated permissions in order to use the cloud-provisioner.
+
+== Operations and Permissions
+
+=== Avoid Creation
+
+[source,bash]
+----
+cloud-provisioner create cluster --name aws-cl01 --retain --vault-password 123456 --avoid-creation
+----
+
+[options="header"]
+|===
+| Permission | Necessary for | Description | Resource | Application
+| ec2:DescribeAvailabilityZones | Describe Availability Zones | Grants permission to describe one or more of the Availability Zones that are available to you. | Availability Zones | cloud-provisioner
+|===
+
