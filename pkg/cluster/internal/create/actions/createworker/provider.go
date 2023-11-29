@@ -773,7 +773,7 @@ func enableSelfHealing(n nodes.Node, keosCluster commons.KeosCluster, namespace 
 func generateMHCManifest(n nodes.Node, clusterID string, namespace string, manifestPath string, machineRole string) error {
 	var c string
 	var err error
-	var maxUnhealthy = "50%"
+	var maxUnhealthy = "100%"
 
 	if strings.Contains(machineRole, "control-plane-node") {
 		maxUnhealthy = "34%"
