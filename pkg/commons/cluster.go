@@ -144,7 +144,7 @@ type WorkerNodes []struct {
 	Labels           map[string]string `yaml:"labels,omitempty"`
 	Taints           []string          `yaml:"taints,omitempty"`
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"required_with=NodeGroupMinSize,numeric,omitempty"`
-	NodeGroupMinSize int               `yaml:"min_size,omitempty" validate:"required_with=NodeGroupMaxSize,numeric,omitempty"`
+	NodeGroupMinSize int               `yaml:"min_size,omitempty"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
