@@ -1,8 +1,16 @@
 # Changelog
 
-## 0.17.0-0.3.4 (upcoming)
+## 0.17.0-0.3.5 (upcoming)
 
-* [Core] Restrict the maximum number of unhealthy nodes in MachineHealthCheck
+* [Core] Restrict the maximum number of unhealthy CP nodes in MachineHealthCheck
+
+## 0.17.0-0.3.4 (2023-11-17)
+
+* [Core] Conditionally increase replicas for capi controllers
+* [Core] Add PDB and PriorityClass to capx components
+* [Core] Fix authentication for helm repositories
+* [Azure] Add PriorityClass to NMI components
+* [Core] Add upgrade script from 0.2 to 0.3
 
 ## 0.17.0-0.3.3 (2023-10-11)
 
