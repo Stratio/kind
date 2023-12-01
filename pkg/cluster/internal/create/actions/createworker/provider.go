@@ -57,8 +57,8 @@ const (
 
 	scName = "keos"
 
-	keosClusterChart = "0.1.4"
-	keosClusterImage = "0.1.4"
+	keosClusterChart = "0.1.5-27a310c"
+	keosClusterImage = "0.1.5-27a310c"
 
 	postInstallAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes"
 	corednsPdbPath        = "/kind/coredns-pdb.yaml"
