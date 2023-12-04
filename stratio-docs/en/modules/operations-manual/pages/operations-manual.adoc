@@ -311,15 +311,6 @@ image::upgrade-cp.png[]
 
 image::upgrade-w.png[]
 
-To initiate the upgrade, once the prerequisites are satisfied a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
-
-[source,bash]
-----
-kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.28.1"}}'
-----
-
-NOTE: The controller provisions a new node from the _workers_ cluster with the updated version and, once it is _Ready_ in Kubernetes, removes a node with the old version. In this way, it always ensures the configured number of nodes.
-
 ==== Prerequisites
 
 The version upgrade of a cluster in productive environments and especially in unmanaged flavours must be done with extreme caution. In particular, before upgrading it is recommended to do a backup of the objects that manage the infrastructure with the following command:
@@ -365,6 +356,17 @@ As for other managed flavours, before launching the AKS upgrade you should see t
 ----
 az aks get-versions --location <region> --output table
 ----
+
+==== Initiate the upgrade
+
+To initiate the upgrade, once the prerequisites are satisfied a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
+
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.28.1"}}'
+----
+
+NOTE: The controller provisions a new node from the _workers_ cluster with the updated version and, once it is _Ready_ in Kubernetes, removes a node with the old version. In this way, it always ensures the configured number of nodes.
 
 ==== Checking etcd
 
