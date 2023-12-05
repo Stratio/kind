@@ -4,9 +4,9 @@
 
 For the generation of custom images in the different cloud providers, some reference documentation has been created for each of them and can be found at the following links:
 
-* xref:operations-manual:image-builder:aws-image-builder.adoc[AWS]
-* xref:operations-manual:image-builder:azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder:gcp-image-builder.adoc[GCP]
+* xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
+* xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
+* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtaining the _kubeconfig_
 
