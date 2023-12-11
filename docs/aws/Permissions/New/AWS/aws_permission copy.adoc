@@ -11,7 +11,7 @@ This documentation provides information about the opertions and associated permi
 
 [source,bash]
 ----
-cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --avoid-creation
+cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --avoid-creation --retain
 ----
 
 [options="header"]
@@ -119,7 +119,7 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 |===
 | Permission | Necessary for | Description | Resource | Application
 | ecr:GetAuthorizationToken | Attempting to get authorization token | Grants permission to get authorization token to access Amazon ECR. |  * | cloud-provisioner
-| ecr:BatchGetImage | Attempting to batch get image | Grants permission to get detailed information about images in a repository. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
+| ect:BatchGetImage | Attempting to batch get image | Grants permission to get detailed information about images in a repository. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
 | ecr:BatchCheckLayerAvailability | Attempting to batch check layer availability | Grants permission to check the availability of multiple image layers in a specified registry and repository. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
 | ecr:GetDownloadUrlForLayer | Attempting to get download URL for layer | Grants permission to retrieve the download URL corresponding to an image layer. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
 |===

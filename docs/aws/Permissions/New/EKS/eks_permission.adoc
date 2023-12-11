@@ -1,4 +1,4 @@
-= Cloud Provisioner Permissions (AWS)
+= Cloud Provisioner Permissions (EKS)
 :toc:
 
 == Introduction
@@ -97,20 +97,39 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | ec2:CreateSecurityGroup | Attempting to create security group | Grants permission to create a security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
 | ec2:AuthorizeSecurityGroupIngress | Attempting to authorize security group ingress | Grants permission to add one or more inbound rules to a VPC security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
 | ec2:DescribeInstances | Attempting to describe instances | Grants permission to describe one or more instances. |  * | cloud-provisioner
-| elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner
-| elasticloadbalancing:CreateLoadBalancer | Attempting to create load balancer | Grants permission to create a load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-| elasticloadbalancing:AddTags | Attempting to add tags | Grants permission to add one or more tags to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-| elasticloadbalancing:DescribeLoadBalancerAttributes | Attempting to describe load balancer attributes | Grants permission to describe the attributes for the specified load balancer. | * | cloud-provisioner
-| elasticloadbalancing:DescribeTags | Attempting to describe tags | Grants permission to describe the tags associated with one or more load balancers. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-| elasticloadbalancing:ModifyLoadBalancerAttributes | Attempting to modify load balancer attributes | Grants permission to modify the attributes for the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| iam:ListAttachedRolePolicies | Attempting to list attached role policies | Grants permission to list all managed policies that are attached to the specified IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
+| eks:DescribeCluster | Attempting to describe cluster | Grants permission to describe the specified cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+| eks:CreateCluster | Attempting to create cluster | Grants permission to create the specified cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+| eks:TagResource | Attempting to tag resource | Grants permission to add tags to the specified resource. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+
+
+NO | elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner
+NO | elasticloadbalancing:CreateLoadBalancer | Attempting to create load balancer | Grants permission to create a load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+NO | elasticloadbalancing:AddTags | Attempting to add tags | Grants permission to add one or more tags to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+NO | elasticloadbalancing:DescribeLoadBalancerAttributes | Attempting to describe load balancer attributes | Grants permission to describe the attributes for the specified load balancer. | * | cloud-provisioner
+NO | elasticloadbalancing:DescribeTags | Attempting to describe tags | Grants permission to describe the tags associated with one or more load balancers. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+NO | elasticloadbalancing:ModifyLoadBalancerAttributes | Attempting to modify load balancer attributes | Grants permission to modify the attributes for the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+NO | elasticloadbalancing:RegisterInstancesWithLoadBalancer | Attempting to register instances with load balancer | Grants permission to add the specified instances to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+
 | secretsmanager:CreateSecret | Attempting to create secret | Grants permission to create a new secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
 | secretsmanager:TagResource |  Attempting to tag resource | Grants permission add tags to a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
 | secretsmanager:DeleteSecret | Attempting to delete secret | Grants permission to delete a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
+| ssm:GetParameter | Attempting to get parameter | Grants permission to get a parameter. |  "arn:aws:ssm:*:<account-id>:parameter/aws.cluster.x-k8s.io/*" | cloud-provisioner
+| iam:ListOpenIDConnectProviders | Attempting to list OpenID Connect providers | Grants permission to list information about the IAM OpenID Connect (OIDC) provider resource objects defined in the AWS account. |  * | cloud-provisioner
+| iam:CreateOpenIDConnectProvider | Attempting to create OpenID Connect provider | Grants permission to create an IAM entity to describe an identity provider (IdP) that supports OpenID Connect (OIDC). | arn:aws:iam::268367799918:oidc-provider/* | cloud-provisioner
 | ec2:ModifySubnetAttribute | Attempting to modify subnet attribute | Grants permission to modify a subnet attribute. |  arn:aws:ec2:eu-west-1:<account-id>:subnet/* | cloud-provisioner
 | ec2:DescribeImages | Attempting to describe images | Grants permission to describe one or more of the images (AMIs, AKIs, and ARIs). |  * | cloud-provisioner
 | ec2:RunInstances | Attempting to run instances | Grants permission to launch one or more instances. |  * | cloud-provisioner
-| elasticloadbalancing:RegisterInstancesWithLoadBalancer | Attempting to register instances with load balancer | Grants permission to add the specified instances to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| eks:ListAddons | Attempting to list addons | Grants permission to list the available add-ons. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
+| eks:CreateAddon | Attempting to create addon | Grants permission to create an add-on. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
+| eks:DescribeAddon | Attempting to describe addon | Grants permission to describe an add-on. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
+| eks:DescribeAddonVersions | Attempting to describe addon versions | Grants permission to describe the available add-on versions. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
+| eks:UpdateAddon | Attempting to update addon | Grants permission to update an add-on. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
+| iam:TagOpenIDConnectProvider | Attempting to tag OpenID Connect provider | Grants permission to add one or more tags to an OpenID Connect (OIDC) provider resource. |  arn:aws:iam::268367799918:oidc-provider/* | cloud-provisioner
 | ec2:DescribeNetworkInterfaces | Attempting to describe network interfaces | 	Grants permission to describe one or more network interfaces.. | * | cloud-provisioner
+
+
+
 |===
 
 ==== Using ECR (Elastic Container Registry) instead of generic docker registry
@@ -152,7 +171,7 @@ kubectl --kubeconfig local_kubeconfig -n cluster-aws-cl01 delete cluster aws-cl0
 
 [source,bash]
 ----
-cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --retain 
+cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --retain
 ----
 
 === Move management (No additional permissions needed)
