@@ -47,6 +47,7 @@
 | eks:DescribeCluster | failed to describe eks cluster | DescribeCluster | arn:aws:eks:*:268367799918:cluster/* | cloud-provisioner |
 | eks:CreateCluster | failed to create eks cluster | CreateCluster | * | cloud-provisioner |
 | eks:TagResource | failed to tag eks cluster | TagResource | arn:aws:eks:*:268367799918:cluster/* | cloud-provisioner |
+| iam:CreateServiceLinkedRole | failed to create service linked role | CreateServiceLinkedRole | arn:aws:iam::268367799918:role/* | cloud-provisioner |
 | iam:CreateRole | failed to create role | CreateRole | arn:aws:iam::268367799918:role/* | cloud-provisioner |
 | iam:TagRole | not authorized to perform: iam:TagRole on resource: arn:aws:iam::268367799918:role/eks-cl01-iam-service-role | TagRole | arn:aws:iam::268367799918:role/* | cloud-provisioner |
 | iam:GetPolicy | error getting policy arn:aws:iam::aws:policy/AmazonEKSClusterPolicy: AccessDenied | GetPolicy | * | cloud-provisioner |

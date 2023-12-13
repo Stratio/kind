@@ -90,7 +90,8 @@
                 "iam:AddRoleToInstanceProfile",
                 "iam:CreateOpenIDConnectProvider",
                 "iam:DeleteOpenIDConnectProvider",
-                "iam:GetOpenIDConnectProvider"
+                "iam:GetOpenIDConnectProvider",
+                "iam:CreateServiceLinkedRole"
             ],
             "Resource": [
                 "arn:aws:iam::${AWS_ACCOUNT_ID}:role/*",
