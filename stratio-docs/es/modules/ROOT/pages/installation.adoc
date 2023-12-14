@@ -21,6 +21,10 @@ En el caso de los despliegues en AWS no gestionado, se deberá utilizar https://
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
+* CloudFormation
+
+En caso de no haber creado el stack de cloudformation con anterioridad en la cuenta, se deberá de poner el parámetro spec:security:aws:create_iam a true, en caso contrario false.
+
 === GCP no gestionado
 
 * Permisos
