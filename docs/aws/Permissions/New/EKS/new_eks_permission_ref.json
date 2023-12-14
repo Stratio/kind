@@ -59,17 +59,17 @@
                 "secretsmanager:TagResource"
             ],
             "Resource": [
-                "arn:aws:secretsmanager:*:268367799918:secret:aws.cluster.x-k8s.io/*",
-                "arn:aws:ec2:*:268367799918:elastic-ip/*",
-                "arn:aws:ec2:*:268367799918:internet-gateway/*",
-                "arn:aws:ec2:*:268367799918:natgateway/*",
-                "arn:aws:ec2:*:268367799918:route-table/*",
-                "arn:aws:ec2:*:268367799918:security-group/*",
-                "arn:aws:ec2:*:268367799918:subnet/*",
-                "arn:aws:ec2:*:268367799918:vpc/*",
+                "arn:aws:secretsmanager:*:963353511234:secret:aws.cluster.x-k8s.io/*",
+                "arn:aws:ec2:*:963353511234:elastic-ip/*",
+                "arn:aws:ec2:*:963353511234:internet-gateway/*",
+                "arn:aws:ec2:*:963353511234:natgateway/*",
+                "arn:aws:ec2:*:963353511234:route-table/*",
+                "arn:aws:ec2:*:963353511234:security-group/*",
+                "arn:aws:ec2:*:963353511234:subnet/*",
+                "arn:aws:ec2:*:963353511234:vpc/*",
                 "arn:aws:ecr:*:*:repository/*",
-                "arn:aws:eks:*:268367799918:addon/*",
-                "arn:aws:eks:*:268367799918:cluster/*"
+                "arn:aws:eks:*:963353511234:addon/*",
+                "arn:aws:eks:*:963353511234:cluster/*"
             ]
         },
         {
@@ -79,7 +79,7 @@
                 "ec2:AuthorizeSecurityGroupIngress"
             ],
             "Resource": [
-                "arn:aws:ec2:*:268367799918:security-group/*"
+                "arn:aws:ec2:*:963353511234:security-group/*"
             ]
         },
         {
@@ -103,8 +103,8 @@
                 "iam:TagRole"
             ],
             "Resource": [
-                "arn:aws:iam::268367799918:role/*",
-                "arn:aws:iam::268367799918:oidc-provider/*"
+                "arn:aws:iam::963353511234:role/*",
+                "arn:aws:iam::963353511234:oidc-provider/*"
             ]
         }
     ]
