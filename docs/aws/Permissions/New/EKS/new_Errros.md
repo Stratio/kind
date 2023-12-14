@@ -96,8 +96,9 @@ ased policy allows the elasticloadbalancing:DeregisterInstancesFromLoadBalancer 
 | E1211 "Reconciler error" "failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: failed reconciling eks addons: addon_create: creating eks addon vpc-cni: AccessDeniedException: User is not authorized to perform this action". | 66 |
 | E1211 "Reconciler error" "failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: failed reconciling eks addons: getting installed eks addons: describing eks addon vpc-cni: AccessDeniedException: User is not authorized to perform this action"
 | E1211 "Reconciler error" failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: failed reconciling OIDC provider for cluster: failed to tag OIDC provider: AccessDenied: User: arn:aws:iam::268367799918:user/cloud-provisioner-eks is not authorized to perform: iam:TagOpenIDConnectProvider on resource: arn:aws:iam::268367799918:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/95DEC26F26A29262F0AE5CF4F7A77138 because no identity-based policy allows the iam:TagOpenIDConnectProvider action. | 67 |
+| E1214 "Reconciler error" failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: error ensuring policies are attached: [0xc000f0c070]: error listing role polices for eks-cl01-iam-service-role: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:ListAttachedRolePolicies on resource: role eks-cl01-iam-service-role because no identity-based policy allows the iam:ListAttachedRolePolicies action. | 68 |
+| E1214 "Reconciler error" failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: creating role eks-cl01-iam-service-role: failed to call CreateRole: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:TagRole on resource: arn:aws:iam::963353511234:role/eks-cl01-iam-service-role because no identity-based policy allows the iam:TagRole action. | 69 |
 |
 |
-
-
-
+|
+|

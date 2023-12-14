@@ -61,14 +61,14 @@
                 "secretsmanager:TagResource"
             ],
             "Resource": [
-                "arn:aws:secretsmanager:*:268367799918:secret:aws.cluster.x-k8s.io/*",
-                "arn:aws:ec2:*:268367799918:natgateway/*",
-                "arn:aws:ec2:*:268367799918:internet-gateway/*",
-                "arn:aws:ec2:*:268367799918:route-table/*",
-                "arn:aws:ec2:*:268367799918:subnet/*",
-                "arn:aws:ec2:*:268367799918:vpc/*",
-                "arn:aws:ec2:*:268367799918:elastic-ip/*",
-                "arn:aws:ec2:*:268367799918:security-group/*",
+                "arn:aws:secretsmanager:*:963353511234:secret:aws.cluster.x-k8s.io/*",
+                "arn:aws:ec2:*:963353511234:natgateway/*",
+                "arn:aws:ec2:*:963353511234:internet-gateway/*",
+                "arn:aws:ec2:*:963353511234:route-table/*",
+                "arn:aws:ec2:*:963353511234:subnet/*",
+                "arn:aws:ec2:*:963353511234:vpc/*",
+                "arn:aws:ec2:*:963353511234:elastic-ip/*",
+                "arn:aws:ec2:*:963353511234:security-group/*",
                 "arn:aws:ecr:*:*:repository/*"
             ]
         },
@@ -81,7 +81,7 @@
                 "ec2:RevokeSecurityGroupIngress"
             ],
             "Resource": [
-                "arn:aws:ec2:*:268367799918:security-group/*"
+                "arn:aws:ec2:*:963353511234:security-group/*"
             ]
         },
         {
@@ -97,7 +97,7 @@
                 "elasticloadbalancing:ModifyLoadBalancerAttributes",
                 "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
             ],
-            "Resource": "arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/*"
+            "Resource": "arn:aws:elasticloadbalancing:*:963353511234:loadbalancer/*"
         },
         {
             "Sid": "VisualEditor4",

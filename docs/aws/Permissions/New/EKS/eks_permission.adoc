@@ -97,10 +97,11 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | ec2:CreateSecurityGroup | Attempting to create security group | Grants permission to create a security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
 | ec2:AuthorizeSecurityGroupIngress | Attempting to authorize security group ingress | Grants permission to add one or more inbound rules to a VPC security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
 | ec2:DescribeInstances | Attempting to describe instances | Grants permission to describe one or more instances. |  * | cloud-provisioner
-| iam:ListAttachedRolePolicies | Attempting to list attached role policies | Grants permission to list all managed policies that are attached to the specified IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 | eks:DescribeCluster | Attempting to describe cluster | Grants permission to describe the specified cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
 | eks:CreateCluster | Attempting to create cluster | Grants permission to create the specified cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
 | eks:TagResource | Attempting to tag resource | Grants permission to add tags to the specified resource. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+| iam:ListAttachedRolePolicies | Attempting to list attached role policies | Grants permission to list all managed policies that are attached to the specified IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
+| iam:TageRole | Attempting to tag role | Grants permission to add one or more tags to an IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 
 
 NO | elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner

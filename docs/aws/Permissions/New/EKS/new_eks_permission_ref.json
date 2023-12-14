@@ -83,16 +83,6 @@
             ]
         },
         {
-            "Sid": "VisualEditor3",
-            "Effect": "Allow",
-            "Action": [
-                "iam:ListAttachedRolePolicies"
-            ],
-            "Resource": [
-                "arn:aws:iam::268367799918:role/*"
-            ]
-        },
-        {
             "Sid": "VisualEditor4",
             "Effect": "Allow",
             "Action": [
@@ -108,7 +98,9 @@
             "Action": [
                 "iam:CreateOpenIDConnectProvider",
                 "iam:GetOpenIDConnectProvider",
-                "iam:TagOpenIDConnectProvider"
+                "iam:TagOpenIDConnectProvider",
+                "iam:ListAttachedRolePolicies",
+                "iam:TagRole"
             ],
             "Resource": [
                 "arn:aws:iam::268367799918:role/*",
