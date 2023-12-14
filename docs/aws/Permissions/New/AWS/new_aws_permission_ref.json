@@ -73,6 +73,18 @@
             ]
         },
         {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:DeleteSecurityGroup",
+                "ec2:RevokeSecurityGroupIngress"
+            ],
+            "Resource": [
+                "arn:aws:ec2:*:268367799918:security-group/*"
+            ]
+        },
+        {
             "Sid": "VisualEditor3",
             "Effect": "Allow",
             "Action": [
@@ -88,16 +100,10 @@
             "Resource": "arn:aws:elasticloadbalancing:*:268367799918:loadbalancer/*"
         },
         {
-            "Sid": "VisualEditor2",
+            "Sid": "VisualEditor4",
             "Effect": "Allow",
-            "Action": [
-                "ec2:AuthorizeSecurityGroupIngress",
-                "ec2:DeleteSecurityGroup",
-                "ec2:RevokeSecurityGroupIngress"
-            ],
-            "Resource": [
-                "arn:aws:ec2:*:268367799918:security-group/*"
-            ]
+            "Action": "iam:CreateServiceLinkedRole",
+            "Resource": "arn:aws:iam::963353511234:role/*"
         }
     ]
 }
