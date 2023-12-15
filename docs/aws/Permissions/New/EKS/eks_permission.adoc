@@ -102,6 +102,7 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | eks:TagResource | Attempting to tag resource | Grants permission to add tags to the specified resource. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
 | iam:ListAttachedRolePolicies | Attempting to list attached role policies | Grants permission to list all managed policies that are attached to the specified IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 | iam:TageRole | Attempting to tag role | Grants permission to add one or more tags to an IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
+| iam:CreateRole | Attempting to create role | Grants permission to create a new role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 
 
 NO | elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner
