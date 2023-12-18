@@ -4,6 +4,8 @@
 
 * Added infrastructure validations for azs, vpcs, subnets and k8s versions
 * [Azure] Bump cluster-api-provider-azure to v1.11.3: Add priority class to NMI
+* [Core] Add PDB and PriorityClass to capx components
+* [Core] Bump cluster api to v1.5.3
 
 ## 0.17.0-0.3.0 (2023-09-14)
 

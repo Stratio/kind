@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"time"
 
 	"strings"
@@ -46,9 +48,9 @@ var denyAllEgressIMDSgnpFiles embed.FS
 var allowEgressIMDSgnpFiles embed.FS
 
 const (
-	CAPICoreProvider         = "cluster-api:v1.5.1"
-	CAPIBootstrapProvider    = "kubeadm:v1.5.1"
-	CAPIControlPlaneProvider = "kubeadm:v1.5.1"
+	CAPICoreProvider         = "cluster-api:v1.5.3"
+	CAPIBootstrapProvider    = "kubeadm:v1.5.3"
+	CAPIControlPlaneProvider = "kubeadm:v1.5.3"
 
 	scName = "keos"
 
@@ -455,9 +457,11 @@ func customCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) erro
 }
 
 // installCAPXWorker installs CAPX in the worker cluster
-func (p *Provider) installCAPXWorker(n nodes.Node, kubeconfigPath string, allowAllEgressNetPolPath string) error {
+func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosCluster, kubeconfigPath string, allowAllEgressNetPolPath string) error {
 	var c string
 	var err error
+
+	capxPDBPath := "/kind/capi_pdb.yaml"
 
 	if p.capxProvider == "azure" {
 		// Create capx namespace
@@ -492,11 +496,44 @@ func (p *Provider) installCAPXWorker(n nodes.Node, kubeconfigPath string, allowA
 		return errors.Wrap(err, "failed to install CAPX in workload cluster")
 	}
 
+	// Manually assign PriorityClass to capx service
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch deploy " + p.capxName + "-controller-manager -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to assigned priorityClass to "+p.capxName+"-controller-manager")
+	}
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status deploy " + p.capxName + "-controller-manager --timeout 60s"
+	if err != nil {
+		return errors.Wrap(err, "failed to check rollout status for "+p.capxName+"-controller-manager")
+	}
+
 	// Scale CAPX to 2 replicas
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system scale --replicas 2 deploy " + p.capxName + "-controller-manager"
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to scale CAPX in workload cluster")
+	}
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status deploy " + p.capxName + "-controller-manager --timeout 60s"
+	if err != nil {
+		return errors.Wrap(err, "failed to check rollout status for "+p.capxName+"-controller-manager")
+	}
+
+	// Define PodDisruptionBudget for capx services
+	capxPDB, err := getManifest("common", "capx_pdb.tmpl", keosCluster.Spec)
+	if err != nil {
+		return errors.Wrap(err, "failed to get PodDisruptionBudget file")
+	}
+
+	c = "echo '" + capxPDB + "' > " + capxPDBPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create PodDisruptionBudget file")
+	}
+
+	c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + capxPDBPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply "+p.capxName+" PodDisruptionBudget")
 	}
 
 	// Allow egress in CAPX's Namespace
@@ -504,6 +541,119 @@ func (p *Provider) installCAPXWorker(n nodes.Node, kubeconfigPath string, allowA
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply CAPX's NetworkPolicy in workload cluster")
+	}
+
+	return nil
+
+}
+
+func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluster, kubeconfigPath string, allowCommonEgressNetPolPath string) error {
+	var c string
+	var err error
+	var capiKubeadmReplicas int
+
+	capiDeployments := []struct {
+		name      string
+		namespace string
+	}{
+		{name: "capi-controller-manager", namespace: "capi-system"},
+		{name: "capi-kubeadm-control-plane-controller-manager", namespace: "capi-kubeadm-control-plane-system"},
+		{name: "capi-kubeadm-bootstrap-controller-manager", namespace: "capi-kubeadm-bootstrap-system"},
+	}
+
+	allowedNamePattern := regexp.MustCompile(`^capi-kubeadm-(control-plane|bootstrap)-controller-manager$`)
+	capiPDBPath := "/kind/capi_pdb.yaml"
+
+	// Determine the number of replicas for capi-kubeadm deployments
+	if p.capxManaged {
+		capiKubeadmReplicas = 0
+	} else {
+		capiKubeadmReplicas = 2
+	}
+
+	// Manually assign PriorityClass to capi services
+	for _, deployment := range capiDeployments {
+		if !p.capxManaged || (p.capxManaged && !allowedNamePattern.MatchString(deployment.name)) {
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " patch deploy " + deployment.name + " -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to assigned priorityClass to "+deployment.name)
+			}
+		}
+	}
+
+	// Manually assign PriorityClass to nmi
+	if p.capxProvider == "azure" {
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch ds capz-nmi -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to assigned priorityClass to nmi")
+		}
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status ds capz-nmi --timeout 60s"
+		if err != nil {
+			return errors.Wrap(err, "failed to check rollout status for nmi")
+		}
+	}
+
+	// Scale number of replicas to 2 for capi service
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system scale deploy capi-controller-manager --replicas 2"
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to scale the CAPI Deployment")
+	}
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system rollout status deploy capi-controller-manager --timeout 60s"
+	if err != nil {
+		return errors.Wrap(err, "failed to check rollout status for capi-controller-manager")
+	}
+
+	// Scale number of required replicas for capi kubeadm services
+	for _, deployment := range capiDeployments {
+		if deployment.name != "capi-controller-manager" {
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " scale --replicas " + strconv.Itoa(capiKubeadmReplicas) + " deploy " + deployment.name
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to scale the "+deployment.name+" deployment")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system rollout status deploy " + deployment.name + " --timeout 60s"
+			if err != nil {
+				return errors.Wrap(err, "failed to check rollout status for "+deployment.name)
+			}
+		}
+	}
+
+	// Define PodDisruptionBudget for capi services
+	capiPDB, err := getManifest("common", "capi_pdb.tmpl", keosCluster.Spec)
+	if err != nil {
+		return errors.Wrap(err, "failed to get PodDisruptionBudget file")
+	}
+	c = "echo '" + capiPDB + "' > " + capiPDBPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create PodDisruptionBudget file")
+	}
+
+	c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + capiPDBPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply "+p.capxName+" PodDisruptionBudget")
+	}
+
+	// Allow egress in CAPI's Namespaces
+	for _, deployment := range capiDeployments {
+		if !p.capxManaged || (p.capxManaged && !allowedNamePattern.MatchString(deployment.name)) {
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " apply -f " + allowCommonEgressNetPolPath
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply CAPI's egress NetworkPolicy in namespace "+deployment.namespace)
+			}
+		}
+	}
+
+	// Allow egress in cert-manager Namespace
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n cert-manager apply -f " + allowCommonEgressNetPolPath
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply cert-manager's NetworkPolicy")
 	}
 
 	return nil
