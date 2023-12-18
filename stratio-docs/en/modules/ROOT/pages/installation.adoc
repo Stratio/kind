@@ -12,7 +12,7 @@ For automated provisioning in AWS/EKS, it is necessary to execute actions on var
 ** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS].
 
 +
-For the EKS deployment you must create the following role manually: "AWSServiceRoleForAmazonEKS" with the associated policy "AmazonEKSServiceRolePolicy" (created by default in AWS).
+For EKS deployment, you must manually create the "AWSServiceRoleForAmazonEKS" role and associate to it the "AmazonEKSServiceRolePolicy" policy (created by default in AWS).
 
 * Certified operating systems
 +
@@ -26,7 +26,7 @@ The currently recommended operating system for this provider is Ubuntu 22.04.
 
 * CloudFormation
 +
-In case you have not executed the CloudFormation stack or created the IAM requisites manually previously, you must add the parameter spec:security:aws:create_iam set to true (it is false by default).
+WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec:security:aws:create_iam` parameter to true (default is false).
 
 === Unmanaged GCP
 
