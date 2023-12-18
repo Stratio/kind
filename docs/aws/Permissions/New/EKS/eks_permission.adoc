@@ -103,16 +103,6 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | iam:ListAttachedRolePolicies | Attempting to list attached role policies | Grants permission to list all managed policies that are attached to the specified IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 | iam:TageRole | Attempting to tag role | Grants permission to add one or more tags to an IAM role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
 | iam:CreateRole | Attempting to create role | Grants permission to create a new role. |  arn:aws:iam::268367799918:role/* | cloud-provisioner
-
-
-NO | elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner
-NO | elasticloadbalancing:CreateLoadBalancer | Attempting to create load balancer | Grants permission to create a load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-NO | elasticloadbalancing:AddTags | Attempting to add tags | Grants permission to add one or more tags to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-NO | elasticloadbalancing:DescribeLoadBalancerAttributes | Attempting to describe load balancer attributes | Grants permission to describe the attributes for the specified load balancer. | * | cloud-provisioner
-NO | elasticloadbalancing:DescribeTags | Attempting to describe tags | Grants permission to describe the tags associated with one or more load balancers. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-NO | elasticloadbalancing:ModifyLoadBalancerAttributes | Attempting to modify load balancer attributes | Grants permission to modify the attributes for the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-NO | elasticloadbalancing:RegisterInstancesWithLoadBalancer | Attempting to register instances with load balancer | Grants permission to add the specified instances to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-
 | secretsmanager:CreateSecret | Attempting to create secret | Grants permission to create a new secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
 | secretsmanager:TagResource |  Attempting to tag resource | Grants permission add tags to a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
 | secretsmanager:DeleteSecret | Attempting to delete secret | Grants permission to delete a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
