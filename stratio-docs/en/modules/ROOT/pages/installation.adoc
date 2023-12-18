@@ -11,6 +11,9 @@ For automated provisioning in AWS/EKS, it is necessary to execute actions on var
 ** xref:attachment$stratio-eks-policy.json[Download permanent permissions for EKS].
 ** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS].
 
++
+For the EKS deployment you must create the following role manually: "AWSServiceRoleForAmazonEKS" with the associated policy "AmazonEKSServiceRolePolicy" (created by default in AWS).
+
 * Certified operating systems
 +
 To ensure the functionalities supported by the EKS-managed _control-plane_, you should use any AMI provided by AWS specifically for this purpose.
@@ -20,6 +23,10 @@ The https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMIs
 For deployments on unmanaged AWS, you should use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool that allows you to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder:aws-image-builder.adoc[guide for AWS].
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
+
+* CloudFormation
++
+In case you have not executed the CloudFormation stack or created the IAM requisites manually previously, you must add the parameter spec:security:aws:create_iam set to true (it is false by default).
 
 === Unmanaged GCP
 

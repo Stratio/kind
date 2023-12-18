@@ -11,7 +11,8 @@ Para el aprovisionamiento automatizado en AWS/EKS, se necesita ejecutar acciones
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
 ** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
 
-Para el despliegue de EKS se deberá de crear de forma manual el role: "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy".
++
+Para el despliegue de EKS se deberá crear de forma manual el role: "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 
 * Sistemas operativos certificados
 +
@@ -24,8 +25,8 @@ En el caso de los despliegues en AWS no gestionado, se deberá utilizar https://
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
 * CloudFormation
-
-En caso de no haber creado el stack de cloudformation con anterioridad en la cuenta, se deberá de poner el parámetro spec:security:aws:create_iam a true, en caso contrario false.
++
+En caso de no haber creado el stack de cloudformation o creado manualmente los requisitos de IAM con anterioridad en la cuenta, se deberá poner el parámetro spec:security:aws:create_iam a true (por defecto es false).
 
 === GCP no gestionado
 
