@@ -1,9 +1,14 @@
 # Changelog
 
-## 0.17.0-0.3.5 (2023-12-01)
+## 0.17.0-0.3.5 (upcoming)
 
+* [Core] Change create_iam default behaviour (to false)
+* [Core] Add example full descriptor v1beta1
+* [Core] Update documentation
+* [Core] Update upgrade script (upgrade-provisioner_v0.3.py)
+* [AWS] Update required policies
 * [Core] Add coredns PDB
-* [Core] Add cluster-autoscaler annotations to evict local volumes
+* [Core] Add cluster-autoscaler annotations to evict local volumes (for coredns, metrics-server, calico, cloud-controllers and CSIs)
 
 ## 0.17.0-0.3.4 (2023-11-17)
 
@@ -15,21 +20,21 @@
 
 ## 0.17.0-0.3.3 (2023-10-11)
 
-* Add remote command execution retries
+* [Core] Add remote command execution retries
 
 ## 0.17.0-0.3.2 (2023-09-29)
 
-* Bump cluster-operator due to hotfix
+* [Core] Bump cluster-operator due to hotfix
 
 ## 0.17.0-0.3.1 (2023-09-28)
 
-* Add status in KeosCluster
-* Bump Azure provider to 1.10.4
+* [Core] Add status in KeosCluster
+* [Azure] Bump Azure provider to 1.10.4
 
 ## 0.17.0-0.3.0 (2023-09-15)
 
-* Customize coredns configuration
-* Fix wait conditions for unmanaged clusters
+* [Core] Customize coredns configuration
+* [Core] Fix wait conditions for unmanaged clusters
 * [AWS] Bump cluster-api-provider-aws to v2.2.0
 * [AWS] Add clusterAPI capabilities for AWS VMs
 * [AWS] Add EKS secrets encryption support
@@ -45,11 +50,11 @@
 
 ## 0.17.0-0.2.0 (2023-07-03)
 
-* Add clusterAPI capabilities for AKS
-* Add clusterAPI capabilities for Azure VMs
+* [Azure] Add clusterAPI capabilities for AKS
+* [Azure] Add clusterAPI capabilities for Azure VMs
 
 ## 0.17.0-0.1.0 (2023-03-31)
 
-* Add clusterAPI capabilities for EKS
+* [AWS] Add clusterAPI capabilities for EKS
 
 ## Previous development
