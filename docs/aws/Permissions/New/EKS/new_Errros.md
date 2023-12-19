@@ -99,6 +99,16 @@ ased policy allows the elasticloadbalancing:DeregisterInstancesFromLoadBalancer 
 | E1214 "Reconciler error" failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: error ensuring policies are attached: [0xc000f0c070]: error listing role polices for eks-cl01-iam-service-role: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:ListAttachedRolePolicies on resource: role eks-cl01-iam-service-role because no identity-based policy allows the iam:ListAttachedRolePolicies action. | 68 |
 | E1214 "Reconciler error" failed to reconcile control plane for AWSManagedControlPlane cluster-eks-cl01/eks-cl01-control-plane: creating role eks-cl01-iam-service-role: failed to call CreateRole: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:TagRole on resource: arn:aws:iam::963353511234:role/eks-cl01-iam-service-role because no identity-based policy allows the iam:TagRole action. | 69 |
 | E1214 failed to reconcile control plane for AWSManagedControlPlane cluster-lrecio-aws/lrecio-aws-control-plane: creating role eks-cl01-iam-service-role: failed to call CreateRole: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:CreateRole on resource: arn:aws:iam::963353511234:role/eks-cl01-iam-service-role because no identity-based policy allows the iam:CreateRole action
-|
-|
-|
+| E1218 "error deleting EKS cluster for EKS control plane" err="unable to delete EKS cluster: failed to request delete of eks cluster eks-cl02: AccessDeniedException: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: eks:DeleteCluster on resource: arn:aws:eks:eu-west-1:963353511234:cluster/eks-cl02" controller="awsmanagedcontrolplane" controller
+Group="controlplane.cluster.x-k8s.io" controllerKind="AWSManagedControlPlane" AWSManagedControlPlane="cluster-eks-cl02/eks-cl02-control-plane" reconcileID="65704c34-09d5-4c48-b7fc-389e2afcd901" namespace="cluste
+r-eks-cl02" name="eks-cl02-control-plane". | 70 |
+| E1218 "Reconciler error" failed to delete OIDC provider: error deleting provider: AccessDenied: User: arn:aws:iam::963353511234:user/cloud-provisioner-eks is not authorized to perform: iam:DeleteOpenIDConnectProvider on resource: arn:aws:iam::963353511234:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/71DCE6C4BF0301DA4E227FA5CEEDF9AB because no identity-based policy allows the iam:DeleteOpenIDConnectProvider action. | 71 |
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 

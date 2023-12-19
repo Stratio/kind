@@ -139,15 +139,13 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 
 [source,bash]
 ----
-kubectl --kubeconfig local_kubeconfig -n cluster-aws-cl01 delete cluster aws-cl01
+kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl02 delete cluster eks-cl02
 ----
 
 | Permission | Necessary for | Description | Resource | Application
 |===
 | ec2:TerminateInstances | Attempting to terminate instances | Grants permission to terminate one or more instances.. | * | cloud-provisioner
 | ec2:DescribeNetworkInterfaces | Attempting to describe network interfaces | Grants permission to describe one or more network interfaces.. | * | cloud-provisioner
-| elasticloadbalancing:DeregisterInstancesFromLoadBalancer | Attempting to deregister instances from load balancer | Grants permission to remove the specified instances from the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
-| elasticloadbalancing:DeleteLoadBalancer | Attempting to delete load balancer | Grants permission to delete the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
 | ec2:DeleteSecurityGroup | Attempting to delete security group | Grants permission to delete a security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
 | ec2:DisassociateRouteTable | Attempting to disassociate route table | Grants permission to disassociate a subnet or gateway from a route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
 | ec2:DeleteRouteTable | Attempting to delete route table | Grants permission to delete a route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
@@ -157,6 +155,8 @@ kubectl --kubeconfig local_kubeconfig -n cluster-aws-cl01 delete cluster aws-cl0
 | ec2:DeleteInternetGateway | Attempting to delete internet gateway | Grants permission to delete the specified internet gateway. |  arn:aws:ec2:eu-west-1:<account-id>:internet-gateway/* | cloud-provisioner
 | ec2:DeleteSubnet | Attempting to delete subnet | Grants permission to delete the specified subnet. |  arn:aws:ec2:eu-west-1:<account-id>:subnet/* | cloud-provisioner
 | ec2:DeleteVpc | Attempting to delete VPC | Grants permission to delete the specified VPC. |  arn:aws:ec2:eu-west-1:<account-id>:vpc/* | cloud-provisioner
+| eks:DeleteCluster | Attempting to delete cluster | Grants permission to delete the specified cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+| iam:DeleteOpenIDConnectProvider | Attempting to delete OpenID Connect provider | Grants permission to delete an IAM OpenID Connect (OIDC) provider resource object in IAM. |  arn:aws:iam::268367799918:oidc-provider/* | cloud-provisioner
 |===
 
 === Retain (No additional permissions needed)
@@ -171,26 +171,25 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 [source,bash]
 ----
 # Check workload cluster status
-clusterctl --kubeconfig workload_kubeconfig -n cluster-aws-cl01 describe cluster aws-cl01
-NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/aws-cl01                                             True                     9m13s
-├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     9m13s
-├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     9m13s
-│ └─3 Machines...                                            True                     9m13s  See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+clusterctl --kubeconfig workload_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
+NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/eks-cl02                                                True                     4m13s
+├─ClusterInfrastructure - AWSManagedCluster/eks-cl02
+├─ControlPlane - AWSManagedControlPlane/eks-cl02-control-plane  True                     4m10s
 └─Workers
-  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     9m13s
-  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     9m13s
-  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     9m13s
-  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     9m13s
-  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     9m13s
-    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28
+  ├─MachineDeployment/eks-cl02-worker-1-md-0                    True                     5m8s
+  │ └─2 Machines...                                             True                     4m1s   See eks-cl02-worker-1-md-0-9wtsq-hk5lm, eks-cl02-worker-1-md-0-9wtsq-rvdns
+  ├─MachineDeployment/eks-cl02-worker-1-md-1                    True                     5m8s
+  │ └─2 Machines...                                             True                     4m1s   See eks-cl02-worker-1-md-1-m7cnc-cqw7v, eks-cl02-worker-1-md-1-m7cnc-lpznr
+  └─MachineDeployment/eks-cl02-worker-1-md-2                    True                     5m13s
+    └─2 Machines...                                             True                     4m1s   See eks-cl02-worker-1-md-2-755z5-8jtm2, eks-cl02-worker-1-md-2-755z5-kr6qh
 
 # Move management
 ## From workload cluster to management local cluster
 kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 0
 deployment.apps/keoscluster-controller-manager scaled
 
-clusterctl --kubeconfig workload_kubeconfig move -n cluster-aws-cl01 --to-kubeconfig local_kubeconfig
+clusterctl --kubeconfig workload_kubeconfig move -n cluster-eks-cl02 --to-kubeconfig local_kubeconfig
 Performing move...
 Discovering Cluster API objects
 Moving Cluster API objects Clusters=1
@@ -198,21 +197,21 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster
 Deleting objects from the source cluster
 
-clusterctl --kubeconfig local_kubeconfig -n cluster-aws-cl01 describe cluster aws-cl01
-NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/aws-cl01                                             True                     6s
-├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     13s
-├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     6s
-│ └─3 Machines...                                            True                     12s    See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+clusterctl --kubeconfig local_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
+NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/eks-cl02                                                True                     9s
+├─ClusterInfrastructure - AWSManagedCluster/eks-cl02
+├─ControlPlane - AWSManagedControlPlane/eks-cl02-control-plane  True                     4s
 └─Workers
-  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     14s
-  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     12s
-  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     13s
-  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     12s
-  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     13s
-    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28             True                     12s
+  ├─MachineDeployment/eks-cl02-worker-1-md-0                    True                     65s
+  │ └─2 Machines...                                             True                     2s     See eks-cl02-worker-1-md-0-9wtsq-hk5lm, eks-cl02-worker-1-md-0-9wtsq-rvdns
+  ├─MachineDeployment/eks-cl02-worker-1-md-1                    True                     65s
+  │ └─2 Machines...                                             True                     2s     See eks-cl02-worker-1-md-1-m7cnc-cqw7v, eks-cl02-worker-1-md-1-m7cnc-lpznr
+  └─MachineDeployment/eks-cl02-worker-1-md-2                    True                     65s
+    └─2 Machines...                                             True                     2s     See eks-cl02-worker-1-md-2-755z5-8jtm2, eks-cl02-worker-1-md-2-755z5-kr6qh
+
 ## From management local cluster to workload cluster
-clusterctl --kubeconfig local_kubeconfig move -n cluster-aws-cl01 --to-kubeconfig workload_kubeconfig
+clusterctl --kubeconfig local_kubeconfig move -n cluster-eks-cl02 --to-kubeconfig workload_kubeconfig
 Performing move...
 Discovering Cluster API objects
 Moving Cluster API objects Clusters=1
@@ -223,19 +222,19 @@ Deleting objects from the source cluster
 kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 2
 deployment.apps/keoscluster-controller-manager scaled
 
-clusterctl --kubeconfig remote_kubeconfig -n cluster-aws-cl01 describe cluster aws-cl01
+clusterctl --kubeconfig remote_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
 NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/aws-cl01                                             True                     67s
-├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     73s
-├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     67s
-│ └─3 Machines...                                            True                     73s    See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+Cluster/eks-cl02                                             True                     67s
+├─ClusterInfrastructure - AWSCluster/eks-cl02                True                     73s
+├─ControlPlane - KubeadmControlPlane/eks-cl02-control-plane  True                     67s
+│ └─3 Machines...                                            True                     73s    See eks-cl02-control-plane-8tp9f, eks-cl02-control-plane-p2sw7, ...
 └─Workers
-  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     74s
-  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     73s
-  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     73s
-  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     73s
-  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     74s
-    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28             True                     73s
+  ├─MachineDeployment/eks-cl02-worker-1-md-0                 True                     74s
+  │ └─Machine/eks-cl02-worker-1-md-0-p66lh-bssm6             True                     73s
+  ├─MachineDeployment/eks-cl02-worker-1-md-1                 True                     73s
+  │ └─Machine/eks-cl02-worker-1-md-1-kg2pb-94mw4             True                     73s
+  └─MachineDeployment/eks-cl02-worker-1-md-2                 True                     74s
+    └─Machine/eks-cl02-worker-1-md-2-q88h2-trt28             True                     73s
 ----
 
 === Cluster-Operator
@@ -243,18 +242,18 @@ Cluster/aws-cl01                                             True               
 ==== Check Status
 [source,bash]
 ----
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-aws-cl01 get keosclusters.installer.stratio.com aws-cl01 --subresource status
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-eks-cl02 get keosclusters.installer.stratio.com eks-cl02 --subresource status
 NAME       READY   PHASE         CLUSTER    TRIGGERED
-aws-cl01   true    Provisioned   aws-cl01
+eks-cl02   true    Provisioned   eks-cl02
 ----
 
 ==== Scale / Downscale current worker_nodes (quantity) (No additional permissions needed)
 [source,bash]
 ----
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig edit keosclusters.installer.stratio.com -n cluster-aws-cl01 aws-cl01
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-aws-cl01 get keosclusters.installer.stratio.com aws-cl01 --subresource status
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig edit keosclusters.installer.stratio.com -n cluster-eks-cl02 eks-cl02
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-eks-cl02 get keosclusters.installer.stratio.com eks-cl02 --subresource status
 NAME       READY   PHASE                   CLUSTER    TRIGGERED
-aws-cl01   false   Updating worker nodes   aws-cl01   Keoscluster
+eks-cl02   false   Updating worker nodes   eks-cl02   Keoscluster
 ----
 ==== Add / Remove additional worker_nodes group (No additional permissions needed)
 ==== Modify labels worker_nodes (No additional permissions needed)
