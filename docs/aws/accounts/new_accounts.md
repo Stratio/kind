@@ -5,8 +5,6 @@
     * [IAM](#iam)
     * [Passbolt](#passbolt)
     * [ECR](#ecr)
-    * [Key Management Service (KMS)](#key-management-service-kms)
-    * [Route53](#route53)
     * [Lambda](#lambda)
 
 ## Quotas
@@ -19,7 +17,6 @@ Lo primero que haremos será solicitar un aumento de cuotas para los siguientes 
 | NAT gateways per Availability Zone | 30 |
 | Internet gateways per Region | 20 |
 | EC2-VPC Elastic IPs | 50 |
-| All Inf Spot Instance Requests | 128 |
 
 Pre-requisitos usuario con los permisos necesarios para poder hacer las queries a la API de AWS.
 
@@ -38,8 +35,6 @@ aws service-quotas get-service-quota --service-code vpc --quota-code L-026E1A4D 
 aws service-quotas get-service-quota --service-code vpc --quota-code L-A4707A72 | jq '.Quota.Value' | cat
 # EC2-VPC Elastic IPs
 aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 | jq '.Quota.Value' | cat
-# All Inf Spot Instance Requests
-aws service-quotas get-service-quota --service-code ec2 --quota-code L-B5D1601B | jq '.Quota.Value' | cat
 ```
 
 # IAM
@@ -79,19 +74,11 @@ Asegurarse de que el despliegue del stack de CloudFormation se hace de forma sat
 
 Crear repositorio y subir todas las imagenes necesarias para los despliegues
 
-# Key Management Service (KMS)
-
-Crear un clave para el test de encriptación de los volumes y asociarla a los usuarios. (key admin y key user).
-
-# Route53
-
-Crear las zonas DNS necesarias para los despliegues.
-
 # Lambda
 
 Es recomenable crear varias lambdas:
 
 - Comprobar el estado del stack de CloudFormation y notificar si hay algún error.
-- Borrar los posible volúmenes de despliegues de test que se nos queden pendientes.
-- Borrar los Provedores de identidad del tipo "OpenID Connect (OIDC)" que se nos queden no estén en uso.
+- Borrar los posibles volúmenes de despliegues de test que se nos queden pendientes.
+- Borrar los Provedores de identidad del tipo "OpenID Connect (OIDC)" que no estén en uso.
 - Revisión de clusters con más de 'n' días desplegado.
