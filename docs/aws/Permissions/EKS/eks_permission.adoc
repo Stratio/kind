@@ -71,6 +71,8 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | iam:RemoveUserFromGroup | Attempting to remove IAM user from IAM group | Grants permission to remove the specified IAM user from the specified IAM group. |  * | cloud-provisioner
 |===
 
+==== Deployment
+
 [options="header"]
 |===
 | Permission | Necessary for | Description | Resource | Application
@@ -119,9 +121,6 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | eks:UpdateAddon | Attempting to update addon | Grants permission to update an add-on. |  arn:aws:eks:eu-west-1:<account-id>:addon/* | cloud-provisioner
 | iam:TagOpenIDConnectProvider | Attempting to tag OpenID Connect provider | Grants permission to add one or more tags to an OpenID Connect (OIDC) provider resource. |  arn:aws:iam::268367799918:oidc-provider/* | cloud-provisioner
 | ec2:DescribeNetworkInterfaces | Attempting to describe network interfaces | 	Grants permission to describe one or more network interfaces.. | * | cloud-provisioner
-
-
-
 |===
 
 ==== Using ECR (Elastic Container Registry) instead of generic docker registry
@@ -139,7 +138,7 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 
 [source,bash]
 ----
-kubectl --kubeconfig local_kubeconfig -n cluster-eks-cl02 delete cluster eks-cl02
+kubectl --kubeconfig local_kubeconfig -n cluster-<cluster-name> delete cluster <cluster-name>
 ----
 
 | Permission | Necessary for | Description | Resource | Application
@@ -171,7 +170,7 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 [source,bash]
 ----
 # Check workload cluster status
-clusterctl --kubeconfig workload_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
+clusterctl --kubeconfig workload_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
 NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE
 Cluster/eks-cl02                                                True                     4m13s
 ├─ClusterInfrastructure - AWSManagedCluster/eks-cl02
@@ -189,7 +188,7 @@ Cluster/eks-cl02                                                True            
 kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 0
 deployment.apps/keoscluster-controller-manager scaled
 
-clusterctl --kubeconfig workload_kubeconfig move -n cluster-eks-cl02 --to-kubeconfig local_kubeconfig
+clusterctl --kubeconfig workload_kubeconfig move -n cluster-<cluster-name> --to-kubeconfig local_kubeconfig
 Performing move...
 Discovering Cluster API objects
 Moving Cluster API objects Clusters=1
@@ -197,7 +196,7 @@ Moving Cluster API objects ClusterClasses=0
 Creating objects in the target cluster
 Deleting objects from the source cluster
 
-clusterctl --kubeconfig local_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
+clusterctl --kubeconfig local_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
 NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE
 Cluster/eks-cl02                                                True                     9s
 ├─ClusterInfrastructure - AWSManagedCluster/eks-cl02
@@ -211,7 +210,7 @@ Cluster/eks-cl02                                                True            
     └─2 Machines...                                             True                     2s     See eks-cl02-worker-1-md-2-755z5-8jtm2, eks-cl02-worker-1-md-2-755z5-kr6qh
 
 ## From management local cluster to workload cluster
-clusterctl --kubeconfig local_kubeconfig move -n cluster-eks-cl02 --to-kubeconfig workload_kubeconfig
+clusterctl --kubeconfig local_kubeconfig move -n cluster-<cluster-name> --to-kubeconfig workload_kubeconfig
 Performing move...
 Discovering Cluster API objects
 Moving Cluster API objects Clusters=1
@@ -222,7 +221,7 @@ Deleting objects from the source cluster
 kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 2
 deployment.apps/keoscluster-controller-manager scaled
 
-clusterctl --kubeconfig remote_kubeconfig -n cluster-eks-cl02 describe cluster eks-cl02
+clusterctl --kubeconfig remote_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
 NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
 Cluster/eks-cl02                                             True                     67s
 ├─ClusterInfrastructure - AWSCluster/eks-cl02                True                     73s
@@ -242,7 +241,7 @@ Cluster/eks-cl02                                             True               
 ==== Check Status
 [source,bash]
 ----
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-eks-cl02 get keosclusters.installer.stratio.com eks-cl02 --subresource status
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-<cluster-name> get keosclusters.installer.stratio.com <cluster-name> --subresource status
 NAME       READY   PHASE         CLUSTER    TRIGGERED
 eks-cl02   true    Provisioned   eks-cl02
 ----
@@ -250,8 +249,8 @@ eks-cl02   true    Provisioned   eks-cl02
 ==== Scale / Downscale current worker_nodes (quantity) (No additional permissions needed)
 [source,bash]
 ----
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig edit keosclusters.installer.stratio.com -n cluster-eks-cl02 eks-cl02
-kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-eks-cl02 get keosclusters.installer.stratio.com eks-cl02 --subresource status
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig edit keosclusters.installer.stratio.com -n cluster-<cluster-name> <cluster-name>
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-eks-cl02 get keosclusters.installer.stratio.com <cluster-name> --subresource status
 NAME       READY   PHASE                   CLUSTER    TRIGGERED
 eks-cl02   false   Updating worker nodes   eks-cl02   Keoscluster
 ----
@@ -259,10 +258,24 @@ eks-cl02   false   Updating worker nodes   eks-cl02   Keoscluster
 ==== Modify labels worker_nodes (No additional permissions needed)
 ==== Add labels worker_nodes (No additional permissions needed)
 ==== Modify max_size / min_size worker_nodes (No additional permissions needed)
-==== Upgrade kubernetes version (No additional permissions needed)
+==== Upgrade kubernetes version
+[source,bash]
+----
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-<cluster-name> patch keosclusters.installer.stratio.com <cluster-name> --type merge -p '{"spec":{"version":"1.27.5"}}'
+----
+[options="header"]
+| Permission | Necessary for | Description | Resource | Application
+|===
+| eks:UpdateClusterVersion | Attempting to update cluster version | Grants permission to update the Kubernetes version of an Amazon EKS cluster. |  arn:aws:eks:eu-west-1:<account-id>:cluster/* | cloud-provisioner
+|===
+==== Update EKS Addons (daemonset) (No additional permissions needed)
+[source,bash]
+----
+aws eks update-addon --cluster-name <cluster-name> --addon-name vpc-cni --addon-version v1.13.4-eksbuild.1 --resolve-conflicts OVERWRITE
+----
 ==== Keos Deployment (No additional permissions needed)
 ==== Custom Network Deployment (Pdte)
-
+[options="header"]
 | Permission | Necessary for | Description | Resource | Application
 |===
 | elasticloadbalancing:ConfigureHealthCheck | Attempting to configure health check | Grants permission to specify a health check configuration for the instances. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner

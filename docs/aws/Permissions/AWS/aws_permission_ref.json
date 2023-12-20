@@ -61,14 +61,14 @@
                 "secretsmanager:TagResource"
             ],
             "Resource": [
-                "arn:aws:secretsmanager:*:963353511234:secret:aws.cluster.x-k8s.io/*",
-                "arn:aws:ec2:*:963353511234:natgateway/*",
-                "arn:aws:ec2:*:963353511234:internet-gateway/*",
-                "arn:aws:ec2:*:963353511234:route-table/*",
-                "arn:aws:ec2:*:963353511234:subnet/*",
-                "arn:aws:ec2:*:963353511234:vpc/*",
-                "arn:aws:ec2:*:963353511234:elastic-ip/*",
-                "arn:aws:ec2:*:963353511234:security-group/*",
+                "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:aws.cluster.x-k8s.io/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:natgateway/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:internet-gateway/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:route-table/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:subnet/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:vpc/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:elastic-ip/*",
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:security-group/*",
                 "arn:aws:ecr:*:*:repository/*"
             ]
         },
@@ -81,7 +81,7 @@
                 "ec2:RevokeSecurityGroupIngress"
             ],
             "Resource": [
-                "arn:aws:ec2:*:963353511234:security-group/*"
+                "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:security-group/*"
             ]
         },
         {
@@ -97,13 +97,13 @@
                 "elasticloadbalancing:ModifyLoadBalancerAttributes",
                 "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
             ],
-            "Resource": "arn:aws:elasticloadbalancing:*:963353511234:loadbalancer/*"
+            "Resource": "arn:aws:elasticloadbalancing:*:${AWS_ACCOUNT_ID}:loadbalancer/*"
         },
         {
             "Sid": "VisualEditor4",
             "Effect": "Allow",
             "Action": "iam:CreateServiceLinkedRole",
-            "Resource": "arn:aws:iam::963353511234:role/*"
+            "Resource": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/*"
         }
     ]
 }
