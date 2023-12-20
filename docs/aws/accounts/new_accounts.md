@@ -1,19 +1,8 @@
-Amazon Virtual Private Cloud (Amazon VPC)
-	Elastic IP address quota per NAT gateway	10
-	NAT gateways per Availability Zone		30
-	Internet gateways per Region			20
-Amazon Elastic Compute Cloud (Amazon EC2)
-	EC2-VPC Elastic IPs				50
-	All Inf Spot Instance Requests		128
-
-User: cloud-provisioner (Full fast access to development deploy)
-User: cloud-provisioner-eks (Only EKS deployments)
-User: cloud-provisioner-aws (Only AWS deployments)
-
 # Resumen tareas al crear una nueva cuenta
 
 * [Resumen tareas al crear una nueva cuenta](#resumen-tareas-al-crear-una-nueva-cuenta)
 	* [Quotas](#quotas)
+    * [IAM](#iam)
 
 ## Quotas
 
@@ -52,4 +41,24 @@ aws service-quotas get-service-quota --service-code ec2 --quota-code L-B5D1601B 
 ```
 
 # IAM
+
+## Esquema de usuarios y políticas
+
+> User: cloud-provisioner  
+>>    Description: Full access to enhance development  
+    Policy: stratio-cloud-provisioner  
+
+> User: cloud-provisioner-eks
+>>    Description: Only EKS deployments  
+>>    Policy:  
+>>        - stratio-eks-policy (EKS deployments) [stratio-eks-policy](../Permissions/EKS/eks_permission_ref.json)  
+>>        - stratio-fc-policy (CloudFormation) [stratio-fc-policy](../Permissions/EKS/eks_Cloud_Formation.json)  
+>>        - stratio-eks-offline (Offline EKS deployments)  
+
+> User: cloud-provisioner-aws
+>>    Description: Only AWS deployments  
+>>    Policy:  
+>>        - stratio-aws-policy (AWS deployments) [stratio-aws-policy](../Permissions/AWS/aws_permission_ref.json)  
+>>        - stratio-fc-policy (CloudFormation) [stratio-fc-policy](../Permissions/AWS/aws_Cloud_Formation.json)  
+>>        - stratio-aws-offline (Offline AWS deployments)  
 
