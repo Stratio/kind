@@ -3,6 +3,11 @@
 * [Resumen tareas al crear una nueva cuenta](#resumen-tareas-al-crear-una-nueva-cuenta)
 	* [Quotas](#quotas)
     * [IAM](#iam)
+    * [Passbolt](#passbolt)
+    * [ECR](#ecr)
+    * [Key Management Service (KMS)](#key-management-service-kms)
+    * [Route53](#route53)
+    * [Lambda](#lambda)
 
 ## Quotas
 
@@ -45,7 +50,7 @@ aws service-quotas get-service-quota --service-code ec2 --quota-code L-B5D1601B 
 ## Esquema de usuarios y políticas
 
 > User: cloud-provisioner  
->>    Description: Full access to enhance development  
+>>  Description: Full access to enhance development  
     Policy: stratio-cloud-provisioner  
 
 > User: cloud-provisioner-eks
@@ -62,3 +67,34 @@ aws service-quotas get-service-quota --service-code ec2 --quota-code L-B5D1601B 
 >>        - stratio-fc-policy (CloudFormation) [stratio-fc-policy](../Permissions/AWS/aws_Cloud_Formation.json)  
 >>        - stratio-aws-offline (Offline AWS deployments)  
 
+* Nota: Todas las políticas/roles deberían de llevar la misma nomenclatura, por ejemplo: 'stratio-'
+
+# Passbolt
+
+[Stratio-Passbolt](https://llavero.int.stratio.com/)  
+Compartir de forma segura mediante passbolt las credenciales de los usuarios creados.
+
+# CloudFormation
+
+Asegurarse de que el despliegue del stack de CloudFormation se hace de forma satisfactoria.
+
+# ECR
+
+Crear repositorio y subir toas las imagenes necesarias para los despliegues
+
+# Key Management Service (KMS)
+
+Crear un clave para el test de encriptación de los volumes y asociarla a los usuarios. (key admin y key user).
+
+# Route53
+
+Crear las zonas DNS necesarias para los despliegues.
+
+# Lambda
+
+Es recomenable crear varias lambdas:
+
+- Comprobar el estado del stack de CloudFormation y notificar si hay algún error.
+- Borrar los posible volúmenes de despliegues de test que se nos queden pendientes.
+- Borrar los Provedores de identidad del tipo "OpenID Connect (OIDC)" que se nos queden no estén en uso.
+- Lambda que nos avise que un cluster lleva más de 'n' días desplegado.
