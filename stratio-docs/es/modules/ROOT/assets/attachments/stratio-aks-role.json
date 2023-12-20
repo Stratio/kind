@@ -1,0 +1,33 @@
+{
+    "Name": "stratio-aks-role",
+    "IsCustom": true,
+    "Description": "Stratio aks role permissions",
+    "Actions": [
+        "Microsoft.ContainerRegistry/registries/pull/read",
+        "Microsoft.Resources/subscriptions/resourcegroups/read",
+        "Microsoft.Resources/subscriptions/resourcegroups/write",
+        "Microsoft.Resources/subscriptions/resourcegroups/delete",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/virtualNetworks/write",
+        "Microsoft.Network/virtualNetworks/delete",
+        "Microsoft.Resources/tags/read",
+        "Microsoft.Network/virtualNetworks/subnets/read",
+        "Microsoft.Network/virtualNetworks/subnets/write",
+        "Microsoft.Network/virtualNetworks/subnets/delete",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerService/managedClusters/write",
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+        "Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action",
+        "Microsoft.ContainerService/managedClusters/agentPools/read",
+        "Microsoft.ContainerService/managedClusters/agentPools/write",
+        "Microsoft.ContainerService/managedClusters/delete",
+        "Microsoft.Compute/virtualMachineScaleSets/*"
+    ],
+    "NotActions": [
+        "Microsoft.Compute/galleries/share/action"
+    ],
+    "AssignableScopes": [
+        "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65"
+    ]
+}

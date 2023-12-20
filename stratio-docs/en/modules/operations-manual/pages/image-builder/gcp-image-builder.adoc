@@ -1,0 +1,213 @@
+= GCP image builder
+
+This section explains how to build your own images for _Stratio Cloud Provisioner_ https://image-builder.sigs.k8s.io/capi/providers/gcp[in GCP].
+
+== Prerequisites
+
+=== Global
+
+Packer and Ansible are used to build the images.
+
+* Packer version ≥ 1.6.0
+* Goss add-on for Packer version ≥ 1.2.0
+* Ansible version ≥ 2.10.0
+
+If the required binary files are not present, they can be installed in _~/.local/bin_ with the `make deps-ami` command. This directory should be added to your _$PATH_.
+
+=== From Google Cloud Platform
+
+* Create a service account. To do this, follow the steps described in the documentation at https://cloud.google.com/iam/docs/service-accounts-create#creating[Google Cloud Platform].
+
+* Assign the following permissions to the created service account:
++
+[source,text]
+----
+compute.disks.create
+compute.disks.delete
+compute.disks.get
+compute.disks.list
+compute.disks.use
+compute.disks.useReadOnly
+compute.globalOperations.get
+compute.images.create
+compute.images.delete
+compute.images.get
+compute.images.getFromFamily
+compute.images.list
+compute.images.useReadOnly
+compute.instances.create
+compute.instances.delete
+compute.instances.get
+compute.instances.list
+compute.instances.setLabels
+compute.instances.setMetadata
+compute.instances.setServiceAccount
+compute.instances.use
+compute.machineTypes.get
+compute.subnetworks.use
+compute.subnetworks.useExternalIp
+compute.zoneOperations.get
+compute.zones.get
+iam.serviceAccounts.actAs
+----
+
+* Generate a service account key. To do this, follow the steps described in the documentation at https://cloud.google.com/iam/docs/keys-create-delete[Google Service Account Key].
++
+image::google-service-account.png[]
+
+* You will need to have Ansible and Packer installed on your system. https://image-builder.sigs.k8s.io/capi/providers/gcp.html#install-ansible-and-packer:~:text=compliant%20VM%20image.-,Install%20Ansible%20and%20Packer,-Start%20by%20launching[See their documentation] to do this.
+
+* You will also need to have the https://cloud.google.com/sdk/docs/install[Google Cloud Platform] client installed on the system.
+
+== Image configuration
+
+To modify the https://image-builder.sigs.k8s.io/capi/capi.html#customization[image configuration] you can edit the _images/capi/packer/config/ami-<OS>.json_ file. The configuration parameters can be found at https://github.com/kubernetes-sigs/image-builder/tree/1510769a271725cda3d46907182a2843ef5c1c8b/images/capi/packer/gce[Packer documentation].
+
+Here are some recommendations:
+
+* Modify Kubernetes versions.
++
+Edit the images/capi/packer/packer/ami/packer.json file and modify the value of the `kubernetes_deb_version`, `kubernetes_rpm_version`, `kubernetes_semver` and `kubernetes_series` variables by the Kubernetes version to be installed in the image.
++
+[%autowidth]
+|===
+| *crictl_version* | 1.26.1 | cri-tools version.
+| *kubernetes_deb_version* | 1.24.10-00 | Debian version of Kubernetes.
+| *kubernetes_rpm_version* | 1.24.10-0 | RPM version of Kubernetes.
+| *kubernetes_semver* | 1.24.10 | Semantic version of Kubernetes to be installed in the image.
+| *kubernetes_series* | 1.24 | Kubernetes series version to be installed in the image.
+|===
++
+The version of the https://github.com/kubernetes-sigs/cri-tools/tags[cri-tools] must be aligned with the Kubernetes version being used.
++
+[%autowidth]
+|===
+| cri-tools version | Kubernetes version
+| 1.26.1 | 1.24, 1.25, 1.26
+|===
+
+* Modify the kernel parameters.
++
+IMPORTANT: Required for Stratio monitoring to work.
++
+Edit the file _ansible/roles/node/tasks/main.yml_ and modify the task with the name "Set and persist kernel params" to add the parameter `vm.max_map_count` with the value "262144".
++
+[source,yaml]
+----
+- name: Set and persist kernel params
+  sysctl:
+    name: "{{ item.param }}"
+    value: "{{ item.val }}"
+    state: present
+    sysctl_set: yes
+    sysctl_file: "{{ sysctl_conf_file }}"
+    reload: yes
+  loop:
+    - { param: net.bridge.bridge-nf-call-iptables, val: 1 }
+    - { param: net.bridge.bridge-nf-call-ip6tables, val: 1 }
+    - { param: net.ipv4.ip_forward, val: 1 }
+    - { param: net.ipv6.conf.all.forwarding, val: 1 }
+    - { param: net.ipv6.conf.all.disable_ipv6, val: 0 }
+    - { param: net.ipv4.tcp_congestion_control, val: bbr }
+    - { param: vm.overcommit_memory, val: 1 }
+    - { param: kernel.panic, val: 10 }
+    - { param: kernel.panic_on_oops, val: 1 }
+    - { param: fs.inotify.max_user_instances, val: 8192 }
+    - { param: fs.inotify.max_user_watches, val: 524288 }
+    - { param: vm.max_map_count, val: 262144 }
+----
+
+* Change the instance type of the image.
++
+Edit the _images/capi/packer/packer/ami/packer.json_ file and change the value of the `builder_instance_type` variable to the desired instance type.
++
+[source,json]
+----
+"builder_instance_type": "c2d-highcpu-2"
+----
+
+== Building the image
+
+First get the `ID` of the project. To do this, refer to https://cloud.google.com/resource-manager/docs/creating-managing-projects#identifying_projects[Identifying projects] or run the `gcloud projects list` command.
+
+Then run the following steps:
+
+. Export the ID of the GCP project in which you want to build the images.
++
+[source,console]
+----
+export GCP_PROJECT_ID=<project-id>
+----
+
+. Export the path to the service account credentials created in the previous step.
++
+[source,console]
+----
+export GOOGLE_APPLICATION_CREDENTIALS=</path/to/serviceaccount-key.json>
+----
+
+. Clone the _image-builder_ repository if you didn't have it previously.
++
+[source,console]
+----
+git clone https://github.com/kubernetes-sigs/image-builder.git
+cd image-builder
+----
++
+Or update it if you already had it.
++
+[source,console]
+----
+cd image-builder
+git pull
+----
+
+. Position in the path _images/capi_ inside the repository.
++
+[source,console]
+----
+cd images/capi
+----
+
+. Install the dependencies needed to create the image.
++
+[source,console]
+----
+make deps-gce
+----
++
+image::deps-gce.png[]
+
+. See the images that can be built.
++
+[source,console]
+----
+make help | grep build-gce
+----
+
+. Generate the desired image. For example, to build an Ubuntu 22.04 image, run:
++
+[source,console]
+----
+make build-gce-ubuntu-2204
+----
++
+image::build-gce-ubuntu-2204-part1.png[]
++
+image::build-gce-ubuntu-2204-part2.png[]
++
+To generate images for all available operating systems use the `-all` parameter. If you want to build them in parallel, use `make -j`.
++
+[source,console]
+----
+make -j build-gce-all
+----
+
+== Debugging
+
+The image creation process can be debugged with the `PACKER_LOG` environment variable.
+
+[source,console]
+----
+export PACKER_LOG=1
+----

@@ -1,0 +1,161 @@
+= Azure image builder
+
+This section explains how to build your own images for _Stratio Cloud Provisioner_ https://image-builder.sigs.k8s.io/capi/providers/azure[in Azure].
+
+== Prerequisites
+
+Packer and Ansible are used to build the images.
+
+* Packer version ≥ 1.6.0
+* Goss add-on for Packer version ≥ 1.2.0
+* Ansible version ≥ 2.10.0
+
+If the required binary files are not present, they can be installed in _~/.local/bin_ with the `make deps-ami` command. This directory should be added to your _$PATH_.
+
+== Image settings
+
+To modify the https://image-builder.sigs.k8s.io/capi/capi.html#customization[image configuration] you can edit the _images/capi/packer/config/ami-<OS>.json_ file. The configuration parameters can be found at https://github.com/kubernetes-sigs/image-builder/tree/1510769a271725cda3d46907182a2843ef5c1c8b/images/capi/packer/azure[Packer documentation].
+
+Here are some recommendations:
+
+* Modify the Kubernetes versions.
++
+Edit the _images/capi/packer/packer/config/kubernetes.json_ file and modify the values of the `kubernetes_deb_version`, `kubernetes_rpm_version`, `kubernetes_semver` and `kubernetes_series` variables.
++
+[%autowidth]
+|===
+| *crictl_version* | 1.26.1 | cri-tools version.
+| *kubernetes_deb_version* | 1.24.10-00 | Debian version of Kubernetes.
+| *kubernetes_rpm_version* | 1.24.10-0 | RPM version of Kubernetes.
+| *kubernetes_semver* | 1.24.10 | Semantic version of Kubernetes to be installed in the image.
+| *kubernetes_series* | 1.24 | Kubernetes series version to be installed in the image.
+|===
++
+The version of the https://github.com/kubernetes-sigs/cri-tools/tags[cri-tools] must be aligned with the Kubernetes version being used.
++
+[%autowidth]
+|===
+| cri-tools version | Kubernetes version
+| 1.26.1 | 1.24, 1.25, 1.26
+| 1.27.1 | 1.27
+| 1.28.0 | 1.28
+|===
+
+* Modify kernel parameters.
++
+IMPORTANT: Required for Stratio monitoring to work.
++
+Edit the file _ansible/roles/node/tasks/main.yml_ and modify the task with the name "Set and persist kernel params" to add the parameter `vm.max_map_count` with the value "262144".
++
+[source,yaml]
+----
+- name: Set and persist kernel params
+  sysctl:
+    name: "{{ item.param }}"
+    value: "{{ item.val }}"
+    state: present
+    sysctl_set: yes
+    sysctl_file: "{{ sysctl_conf_file }}"
+    reload: yes
+  loop:
+    - { param: net.bridge.bridge-nf-call-iptables, val: 1 }
+    - { param: net.bridge.bridge-nf-call-ip6tables, val: 1 }
+    - { param: net.ipv4.ip_forward, val: 1 }
+    - { param: net.ipv6.conf.all.forwarding, val: 1 }
+    - { param: net.ipv6.conf.all.disable_ipv6, val: 0 }
+    - { param: net.ipv4.tcp_congestion_control, val: bbr }
+    - { param: vm.overcommit_memory, val: 1 }
+    - { param: kernel.panic, val: 10 }
+    - { param: kernel.panic_on_oops, val: 1 }
+    - { param: fs.inotify.max_user_instances, val: 8192 }
+    - { param: fs.inotify.max_user_watches, val: 524288 }
+    - { param: vm.max_map_count, val: 262144 }
+----
+
+* Change the instance type of the image.
++
+Edit the _images/capi/packer/packer/ami/packer.json_ file and change the value of the `builder_instance_type` variable in the 'builders' section to the desired instance type.
++
+[source,json]
+----
+"builder_instance_type": "Standard_D2as_v4"
+----
+
+== Image construction
+
+. Export the data from the Azure subscription you are going to work on.
++
+[source,console]
+----
+export AZURE_SUBSCRIPTION_ID="<subscriptionID>"
+export AZURE_TENANT_ID="<tenantID>"
+export AZURE_LOCATION="<region>"
+----
+
+. Export the _resource group_ that will be used to store the created images.
++
+[source,console]
+----
+export RESOURCE_GROUP_NAME="<resourceGroup>"
+----
+
+. Export the service account credentials created in the previous step.
++
+[source,console]
+----
+export AZURE_CLIENT_ID="<clientID>"
+export AZURE_CLIENT_SECRET="<clientSecret>"
+----
+
+. Clone the _image-builder_ repository if you did not have it previously.
++
+[source,console]
+----
+git clone https://github.com/kubernetes-sigs/image-builder.git
+cd image-builder
+----
++
+Or update it if you already had it.
++
+[source,console]
+----
+cd image-builder
+git pull
+----
+
+. Position yourself in the path _images/capi_ inside the repository.
++
+[source,console]
+----
+cd images/capi
+----
+
+. Install the dependencies needed to create the image.
++
+[source,console]
+----
+make deps-azure
+----
+
+. See the images that can be built.
++
+[source,console]
+----
+make help | grep build-azure-sig
+----
+
+. Generate the desired image. For example, to build an Ubuntu 22.04 image, run:
++
+[source,console]
+----
+make build-azure-sig-ubuntu-2204
+----
+
+== Debugging
+
+The image creation process can be debugged with the `PACKER_LOG` environment variable.
+
+[source,console]
+----
+export PACKER_LOG=1
+----
