@@ -2,7 +2,6 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
                 "iam:AddUserToGroup",
@@ -25,6 +24,7 @@
                 "cloudformation:UpdateStack",
                 "iam:DetachGroupPolicy",
                 "cloudformation:DescribeChangeSet",
+                "iam:CreatePolicyVersion",
                 "cloudformation:ExecuteChangeSet",
                 "iam:DeleteInstanceProfile",
                 "iam:GetRole",
@@ -43,7 +43,8 @@
                 "cloudformation:DeleteStack",
                 "iam:GetUser",
                 "cloudformation:ValidateTemplate",
-                "cloudformation:createStack"
+                "cloudformation:createStack",
+                "iam:GetInstanceProfile"
             ],
             "Resource": "*"
         }

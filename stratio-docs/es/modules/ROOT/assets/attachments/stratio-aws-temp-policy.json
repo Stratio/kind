@@ -24,6 +24,7 @@
                 "cloudformation:UpdateStack",
                 "iam:DetachGroupPolicy",
                 "cloudformation:DescribeChangeSet",
+                "iam:CreatePolicyVersion",
                 "cloudformation:ExecuteChangeSet",
                 "iam:DeleteInstanceProfile",
                 "iam:GetRole",
@@ -42,7 +43,8 @@
                 "cloudformation:DeleteStack",
                 "iam:GetUser",
                 "cloudformation:ValidateTemplate",
-                "cloudformation:createStack"
+                "cloudformation:createStack",
+                "iam:GetInstanceProfile"
             ],
             "Resource": "*"
         }
