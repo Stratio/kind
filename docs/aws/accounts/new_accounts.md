@@ -68,7 +68,9 @@ Compartir de forma segura mediante passbolt las credenciales de los usuarios cre
 
 # CloudFormation
 
-Asegurarse de que el despliegue del stack de CloudFormation se hace de forma satisfactoria.
+Asegurarse de que el despliegue del stack de CloudFormation se hace de forma satisfactoria, desplegando un cluster de EKS con el cloud-provisione.
+
+Para el despliegue de EKS se deberá de crear de forma manual el role: "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy".
 
 # ECR
 
