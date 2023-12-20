@@ -21,9 +21,6 @@ Lo primero que haremos será solicitar un aumento de cuotas para los siguientes 
 | EC2-VPC Elastic IPs | 50 |
 | All Inf Spot Instance Requests | 128 |
 
-
-Así comprobaremos el estado actual de las quotas:
-
 Pre-requisitos usuario con los permisos necesarios para poder hacer las queries a la API de AWS.
 
 | Service | Access level |
@@ -80,7 +77,7 @@ Asegurarse de que el despliegue del stack de CloudFormation se hace de forma sat
 
 # ECR
 
-Crear repositorio y subir toas las imagenes necesarias para los despliegues
+Crear repositorio y subir todas las imagenes necesarias para los despliegues
 
 # Key Management Service (KMS)
 
@@ -97,4 +94,4 @@ Es recomenable crear varias lambdas:
 - Comprobar el estado del stack de CloudFormation y notificar si hay algún error.
 - Borrar los posible volúmenes de despliegues de test que se nos queden pendientes.
 - Borrar los Provedores de identidad del tipo "OpenID Connect (OIDC)" que se nos queden no estén en uso.
-- Lambda que nos avise que un cluster lleva más de 'n' días desplegado.
+- Revisión de clusters con más de 'n' días desplegado.
