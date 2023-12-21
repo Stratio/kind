@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.3.6 (upcoming)
+
+* [Core] HotFix: storageclass.parameters.label validation
+
 ## 0.17.0-0.3.5 (2023-12-19)
 
 * [Core] Change create_iam default behaviour (to false)
