@@ -654,14 +654,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 			ctx.Status.End(true) // End Moving the cluster-operator
 		}
-	}
 
-	ctx.Status.Start("Executing post-install steps 🎖️")
-	defer ctx.Status.End(false)
+		ctx.Status.Start("Executing post-install steps 🎖️")
+		defer ctx.Status.End(false)
 
-	err = infra.postInstallPhase(n, kubeconfigPath)
-	if err != nil {
-		return err
+		err = infra.postInstallPhase(n, kubeconfigPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	ctx.Status.End(true)
