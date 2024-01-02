@@ -1,0 +1,1 @@
+xpkg.upbound.io/crossplane/crossplane:v1.14.4

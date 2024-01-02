@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
+	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/exec"
 	"sigs.k8s.io/kind/pkg/log"
@@ -61,10 +62,10 @@ func (p *provider) String() string {
 }
 
 // Provision is part of the providers.Provider interface
-func (p *provider) Provision(status *cli.Status, cfg *config.Cluster) (err error) {
+func (p *provider) Provision(status *cli.Status, keosCluster commons.KeosCluster, cfg *config.Cluster) (err error) {
 	// TODO: validate cfg
 	// ensure node images are pulled before actually provisioning
-	if err := ensureNodeImages(p.logger, status, cfg); err != nil {
+	if err := ensureNodeImages(p.logger, keosCluster, status, cfg); err != nil {
 		return err
 	}
 

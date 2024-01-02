@@ -187,6 +187,14 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		return errors.Wrap(err, "failed to validate cluster")
 	}
 
+	if keosCluster.Spec.Offline {
+		configFile, err := getConfigFile(keosCluster, clusterCredentials)
+		if err != nil {
+			return errors.Wrap(err, "Error getting offline kubeadm config")
+		}
+		flags.Config = configFile
+	}
+
 	if flags.ValidateOnly {
 		fmt.Println("Cluster descriptor is valid")
 		return nil

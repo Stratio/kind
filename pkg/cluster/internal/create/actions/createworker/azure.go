@@ -120,18 +120,23 @@ func (b *AzureBuilder) getProvider() Provider {
 	}
 }
 
-func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
+func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, offlineParams OfflineParams) error {
 	var podsCidrBlock string
-	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
-		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
+	if offlineParams.KeosCluster.Spec.Networks.PodsCidrBlock != "" {
+		podsCidrBlock = offlineParams.KeosCluster.Spec.Networks.PodsCidrBlock
 	} else {
 		podsCidrBlock = "192.168.0.0/16"
 	}
 	c := "helm install cloud-provider-azure /stratio/helm/cloud-provider-azure" +
 		" --kubeconfig " + k +
 		" --namespace kube-system" +
-		" --set infra.clusterName=" + keosCluster.Metadata.Name +
+		" --set infra.clusterName=" + offlineParams.KeosCluster.Metadata.Name +
 		" --set 'cloudControllerManager.clusterCIDR=" + podsCidrBlock + "'"
+	if offlineParams.KeosCluster.Spec.Offline {
+		c += " --set cloudControllerManager.imageRepository=" + offlineParams.KeosRegUrl + "/oss/kubernetes" +
+			" --set cloudNodeManager.imageRepository=" + offlineParams.KeosRegUrl + "/oss/kubernetes"
+	}
+
 	_, err := commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cloud-provider-azure Helm Chart")
@@ -139,7 +144,7 @@ func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, keosCluster 
 	return nil
 }
 
-func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
+func (b *AzureBuilder) installCSI(n nodes.Node, k string, OfflineParams OfflineParams) error {
 	var c string
 	var err error
 
@@ -147,6 +152,9 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
 	c = "helm install azuredisk-csi-driver /stratio/helm/azuredisk-csi-driver " +
 		" --kubeconfig " + k +
 		" --namespace " + b.csiNamespace
+	if OfflineParams.KeosCluster.Spec.Offline {
+		c += " --set image.baseRepo=" + OfflineParams.KeosRegUrl
+	}
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure Disk CSI driver Helm Chart")
@@ -156,6 +164,9 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
 	c = "helm install azurefile-csi-driver /stratio/helm/azurefile-csi-driver " +
 		" --kubeconfig " + k +
 		" --namespace " + b.csiNamespace
+	if OfflineParams.KeosCluster.Spec.Offline {
+		c += " --set image.baseRepo=" + OfflineParams.KeosRegUrl
+	}
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure File CSI driver Helm Chart")
@@ -303,4 +314,15 @@ func (b *AzureBuilder) getOverrideVars(p ProviderParams, networks commons.Networ
 		overrideVars = addOverrideVar("ingress-nginx.yaml", azureInternalIngress, overrideVars)
 	}
 	return overrideVars, nil
+}
+
+func (b *AzureBuilder) getCrossplaneProviderConfigContent(credentials map[string]string) (string, error) {
+	return "", nil
+}
+func (b *AzureBuilder) getCrossplaneCRManifests(offlineParams OfflineParams, credentials map[string]string, workloadClusterInstallation bool) (string, error) {
+	return "", nil
+}
+
+func (b *AzureBuilder) addCrsReferences(n nodes.Node, kubeconfigpath string, keosCluster commons.KeosCluster) (commons.KeosCluster, error) {
+	return keosCluster, nil
 }

@@ -80,7 +80,7 @@ type ClusterOptions struct {
 }
 
 // Cluster creates a cluster
-func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) error {
+func Cluster(logger log.Logger, p providers.Provider, keoscluster commons.KeosCluster, opts *ClusterOptions) error {
 	// validate provider first
 	if err := validateProvider(p); err != nil {
 		return err
@@ -119,7 +119,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	logger.V(0).Infof("Creating temporary cluster %q ...\n", opts.Config.Name)
 
 	// Create node containers implementing defined config Nodes
-	if err := p.Provision(status, opts.Config); err != nil {
+	if err := p.Provision(status, keoscluster, opts.Config); err != nil {
 		// In case of errors nodes are deleted (except if retain is explicitly set)
 		if !opts.Retain {
 			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)

@@ -42,6 +42,11 @@ func validateGCP(spec commons.Spec, providerSecrets map[string]string) error {
 	var err error
 	var isGKEVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}-gke.\d{3,4}$`).MatchString
 
+	//VALIDATE OFFLINE
+	if spec.Offline {
+		return errors.Wrap(err, "spec.offline: Invalid value. Offline deployments are not currently supported in gcp")
+	}
+
 	credentialsJson := getGCPCreds(providerSecrets)
 
 	regions, err := getGCPRegions(credentialsJson)

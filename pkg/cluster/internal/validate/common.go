@@ -45,6 +45,7 @@ func validateCommon(spec commons.Spec) error {
 	if err = validateVolumes(spec); err != nil {
 		return err
 	}
+
 	return nil
 }
 

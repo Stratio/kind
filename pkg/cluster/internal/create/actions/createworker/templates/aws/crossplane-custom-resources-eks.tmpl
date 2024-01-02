@@ -1,0 +1,51 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  labels:
+    keos.stratio.com/sg-name: sg-additional-for-eks
+    {{- if .WorkloadClusterInstallation }}
+  annotations:
+    crossplane.io/external-name: {{ .SgId }}
+    {{- end }}
+  name: sg-additional-for-eks
+spec:
+  forProvider:
+    region: {{ .Region }}
+  {{- if not .WorkloadClusterInstallation }}
+    name: additional-sg-for-eks
+    description: "Additional Security Group for offline deployments in EKS"
+    vpcId: {{ .VPCId }}
+  {{- end }}
+  deletionPolicy: Delete
+---
+{{- if not .WorkloadClusterInstallation }}
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupIngressRule
+metadata:
+  labels:
+     keos.stratio.com/sg-ig-name: sg-ig-additional-for-eks
+  name: sg-ig-additional-for-eks
+spec:
+  forProvider:
+    cidrIpv4: {{ .CIDR }}
+    ipProtocol: "-1"
+    region: {{ .Region }}
+    securityGroupIdSelector:
+      matchLabels:
+        keos.stratio.com/sg-name: sg-additional-for-eks
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupEgressRule
+metadata:
+  labels:
+     keos.stratio.com/sg-eg-name: sg-eg-additional-for-eks
+  name: sg-eg-additional-for-eks
+spec:
+  forProvider:
+    cidrIpv4: 0.0.0.0/0
+    ipProtocol: "-1"
+    region: {{ .Region }}
+    securityGroupIdSelector:
+      matchLabels:
+        keos.stratio.com/sg-name: sg-additional-for-eks
+{{- end }}

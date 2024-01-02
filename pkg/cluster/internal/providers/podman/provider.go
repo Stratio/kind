@@ -27,6 +27,7 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/cluster/nodeutils"
+	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/exec"
 	"sigs.k8s.io/kind/pkg/log"
@@ -63,7 +64,7 @@ func (p *provider) String() string {
 }
 
 // Provision is part of the providers.Provider interface
-func (p *provider) Provision(status *cli.Status, cfg *config.Cluster) (err error) {
+func (p *provider) Provision(status *cli.Status, keosCluster commons.KeosCluster, cfg *config.Cluster) (err error) {
 	if err := ensureMinVersion(); err != nil {
 		return err
 	}

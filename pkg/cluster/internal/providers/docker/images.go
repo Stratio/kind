@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/exec"
 	"sigs.k8s.io/kind/pkg/log"
@@ -36,17 +37,27 @@ import (
 var (
 	//go:embed stratio/Dockerfile
 	stratioDockerfile []byte
+
+	stratioImageVersion = "v1.27.0"
 )
 
 // ensureNodeImages ensures that the node images used by the create
 // configuration are present
-func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster) error {
+func ensureNodeImages(logger log.Logger, keosCluster commons.KeosCluster, status *cli.Status, cfg *config.Cluster) error {
 	// pull each required image
 	for _, image := range common.RequiredNodeImages(cfg).List() {
 		// prints user friendly message
+		if keosCluster.Spec.Offline {
+			for _, dockerReg := range keosCluster.Spec.DockerRegistries {
+				if dockerReg.KeosRegistry {
+					image = strings.Join([]string{dockerReg.URL, image}, "/")
+					break
+				}
+			}
+		}
 		friendlyImageName, image := sanitizeImage(image)
 		status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
-		if _, err := pullIfNotPresent(logger, image, 4); err != nil {
+		if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
 			status.End(false)
 			return err
 		}
@@ -58,12 +69,23 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			status.End(false)
 			return err
 		}
+		stratioImage := "stratio-capi-image:" + strings.Split(friendlyImageName, ":")[1]
+		if keosCluster.Spec.Offline {
+			cmd := exec.Command("docker", "inspect", "--type=image", stratioImage)
+			if err := cmd.Run(); err == nil {
+				logger.V(1).Infof("stratioImage: %s present locally", image)
+			} else {
+				err = buildStratioImage(logger, stratioImage, dockerfileDir, stratioImageVersion)
+			}
 
-		err = buildStratioImage(logger, "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1], dockerfileDir)
+		} else {
+			err = buildStratioImage(logger, stratioImage, dockerfileDir, stratioImageVersion)
+		}
 		if err != nil {
 			status.End(false)
 			return err
 		}
+
 	}
 	return nil
 }
@@ -100,7 +122,8 @@ func ensureStratioImageFiles(logger log.Logger) (dir string, err error) {
 }
 
 // buildStratioImage builds the stratio image
-func buildStratioImage(logger log.Logger, image string, path string) error {
+func buildStratioImage(logger log.Logger, image string, path string, version string) error {
+
 	cmd := exec.Command("docker", "build", "--tag="+image, path)
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "failed to build image %q", image)

@@ -71,6 +71,13 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 		}
 	}
 
+	//VALIDATE OFFLINE
+	if spec.Offline {
+		if reflect.ValueOf(spec.Networks).IsZero() {
+			return errors.Wrap(err, "spec.networks: Invalid value. Custom infrastructure is required for offline deployments")
+		}
+	}
+
 	if !reflect.ValueOf(spec.Networks).IsZero() {
 		if err = validateAWSNetwork(ctx, cfg, spec); err != nil {
 			return errors.Wrap(err, "spec.networks: Invalid value")

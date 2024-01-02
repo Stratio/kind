@@ -186,7 +186,7 @@ func (p *Provider) Create(name string, vaultPassword string, descriptorPath stri
 			return err
 		}
 	}
-	return internalcreate.Cluster(p.logger, p.provider, opts)
+	return internalcreate.Cluster(p.logger, p.provider, keosCluster, opts)
 }
 
 // Delete tears down a kubernetes-in-docker cluster

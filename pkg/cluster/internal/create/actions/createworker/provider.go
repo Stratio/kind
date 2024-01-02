@@ -48,14 +48,16 @@ var denyAllEgressIMDSgnpFiles embed.FS
 var allowEgressIMDSgnpFiles embed.FS
 
 const (
-	CAPICoreProvider         = "cluster-api:v1.5.3"
-	CAPIBootstrapProvider    = "kubeadm:v1.5.3"
-	CAPIControlPlaneProvider = "kubeadm:v1.5.3"
+	CAPICoreProvider         = "cluster-api"
+	CAPIBootstrapProvider    = "kubeadm"
+	CAPIControlPlaneProvider = "kubeadm"
+	CAPIVersion              = "v1.5.3"
 
 	scName = "keos"
 
-	clusterOperatorChart = "0.2.0-SNAPSHOT"
-	clusterOperatorImage = "0.2.0-SNAPSHOT"
+	clusterOperatorChart   = "0.2.0-PR147-SNAPSHOT"
+	clusterOperatorImage   = "0.2.0-PR138-SNAPSHOT"
+	crossplane_cr_basename = "crossplane-custom-resources-"
 )
 
 const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
@@ -69,13 +71,16 @@ type PBuilder interface {
 	setCapx(managed bool)
 	setCapxEnvVars(p ProviderParams)
 	setSC(p ProviderParams)
-	installCloudProvider(n nodes.Node, k string, keosCluster commons.KeosCluster) error
-	installCSI(n nodes.Node, k string) error
+	installCloudProvider(n nodes.Node, k string, offlineParams OfflineParams) error
+	installCSI(n nodes.Node, k string, OfflineParams OfflineParams) error
 	getProvider() Provider
 	configureStorageClass(n nodes.Node, k string) error
 	internalNginx(p ProviderParams, networks commons.Networks) (bool, error)
 	getOverrideVars(p ProviderParams, networks commons.Networks) (map[string][]byte, error)
 	getRegistryCredentials(p ProviderParams, u string) (string, string, error)
+	getCrossplaneProviderConfigContent(credentials map[string]string) (string, error)
+	getCrossplaneCRManifests(offlineParams OfflineParams, credentials map[string]string, workloadClusterInstallation bool) (string, error)
+	addCrsReferences(n nodes.Node, kubeconfigpath string, keosCluster commons.KeosCluster) (commons.KeosCluster, error)
 }
 
 type Provider struct {
@@ -129,6 +134,11 @@ type helmRepository struct {
 	pass string
 }
 
+type OfflineParams struct {
+	KeosCluster commons.KeosCluster
+	KeosRegUrl  string
+}
+
 var scTemplate = DefaultStorageClass{
 	APIVersion: "storage.k8s.io/v1",
 	Kind:       "StorageClass",
@@ -173,12 +183,12 @@ func (i *Infra) buildProvider(p ProviderParams) Provider {
 	return i.builder.getProvider()
 }
 
-func (i *Infra) installCloudProvider(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
-	return i.builder.installCloudProvider(n, k, keosCluster)
+func (i *Infra) installCloudProvider(n nodes.Node, k string, offlineParams OfflineParams) error {
+	return i.builder.installCloudProvider(n, k, offlineParams)
 }
 
-func (i *Infra) installCSI(n nodes.Node, k string) error {
-	return i.builder.installCSI(n, k)
+func (i *Infra) installCSI(n nodes.Node, k string, offlineParams OfflineParams) error {
+	return i.builder.installCSI(n, k, offlineParams)
 }
 
 func (i *Infra) configureStorageClass(n nodes.Node, k string) error {
@@ -195,6 +205,18 @@ func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks) (ma
 
 func (i *Infra) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
 	return i.builder.getRegistryCredentials(p, u)
+}
+
+func (i *Infra) getCrossplaneProviderConfigContent(credentials map[string]string) (string, error) {
+	return i.builder.getCrossplaneProviderConfigContent(credentials)
+}
+
+func (i *Infra) getCrossplaneCRManifests(offlineParams OfflineParams, credentials map[string]string, workloadClusterInstallation bool) (string, error) {
+	return i.builder.getCrossplaneCRManifests(offlineParams, credentials, workloadClusterInstallation)
+}
+
+func (i *Infra) addCrsReferences(n nodes.Node, kubeconfigpath string, keosCluster commons.KeosCluster) (commons.KeosCluster, error) {
+	return i.builder.addCrsReferences(n, kubeconfigpath, keosCluster)
 }
 
 func (p *Provider) getDenyAllEgressIMDSGNetPol() (string, error) {
@@ -227,10 +249,70 @@ func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
 	return string(allowEgressIMDSgnpContent), nil
 }
 
+func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubeconfigPath string) error {
+	c := "kubectl create -f " + CAPILocalRepository + "/cert-manager/" + certManagerVersion + "/cert-manager.crds.yaml"
+	if kubeconfigPath != "" {
+		c += " --kubeconfig " + kubeconfigPath
+	}
+	_, err := commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cert-manager crds")
+	}
+
+	c = "kubectl create ns cert-manager"
+	if kubeconfigPath != "" {
+		c += " --kubeconfig " + kubeconfigPath
+	}
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cert-manager namespace")
+	}
+
+	c = "helm install --wait cert-manager /stratio/helm/cert-manager" +
+		" --set namespace=cert-manager" +
+		" --set cainjector.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-cainjector" +
+		" --set webhook.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-webhook" +
+		" --set acmesolver.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-acmesolver" +
+		" --set startupapicheck.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-ctl" +
+		" --set image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-controller"
+
+	if kubeconfigPath != "" {
+		c += " --kubeconfig " + kubeconfigPath
+	}
+
+	_, err = commons.ExecuteCommand(n, c)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy cert-manager Helm Chart")
+	}
+	return nil
+}
+
 func (p *Provider) deployClusterOperator(n nodes.Node, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, kubeconfigPath string, firstInstallation bool) error {
 	var c string
 	var err error
 	var helmRepository helmRepository
+
+	if firstInstallation && keosCluster.Spec.InfraProvider == "aws" {
+		c = "mkdir -p ~/.aws"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to create aws config file")
+		}
+		c = "echo [default] > ~/.aws/config && " +
+			"echo region = " + keosCluster.Spec.Region + " >>  ~/.aws/config"
+		_, err = commons.ExecuteCommand(n, c)
+		if err != nil {
+			return errors.Wrap(err, "failed to create aws config file")
+		}
+		if !keosCluster.Spec.Offline {
+			awsCredentials := "[default]\naws_access_key_id = " + clusterCredentials.ProviderCredentials["AccessKey"] + "\naws_secret_access_key = " + clusterCredentials.ProviderCredentials["SecretKey"] + "\n"
+			c = "echo '" + awsCredentials + "' > ~/.aws/credentials"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to create aws credentials file")
+			}
+		}
+	}
 
 	if kubeconfigPath == "" {
 		// Clean keoscluster file
@@ -252,6 +334,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, keosCluster commons.KeosC
 			Flavour string `yaml:"flavour,omitempty"`
 			Version string `yaml:"version,omitempty"`
 		}{}
+
 		keosClusterYAML, err := yaml.Marshal(keosCluster)
 		if err != nil {
 			return err
@@ -281,6 +364,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, keosCluster commons.KeosC
 		}
 
 		if firstInstallation {
+
 			// Pull cluster-operator helm chart
 			c = "helm pull stratio-helm-repo/cluster-operator --version " + clusterOperatorChart +
 				" --untar --untardir /stratio/helm"
@@ -314,6 +398,9 @@ func (p *Provider) deployClusterOperator(n nodes.Node, keosCluster commons.KeosC
 		" --set app.containers.controllerManager.image.tag=" + clusterOperatorImage +
 		" --set app.containers.controllerManager.image.registry=" + keosRegistry.url +
 		" --set app.containers.controllerManager.image.repository=stratio/cluster-operator"
+	if keosCluster.Spec.Offline {
+		c += " --set app.containers.kubeRbacProxy.image=" + keosRegistry.url + "/stratio/kube-rbac-proxy:v0.13.1"
+	}
 	if keosCluster.Spec.InfraProvider == "azure" {
 		c += " --set secrets.azure.clientIDBase64=" + strings.Split(p.capxEnvVars[1], "AZURE_CLIENT_ID_B64=")[1] +
 			" --set secrets.azure.clientSecretBase64=" + strings.Split(p.capxEnvVars[0], "AZURE_CLIENT_SECRET_B64=")[1] +
@@ -349,15 +436,22 @@ func (p *Provider) deployClusterOperator(n nodes.Node, keosCluster commons.KeosC
 	return nil
 }
 
-func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, allowCommonEgressNetPolPath string) error {
+func installCalico(n nodes.Node, k string, keosCluster commons.KeosCluster, keosRegistryUrl string, allowCommonEgressNetPolPath string) error {
 	var c string
 	var cmd exec.Cmd
 	var err error
 
 	calicoTemplate := "/kind/calico-helm-values.yaml"
 
+	calicoParams := struct {
+		Spec       commons.Spec
+		KeosRegUrl string
+	}{
+		Spec:       keosCluster.Spec,
+		KeosRegUrl: keosRegistryUrl,
+	}
 	// Generate the calico helm values
-	calicoHelmValues, err := getManifest("common", "calico-helm-values.tmpl", keosCluster.Spec)
+	calicoHelmValues, err := getManifest("common", "calico-helm-values.tmpl", calicoParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate calico helm values")
 	}
@@ -487,9 +581,9 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 
 	// Install CAPX in worker cluster
 	c = "clusterctl --kubeconfig " + kubeconfigPath + " init --wait-providers" +
-		" --core " + CAPICoreProvider +
-		" --bootstrap " + CAPIBootstrapProvider +
-		" --control-plane " + CAPIControlPlaneProvider +
+		" --core " + CAPICoreProvider + ":" + CAPIVersion +
+		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
+		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
 		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
 	_, err = commons.ExecuteCommand(n, c, p.capxEnvVars)
 	if err != nil {
@@ -687,10 +781,11 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 	}
 
 	c = "clusterctl init --wait-providers" +
-		" --core " + CAPICoreProvider +
-		" --bootstrap " + CAPIBootstrapProvider +
-		" --control-plane " + CAPIControlPlaneProvider +
-		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
+		" --core " + CAPICoreProvider + ":" + CAPIVersion +
+		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
+		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
+		" --infrastructure " + p.capxProvider + ":" + p.capxVersion +
+		" --v=5"
 	_, err = commons.ExecuteCommand(n, c, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")

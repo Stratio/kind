@@ -1,0 +1,4 @@
+docker.io/kindest/local-path-provisioner:v0.0.23-kind.0
+docker.io/kindest/kindnetd:v20230330-48f316cd
+docker.io/kindest/local-path-helper:v20230330-48f316cd
+docker.io/kindest/node:v1.27.0

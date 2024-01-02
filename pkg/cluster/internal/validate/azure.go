@@ -49,6 +49,10 @@ var isPremium = regexp.MustCompile(`^(Premium|Ultra).*$`).MatchString
 func validateAzure(spec commons.Spec, providerSecrets map[string]string, clusterName string) error {
 	var err error
 
+	if spec.Offline {
+		return errors.Wrap(err, "spec.offline: Invalid value. Offline deployments are not currently supported in azure")
+	}
+
 	creds, err := validateAzureCredentials(providerSecrets)
 	if err != nil {
 		return err
