@@ -1,0 +1,434 @@
+= Operations manual
+
+== Generation of custom images
+
+For the generation of custom images in the different cloud providers, some reference documentation has been created for each of them and can be found at the following links:
+
+* xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
+* xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
+* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
+
+== Obtaining the _kubeconfig_
+
+To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which will be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
+
+* For EKS, it will be obtained as indicated by AWS:
++
+[source,bash]
+----
+aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
+----
+
+* For GCP, unmanaged Azure and AKS, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
+
+[source,bash]
+----
+ls ./.kube/config
+./.kube/config
+----
++
+In turn, the alias "kw" may be used from the local container to interact with the cluster _worker_ (in EKS, the token used only lasts for 10 minutes):
++
+[source,bash]
+----
+root@example-azure-control-plane:/# kw get nodes
+NAME STATUS ROLES AGE VERSION
+example-azure-control-plane-6kp94 Ready control-plane 60m v1.26.8
+example-azure-control-plane-fgkcc Ready control-plane 63m v1.26.8
+...
+----
+
+== Authentication in EKS
+
+While not part of the _Stratio KEOS_ operation, it is important to highlight how to enable https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users in an EKS cluster] (the cluster creator user is authenticated by default).
+
+To give Kubernetes-admin permissions on the cluster, the user's ARN will be added in the _ConfigMap_ given below.
+
+[source,bash]
+----
+$ kubectl -n kube-system edit cm aws-auth
+..
+data:
+  mapUsers: |
+    - groups:
+      - system:masters
+      userarn: <user_arn>
+      username: kubernetes-admin
+----
+
+== Infrastructure operation
+
+image::controllers.png[]
+
+_Stratio KEOS_ allows multiple advanced operations to be performed by interacting with the _Stratio Cluster Operator_ (infrastructure as code or IaC), which in its reconciliation cycle in turn interacts with the different providers to perform the requested operations.
+
+=== Self-healing
+
+image::self-healing.png[]
+
+The self-healing capability of the cluster is managed by the _MachineHealthCheck_ object:
+
+[source,bash]
+----
+$ kubectl -n cluster-example get mhc -o yaml
+...
+  spec:
+    clusterName: example
+    maxUnhealthy: 100%
+    nodeStartupTimeout: 5m0s
+    selector:
+      matchLabels:
+        keos.stratio.com/machine-role: example-worker-node
+    unhealthyConditions:
+    - status: Unknown
+      timeout: 1m0s
+      type: Ready
+    - status: "False"
+      timeout: 1m0s
+      type: Ready
+...
+----
+
+NOTE: Unmanaged providers will have one _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, AKS) will only have the second one.
+
+==== Failover test on a node
+
+In case of failure in a node, it will be detected by a controller and it will be replaced by deleting it and recreating another one of the same group, which ensures the same characteristics.
+
+To simulate a VM failure, it will be deleted from the cloud provider's web console.
+
+The recovery of the node comprises the following phases and estimated times (which may vary depending on the provider and the flavour):
+
+[source,bash]
+----
+. Terminate VM from console: 0s
+. New VM is Provisioning: 50s
+. Old Machine is Deleted & the new one is Provisioned: 1m5s
+. New Machine is Running & new k8s node is NotReady: 1m 50s
+. New k8s node is Ready: 2m
+----
+
+=== Static scaling
+
+Although manual scaling of an existing node group is discouraged, these operations are provided for cases without autoscaling or new node groups.
+
+==== Scaling a _workers_ group
+
+image::escalado-manual.png[]
+
+To manually scale a group of _workers_ the _KeosCluster_ object is used:
+
+[source,bash]
+----
+kubectl -n cluster-example-eks edit keoscluster
+----
+
+[source,yaml]
+----
+spec:
+  ...
+  worker_nodes:
+    - name: eks-prod-xlarge
+      quantity: 9
+      ...
+----
+
+Verify the change by querying the state of the _KeosCluster_ object:
+
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
+----
+
+===== AKS
+
+In the case of this provider, if `min_size` and `max_size` parameters are defined in the _KeosCluster_ object, no action is performed.
+
+NOTE: The node groups of the _KeosCluster_ object correspond in Azure to _Node pools_ within AKS and their corresponding _VM Scale Sets_.
+
+Manual scaling of a node pool in AKS with autoscaling configured should be done from the Azure portal under:
+
+'VM Scale set' -> '<scale_set_name>' -> 'Scalling' -> '<instance_number>'
+
+or from:
+
+'Kubernetes services' -> '<aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Manual' -> '<node_count>'
+
+The new instances can be seen in 'VM Scale set' -> 'Instances'. This change will not be reflected in the `quantity` parameter of the node pool of the _KeosCluster_ object.
+
+The estimated times for this process are as follows:
+
+[source,bash]
+----
+Scale VM Scale set: 0s
+New K8s node is NotReady: 1m
+New K8s node is Ready: 1m 13s
+The MachinePool Scaling: 1m 29s
+The MachinePool is updated: 1m 33s
+----
+
+==== Create a new workers group
+
+To create a new group of nodes just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
+
+[source,yaml]
+----
+spec:
+  ...
+  worker_nodes:
+    - ...
+    - name: eks-prod-xlarge
+      quantity: 6
+      max_size: 18
+      min_size: 6
+      size: m6i.xlarge
+      labels:
+        disktype: standard
+      root_volume:
+        size: 50
+        type: gp3
+        encrypted: true
+      ssh_key: stg-key
+----
+
+Again, verify the change by querying the state of the _KeosCluster_ object:
+
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
+----
+
+==== Vertical scaling
+
+CAUTION: *AKS does not support vertical scaling* of node groups. For this provider, you must create a new group and delete the previous one as indicated in the https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[official documentation].
+
+The vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ object corresponding to the group.
+
+[source,yaml]
+----
+spec:
+  ...
+  worker_nodes:
+    - name: eks-prod-xlarge
+      size: m6i.2xlarge
+      ...
+----
+
+=== Autoscaling
+
+image::autoescalado.png[]
+
+For node autoscaling, _cluster-autoscaler_ is used, which will detect pods pending execution due to lack of resources and will scale groups of nodes according to the deployment filters.
+
+This operation is performed in the API Server, being the controllers in charge of creating the VMs in the cloud provider and adding them to the cluster as Kubernetes _worker_ nodes.
+
+Since the autoscaling is based on the _cluster-autoscaler_, the minimum and maximum will be added in the node group in the _KeosCluster_ object:
+
+[source,yaml]
+----
+spec:
+  ...
+  worker_nodes:
+    - name: eks-prod-xlarge
+      min_size: 6
+      max_size: 21
+      ...
+----
+
+===== AKS
+
+In this provider the autoscaling is managed from the _VM Scale sets_ of Azure and not with the _cluster-autoscaler_.
+
+During provisioning, at the time of creating the node pools, the _Node pools_ will be instantiated in AKS and their respective _VM Scale Sets_. If the defined node pools have an auto-scaling range, these will be moved to the created _Node pools_.
+
+To view them in the Azure portal, you should refer to:
+
+'Kubernetes services' -> 'aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Autoscale'.
+
+==== Test
+
+To test autoscaling, you can create a deployment with enough replicas to prevent them from running on the current nodes:
+
+[source,bash]
+----
+kubectl create deploy test --replicas 1500 --image nginx:alpine
+----
+
+At the end of the test, remove the deployment:
+
+[source,bash]
+----
+kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
+----
+
+==== Logs
+
+The logs of the _cluster-autoscaler_ can be viewed from its deployment:
+
+[source,bash]
+----
+kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
+----
+
+=== _Stratio Cloud Provisioner_ upgrade
+
+==== Prerequisites
+
+The following binaries must be available on the bastion machine:
+
+- python3
+- ansible-vault (pip)
+- clusterctl
+- helm
+- kubectl
+- jq
+
+The necessary permissions must be secured on the backup directory of the bastion machine so that the user running the script can write to it (the directory _./backup/upgrade/_ is created).
+
+==== Execution
+
+To upgrade the _Stratio Cloud Provisioner_ version from 0.2 to 0.3 you must run the script _upgrade-provisioner++_++v0.3.py_. You can refer to the script help with the following command:
+
+[source,bash]
+----
+python3 upgrade-provisioner_v0.3.py -h
+----
+
+Example:
+
+[source,bash]
+----
+python3 upgrade-provisioner_v0.3.py -p <vault_pass> --helm-repo <helm_repo> -a
+----
+
+=== Kubernetes upgrade
+
+The upgrade of the cluster to a higher version of Kubernetes will be performed in two parts within the same atomic process: first the _control-plane_ and, once this is on the new version, the _worker_ nodes, iterating through each group and upgrading them one by one.
+
+CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image has not been specified may involve an OS upgrade.
+
+image::upgrade-cp.png[]
+
+image::upgrade-w.png[]
+
+==== Prerequisites
+
+The version upgrade of a cluster in productive environments and especially in unmanaged flavours must be done with extreme caution. In particular, before upgrading it is recommended to do a backup of the objects that manage the infrastructure with the following command:
+
+[source,bash]
+----
+clusterctl --kubeconfig ./kubeconfig/path move -n cluster-<cluster_name> --to-directory ./backup/path/
+----
+
+In the case of a managed _control-plane_, it should be verified that the desired version of Kubernetes is supported by the provider.
+
+===== EKS
+
+Prior to upgrading EKS you must make sure that the desired version is supported. To do this you can use the following command:
+
+[source,bash]
+----
+aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
+----
+
+===== GCP and unmanaged Azure
+
+The _GlobalNetworkPolicy_ created for the _control-plane_ in the _Stratio KEOS_ installation phase should be modified so that it *permits all node networking momentarily* while the version upgrade is running.
+
+Once completed, the internal IPs of the nodes and the tunnel IPs assigned to those nodes should be updated:
+
+[source,bash]
+----
+kubectl get nodes -l node-role.kubernetes.io/control-plane= -ojson | jq -r '.items[].status.addresses[] | select(.type=="InternalIP").address + "\/32"'
+----
+
+[source,bash]
+----
+IPAMHANDLERS=$(kw get ipamhandles -oname | grep control-plane)
+for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | keys[]' | sed 's/\/.*/\/32/'; done
+----
+
+===== AKS
+
+As for other managed flavours, before launching the AKS upgrade you should see the supported versions in the used region. To do this you can use its CLI:
+
+[source,bash]
+----
+az aks get-versions --location <region> --output table
+----
+
+==== Initiate the upgrade
+
+To initiate the upgrade, once the prerequisites are satisfied a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
+
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.28.1"}}'
+----
+
+NOTE: The controller provisions a new node from the _workers_ cluster with the updated version and, once it is _Ready_ in Kubernetes, removes a node with the old version. In this way, it always ensures the configured number of nodes.
+
+==== Checking etcd
+
+One way to ensure that etcd is correct after updating an unmanaged _control-plane_ is to open a terminal on any pod of etcd, view the cluster status, and compare the IPs of the registered members with those of the _control-plane_ nodes.
+
+[source,bash]
+----
+k -n kube-system exec -ti etcd-<control-plane-node> sh
+
+alias e="etcdctl --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key --cacert=/etc/kubernetes/pki/etcd/ca.crt "
+e endpoint status
+e endpoint status -w table --cluster
+e member list
+e member remove <member-id>
+----
+
+=== Cluster removal
+
+[NOTE]
+.Preliminary considerations
+====
+Before deleting the cloud provider resources generated by _Stratio Cloud Provisioner_ you must delete those that have been created by the _keos-installer_ or any external automatism (for example, the _Services_ of type _LoadBalancer_).
+
+Also, you should note that the process requires the _clusterctl_ binary on the bastion machine (any computer with access to the _API Server_) on which it will run.
+====
+
+Run the following steps to perform the cluster removal:
+
+. Create a local cluster indicating that no object is generated in the cloud provider.
++
+[source,bash]
+----
+[bastion]$ sudo ./bin/cloud-provisioner create cluster --name <cluster_name> --descriptor cluster.yaml --vault-password <my-passphrase> --avoid-creation
+----
+
+. Pause the controller of the _Stratio Cluster Operator_:
++
+[source,bash]
+----
+[bastion]$ kubectl --kubeconfig $KUBECONFIG -n kube-system scale deployment keoscluster-controller-manager --replicas 0
+----
+
+. Move the cluster _worker_ management to the local cluster using the corresponding _kubeconfig_ (note that for managed _control-planes_ the _kubeconfig_ of the provider will be needed). To ensure this step, look for the following text in the command output: "Moving Cluster API objects Clusters=1".
++
+[source,bash]
+----
+[bastion]$ sudo clusterctl --kubeconfig $KUBECONFIG move -n cluster-<cluster_name> --to-kubeconfig /root/.kube/config
+----
+
+. Access the local cluster and delete the cluster _worker_.
++
+[source,bash]
+----
+[bastion]$ sudo docker exec -ti <nombre_cluster>-control-plane bash
+root@<nombre_del_cluster>-control-plane:/# kubectl -n cluster-<nombre_del_cluster> delete cl --all
+cluster.cluster.x-k8s.io "<nombre_del_cluster>" eliminado
+root@<nombre_del_cluster>-plano-de-control:/#
+----
+
+. Finally, remove the local cluster.
++
+[source,bash]
+----
+[bastion]$ sudo ./bin/cloud-provisioner delete cluster --name <nombre_cluster>
+----

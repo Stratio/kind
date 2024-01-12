@@ -1,122 +1,121 @@
-:caution-caption: ⛔
 = Arquitectura
+
+Arquitectura de referencia:
+
+image::eks-reference-architecture.png[]
 
 == Introducción
 
 image::arq-intro.png[]
 
-_Stratio Cloud Provisioner_ es la fase inicial para la creación de un cluster de _Stratio KEOS_ en un _cloud provider_. Ésta comprende el aprovisionamiento de la infraestructura (máquinas virtuales, red privada, load balancers,  etc. en el _cloud_), la creación de un cluster de Kubernetes, su networking y almacenamiento.
+_Stratio Cloud Provisioner_ es la fase inicial para la creación de un _cluster_ de _Stratio KEOS_ en un proveedor _cloud_. Esta comprende el aprovisionamiento de la infraestructura (máquinas virtuales, red privada, balanceadores de carga, etc., en el _cloud_), la creación de un _cluster_ de Kubernetes, su _networking_ y almacenamiento.
 
-Al finalizar la creación del cluster en esta fase, y según un descriptor de cluster indicado, se creará un fichero descriptor (keos.yaml) y otro cifrado de credenciales (secrets.yml) para la siguiente fase, de instalación de _Stratio KEOS_.
+Para llevar a cabo la creación del _cluster_, _Stratio Cloud Provisioner_ creará un recurso de Kubernetes _KeosCluster_ y el _controller_ encargado de su ciclo de vida, _Stratio Cluster Operator_. Este _KeosCluster_ será el encargado de la generación de los recursos necesarios para la creación y operación del _cluster_.
 
-== Objetos del proveedor del _Cloud_
+Al finalizar la creación del _cluster_ en esta fase y según un descriptor de _cluster_ indicado, se creará un fichero descriptor (_keos.yaml_) y otro cifrado de credenciales (_secrets.yml_) para la siguiente fase, de instalación de _Stratio KEOS_.
 
-En un *despliegue por defecto*, se crean los siguientes objetos en cada _cloud provider_ (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
+Una vez finalizada la instalación, todas las operaciones de día 2 sobre la propia infraestructura _cloud_ en la que se ejecuten los distintos servicios se deben realizar mediante la edición de _KeosCluster_ para gestionar los recursos del _cluster_. Estas ediciones serán validadas y aplicadas por el _Stratio Cluster Operator_.
+
+== Objeto _KeosCluster_
+
+Durante la fase de instalación, tras desplegar el _chart_ de Helm de _Stratio Cluster Operator_ y teniendo como punto de partida el descriptor del _cluster_, se creará por defecto un recurso _KeosCluster_ que centralizará la creación del _cluster_ y de todos los objetos de los distintos proveedores _Cloud_ y las operaciones sobre estos.
+
+=== Mitigación del error humano
+
+Al centralizar todas las operaciones sobre el _cluster_ y los distintos recursos _cloud_, una vez se inicie una operación desencadenada por una edición del objeto _KeosCluster_ el controlador _Stratio Cluster Operator_ denegará cualquier otra solicitud hasta que haya finalizado la operación previa.
+
+Para ello, se define el subrecurso del _KeosCluster_, _status_ que informará del tipo de operación que se encuentra haciendo en caso de que así sea.
+
+== Objetos del proveedor del _cloud_
+
+En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor _cloud_ (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
 
 === EKS
 
 * 1 _cluster_ de Elastic Kubernetes Service (EKS) con _add-ons_ para EBS y CNI, _logging_ (si se ha especificado) y un proveedor OIDC.
 ** 2 _Security Groups_ de EKS para el _control-plane_ y los nodos _Worker_.
 ** 1 rol de IAM con la política AmazonEKSClusterPolicy.
-
 * [silver]#1 VPC.#
-
 * [silver]#6 _subnets_ con sus respectivas tablas de rutas.#
 ** [silver]#3 _subnets_ públicas (una por AZ).#
 ** [silver]#3 _subnets_ privadas (también una por AZ).#
-
 * [silver]#1 _NAT gateway_ por cada _subnet_ pública.#
 * [silver]#1 _Internet gateway_ para la VPC.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los NAT gateways.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del Internet Gateway.#
+* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los _NAT gateways_.#
+* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del _Internet Gateway_.#
 * 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
 * 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-
 * VMs para _Workers_ (según descriptor del _cluster_ y autoescalado).
 ** 1 Volumen EBS para cada volumen persistente.
-
 * 1 Balanceador de carga tipo _Network_ para la exposición de _Services_ tipo Load Balancer.
 ** 1 _Listener_ por puerto para cada _Service_.
-
 * Volumen EBS para cada volumen persistente.
 
 === GCP
 
-* 1 Balanceador de carga tipo SSL/TCP para el APIserver.
-* 1 _Health Check_ para el _Unmanage Instance Group_.
+* 1 balanceador de carga tipo SSL/TCP para el _API Server_.
+* 1 _health check_ para el _Unmanage Instance Group_.
 * 1 _CloudNat_ Asociando VPC.
 * 1 _Cloud Router_.
 * Reglas de _firewall_.
 * 1 _Unmanage Instance Group_ para el _control-plane_.
-
-* 1/3 VMs para el _control-plane_ (según descriptor del _cluster_).
-** 1 Persistent disk por VM.
-
-* VMs para _workers_ (según el descriptor del _cluster_ y autoescalado).
-** 1 Persistent disk por VM.
-
-* 1 Balanceador de carga L4 para la exposición de _Services_ tipo Load Balancer.
+* 1/3 máquinas virtuales para el _control-plane_ (según descriptor del _cluster_).
+** 1 disco persistente por máquina virtual.
+* Máquinas virtuales para _workers_ (según el descriptor del _cluster_ y autoescalado).
+** 1 disco persistente por máquina virtual.
+* 1 balanceador de carga L4 para la exposición de _Services_ tipo Load Balancer.
 ** 1 _Listener_ por puerto para cada _Service_.
+* Disco persistente para cada volumen persistente.
 
-* Persistent disk para cada volumen persistente.
+=== Azure no gestionado
 
-=== Azure no-gestionado
-
-* [silver]#1 Resource group.#
-* 1 Virtual Network.
-* 1 Route table para workers.
-* 1 NAT gateway para workers.
-* 2 Public IP address (apiserver y NATgw de workers).
-* 2 Network Security Group (control-plane y workers).
-* 1 LB público.
-
-* 1/3 VMs para el _control-plane_ (según descriptor del _cluster_).
-** 1 Disco de bloque por VM.
-** 1 Network interface por VM.
-
-* VMs para _workers_ (según el descriptor del _cluster_ y autoescalado).
-** 1 Disco de bloque por VM.
-** 1 Network interface por VM.
-
-* 1 Balanceador de carga para la exposición de _Services_ tipo Load Balancer.
-** 1 Public IP address para cada _service_.
-** 1 Frontend IP config para cada _service_.
-** 1 Health probe para cada _service_.
-** 1 LB rule para cada _service_.
-
+* [silver]#1 resource group.#
+* 1 red virtual.
+* 1 Route table para _workers_.
+* 1 _NAT gateway_ para _workers_.
+* 2 direcciones IP públicas (_API Server_ y NATgw de _workers_).
+* 2 grupos de seguridad de red (_control-plane_ y _workers_).
+* 1 balanceador de carga público.
+* 1/3 máquinas virtuales para el _control-plane_ (según descriptor del _cluster_).
+** 1 disco de bloque por máquina virtual.
+** 1 interfaz de red por máquina virtual.
+* Máquinas virtuales para _workers_ (según el descriptor del _cluster_ y autoescalado).
+** 1 disco de bloque por máquina virtual.
+** 1 interfaz de red por máquina virtual.
+* 1 balanceador de carga para la exposición de _Services_ de tipo Load Balancer.
+** 1 dirección de IP pública para cada _service_.
+** 1 _Frontend IP config_ para cada _service_.
+** 1 _Health probe_ para cada _service_.
+** 1 regla de balanceador de carga para cada _service_.
 * Disco de bloque para cada volumen persistente.
 
 === AKS
 
 * 1 _cluster_ de Azure Kubernetes Service (AKS).
-
-* 2 Resource groups (para AKS y workers).
-* 2 Virtual Network (para AKS y workers).
-* 1 Public IP address (para salida de workers).
-* 1 Network Security Group para workers.
+* 2 grupos de recursos (para AKS y _workers_).
+* 2 redes virtuales (para AKS y _workers_).
+* 1 dirección IP pública (para la salida de _workers_).
+* 1 grupo de seguridad de red para _workers_.
 * 1 Managed Identity.
-
-* VM Scale Sets para _workers_ (según el descriptor del _cluster_).
-
-* 1 Balanceador de carga para la exposición de _Services_ tipo Load Balancer.
-** 1 Public IP address para cada _service_.
-** 1 Frontend IP config para cada _service_.
-** 1 Health probe para cada _service_.
-** 1 LB rule para cada _service_.
-
+* Máquina virtual _Scale Sets_ para _workers_ (según el descriptor del _cluster_).
+* 1 balanceador de carga para la exposición de _Services_ de tipo Load Balancer.
+** 1 dirección IP pública para cada _service_.
+** 1 _Frontend IP config_ para cada _service_.
+** 1 _Health probe_ para cada _service_.
+** 1 regla de balanceador de carga para cada _service_.
 * Disco de bloque para cada volumen persistente.
 
-== Networking
+== _Networking_
 
-Arquitectura de referencia
+Arquitectura de referencia:
 
 image::eks-reference-architecture.png[]
 
-La capa interna de networking del cluster está basada en Calico, con las siguientes integraciones por provider/flavour:
+La capa interna de _networking_ del _cluster_ está basada en Calico, con las siguientes integraciones por proveedor/_flavour_:
 
 [.center,cols="1,1,1,1,1,1",center]
 |===
-^|Provider/flavour ^|Policy ^|IPAM ^|CNI ^|Overlay ^|Routing
+^|Proveedor/flavour ^|Política ^|IPAM ^|CNI ^|Superposición ^|Enrutamiento
 
 ^|EKS
 ^|Calico
@@ -153,7 +152,7 @@ Si bien una de las ventajas de la creación de recursos automática en el aprovi
 
 En este sentido, el _Stratio Cloud Provisioner_ permite utilizar tanto un VPC como _subnets_ previamente creadas empleando el parámetro _networks_ en el descriptor del _cluster_, como se detalla en la xref:ROOT:installation.adoc[guía de instalación].
 
-[underline]#Ejemplo para EKS#
+Ejemplo para EKS:
 
 [source,bash]
 ----
@@ -166,13 +165,13 @@ spec:
       - subnet_id: subnet-0df75..
 ----
 
-=== Red de Pods
+=== Red de _pods_
 
-CAUTION: En los despliegues con *AKS* actualmente no está soportada la configuración del CIDR de los Pods dado que se utiliza el IPAM del _cloud provider_.
+CAUTION: En los despliegues con *AKS* actualmente no está soportada la configuración del CIDR de los _pods_ dado que se utiliza el IPAM del proveedor _cloud_.
 
-En la mayoría de providers/flavours se permite indicar un CIDR específico para Pods, con ciertas particularidades descritas a continuación.
+En la mayoría de proveedores/_flavours_ se permite indicar un CIDR específico para _pods_, con ciertas particularidades descritas a continuación.
 
-NOTE: El CIDR para Pods no deberá superponerse con la red de los nodos o cualquier otra red destino a la que éstos deban acceder.
+NOTE: El CIDR para _pods_ no deberá superponerse con la red de los nodos o cualquier otra red destino a la que éstos deban acceder.
 
 ==== EKS
 
@@ -187,7 +186,7 @@ spec:
 	  pods_cidr: 100.64.0.0/16
 ----
 
-En este caso, se crearán 3 subnets (1 por zona) con una máscara de 18 bits (/18) del rango indicado de las cuales se obtendrán las IPs para los Pods:
+En este caso, se crearán 3 _subnets_ (1 por zona) con una máscara de 18 bits (/18) del rango indicado de las cuales se obtendrán las IP para los _pods_:
 
 [.center,cols="1,2",width=40%]
 |===
@@ -201,7 +200,7 @@ En este caso, se crearán 3 subnets (1 por zona) con una máscara de 18 bits (/1
 ^|100.64.128.0/18
 |===
 
-En caso de utilizar infraestructura personalizada, se deberán indicar las 3 subnets (una por zona) para los Pods conjuntamente con las de los nodos en el descriptor del cluster:
+En caso de utilizar infraestructura personalizada, se deberán indicar las 3 _subnets_ (una por zona) para los _pods_ conjuntamente con las de los nodos en el descriptor del _cluster_:
 
 [source,bash]
 ----
@@ -219,13 +218,13 @@ spec:
       pods_cidr: 100.64.0.0/16
 ----
 
-NOTE: El CIDR secundario asignado al VPC para los Pods debe indicarse en el parámetro _spec.networks.pods_cidr_ obligatoriamente.
+NOTE: El CIDR secundario asignado al VPC para los _pods_ debe indicarse en el parámetro `spec.networks.pods_cidr` obligatoriamente.
 
-El CIDR de cada subnet (obtenido del CIDR secundario del VPC), deberá ser el mismo que el descrito más arriba (con máscara de 18 bits), y las 3 subnets para Pods deberán tener el siguiente tag _sigs.k8s.io/cluster-api-provider-aws/association=secondary_.
+El CIDR de cada subnet (obtenido del CIDR secundario del VPC), deberá ser el mismo que el descrito más arriba (con máscara de 18 bits), y las 3 _subnets_ para _pods_ deberán tener el siguiente tag: _sigs.k8s.io/cluster-api-provider-aws/association=secondary_.
 
-==== GCP y Azure no-gestionado
+==== GCP y Azure no gestionado
 
-En estos providers/flavours se utiliza Calico como IPAM del CNI, esto permite poder especificar un CIDR arbitrario para los Pods:
+En estos proveedores/_flavours_ se utiliza Calico como IPAM del CNI, esto permite poder especificar un CIDR arbitrario para los _pods_:
 
 [source,bash]
 ----
@@ -234,18 +233,17 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
-
 == Seguridad
 
 === Autenticación
 
-Actualmente, para la comunicación con los _cloud providers_, los controllers almacenan en el cluster las credenciales de la identidad utilizada en la instalación.
+Actualmente, para la comunicación con los proveedores _cloud_, los _controllers_ almacenan en el _cluster_ las credenciales de la identidad utilizada en la instalación.
 
-Podremos ver dichas credenciales con los siguientes comandos:
+Estas credenciales se pueden ver con los siguientes comandos:
 
 ==== AWS
 
-Para este provider, las credenciales se almacenan en un _Secret_ dentro del Namespace del controller con el formato del fichero ~/.aws/credentials:
+Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Namespace_ del _controller_ con el formato del fichero `~/.aws/credentials`:
 
 [source,bash]
 ----
@@ -254,7 +252,7 @@ k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '
 
 ==== GCP
 
-Al igual que para EKS, el controller de GCP obtiene las credenciales de un _Secret_ dentro del Namespace correspondiente.
+Al igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
 [source,bash]
 ----
@@ -263,16 +261,16 @@ $ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r
 
 ==== Azure
 
-Para el caso de Azure, el client_id se almacena en el objeto AzureIdentity dentro del Namespace del controller, que también tiene la referencia al _Secret_ donde se almacena el client_secret:
+Para el caso de Azure, el _client++_++id_ se almacena en el objeto _AzureIdentity_ dentro del _Namespace_ del _controller_, que también tiene la referencia al _Secret_ donde se almacena el _client++_++secret_:
 
-[underline]#client_id#
+*_client++_++id_*:
 
 [source,bash]
 ----
 $ k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientID
 ----
 
-[underline]#client_secret#
+*_client++_++secret_*:
 
 [source,bash]
 ----
@@ -283,42 +281,41 @@ $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | j
 
 === Acceso a IMDS (para EKS y GCP)
 
-Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedirles el acceso a todos los _pods_ del _cluster_ que no sean parte de _Stratio KEOS_.
+Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedir el acceso a todos los _pods_ del _cluster_ que no sean parte de _Stratio KEOS_.
 
 A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de IAM para _Service Accounts_, asegurando el uso de políticas IAM con mínimos privilegios.
 
-=== Acceso al _endpoint_ del APIserver
+=== Acceso al _endpoint_ del _API Server_
 
 ==== EKS
 
-Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el APIserver que se utilizará para el acceso al _cluster_ desde el instalador y operaciones del ciclo de vida.
+Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el _API Server_ que se utilizará para el acceso al _cluster_ desde el instalador y operaciones del ciclo de vida.
 
-Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas de AWS Identity and Access Management (IAM) y el Role Based Access Control (RBAC) nativo de Kubernetes.
+Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas del _Identity and Access Management_ (IAM) de Amazon y el _Role Based Access Control_ (RBAC) nativo de Kubernetes.
 
 ==== GCP
 
-Para la exposición del APIserver, se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 443 accesible por red pública (la IP pública asignada es la misma que se configura en el _Kubeconfig_), y un _instance groups_ por AZ (1 o 3, según configuración de HA) con el nodo de _control-plane_ correspondiente.
+Para la exposición del _API Server_ se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 443 accesible por red pública (la IP pública asignada es la misma que se configura en el _Kubeconfig_), y un _instance groups_ por AZ (1 o 3, según configuración de HA) con el nodo de _control-plane_ correspondiente.
 
-El _Health Check_ del servicio se hace por SSL, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
+El _health check_ del servicio se hace por SSL, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
 
-==== Azure no-gestionado
+==== Azure no gestionado
 
-Para la exposición del APIserver, se crea un balanceador de carga con nombre `<cluster_id>-public-lb` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_), y un _Backend pool_ con los nodos del _control-plane_.
+Para la exposición del _API Server_, se crea un balanceador de carga con nombre `<cluster_id>-public-lb` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_) y un _Backend pool_ con los nodos del _control-plane_.
 
-El _Health Check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
+El _health check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
 
 ==== AKS
 
-En este caso, el APIserver se expone públicamente y con la URL indicada en el _kubeconfig_.
-
+En este caso, el _API Server_ se expone públicamente y con la URL indicada en el _kubeconfig_.
 
 == Almacenamiento
 
-=== Nodos (control-plane y workers)
+=== Nodos (_control-plane_ y _workers_)
 
 A nivel de almacenamiento, se monta un único disco _root_ del que se puede definir su tipo, tamaño y encriptación (se podrá especificar una clave de encriptación previamente creada).
 
-[.underline]#Ejemplo:#
+*Ejemplo:*
 
 [source,bash]
 ----
@@ -332,13 +329,13 @@ Estos discos se crean en la provisión inicial de los nodos, por lo que estos da
 
 === _StorageClass_
 
-Durante el aprovisionamiento se disponibiliza una _StorageClass_ (default) con nombre "keos" para disco de bloques. Ésta cuenta con los parámetros _reclaimPolicy: Delete_ y _volumeBindingMode: WaitForFirstConsumer_, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente, y se eliminará al borrar el _PersistentVolume_.
+Durante el aprovisionamiento se disponibiliza una _StorageClass_ (por defecto) con nombre "keos" para disco de bloques. Esta cuenta con los parámetros `reclaimPolicy: Delete` y `volumeBindingMode: WaitForFirstConsumer`, esto es, que el disco se creará en el momento en que un _pod_ consuma el _PersistentVolumeClaim_ correspondiente y se eliminará al borrar el _PersistentVolume_.
 
-Se deberá tener en cuenta que los _PersistentVolumes_ creados a partir de esta _StorageClass_ tendrán afinidad con la zona donde se han consumido.
+NOTE: Ten en cuenta que los _PersistentVolumes_ creados a partir de esta _StorageClass_ tendrán afinidad con la zona donde se han consumido.
 
-Desde el descriptor del cluster se permite indicar la clave de encriptación, la clase de discos o bien parámetros libres.
+Desde el descriptor del _cluster_ se permite indicar la clave de encriptación, la clase de discos o bien parámetros libres.
 
-[.underline]#Ejemplo con opciones básicas:#
+*Ejemplo con opciones básicas:*
 
 [source,bash]
 ----
@@ -349,11 +346,11 @@ spec:
     class: premium
 ----
 
-El parámetro _class_ puede ser "premium" o "standard", esto dependerá del _cloud provider_:
+El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del proveedor _cloud_:
 
 [.center,cols="1,2,2",width=70%,center]
 |===
-^|Provider ^|Standard class ^|Premium class
+^|Proveedor ^|Standard class ^|Premium class
 
 ^|AWS
 ^|gp3
@@ -368,7 +365,7 @@ El parámetro _class_ puede ser "premium" o "standard", esto dependerá del _clo
 ^|Premium_LRS
 |===
 
-[.underline]#Ejemplo con parámetros libres:#
+*Ejemplo con parámetros libres:*
 
 [source,bash]
 ----
@@ -382,11 +379,11 @@ spec:
       labels: "key1=value1,key2=value2"
 ----
 
-Estos últimos también dependen del _cloud provider_:
+Estos últimos también dependen del proveedor _cloud_:
 
 [.center,cols="1,2",width=80%]
 |===
-^|Provider ^|Parámetro
+^|Proveedor ^|Parámetro
 
 ^|All
 a|
@@ -440,13 +437,14 @@ a|
      enablePerformancePlus
      subscriptionID
 ----
+
 |===
 
-En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el provider, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
+En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el proveedor, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
 
 === Amazon EFS
 
-En esta release, si se desea utilizar un filesystem de EFS, se deberá crear previamente y pasar los siguientes datos al descriptor del cluster:
+En esta versión, si se desea utilizar un sistema de archivos de EFS se deberá crear previamente y pasar los siguientes datos al descriptor del _cluster_:
 
 [source,bash]
 ----
@@ -458,14 +456,13 @@ spec:
           permissions: 640
 ----
 
-Con estos datos, se renderizará el keos.yaml de tal forma que en la ejecución del keos-installer se despliegue el driver y se configure la _StorageClass_ correspondiente.
+Con estos datos, se renderizará el _keos.yaml_ de forma que en la ejecución del _keos-installer_ se despliegue el _driver_ y se configure la _StorageClass_ correspondiente.
 
-NOTE: Esta funcionalidad está pensada para infraestructura personalizada, ya que el filesystem de EFS deberá asociarse a un VPC existente en su creación.
+NOTE: Esta funcionalidad está pensada para infraestructura personalizada, ya que el sistema de ficheros de EFS deberá asociarse a un VPC existente en su creación.
 
+== Atributos en EKS
 
-== Tags en EKS
-
-Todos los objetos que se crean en EKS contienen por defecto el tag con key _keos.stratio.com/owner_ y como valor, el nombre del cluster. También se permite añadir tags personalizados a todos los objetos creados en el _cloud provider_ de la siguiente forma:
+Todos los objetos que se crean en EKS contienen por defecto el atributo con clave _keos.stratio.com/owner_ y como valor el nombre del _cluster_. También se permite añadir atributos personalizados a todos los objetos creados en el proveedor _cloud_ de la siguiente forma:
 
 [source,bash]
 ----
@@ -476,7 +473,7 @@ spec:
       - billing-area: data
 ----
 
-Para añadir tags a los volúmenes creados por la StorageClass, se deberá utilizar el parámetro _labels_ en la sección correspondiente:
+Para añadir atributos a los volúmenes creados por la _StorageClass_, se deberá utilizar el parámetro `labels` en la sección correspondiente:
 
 [source,bash]
 ----
@@ -489,14 +486,17 @@ spec:
 
 == Docker registries
 
-Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del cluster (_keos_registry: true_). Deberá haber un (y sólo uno) Docker registry para KEOS, el resto de registries se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
+Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del _cluster_ (`keos_registry: true`). Deberá haber un (y sólo uno) Docker registry para _Stratio KEOS_, el resto se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
 
-Actualmente se soportan 3 tipos de Docker registries: _generic_, _ecr_ y _acr_. Para el tipo _generic_, se deberá indicar si el registry es autenticado o no (los tipos _ecr_ y _acr_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y password en la sección _spec.credentials_.
+Actualmente, se soportan 3 tipos de Docker registries: _generic_, _ecr_ y _acr_. Para el tipo _generic_, se deberá indicar si el _registry_ es autenticado o no (los tipos _ecr_ y _acr_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y contraseña en la sección 'spec.credentials'.
 
-Tabla de registries soportados según provider/flavour:
+La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour_:
 
 [.center,cols="2,1",width=40%]
 |===
+^|AWS
+^|ecr, generic
+
 ^|EKS
 ^|ecr, generic
 

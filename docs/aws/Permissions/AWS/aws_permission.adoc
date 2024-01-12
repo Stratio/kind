@@ -1,0 +1,265 @@
+= Cloud Provisioner Permissions (AWS)
+:toc:
+
+== Introduction
+
+This documentation provides information about the opertions and associated permissions in order to use the cloud-provisioner.
+
+== Operations and Permissions
+
+=== Avoid Creation
+
+[source,bash]
+----
+cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --avoid-creation
+----
+
+[options="header"]
+|===
+| Permission | Necessary for | Description | Resource | Application
+| ec2:DescribeRegions | Validate cluster: operation error EC2: DescribeRegions | Grants permission to describe one or more AWS Regions that are currently available in your account. |  * | cloud-provisioner
+| ec2:DescribeAvailabilityZones | Validate cluster: operation error EC2: DescribeAvailabilityZones | Grants permission to describe one or more of your Availability Zones thar available to you. |  * | cloud-provisioner
+|===
+
+=== Keep Management
+
+[source,bash]
+----
+cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --keep-mgmt
+----
+
+==== IAM Security (CloudFormation)
+
+[options="header"]
+|===
+| Permission | Necessary for | Description | Resource | Application
+| cloudformation:CreateStack | Attempting to create AWS CloudFormation stack | Grants permission to create a stackset as specified in the template. |  * | cloud-provisioner
+| cloudformation:CreateChangeSet | Attempting to create AWS CloudFormation change set | Grants permission to create a change set for the specified stack. |  * | cloud-provisioner
+| cloudformation:DeleteStack" | Attempting to delete AWS CloudFormation stack | Grants permission to delete a specified stack. |  * | cloud-provisioner
+| cloudformation:DescribeChangeSet | Attempting to describe AWS CloudFormation change set | Grants permission to return the description for the specified change set. |  * | cloud-provisioner
+| cloudformation:DescribeStackEvents | Attempting to describe AWS CloudFormation stack events | Grants permission to return all stack related events for a specified stack in reverse chronological order. |  * | cloud-provisioner
+| cloudformation:StackResource | Attempting to describe AWS CloudFormation stack resource | Grants permission to return AWS resource descriptions for running or deleted stacks. |  * | cloud-provisioner
+| cloudformation:DescribeStacks | Attempting to describe AWS CloudFormation stack | Grants permission to return the description for the specified stack. |  * | cloud-provisioner
+| cloudformation:ExecuteChangeSet | Attempting to execute AWS CloudFormation change set | Grants permission to update a stack using the input information that was provided when the specified change set was created. |  * | cloud-provisioner
+| cloudformation: GetTemplateSummary | Attempting to get AWS CloudFormation template summary | Grants permission to return information about a new or existing template. |  * | cloud-provisioner
+| cloudformation:ListStacks | Attempting to list AWS CloudFormation stacks | Grants permission to return the summary information for stacks whose status matches the specified StackStatusFilter. |  * | cloud-provisioner
+| cloudformation:UpdateStack | Attempting to update AWS CloudFormation stack | Grants permission to update a stack as specified in the template. |  * | cloud-provisioner
+| cloudformation:ValidateTemplate | Attempting to validate AWS CloudFormation template | Grants permission to validate a specified template. |  * | cloud-provisioner
+| iam:AddRoleToInstanceProfile | Attempting to add role to instance profile | Grants permission to add the specified IAM role to the specified instance profile. |  * | cloud-provisioner
+| iam:AddUserToGroup | Attempting to add IAM user to IAM group | Grants permission to add the specified IAM user to the specified IAM group. |  * | cloud-provisioner
+| iam:AttachGroupPolicy | Attempting to attach IAM policy to IAM group | Grants permission to attach a managed policy to the specified IAM group. |  * | cloud-provisioner
+| iam:AttachRolePolicy | Attempting to attach IAM policy to IAM role | Grants permission to attach a managed policy to the specified IAM role. |  * | cloud-provisioner
+| iam:CreateGroup | Attempting to create IAM group | Grants permission to create an IAM group. |  * | cloud-provisioner
+| iam:CreateInstanceProfile | Attempting to create IAM instance profile | Grants permission to create a new instance profile. |  * | cloud-provisioner
+| iam:CreatePolicy | Attempting to create IAM policy | Grants permission to create a new managed policy |  * | cloud-provisioner
+| iam:CreateRole | Attempting to create IAM role | Grants permission to create a new role | * | cloud-provisioner
+| iam:CreateUser | Attempting to create IAM user | Grants permission to create a new IAM user. |  * | cloud-provisioner
+| iam:DeleteGroup | Attempting to delete IAM group | Grants permission to delete the specified IAM group. |  * | cloud-provisioner
+| iam:DeleteInstanceProfile | Attempting to delete IAM instance profile | Grants permission to delete the specified instance profile. |  * | cloud-provisioner
+| iam:DeletePolicy | Attempting to delete IAM policy | Grants permission to delete the specified managed policy. |  * | cloud-provisioner
+| iam:DeleteRole | Attempting to delete IAM role | Grants permission to delete the specified role. |  * | cloud-provisioner
+| iam:DeleteUser | Attempting to delete IAM user | Grants permission to delete the specified IAM user. |  * | cloud-provisioner
+| iam:DetachGroupPolicy | Attempting to detach IAM policy from IAM group | Grants permission to detach a managed policy from the specified IAM group. |  * | cloud-provisioner
+| iam:DettachRolePolicy | Attempting to detach IAM policy from IAM role | Grants permission to detach a managed policy from the specified role. |  * | cloud-provisioner
+| iam:GetPolicy | Attempting to get IAM policy | Grants permission to retrieve information about the specified managed policy, including the policy's default version and the total number of IAM users, groups, and roles to which the policy is attached. |  * | cloud-provisioner
+| iam:GetRole | Attempting to get IAM role | Grants permission to retrieve information about the specified role, including the role's path, GUID, ARN, and the role's trust policy that grants permission to assume the role. |  * | cloud-provisioner
+| iam:GetUser | Attempting to get IAM user | Grants permission to retrieve information about the specified IAM user, including the user's creation date, path, unique ID, and ARN. |  * | cloud-provisioner
+| iam:ListAccessKeys | Attempting to list IAM user access keys | Grants permission to list the access key IDs that are associated with the specified IAM user. |  * | cloud-provisioner
+| iam:ListPolicyVersions | Attempting to list IAM policy versions | Grants permission to list information about the versions of the specified managed policy, including the version that is currently set as the policy's default version. |  * | cloud-provisioner
+| iam:PassRole | Attempting to pass IAM role | Grants permission to pass a role to a service. |  * | cloud-provisioner
+| iam:RemoveRoleFromInstanceProfile | Attempting to remove role from instance profile | Grants permission to remove an IAM role from the specified EC2 instance profile. |  * | cloud-provisioner
+| iam:RemoveUserFromGroup | Attempting to remove IAM user from IAM group | Grants permission to remove the specified IAM user from the specified IAM group. |  * | cloud-provisioner
+|===
+
+==== Deployment
+
+[options="header"]
+|===
+| Permission | Necessary for | Description | Resource | Application
+| ec2:CreateVpc | Attempting to create VPC | Grants permission to create a VPC with a specified CIDR block. |  arn:aws:ec2:*:<account-id>:vpc/* | cloud-provisioner
+| ec2:CreateTags  | Attempting to create tags | Grants permission to add or overwrite one or more tags for Amazon EC2 resources. | ocker* | cloud-provisioner
+| ec2:DescribeVpcs  | Attempting to describe VPCs | Grants permission to describe one or more VPCs. |  * | cloud-provisioner
+| ec2:DescribeVpcAttribute | Attempting to describe VPC attribute | Grants permission to describe an attribute of a VPC. |  arn:aws:ec2:*:<account-id>:vpc/* | cloud-provisioner
+| ec2:ModifyVpcAttribute | Attempting to modify VPC attribute | Grants permission to modify an attribute of a VPC. |  arn:aws:ec2:*:<account-id>:vpc/* | cloud-provisioner
+| ec2:DescribeSubnets | Attempting to describe subnets | Grants permission to describe one or more of your subnets. |  * | cloud-provisioner
+| ec2:DescribeRouteTables | Attempting to describe route tables | Grants permission to describe one or more route tables. |  * | cloud-provisioner
+| ec2:DescribeNatGateways | Attempting to describe NAT gateways | Grants permission to describe one or more NAT gateways. |  * | cloud-provisioner
+| ec2:CreateSubnet  | Attempting to create subnet | Grants permission to create a subnet in a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:subnet/* | cloud-provisioner
+| ec2:DescribeInternetGateways | Attempting to describe internet gateways | Grants permission to describe one or more internet gateways. |  * | cloud-provisioner
+| ec2:CreateInternetGateway | Attempting to create internet gateway | Grants permission to create an internet gateway for use with a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:internet-gateway/* | cloud-provisioner
+| ec2:AttachInternetGateway | Attempting to attach internet gateway | Grants permission to attach an internet gateway to a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:internet-gateway/* | cloud-provisioner
+| ec2:DescribeAddresses  | Attempting to describe addresses | Grants permission to describe one or more Elastic IP addresses. |  * | cloud-provisioner
+| ec2:AllocateAddress | Attempting to allocate address | Grants permission to allocate an Elastic IP address to your account. |  arn:aws:ec2:eu-west-1:<account-id>:elastic-ip/* | cloud-provisioner
+| ec2:CreateRouteTable | Attempting to create route table | Grants permission to create a route table in a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:vpc/* | cloud-provisioner
+| ec2:CreateNatGateway | Attempting to create NAT gateway | Grants permission to create a NAT gateway in a subnet. |  arn:aws:ec2:eu-west-1:<account-id>:natgateway/* | cloud-provisioner
+| ec2:CreateRouteTable | Attempting to create route table | Grants permission to create a route table in a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
+| ec2:CreateRoute | Attempting to create route | Grants permission to create a route in a VPC route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
+| ec2:AssociateRouteTable | Attempting to associate route table | Grants permission to associate a subnet or gateway with a route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
+| ec2:DescribeSecurityGroups | Attempting to describe security groups | Grants permission to describe one or more security groups. |  * | cloud-provisioner
+| ec2:CreateSecurityGroup | Attempting to create security group | Grants permission to create a security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
+| ec2:AuthorizeSecurityGroupIngress | Attempting to authorize security group ingress | Grants permission to add one or more inbound rules to a VPC security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
+| ec2:DescribeInstances | Attempting to describe instances | Grants permission to describe one or more instances. |  * | cloud-provisioner
+| elasticloadbalancing:DescribeLoadBalancers | Attempting to describe load balancers | Grants permission to describe the specified the load balancers. |  * | cloud-provisioner
+| elasticloadbalancing:CreateLoadBalancer | Attempting to create load balancer | Grants permission to create a load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| elasticloadbalancing:AddTags | Attempting to add tags | Grants permission to add one or more tags to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| elasticloadbalancing:DescribeLoadBalancerAttributes | Attempting to describe load balancer attributes | Grants permission to describe the attributes for the specified load balancer. | * | cloud-provisioner
+| elasticloadbalancing:DescribeTags | Attempting to describe tags | Grants permission to describe the tags associated with one or more load balancers. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| elasticloadbalancing:ModifyLoadBalancerAttributes | Attempting to modify load balancer attributes | Grants permission to modify the attributes for the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| secretsmanager:CreateSecret | Attempting to create secret | Grants permission to create a new secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
+| secretsmanager:TagResource |  Attempting to tag resource | Grants permission add tags to a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
+| secretsmanager:DeleteSecret | Attempting to delete secret | Grants permission to delete a secret. |  "arn:aws:secretsmanager:*:<account-id>:secret:aws.cluster.x-k8s.io/*" | cloud-provisioner
+| ec2:ModifySubnetAttribute | Attempting to modify subnet attribute | Grants permission to modify a subnet attribute. |  arn:aws:ec2:eu-west-1:<account-id>:subnet/* | cloud-provisioner
+| ec2:DescribeImages | Attempting to describe images | Grants permission to describe one or more of the images (AMIs, AKIs, and ARIs). |  * | cloud-provisioner
+| ec2:RunInstances | Attempting to run instances | Grants permission to launch one or more instances. |  * | cloud-provisioner
+| elasticloadbalancing:RegisterInstancesWithLoadBalancer | Attempting to register instances with load balancer | Grants permission to add the specified instances to the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| ec2:DescribeNetworkInterfaces | Attempting to describe network interfaces | 	Grants permission to describe one or more network interfaces.. | * | cloud-provisioner
+|===
+
+==== Using ECR (Elastic Container Registry) instead of generic docker registry
+
+[options="header"]
+|===
+| Permission | Necessary for | Description | Resource | Application
+| ecr:GetAuthorizationToken | Attempting to get authorization token | Grants permission to get authorization token to access Amazon ECR. |  * | cloud-provisioner
+| ecr:BatchGetImage | Attempting to batch get image | Grants permission to get detailed information about images in a repository. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
+| ecr:BatchCheckLayerAvailability | Attempting to batch check layer availability | Grants permission to check the availability of multiple image layers in a specified registry and repository. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
+| ecr:GetDownloadUrlForLayer | Attempting to get download URL for layer | Grants permission to retrieve the download URL corresponding to an image layer. | arn:aws:ecr:*:*:repository/* | cloud-provisioner
+|===
+
+=== Delete Cluster
+
+[source,bash]
+----
+kubectl --kubeconfig local_kubeconfig -n cluster-<cluster-name> delete cluster <cluster-name>
+----
+
+[options="header"]
+| Permission | Necessary for | Description | Resource | Application
+|===
+| ec2:TerminateInstances | Attempting to terminate instances | Grants permission to terminate one or more instances.. | * | cloud-provisioner
+| ec2:DescribeNetworkInterfaces | Attempting to describe network interfaces | Grants permission to describe one or more network interfaces.. | * | cloud-provisioner
+| elasticloadbalancing:DeregisterInstancesFromLoadBalancer | Attempting to deregister instances from load balancer | Grants permission to remove the specified instances from the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| elasticloadbalancing:DeleteLoadBalancer | Attempting to delete load balancer | Grants permission to delete the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| ec2:DeleteSecurityGroup | Attempting to delete security group | Grants permission to delete a security group. |  arn:aws:ec2:eu-west-1:<account-id>:security-group/* | cloud-provisioner
+| ec2:DisassociateRouteTable | Attempting to disassociate route table | Grants permission to disassociate a subnet or gateway from a route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
+| ec2:DeleteRouteTable | Attempting to delete route table | Grants permission to delete a route table. |  arn:aws:ec2:eu-west-1:<account-id>:route-table/* | cloud-provisioner
+| ec2:DeleteNatGateway | Attempting to delete NAT gateway | Grants permission to delete the specified NAT gateway. |  arn:aws:ec2:eu-west-1:<account-id>:natgateway/* | cloud-provisioner
+| ec2:ReleaseAddress | Attempting to release address | Grants permission to release the specified Elastic IP address. |  arn:aws:ec2:eu-west-1:<account-id>:elastic-ip/* | cloud-provisioner
+| ec2:DetachInternetGateway | Attempting to detach internet gateway | Grants permission to detach an internet gateway from a VPC. |  arn:aws:ec2:eu-west-1:<account-id>:internet-gateway/* | cloud-provisioner
+| ec2:DeleteInternetGateway | Attempting to delete internet gateway | Grants permission to delete the specified internet gateway. |  arn:aws:ec2:eu-west-1:<account-id>:internet-gateway/* | cloud-provisioner
+| ec2:DeleteSubnet | Attempting to delete subnet | Grants permission to delete the specified subnet. |  arn:aws:ec2:eu-west-1:<account-id>:subnet/* | cloud-provisioner
+| ec2:DeleteVpc | Attempting to delete VPC | Grants permission to delete the specified VPC. |  arn:aws:ec2:eu-west-1:<account-id>:vpc/* | cloud-provisioner
+|===
+
+=== Retain (No additional permissions needed)
+
+[source,bash]
+----
+cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx --retain 
+----
+
+=== Move management (No additional permissions needed)
+
+[source,bash]
+----
+# Check workload cluster status
+clusterctl --kubeconfig workload_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
+NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/aws-cl01                                             True                     9m13s
+├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     9m13s
+├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     9m13s
+│ └─3 Machines...                                            True                     9m13s  See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+└─Workers
+  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     9m13s
+  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     9m13s
+  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     9m13s
+  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     9m13s
+  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     9m13s
+    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28
+
+# Move management
+## From workload cluster to management local cluster
+kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 0
+deployment.apps/keoscluster-controller-manager scaled
+
+clusterctl --kubeconfig workload_kubeconfig move -n cluster-<cluster-name> --to-kubeconfig local_kubeconfig
+Performing move...
+Discovering Cluster API objects
+Moving Cluster API objects Clusters=1
+Moving Cluster API objects ClusterClasses=0
+Creating objects in the target cluster
+Deleting objects from the source cluster
+
+clusterctl --kubeconfig local_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
+NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/aws-cl01                                             True                     6s
+├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     13s
+├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     6s
+│ └─3 Machines...                                            True                     12s    See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+└─Workers
+  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     14s
+  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     12s
+  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     13s
+  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     12s
+  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     13s
+    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28             True                     12s
+## From management local cluster to workload cluster
+clusterctl --kubeconfig local_kubeconfig move -n cluster-<cluster-name> --to-kubeconfig workload_kubeconfig
+Performing move...
+Discovering Cluster API objects
+Moving Cluster API objects Clusters=1
+Moving Cluster API objects ClusterClasses=0
+Creating objects in the target cluster
+Deleting objects from the source cluster
+
+kubectl --kubeconfig workload_kubeconfig -n kube-system scale deployment keoscluster-controller-manager --replicas 2
+deployment.apps/keoscluster-controller-manager scaled
+
+clusterctl --kubeconfig remote_kubeconfig -n cluster-<cluster-name> describe cluster <cluster-name>
+NAME                                                         READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/aws-cl01                                             True                     67s
+├─ClusterInfrastructure - AWSCluster/aws-cl01                True                     73s
+├─ControlPlane - KubeadmControlPlane/aws-cl01-control-plane  True                     67s
+│ └─3 Machines...                                            True                     73s    See aws-cl01-control-plane-8tp9f, aws-cl01-control-plane-p2sw7, ...
+└─Workers
+  ├─MachineDeployment/aws-cl01-worker-1-md-0                 True                     74s
+  │ └─Machine/aws-cl01-worker-1-md-0-p66lh-bssm6             True                     73s
+  ├─MachineDeployment/aws-cl01-worker-1-md-1                 True                     73s
+  │ └─Machine/aws-cl01-worker-1-md-1-kg2pb-94mw4             True                     73s
+  └─MachineDeployment/aws-cl01-worker-1-md-2                 True                     74s
+    └─Machine/aws-cl01-worker-1-md-2-q88h2-trt28             True                     73s
+----
+
+=== Cluster-Operator
+
+==== Check Status
+[source,bash]
+----
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-<cluster-name> get keosclusters.installer.stratio.com <cluster-name> --subresource status
+NAME       READY   PHASE         CLUSTER    TRIGGERED
+aws-cl01   true    Provisioned   aws-cl01
+----
+
+==== Scale / Downscale current worker_nodes (quantity) (No additional permissions needed)
+[source,bash]
+----
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig edit keosclusters.installer.stratio.com -n cluster-<cluster-name> <cluster-name>
+kubectl --kubeconfig /home/jnovoa/.kube/configs/remote_kubeconfig -n cluster-<cluster-name> get keosclusters.installer.stratio.com <cluster-name> --subresource status
+NAME       READY   PHASE                   CLUSTER    TRIGGERED
+aws-cl01   false   Updating worker nodes   aws-cl01   Keoscluster
+----
+==== Add / Remove additional worker_nodes group (No additional permissions needed)
+==== Modify labels worker_nodes (No additional permissions needed)
+==== Add labels worker_nodes (No additional permissions needed)
+==== Modify max_size / min_size worker_nodes (No additional permissions needed)
+==== Upgrade kubernetes version (No additional permissions needed)
+==== Keos Deployment (No additional permissions needed)
+==== Custom Network Deployment
+
+[options="header"]
+| Permission | Necessary for | Description | Resource | Application
+|===
+| elasticloadbalancing:ConfigureHealthCheck | Attempting to configure health check | Grants permission to specify a health check configuration for the instances. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+| ec2:DescribeInstanceTypes | Attempting to describe instance types | Grants permission to describe one or more of the available instance types. |  * | cloud-provisioner
+| elasticloadbalancing:AttachLoadBalancerToSubnets | Attempting to attach load balancer to subnets | Grants permission to add one or more subnets to the set of configured subnets for the specified load balancer. |  arn:aws:elasticloadbalancing:eu-west-1:<account-id>:loadbalancer/* | cloud-provisioner
+|===
