@@ -1,0 +1,116 @@
+apiVersion: installer.stratio.com/v1beta1
+kind: KeosCluster
+metadata:
+  name: string
+spec:
+  infra_provider: string
+  k8s_version: string
+  region: string
+  credentials:
+    aws:
+      access_key: string
+      account_id: string
+      region: string
+      secret_key: string
+    gcp:
+      private_key_id: string
+      private_key: string
+      client_email: string
+      project_id: string
+      client_id: string
+    azure:
+      client_id: string
+      client_secret: string
+      subscription_id: string
+      tenant_id: string
+    docker_registries:
+      - url: string
+        user: string
+        pass: string
+    helm_repository:
+      url: string
+      user: string
+      pass: string
+    github_token: string
+  networks:
+    vpc_id: string
+    subnets:
+      - subnet_id: string
+        cidr: string
+        role: string
+    resource_group: string
+    pods_cidr: string
+    pods_subnets:
+      - subnet_id: string
+  deploy_autoscaler: bool
+  docker_registries:
+    - url: string
+      type: string
+      auth_required: bool
+      keos_registry: bool
+  helm_repository:
+    url: string
+    auth_required: bool
+  dns:
+    forwarders:
+      - string
+    manage_zone: bool
+  security:
+    control_plane_identity: string
+    nodes_identity: string
+    aws:
+      create_iam: bool
+  control_plane:
+    managed: bool
+    highly_available: bool
+    size: string
+    node_image: string
+    root_volume:
+      size: int
+      type: string
+      encrypted: bool
+      encryption_key: string
+    tags:
+      - 'key: value'
+    aws:
+      logging:
+        api_server: bool
+        audit: bool
+        authenticator: bool
+        controller_manager: bool
+        scheduler: bool
+    azure:
+      tier: string
+  worker_nodes:
+    - name: string
+      quantity: int
+      min_size: int
+      max_size: int
+      size: string
+      labels: 
+        key:value
+      taints:
+        - key=value:effect
+      root_volume:
+        size: int
+        type: string
+        encrypted: bool
+        encryption_key: string
+      ssh_key: string
+      node_image: string
+      zone_distribution: string
+      az: string
+      spot: bool
+  external_domain: string
+  keos:
+    version: string
+    flavour: string
+  storageclass:
+    efs:
+      name: string
+      id: string
+      permissions: string
+    encryptionKey: string
+    class: string
+    parameters:
+      key:value

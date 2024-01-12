@@ -1,40 +1,48 @@
-= Operaciones
+= Manual de operaciones
+
+== Generación de imágenes personalizadas
+
+Para la generación de imágenes personalizadas en los diferentes proveedores _cloud_ se ha creado una documentación de referencia para cada uno de ellos que se puede encontrar en los siguientes enlaces:
+
+* xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
+* xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
+* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtención del _kubeconfig_
 
-Para comunicarse con el _API Server_ del _cluster_ creado, es necesario el fichero _kubeconfig_, que se obtendrá de forma diferente según el proveedor _cloud_ utilizado y la gestión del control-plane del _cluster_.
+Para comunicarse con el _API Server_ del _cluster_ creado es necesario el fichero _kubeconfig_, que se obtendrá de forma diferente según el proveedor _cloud_ utilizado y la gestión del _control-plane_ del _cluster_.
 
 * Para EKS, se obtendrá de la forma indicada por AWS:
-
++
 [source,bash]
------
+----
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
------
+----
 
 * Para GCP, Azure no gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
-
++
 [source,bash]
------
+----
 ls ./.kube/config
 ./.kube/config
------
-
-A su vez, podrá utilizarse el alias "kw" desde el container local para interactuar con el cluster worker (en EKS, el token utilizado sólo dura 10 minutos):
-
+----
++
+A su vez, podrá utilizarse el alias "kw" desde el contenedor local para interactuar con el _cluster worker_ (en EKS, el _token_ utilizado sólo dura 10 minutos):
++
 [source,bash]
------
+----
 root@example-azure-control-plane:/# kw get nodes
 NAME                                STATUS   ROLES           AGE   VERSION
 example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.26.8
 example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
 ...
------
+----
 
 == Autenticación en EKS
 
-Si bien no forma parte de la operativa de _Stratio KEOS_, es importante resaltar la forma de permitir la https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[autenticación de otros usuarios en un _cluster_ de EKS] (el usuario creador del _cluster_ está autenticado por defecto).
+Si bien no forma parte de la operativa de _Stratio KEOS_, es importante resaltar la forma de permitir la https://docs.aws.amazon.com/es_es/eks/latest/userguide/add-user-role.html[autenticación de otros usuarios en un _cluster_ de EKS] (el usuario creador del _cluster_ está autenticado por defecto).
 
-Para dar permisos de kubernetes-admin en el _cluster_, se agregará el ARN del usuario en el _ConfigMap_ indicado a continuación.
+Para dar permisos de _kubernetes-admin_ en el _cluster_, se agregará el ARN del usuario en el _ConfigMap_ indicado a continuación.
 
 [source,bash]
 ----
@@ -52,7 +60,7 @@ data:
 
 image::controllers.png[]
 
-_Stratio KEOS_ permite realizar múltiples operaciones avanzadas interactuando con el _Stratio Cluster Operator_ (_infrastructure as code_ o IaC), quien en su ciclo de reconciliación interactua a su vez con los distintos proveedores para realizar las operaciones solicitadas.
+_Stratio KEOS_ permite realizar múltiples operaciones avanzadas interactuando con el _Stratio Cluster Operator_ (_infrastructure as code_ o IaC), quien en su ciclo de reconciliación interactúa a su vez con los distintos proveedores para realizar las operaciones solicitadas.
 
 === _Self-healing_
 
@@ -81,15 +89,15 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Los providers no-gestionados tendrán un MachineHealthCheck para el control-plane y otro para los nodos worker, mientras que los gestionados (EKS, AKS) sólo tendrán el segundo.
+NOTE: Los proveedores no gestionados tendrán un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, AKS) sólo tendrán el segundo.
 
-==== Prueba de _failover_ en un nodo
+==== Prueba de tolerancia a fallos en un nodo
 
-En caso de fallo en un nodo, éste será detectado por un _controller_ y se procederá al reemplazo del mismo, eliminándolo y volviendo a crear otro del mismo grupo, lo que asegura las mismas características.
+En caso de fallo en un nodo, este será detectado por un _controller_ y se procederá al reemplazo del mismo, eliminándolo y volviendo a crear otro del mismo grupo, lo que asegura las mismas características.
 
-Para simular un fallo en una VM, se eliminará desde la consola web del proveedor de _Cloud_.
+Para simular un fallo en una máquina virtual, se eliminará desde la consola web del proveedor de _cloud_.
 
-La recuperación del nodo comprende las siguientes fases y tiempos estimados (pudiendo variar según el provider y flavour):
+La recuperación del nodo comprende las siguientes fases y tiempos estimados (pudiendo variar según el proveedor y el _flavour_):
 
 [source,bash]
 ----
@@ -192,7 +200,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Escalado vertical
 
-CAUTION: *AKS no soporta escalado vertical* de los grupos de nodos. Para este proveedor se deberá crear un grupo nuevo y eliminar el anterior como lo indica la https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[documentación oficial].
+CAUTION: *AKS no soporta escalado vertical* de los grupos de nodos. Para este proveedor, se deberá crear un grupo nuevo y eliminar el anterior como lo indica la https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[documentación oficial] ^[English]^.
 
 El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el objeto _KeosCluster_ correspondiente al grupo.
 
@@ -210,9 +218,9 @@ spec:
 
 image::autoescalado.png[]
 
-Para el autoescalado de nodos, se utiliza _cluster-autoscaler_, quien detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere según los filtros de los despliegues.
+Para el autoescalado de nodos se utiliza _cluster-autoscaler_, quien detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere según los filtros de los despliegues.
 
-Esta operación se realiza en el _API Server_, siendo los _controllers_ los encargados de crear las VM en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
+Esta operación se realiza en el _API Server_, siendo los _controllers_ los encargados de crear las máquinas virtuales en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
 
 Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirá el mínimo y máximo en el grupo de nodos en el objeto _KeosCluster_:
 
@@ -229,7 +237,7 @@ spec:
 
 ===== AKS
 
-En este proveedor el autoescalado se getiona desde los _VM Scale sets_ de Azure y no con el _cluster-autoscaler_.
+En este proveedor el autoescalado se gestiona desde los _VM Scale sets_ de Azure y no con el _cluster-autoscaler_.
 
 Durante el aprovisionamiento, en el momento de crear los grupos de nodos se instanciarán los _Node pools_ en AKS y sus respectivos _VM Scale Sets_. Si los grupos de nodos definidos tienen un rango de autoescalado, estos se trasladarán a los _Node pools_ creados.
 
@@ -262,7 +270,7 @@ Los _logs_ del _cluster-autoscaler_ se pueden ver desde su _Deployment_:
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
 ----
 
-=== Actualización de _Stratio Cloud Provisioner_
+=== Actualización de versión de _Stratio Cloud Provisioner_
 
 ==== Prerrequisitos
 
@@ -275,7 +283,7 @@ Los siguientes binarios deberán estar disponibles en la máquina bastión:
 - kubectl
 - jq
 
-Se deberán asegurar los permisos necesarios en el directorio _backup_ de la máquina bastión para que el usuario que ejecuta el _script_ pueda escribir en él (se crea el directorio ./backup/upgrade/).
+Se deberán asegurar los permisos necesarios en el directorio _backup_ de la máquina bastión para que el usuario que ejecuta el _script_ pueda escribir en él (se crea el directorio _./backup/upgrade/_).
 
 ==== Ejecución
 
@@ -297,7 +305,7 @@ python3 upgrade-provisioner_v0.3.py -p <vault_pass> --helm-repo <helm_repo> -a
 
 La actualización del _cluster_ a una versión superior de Kubernetes se realizará en dos partes dentro del mismo proceso atómico: primero, el _control-plane_, y una vez que esté en la nueva versión, los nodos _worker_, iterando por cada grupo y actualizándolos uno a uno.
 
-CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ donde no se haya especificado la imagen puede implicar una actualización del Sistema Operativo.
+CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ donde no se haya especificado la imagen puede implicar una actualización del sistema operativo.
 
 image::upgrade-cp.png[]
 
@@ -316,7 +324,7 @@ En el caso de un _control-plane_ gestionado, se deberá verificar que la versió
 
 ===== EKS
 
-Previo a la actualización de EKS debes asegurarte de que la versión deseada está soportada. Para ello, puedes utilizar el siguiente comando:
+Previo a la actualización de EKS debes asegurarte de que la versión deseada está soportada. Para ello puedes utilizar el siguiente comando:
 
 [source,bash]
 ----
@@ -342,7 +350,7 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ===== AKS
 
-Al igual que para otros flavours gestionados, antes de lanzar la actualización de AKS debemos ver las versiones soportadas en la región utilizada. Para ello, se podrá usar su CLI:
+Al igual que para otros _flavours_ gestionados, antes de lanzar la actualización de AKS se deben ver las versiones soportadas en la región utilizada. Para ello puedes usar su CLI:
 
 [source,bash]
 ----
@@ -390,37 +398,37 @@ Ejecuta los siguientes pasos para llevar a cabo la eliminación del _cluster_:
 . Crea un _cluster_ local indicando que no se genere ningún objeto en el proveedor _cloud_.
 +
 [source,bash]
------
+----
 [bastion]$ sudo ./bin/cloud-provisioner create cluster --name <cluster_name> --descriptor cluster.yaml --vault-password <my-passphrase> --avoid-creation
------
-+
+----
+
 . Pausa el _controller_ del _Stratio Cluster Operator_:
 +
 [source,bash]
 ----
 [bastion]$ kubectl --kubeconfig $KUBECONFIG -n kube-system scale deployment keoscluster-controller-manager --replicas 0
 ----
-+
-. Mueve la gestión del _cluster_ _worker_ al _cluster_ local utilizando el _kubeconfig_ correspondiente (para los _control-planes_ gestionados, se necesitará el _kubeconfig_ del proveedor). Para asegurar este paso, se buscará el siguiente texto en la salida del comando: *Moving Cluster API objects Clusters=1*.
+
+. Mueve la gestión del _cluster_ _worker_ al _cluster_ local utilizando el _kubeconfig_ correspondiente (para los _control-planes_ gestionados, se necesitará el _kubeconfig_ del proveedor). Para asegurar este paso, se buscará el siguiente texto en la salida del comando: "Moving Cluster API objects Clusters=1".
 +
 [source,bash]
------
+----
 [bastion]$ sudo clusterctl --kubeconfig $KUBECONFIG move -n cluster-<cluster_name> --to-kubeconfig /root/.kube/config
------
-+
+----
+
 . Accede al _cluster_ local y elimina el _cluster_ _worker_.
 +
 [source,bash]
------
+----
 [bastion]$ sudo docker exec -ti <cluster_name>-control-plane bash
 root@<cluster_name>-control-plane:/# kubectl -n cluster-<cluster_name> delete cl --all
 cluster.cluster.x-k8s.io "<cluster_name>" deleted
 root@<cluster_name>-control-plane:/#
------
-+
+----
+
 . Finalmente, elimina el _cluster_ local.
 +
 [source,bash]
------
+----
 [bastion]$ sudo ./bin/cloud-provisioner delete cluster --name <cluster_name>
------
+----

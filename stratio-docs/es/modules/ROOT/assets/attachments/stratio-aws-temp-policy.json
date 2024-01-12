@@ -43,7 +43,8 @@
                 "cloudformation:DeleteStack",
                 "iam:GetUser",
                 "cloudformation:ValidateTemplate",
-                "cloudformation:createStack"
+                "cloudformation:createStack",
+                "iam:GetInstanceProfile"
             ],
             "Resource": "*"
         }

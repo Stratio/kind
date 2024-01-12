@@ -6,14 +6,12 @@
           "Action": [
               "eks:UpdateClusterVersion",
               "secretsmanager:CreateSecret",
-              "eks:UpdateAddon",
               "secretsmanager:DeleteSecret",
               "ec2:CreateVpc",
               "eks:ListAddons",
               "eks:UpdateClusterConfig",
               "ec2:DescribeVpcAttribute",
               "ec2:ReplaceRoute",
-              "eks:DescribeAddon",
               "ec2:CreateInternetGateway",
               "ec2:CreateRoute",
               "ec2:ModifyVpcAttribute",
@@ -23,7 +21,6 @@
               "ec2:CreateRouteTable",
               "eks:DeleteCluster",
               "eks:TagResource",
-              "elasticloadbalancing:AddTags",
               "eks:CreateAddon",
               "ecr:BatchGetImage",
               "eks:DescribeCluster",
@@ -90,7 +87,8 @@
               "iam:AddRoleToInstanceProfile",
               "iam:CreateOpenIDConnectProvider",
               "iam:DeleteOpenIDConnectProvider",
-              "iam:GetOpenIDConnectProvider"
+              "iam:GetOpenIDConnectProvider",
+              "iam:CreateServiceLinkedRole"
           ],
           "Resource": [
               "arn:aws:iam::${AWS_ACCOUNT_ID}:role/*",
