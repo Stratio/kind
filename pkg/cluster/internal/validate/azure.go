@@ -281,14 +281,14 @@ func validateAzureNetwork(network commons.Networks, spec commons.Spec, creds *az
 		}
 	}
 	if spec.ControlPlane.Managed && network.VPCCIDRBlock != "" {
-		const cidrSizeMin = 128
+		const cidrSizeMin = 256
 		_, ipv4Net, err := net.ParseCIDR(network.VPCCIDRBlock)
 		if err != nil {
 			return errors.New("\"pods_cidr\": CIDR block must be a valid IPv4 CIDR block")
 		}
 		cidrSize := cidr.AddressCount(ipv4Net)
 		if cidrSize < cidrSizeMin {
-			return errors.New("\"vpc_cidr\": CIDR block size must be at least /25 netmask")
+			return errors.New("\"vpc_cidr\": CIDR block size must be at least /24 netmask")
 		}
 	}
 	if len(network.Subnets) > 0 {
