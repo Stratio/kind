@@ -170,6 +170,14 @@ func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) 
 		if len(spec.Networks.Subnets) == 0 {
 			return errors.New("\"subnets\": are required when \"vpc_id\" is set")
 		} else {
+			for _, s := range spec.Networks.Subnets {
+				if s.SubnetId == "" {
+					return errors.New("\"subnet_id\": is required")
+				}
+			}
+			if err = validateAWSAZs(ctx, cfg, spec); err != nil {
+				return err
+			}
 			subnets, _ := getAWSSubnets(spec.Networks.VPCID, cfg)
 			if len(subnets) > 0 {
 				for _, subnet := range spec.Networks.Subnets {
@@ -190,21 +198,15 @@ func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) 
 			if cidrSize < cidrSizeMin {
 				return errors.New("\"vpc_cidr\": CIDR block size must be at least /24 netmask")
 			}
-		}
-		if len(spec.Networks.PodsSubnets) > 0 {
-				return errors.New("\"vpc_id\": is required when \"pods_subnets\" is set")
-		}
-	}
-	if len(spec.Networks.Subnets) > 0 {
-		for _, s := range spec.Networks.Subnets {
-			if spec.Networks.VPCID != "" && s.SubnetId == "" {
-				return errors.New("\"subnet_id\": is required")
+			if len(spec.Networks.Subnets) > 0 {
+				return errors.New("\"subnets\": are not supported when \"vpc_cidr\" is set")
 			}
 		}
-		if err = validateAWSAZs(ctx, cfg, spec); err != nil {
-			return err
+		if len(spec.Networks.PodsSubnets) > 0 {
+			return errors.New("\"vpc_id\": is required when \"pods_subnets\" is set")
 		}
 	}
+
 	return nil
 }
 
@@ -221,7 +223,6 @@ func validateAWSPodsNetwork(podsNetwork string) error {
 	}
 
 	_, ipv4Net, err := net.ParseCIDR(podsNetwork)
-	fmt.Println(err)
 	if err != nil {
 		return errors.New("\"pods_cidr\": CIDR block must be a valid IPv4 CIDR block")
 	}
