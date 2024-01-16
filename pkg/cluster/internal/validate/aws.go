@@ -206,7 +206,6 @@ func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) 
 			return errors.New("\"vpc_id\": is required when \"pods_subnets\" is set")
 		}
 	}
-
 	return nil
 }
 
