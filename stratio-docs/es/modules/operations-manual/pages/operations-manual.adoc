@@ -305,7 +305,7 @@ Ejemplo:
 python3 upgrade-provisioner_v0.3.py -p <vault_pass> --helm-repo <helm_repo> -a
 ----
 
-** xref:attachment$upgrade-provisioner_v0.3.py[Descargar script de actualización]
+** xref:attachment$"upgrade-provisioner_v0.3.py"[Descargar script de actualización]
 
 === Actualización de Kubernetes
 
