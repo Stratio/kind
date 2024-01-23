@@ -18,6 +18,7 @@ package validate
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,8 +35,9 @@ const (
 
 var k8sVersionSupported = []string{"1.24", "1.25", "1.26", "1.27", "1.28"}
 
-func validateCommon(spec commons.KeosSpec) error {
+func validateCommon(spec commons.KeosSpec, clusterConfig *commons.ClusterConfig) error {
 	var err error
+
 	if err = validateK8SVersion(spec.K8SVersion); err != nil {
 		return err
 	}
@@ -45,6 +47,30 @@ func validateCommon(spec commons.KeosSpec) error {
 	if err = validateVolumes(spec); err != nil {
 		return err
 	}
+	if err = validatePublicControlPlane(spec, clusterConfig); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatePublicControlPlane(spec commons.KeosSpec, clusterConfig *commons.ClusterConfig) error {
+	if spec.InfraProvider != "aws" {
+		if !spec.ControlPlane.Public {
+			return errors.New("spec.control_plane.public only can be false for aws or eks installations")
+		}
+	} else if !spec.ControlPlane.Public {
+		if clusterConfig == nil || !clusterConfig.Spec.Private {
+			return errors.New("If keoscluster's .spec.control_plane.public is false, clusterConfig .spec.private_registry must be true")
+		}
+		if spec.Networks.AdditionalSecurityGroup == "" {
+			return errors.New("If keoscluster's .spec.control_plane.public is false, its .spec.networks.additional_sg must be indicated. This sg must be created as a requirement and must allow the internal vpc traffic.")
+		}
+		if spec.Networks.VPCID == "" || reflect.DeepEqual(spec.Networks.Subnets, commons.Subnets{}) {
+			return errors.New("If keoscluster's .spec.control_plane.public is false, its .spec.networks.vpc_id and .spec.networks.subnets must be indicated.")
+
+		}
+	}
+
 	return nil
 }
 

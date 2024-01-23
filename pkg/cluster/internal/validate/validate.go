@@ -24,6 +24,7 @@ type ValidateParams struct {
 	KeosCluster   commons.KeosCluster
 	SecretsPath   string
 	VaultPassword string
+	ClusterConfig commons.ClusterConfig
 }
 
 func Cluster(params *ValidateParams) (commons.ClusterCredentials, error) {
@@ -35,7 +36,7 @@ func Cluster(params *ValidateParams) (commons.ClusterCredentials, error) {
 		return commons.ClusterCredentials{}, err
 	}
 
-	if err := validateCommon(params.KeosCluster.Spec); err != nil {
+	if err := validateCommon(params.KeosCluster.Spec, &params.ClusterConfig); err != nil {
 		return commons.ClusterCredentials{}, err
 	}
 

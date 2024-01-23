@@ -62,16 +62,16 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			return err
 		}
 		stratioImage := "stratio-capi-image:" + strings.Split(friendlyImageName, ":")[1]
-		// if dockerRegUrl != "" {
-		// 	cmd := exec.Command("docker", "inspect", "--type=image", stratioImage)
-		// 	if err := cmd.Run(); err == nil {
-		// 		logger.V(1).Infof("stratioImage: %s present locally", image)
-		// 	} else {
-		// 		err = buildStratioImage(logger, stratioImage, dockerfileDir)
-		// 	}
-		// } else {
-		// 	err = buildStratioImage(logger, stratioImage, dockerfileDir)
-		// }
+		if dockerRegUrl != "" {
+			cmd := exec.Command("docker", "inspect", "--type=image", stratioImage)
+			if err := cmd.Run(); err == nil {
+				logger.V(1).Infof("stratioImage: %s present locally", image)
+			} else {
+				err = buildStratioImage(logger, stratioImage, dockerfileDir)
+			}
+		} else {
+			err = buildStratioImage(logger, stratioImage, dockerfileDir)
+		}
 		err = buildStratioImage(logger, stratioImage, dockerfileDir)
 		if err != nil {
 			status.End(false)

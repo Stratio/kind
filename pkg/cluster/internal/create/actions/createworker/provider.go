@@ -287,7 +287,7 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 	return nil
 }
 
-func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivateParams, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, kubeconfigPath string, firstInstallation bool) error {
+func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivateParams, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, clusterConfig *commons.ClusterConfig, kubeconfigPath string, firstInstallation bool) error {
 	var c string
 	var err error
 	var helmRepository helmRepository
@@ -333,6 +333,20 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 			Flavour string `yaml:"flavour,omitempty"`
 			Version string `yaml:"version,omitempty"`
 		}{}
+
+		if clusterConfig != nil {
+			clusterConfigYAML, err := yaml.Marshal(clusterConfig)
+			if err != nil {
+				return err
+			}
+			// Write keoscluster file
+			c = "echo '" + string(clusterConfigYAML) + "' > " + manifestsPath + "/clusterconfig.yaml"
+			_, err = commons.ExecuteCommand(n, c)
+			if err != nil {
+				return errors.Wrap(err, "failed to write the keoscluster file")
+			}
+			keosCluster.Spec.ClusterConfigRef.Name = clusterConfig.Metadata.Name
+		}
 		keosClusterYAML, err := yaml.Marshal(keosCluster)
 		if err != nil {
 			return err

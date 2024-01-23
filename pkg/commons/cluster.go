@@ -58,7 +58,11 @@ type Metadata struct {
 }
 
 type ClusterConfigSpec struct {
-	Private bool `yaml:"private_registry,omitempty"`
+	Private bool `yaml:"private_registry"`
+}
+
+type ClusterConfigRef struct {
+	Name string `json:"name,omitempty"`
 }
 
 // Spec represents the YAML structure in the spec field of the descriptor file
@@ -106,18 +110,22 @@ type KeosSpec struct {
 		AWS             AWSCP               `yaml:"aws,omitempty"`
 		Azure           AzureCP             `yaml:"azure,omitempty"`
 		ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+		Public          bool                `yaml:"public" validate:"boolean"`
 	} `yaml:"control_plane"`
 
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
+
+	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
 }
 
 type Networks struct {
-	VPCID         string    `yaml:"vpc_id,omitempty"`
-	VPCCidrBlock  string    `yaml:"vpc_cidr,omitempty" validate:"omitempty,cidrv4"`
-	PodsCidrBlock string    `yaml:"pods_cidr,omitempty" validate:"omitempty,cidrv4"`
-	PodsSubnets   []Subnets `yaml:"pods_subnets,omitempty" validate:"dive"`
-	Subnets       []Subnets `yaml:"subnets,omitempty" validate:"dive"`
-	ResourceGroup string    `yaml:"resource_group,omitempty"`
+	VPCID                   string    `yaml:"vpc_id,omitempty"`
+	VPCCidrBlock            string    `yaml:"vpc_cidr,omitempty" validate:"omitempty,cidrv4"`
+	PodsCidrBlock           string    `yaml:"pods_cidr,omitempty" validate:"omitempty,cidrv4"`
+	PodsSubnets             []Subnets `yaml:"pods_subnets,omitempty" validate:"dive"`
+	Subnets                 []Subnets `yaml:"subnets,omitempty" validate:"dive"`
+	ResourceGroup           string    `yaml:"resource_group,omitempty"`
+	AdditionalSecurityGroup string    `yaml:"additional_sg,omitempty"`
 }
 
 type Subnets struct {
@@ -343,6 +351,7 @@ func (s ClusterConfigSpec) Init() ClusterConfigSpec {
 func (s KeosSpec) Init() KeosSpec {
 	highlyAvailable := true
 	s.ControlPlane.HighlyAvailable = &highlyAvailable
+	s.ControlPlane.Public = true
 
 	// AKS
 	s.ControlPlane.Azure.Tier = "Paid"
@@ -372,6 +381,7 @@ func (s KeosSpec) Init() KeosSpec {
 func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, error) {
 	var keosCluster KeosCluster
 	var clusterConfig ClusterConfig
+	findClusterConfig := false
 
 	_, err := os.Stat(descriptorPath)
 	if err != nil {
@@ -416,6 +426,7 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 
 				keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 			case "ClusterConfig":
+				findClusterConfig = true
 				clusterConfig.Spec = new(ClusterConfigSpec).Init()
 				err = yaml.Unmarshal([]byte(manifest), &clusterConfig)
 				if err != nil {
@@ -426,7 +437,7 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				if err != nil {
 					return nil, nil, err
 				}
-
+				clusterConfig.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 			default:
 				return nil, nil, errors.New("Unsupported manifest kind: " + resource.Kind)
 			}
@@ -436,13 +447,12 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 	if reflect.DeepEqual(keosCluster, KeosCluster{}) {
 		return nil, nil, errors.New("Keoscluster's manifest has not been found.")
 	}
-	if !reflect.DeepEqual(clusterConfig, ClusterConfig{}) {
-		if clusterConfig.Metadata.Name != keosCluster.Metadata.Name {
-			return nil, nil, errors.New("ClusterConfig name does not match keoscluster name.")
-		}
+
+	if findClusterConfig {
+		return &keosCluster, &clusterConfig, nil
 	}
 
-	return &keosCluster, &clusterConfig, nil
+	return &keosCluster, nil, nil
 }
 
 func DecryptFile(filePath string, vaultPassword string) (string, error) {
