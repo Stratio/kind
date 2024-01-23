@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.3.6 (upcoming)
+## 0.17.0-0.3.7 (upcoming)
 
 * [Core] HotFix: Disable Azure cloud routes and fix Azure csi drivers in upgrade script
 * [Core] HotFix: Remove Azure cloud route table maintenance
