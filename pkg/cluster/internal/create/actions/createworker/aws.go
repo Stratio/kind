@@ -111,8 +111,9 @@ func (b *AWSBuilder) getProvider() Provider {
 	}
 }
 
-func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
+func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
 	var podsCidrBlock string
+	keosCluster := privateParams.KeosCluster
 	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
 		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
 	} else {
@@ -125,6 +126,11 @@ func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, keosCluster co
 		" --set args[1]=\"--cloud-provider=aws\"" +
 		" --set args[2]=\"--cluster-cidr=" + podsCidrBlock + "\"" +
 		" --set args[3]=\"--cluster-name=" + keosCluster.Metadata.Name + "\""
+
+	if privateParams.Private {
+		c += " --set image.repository=" + privateParams.KeosRegUrl + "/provider-aws/cloud-controller-manager"
+	}
+
 	_, err := commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy aws-cloud-controller-manager Helm Chart")
@@ -132,10 +138,23 @@ func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, keosCluster co
 	return nil
 }
 
-func (b *AWSBuilder) installCSI(n nodes.Node, k string) error {
+func (b *AWSBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams) error {
 	c := "helm install aws-ebs-csi-driver /stratio/helm/aws-ebs-csi-driver" +
 		" --kubeconfig " + k +
-		" --namespace " + b.csiNamespace
+		" --namespace " + b.csiNamespace +
+		" --set controller.podAnnotations.\"cluster-autoscaler\\.kubernetes\\.io/safe-to-evict-local-volumes=socket-dir\""
+
+	if privateParams.Private {
+		c += " --set image.repository=" + privateParams.KeosRegUrl + "/ebs-csi-driver/aws-ebs-csi-driver" +
+			" --set sidecars.provisioner.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/external-provisioner" +
+			" --set sidecars.attacher.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/external-attacher" +
+			" --set sidecars.snapshotter.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter" +
+			" --set sidecars.livenessProbe.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/livenessprobe" +
+			" --set sidecars.resizer.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/external-resizer" +
+			" --set sidecars.nodeDriverRegistrar.image.repository=" + privateParams.KeosRegUrl + "/eks-distro/kubernetes-csi/node-driver-registrar" +
+			" --set sidecars.volumemodifier.image.repository=" + privateParams.KeosRegUrl + "/ebs-csi-driver/volume-modifier-for-k8s"
+
+	}
 	_, err := commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy AWS EBS CSI driver Helm Chart")
@@ -296,4 +315,20 @@ func (b *AWSBuilder) getOverrideVars(p ProviderParams, networks commons.Networks
 		overrideVars = addOverrideVar("storage-class.yaml", []byte("storage_class_pvc_size: 125Gi"), overrideVars)
 	}
 	return overrideVars, nil
+}
+
+func (b *AWSBuilder) postInstallPhase(n nodes.Node, k string) error {
+	if b.capxManaged {
+		err := patchDeploy(n, k, "kube-system", "coredns", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"tmp\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to coredns")
+		}
+
+		err = patchDeploy(n, k, "kube-system", "ebs-csi-controller", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"socket-dir\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to ebs-csi-controller")
+		}
+	}
+
+	return nil
 }

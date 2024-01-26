@@ -1,0 +1,24 @@
+{{- $capxName := "" -}}
+{{- if eq $.InfraProvider "gcp" -}}
+  {{- $capxName = "capg" -}}
+{{- else if eq $.InfraProvider "aws" -}}
+  {{- $capxName = "capa" -}}
+{{- else if eq $.InfraProvider "azure" -}}
+  {{- $capxName = "capz" -}}
+{{- end -}}
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $capxName }}-controller-manager
+  labels:
+    control-plane: {{ $capxName }}-controller-manager
+    cluster.x-k8s.io/provider: infrastructure-{{ $.InfraProvider }}
+  namespace: {{ $capxName }}-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      control-plane: {{ $capxName }}-controller-manager
+      cluster.x-k8s.io/provider: infrastructure-{{ $.InfraProvider }}

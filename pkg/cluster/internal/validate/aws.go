@@ -43,7 +43,7 @@ var AWSVolumes = []string{"io1", "io2", "gp2", "gp3", "sc1", "st1", "standard", 
 var isAWSNodeImage = regexp.MustCompile(`^ami-\w+$`).MatchString
 var AWSNodeImageFormat = "ami-[IMAGE_ID]"
 
-func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
+func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error {
 	var err error
 	var ctx = context.TODO()
 
@@ -146,7 +146,7 @@ func validateAWS(spec commons.Spec, providerSecrets map[string]string) error {
 	return nil
 }
 
-func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.Spec) error {
+func validateAWSNetwork(ctx context.Context, cfg aws.Config, spec commons.KeosSpec) error {
 	var err error
 	if spec.Networks.PodsCidrBlock != "" {
 		if spec.ControlPlane.Managed {
@@ -371,7 +371,7 @@ func validateAWSStorageClass(sc commons.StorageClass, wn commons.WorkerNodes) er
 	return nil
 }
 
-func validateAWSAZs(ctx context.Context, cfg aws.Config, spec commons.Spec) error {
+func validateAWSAZs(ctx context.Context, cfg aws.Config, spec commons.KeosSpec) error {
 	var err error
 	var azs []string
 

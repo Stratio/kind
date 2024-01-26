@@ -29,11 +29,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Resource struct {
+	APIVersion string      `yaml:"apiVersion" validate:"required"`
+	Kind       string      `yaml:"kind" validate:"required"`
+	Metadata   Metadata    `yaml:"metadata" validate:"required"`
+	Spec       interface{} `yaml:"spec" validate:"required"`
+}
+
+type ClusterConfig struct {
+	APIVersion string            `yaml:"apiVersion" validate:"required"`
+	Kind       string            `yaml:"kind" validate:"required"`
+	Metadata   Metadata          `yaml:"metadata" validate:"required"`
+	Spec       ClusterConfigSpec `yaml:"spec" validate:"required"`
+}
+
 type KeosCluster struct {
 	APIVersion string   `yaml:"apiVersion" validate:"required"`
 	Kind       string   `yaml:"kind" validate:"required"`
 	Metadata   Metadata `yaml:"metadata" validate:"required"`
-	Spec       Spec     `yaml:"spec" validate:"required"`
+	Spec       KeosSpec `yaml:"spec" validate:"required"`
 }
 
 type Metadata struct {
@@ -43,8 +57,16 @@ type Metadata struct {
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
 
+type ClusterConfigSpec struct {
+	Private bool `yaml:"private_registry"`
+}
+
+type ClusterConfigRef struct {
+	Name string `json:"name,omitempty"`
+}
+
 // Spec represents the YAML structure in the spec field of the descriptor file
-type Spec struct {
+type KeosSpec struct {
 	DeployAutoscaler bool `yaml:"deploy_autoscaler" validate:"boolean"`
 
 	Bastion Bastion `yaml:"bastion,omitempty"`
@@ -91,6 +113,8 @@ type Spec struct {
 	} `yaml:"control_plane"`
 
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
+
+	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
 }
 
 type Networks struct {
@@ -316,8 +340,13 @@ type SCParameters struct {
 	ReplicationType               string `yaml:"replication-type,omitempty"`
 }
 
+func (s ClusterConfigSpec) Init() ClusterConfigSpec {
+	s.Private = false
+	return s
+}
+
 // Init sets default values for the Spec
-func (s Spec) Init() Spec {
+func (s KeosSpec) Init() KeosSpec {
 	highlyAvailable := true
 	s.ControlPlane.HighlyAvailable = &highlyAvailable
 
@@ -346,37 +375,81 @@ func (s Spec) Init() Spec {
 }
 
 // Read descriptor file
-func GetClusterDescriptor(descriptorPath string) (*KeosCluster, error) {
+func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, error) {
 	var keosCluster KeosCluster
+	var clusterConfig ClusterConfig
+	findClusterConfig := false
 
 	_, err := os.Stat(descriptorPath)
 	if err != nil {
-		return nil, errors.New("No exists any cluster descriptor as " + descriptorPath)
+		return nil, nil, errors.New("No exists any cluster descriptor as " + descriptorPath)
 	}
 
 	descriptorRAW, err := os.ReadFile(descriptorPath)
 	if err != nil {
-		return nil, err
-	}
-
-	keosCluster.Spec = new(Spec).Init()
-	err = yaml.Unmarshal(descriptorRAW, &keosCluster)
-	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	validate := validator.New()
 	validate.RegisterValidation("gte_param_if_exists", gteParamIfExists)
 	validate.RegisterValidation("lte_param_if_exists", lteParamIfExists)
 	validate.RegisterValidation("required_if_for_bool", requiredIfForBool)
-	err = validate.Struct(keosCluster)
-	if err != nil {
-		return nil, err
+
+	descriptorManifests := strings.Split(string(descriptorRAW), "---\n")
+	for _, manifest := range descriptorManifests {
+		var resource Resource
+		err = yaml.Unmarshal([]byte(manifest), &resource)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !reflect.DeepEqual(resource, Resource{}) {
+			err = validate.Struct(resource)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			switch resource.Kind {
+			case "KeosCluster":
+				keosCluster.Spec = new(KeosSpec).Init()
+				err = yaml.Unmarshal([]byte(manifest), &keosCluster)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				err = validate.Struct(keosCluster)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
+			case "ClusterConfig":
+				findClusterConfig = true
+				clusterConfig.Spec = new(ClusterConfigSpec).Init()
+				err = yaml.Unmarshal([]byte(manifest), &clusterConfig)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				err = validate.Struct(clusterConfig)
+				if err != nil {
+					return nil, nil, err
+				}
+				clusterConfig.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
+			default:
+				return nil, nil, errors.New("Unsupported manifest kind: " + resource.Kind)
+			}
+		}
 	}
 
-	keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
+	if reflect.DeepEqual(keosCluster, KeosCluster{}) {
+		return nil, nil, errors.New("Keoscluster's manifest has not been found.")
+	}
 
-	return &keosCluster, nil
+	if findClusterConfig {
+		return &keosCluster, &clusterConfig, nil
+	}
+
+	return &keosCluster, nil, nil
 }
 
 func DecryptFile(filePath string, vaultPassword string) (string, error) {
