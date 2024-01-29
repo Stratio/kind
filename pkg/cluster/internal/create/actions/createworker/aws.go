@@ -20,7 +20,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/base64"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -324,7 +323,6 @@ func (b *AWSBuilder) postInstallPhase(n nodes.Node, k string) error {
 	c := "kubectl --kubeconfig " + kubeconfigPath + " get pdb " + coreDNSPDBName + " -n kube-system"
 	_, err := commons.ExecuteCommand(n, c)
 	if err != nil {
-		fmt.Println("\n oyeee que el pdb no existe")
 		err = installCorednsPdb(n, k)
 		if err != nil {
 			return errors.Wrap(err, "failed to add core dns PDB")
