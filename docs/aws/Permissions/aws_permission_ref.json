@@ -23,6 +23,7 @@
                 "eks:TagResource",
                 "eks:CreateAddon",
                 "ecr:BatchGetImage",
+                "ecr:ListImages",
                 "eks:DescribeCluster",
                 "secretsmanager:TagResource"
             ],

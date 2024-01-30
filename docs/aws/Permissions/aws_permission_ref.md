@@ -14,6 +14,7 @@
 | ecr:GetDownloadUrlForLayer | Image pull | GetDownloadUrlForLayer | arn:aws:ec2:*:268367799918:vpc/* | cloud-provisioner |
 | ecr:BatchGetImage | Image pull | BatchGetImage | arn:aws:ec2:*:268367799918:vpc/* | cloud-provisioner |
 | ecr:BatchCheckLayerAvailability | Image pull | BatchCheckLayerAvailability | arn:aws:ec2:*:268367799918:vpc/* | cloud-provisioner |
+| ecr:ListImages | Helm charts version lookup | ListImages | arn:aws:ec2:*:268367799918:vpc/* | cloud-provisioner |
 
 **Test:** cloud-provisioner create cluster --name eks-cl01 --retain --vault-password 123456 --keep-mgmt
 
