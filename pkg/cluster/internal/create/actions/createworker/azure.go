@@ -120,8 +120,9 @@ func (b *AzureBuilder) getProvider() Provider {
 	}
 }
 
-func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, keosCluster commons.KeosCluster) error {
+func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
 	var podsCidrBlock string
+	keosCluster := privateParams.KeosCluster
 	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
 		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
 	} else {
@@ -132,6 +133,10 @@ func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, keosCluster 
 		" --namespace kube-system" +
 		" --set infra.clusterName=" + keosCluster.Metadata.Name +
 		" --set 'cloudControllerManager.clusterCIDR=" + podsCidrBlock + "'"
+	if privateParams.Private {
+		c += " --set cloudControllerManager.imageRepository=" + privateParams.KeosRegUrl + "/oss/kubernetes" +
+			" --set cloudNodeManager.imageRepository=" + privateParams.KeosRegUrl + "/oss/kubernetes"
+	}
 	_, err := commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cloud-provider-azure Helm Chart")
@@ -139,14 +144,20 @@ func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, keosCluster 
 	return nil
 }
 
-func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
+func (b *AzureBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams) error {
 	var c string
 	var err error
 
 	// Deploy disk CSI driver
 	c = "helm install azuredisk-csi-driver /stratio/helm/azuredisk-csi-driver " +
 		" --kubeconfig " + k +
-		" --namespace " + b.csiNamespace
+		" --namespace " + b.csiNamespace +
+		" --set controller.podAnnotations.\"cluster-autoscaler\\.kubernetes\\.io/safe-to-evict-local-volumes=socket-dir\\,azure-cred\""
+
+	if privateParams.Private {
+		c += " --set image.baseRepo=" + privateParams.KeosRegUrl
+	}
+
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure Disk CSI driver Helm Chart")
@@ -155,7 +166,13 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string) error {
 	// Deploy file CSI driver
 	c = "helm install azurefile-csi-driver /stratio/helm/azurefile-csi-driver " +
 		" --kubeconfig " + k +
-		" --namespace " + b.csiNamespace
+		" --namespace " + b.csiNamespace +
+		" --set controller.podAnnotations.\"cluster-autoscaler\\.kubernetes\\.io/safe-to-evict-local-volumes=socket-dir\\,azure-cred\""
+
+	if privateParams.Private {
+		c += " --set image.baseRepo=" + privateParams.KeosRegUrl
+	}
+
 	_, err = commons.ExecuteCommand(n, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure File CSI driver Helm Chart")
@@ -303,4 +320,28 @@ func (b *AzureBuilder) getOverrideVars(p ProviderParams, networks commons.Networ
 		overrideVars = addOverrideVar("ingress-nginx.yaml", azureInternalIngress, overrideVars)
 	}
 	return overrideVars, nil
+}
+
+func (b *AzureBuilder) postInstallPhase(n nodes.Node, k string) error {
+	if b.capxManaged {
+		err := patchDeploy(n, k, "kube-system", "coredns", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"tmp\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to coredns")
+		}
+		err = patchDeploy(n, k, "tigera-operator", "tigera-operator", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"var-lib-calico\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to tigera-operator")
+		}
+		err = patchDeploy(n, k, "kube-system", "metrics-server", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"tmp-dir\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to metrics-server")
+		}
+
+	} else {
+		err := patchDeploy(n, k, "kube-system", "cloud-controller-manager", "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\""+postInstallAnnotation+"\": \"etc-kubernetes,ssl-mount,msi\"}}}}}")
+		if err != nil {
+			return errors.Wrap(err, "failed to add podAnnotation to cloud-controller-manager")
+		}
+	}
+	return nil
 }
