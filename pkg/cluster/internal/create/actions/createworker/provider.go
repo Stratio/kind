@@ -63,7 +63,7 @@ const (
 	clusterOperatorImage = "0.2.0-SNAPSHOT"
 
 	postInstallAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes"
-	corednsPdbPath        = "/kind/coredns-pdb.yaml"
+	corednsPdbPath        = "/kind/coredns_pdb.yaml"
 
 	machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
 	machineHealthCheckControlPlaneNodePath = "/kind/manifests/machinehealthcheckcontrolplane.yaml"
