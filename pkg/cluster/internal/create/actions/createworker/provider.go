@@ -22,7 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -47,6 +47,11 @@ var denyAllEgressIMDSgnpFiles embed.FS
 //go:embed files/*/allow-egress-imds_gnetpol.yaml
 var allowEgressIMDSgnpFiles embed.FS
 
+var stratio_helm_repo string
+
+//go:embed files/*/*_pdb.yaml
+var commonsPDBFile embed.FS
+
 const (
 	CAPICoreProvider         = "cluster-api"
 	CAPIBootstrapProvider    = "kubeadm"
@@ -60,11 +65,12 @@ const (
 	clusterOperatorImage = "0.2.0-SNAPSHOT"
 
 	postInstallAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes"
-)
+	corednsPdbPath        = "/kind/coredns_pdb.yaml"
 
-const machineHealthCheckWorkerNodePath = "/kind/manifests/machinehealthcheckworkernode.yaml"
-const machineHealthCheckControlPlaneNodePath = "/kind/manifests/machinehealthcheckcontrolplane.yaml"
-const defaultScAnnotation = "storageclass.kubernetes.io/is-default-class"
+	machineHealthCheckWorkerNodePath       = "/kind/manifests/machinehealthcheckworkernode.yaml"
+	machineHealthCheckControlPlaneNodePath = "/kind/manifests/machinehealthcheckcontrolplane.yaml"
+	defaultScAnnotation                    = "storageclass.kubernetes.io/is-default-class"
+)
 
 //go:embed files/common/calico-metrics.yaml
 var calicoMetrics string
@@ -226,7 +232,7 @@ func (p *Provider) getDenyAllEgressIMDSGNetPol() (string, error) {
 		return "", errors.Wrap(err, "error opening the deny all egress IMDS file")
 	}
 	defer denyAllEgressIMDSgnpFile.Close()
-	denyAllEgressIMDSgnpContent, err := ioutil.ReadAll(denyAllEgressIMDSgnpFile)
+	denyAllEgressIMDSgnpContent, err := io.ReadAll(denyAllEgressIMDSgnpFile)
 	if err != nil {
 		return "", err
 	}
@@ -241,7 +247,7 @@ func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
 		return "", errors.Wrap(err, "error opening the allow egress IMDS file")
 	}
 	defer allowEgressIMDSgnpFile.Close()
-	allowEgressIMDSgnpContent, err := ioutil.ReadAll(allowEgressIMDSgnpFile)
+	allowEgressIMDSgnpContent, err := io.ReadAll(allowEgressIMDSgnpFile)
 	if err != nil {
 		return "", err
 	}
@@ -249,12 +255,26 @@ func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
 	return string(allowEgressIMDSgnpContent), nil
 }
 
+func getcapxPDB(commonsPDBLocalPath string) (string, error) {
+	commonsPDBFile, err := commonsPDBFile.Open(commonsPDBLocalPath)
+	if err != nil {
+		return "", errors.Wrap(err, "error opening the PodDisruptionBudget file")
+	}
+	defer commonsPDBFile.Close()
+	capaPDBContent, err := io.ReadAll(commonsPDBFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(capaPDBContent), nil
+}
+
 func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubeconfigPath string) error {
 	c := "kubectl create -f " + CAPILocalRepository + "/cert-manager/" + certManagerVersion + "/cert-manager.crds.yaml"
 	if kubeconfigPath != "" {
 		c += " --kubeconfig " + kubeconfigPath
 	}
-	_, err := commons.ExecuteCommand(n, c)
+	_, err := commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create cert-manager crds")
 	}
@@ -263,7 +283,7 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 	if kubeconfigPath != "" {
 		c += " --kubeconfig " + kubeconfigPath
 	}
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create cert-manager namespace")
 	}
@@ -280,14 +300,14 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 		c += " --kubeconfig " + kubeconfigPath
 	}
 
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cert-manager Helm Chart")
 	}
 	return nil
 }
 
-func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivateParams, clusterCredentials commons.ClusterCredentials, keosRegistry keosRegistry, clusterConfig *commons.ClusterConfig, kubeconfigPath string, firstInstallation bool) error {
+func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivateParams, clusterCredentials commons.ClusterCredentials, keosRegistry KeosRegistry, clusterConfig *commons.ClusterConfig, kubeconfigPath string, firstInstallation bool, helmRepoCreds HelmRegistry) error {
 	var c string
 	var err error
 	var helmRepository helmRepository
@@ -295,19 +315,19 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 
 	if firstInstallation && keosCluster.Spec.InfraProvider == "aws" && strings.HasPrefix(keosCluster.Spec.HelmRepository.URL, "s3://") {
 		c = "mkdir -p ~/.aws"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create aws config file")
 		}
 		c = "echo [default] > ~/.aws/config && " +
 			"echo region = " + keosCluster.Spec.Region + " >>  ~/.aws/config"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create aws config file")
 		}
 		awsCredentials := "[default]\naws_access_key_id = " + clusterCredentials.ProviderCredentials["AccessKey"] + "\naws_secret_access_key = " + clusterCredentials.ProviderCredentials["SecretKey"] + "\n"
 		c = "echo '" + awsCredentials + "' > ~/.aws/credentials"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create aws credentials file")
 		}
@@ -329,10 +349,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if keosCluster.Spec.ControlPlane.Managed {
 			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
 		}
-		keosCluster.Spec.Keos = struct {
-			Flavour string `yaml:"flavour,omitempty"`
-			Version string `yaml:"version,omitempty"`
-		}{}
+		keosCluster.Spec.Keos = commons.Keos{}
 
 		if clusterConfig != nil {
 			clusterConfigYAML, err := yaml.Marshal(clusterConfig)
@@ -341,7 +358,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 			}
 			// Write keoscluster file
 			c = "echo '" + string(clusterConfigYAML) + "' > " + manifestsPath + "/clusterconfig.yaml"
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to write the keoscluster file")
 			}
@@ -353,33 +370,43 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		}
 		// Write keoscluster file
 		c = "echo '" + string(keosClusterYAML) + "' > " + manifestsPath + "/keoscluster.yaml"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to write the keoscluster file")
 		}
 		// Add helm repository
 		helmRepository.url = keosCluster.Spec.HelmRepository.URL
-		if keosCluster.Spec.HelmRepository.AuthRequired {
+		if strings.HasPrefix(keosCluster.Spec.HelmRepository.URL, "oci://") {
+			stratio_helm_repo = helmRepoCreds.URL
+			urlLogin := strings.Split(strings.Split(keosCluster.Spec.HelmRepository.URL, "//")[1], "/")[0]
+
+			c = "helm registry login " + urlLogin + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepoCreds.URL)
+			}
+		} else if keosCluster.Spec.HelmRepository.AuthRequired {
 			helmRepository.user = clusterCredentials.HelmRepositoryCredentials["User"]
 			helmRepository.pass = clusterCredentials.HelmRepositoryCredentials["Pass"]
-			c = "helm repo add stratio-helm-repo " + helmRepository.url + " --username " + helmRepository.user + " --password " + helmRepository.pass
-			_, err = commons.ExecuteCommand(n, c)
+			stratio_helm_repo = "stratio-helm-repo"
+			c = "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepository.url)
 			}
 		} else {
-			c = "helm repo add stratio-helm-repo " + helmRepository.url
-			_, err = commons.ExecuteCommand(n, c)
+			c = "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
-				return errors.Wrap(err, "failed to add helm repository: "+helmRepository.url)
+				return errors.Wrap(err, "failed to add helm repository: "+helmRepoCreds.URL)
 			}
 		}
 
 		if firstInstallation {
 			// Pull cluster-operator helm chart
-			c = "helm pull stratio-helm-repo/cluster-operator --version " + clusterOperatorChart +
+			c = "helm pull " + stratio_helm_repo + "/cluster-operator --version " + clusterOperatorChart +
 				" --untar --untardir /stratio/helm"
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to pull cluster-operator helm chart")
 			}
@@ -396,7 +423,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if kubeconfigPath != "" {
 			c = c + " --kubeconfig " + kubeconfigPath
 		}
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create keoscluster-registries secret")
 		}
@@ -429,14 +456,14 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		c += " --set app.replicas=2" + " --kubeconfig " + kubeconfigPath
 	}
 
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cluster-operator chart")
 	}
 
 	// Wait for cluster-operator deployment
 	c = "kubectl -n kube-system rollout status deploy/keoscluster-controller-manager --timeout=3m"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for cluster-operator deployment")
 	}
@@ -471,7 +498,7 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, allowCom
 	}
 
 	c = "echo '" + calicoHelmValues + "' > " + calicoTemplate
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create Calico Helm chart values file")
 	}
@@ -481,28 +508,28 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, allowCom
 		" --namespace tigera-operator" +
 		" --create-namespace" +
 		" --values " + calicoTemplate
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Calico Helm Chart")
 	}
 
 	// Allow egress in tigera-operator namespace
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n tigera-operator apply -f " + allowCommonEgressNetPolPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply tigera-operator egress NetworkPolicy")
 	}
 
 	// Wait for calico-system namespace to be created
 	c = "timeout 300s bash -c 'until kubectl --kubeconfig " + kubeconfigPath + " get ns calico-system; do sleep 2s ; done'"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for calico-system namespace")
 	}
 
 	// Allow egress in calico-system namespace
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n calico-system apply -f " + allowCommonEgressNetPolPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply calico-system egress NetworkPolicy")
 	}
@@ -535,28 +562,28 @@ func customCoreDNS(n nodes.Node, k string, keosCluster commons.KeosCluster) erro
 	}
 
 	c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create CoreDNS configmap file")
 	}
 
 	// Patch configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system patch cm " + coreDNSPatchFile + " --patch-file " + coreDNSTemplate
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to customize coreDNS patching ConfigMap")
 	}
 
 	// Rollout restart to catch the made changes
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout restart deploy coredns"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to redeploy coreDNS")
 	}
 
 	// Wait until CoreDNS completely rollout
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deploy coredns --timeout=3m"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for the customatization of CoreDNS configmap")
 	}
@@ -574,7 +601,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 	if p.capxProvider == "azure" {
 		// Create capx namespace
 		c = "kubectl --kubeconfig " + kubeconfigPath + " create namespace " + p.capxName + "-system"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx namespace")
 		}
@@ -587,7 +614,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 			"kubectl --kubeconfig %s -n %s create secret generic cluster-identity-secret "+
 				"--from-literal=clientSecret='%s'",
 			kubeconfigPath, namespace, clientSecret)
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx secret")
 		}
@@ -599,29 +626,31 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
 		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
 		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
-	_, err = commons.ExecuteCommand(n, c, p.capxEnvVars)
+	_, err = commons.ExecuteCommand(n, c, 5, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in workload cluster")
 	}
 
 	// Manually assign PriorityClass to capx service
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch deploy " + p.capxName + "-controller-manager -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to assigned priorityClass to "+p.capxName+"-controller-manager")
 	}
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status deploy " + p.capxName + "-controller-manager --timeout 60s"
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to check rollout status for "+p.capxName+"-controller-manager")
 	}
 
 	// Scale CAPX to 2 replicas
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system scale --replicas 2 deploy " + p.capxName + "-controller-manager"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to scale CAPX in workload cluster")
 	}
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status deploy " + p.capxName + "-controller-manager --timeout 60s"
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to check rollout status for "+p.capxName+"-controller-manager")
 	}
@@ -633,20 +662,20 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 	}
 
 	c = "echo '" + capxPDB + "' > " + capxPDBPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create PodDisruptionBudget file")
 	}
 
 	c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + capxPDBPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply "+p.capxName+" PodDisruptionBudget")
 	}
 
 	// Allow egress in CAPX's Namespace
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system apply -f " + allowAllEgressNetPolPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply CAPX's NetworkPolicy in workload cluster")
 	}
@@ -683,7 +712,7 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 	for _, deployment := range capiDeployments {
 		if !p.capxManaged || (p.capxManaged && !allowedNamePattern.MatchString(deployment.name)) {
 			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " patch deploy " + deployment.name + " -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to assigned priorityClass to "+deployment.name)
 			}
@@ -693,11 +722,12 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 	// Manually assign PriorityClass to nmi
 	if p.capxProvider == "azure" {
 		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch ds capz-nmi -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to assigned priorityClass to nmi")
 		}
 		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status ds capz-nmi --timeout 60s"
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to check rollout status for nmi")
 		}
@@ -705,11 +735,12 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 
 	// Scale number of replicas to 2 for capi service
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system scale deploy capi-controller-manager --replicas 2"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to scale the CAPI Deployment")
 	}
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system rollout status deploy capi-controller-manager --timeout 60s"
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to check rollout status for capi-controller-manager")
 	}
@@ -718,11 +749,12 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 	for _, deployment := range capiDeployments {
 		if deployment.name != "capi-controller-manager" {
 			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " scale --replicas " + strconv.Itoa(capiKubeadmReplicas) + " deploy " + deployment.name
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to scale the "+deployment.name+" deployment")
 			}
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n capi-system rollout status deploy " + deployment.name + " --timeout 60s"
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " rollout status deploy " + deployment.name + " --timeout 60s"
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to check rollout status for "+deployment.name)
 			}
@@ -735,13 +767,13 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 		return errors.Wrap(err, "failed to get PodDisruptionBudget file")
 	}
 	c = "echo '" + capiPDB + "' > " + capiPDBPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create PodDisruptionBudget file")
 	}
 
 	c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + capiPDBPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply "+p.capxName+" PodDisruptionBudget")
 	}
@@ -750,7 +782,7 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 	for _, deployment := range capiDeployments {
 		if !p.capxManaged || (p.capxManaged && !allowedNamePattern.MatchString(deployment.name)) {
 			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + deployment.namespace + " apply -f " + allowCommonEgressNetPolPath
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to apply CAPI's egress NetworkPolicy in namespace "+deployment.namespace)
 			}
@@ -759,7 +791,7 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 
 	// Allow egress in cert-manager Namespace
 	c = "kubectl --kubeconfig " + kubeconfigPath + " -n cert-manager apply -f " + allowCommonEgressNetPolPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply cert-manager's NetworkPolicy")
 	}
@@ -775,7 +807,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 	if p.capxProvider == "azure" {
 		// Create capx namespace
 		c = "kubectl create namespace " + p.capxName + "-system"
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx namespace")
 		}
@@ -788,7 +820,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 			"kubectl -n %s create secret generic cluster-identity-secret "+
 				"--from-literal=clientSecret='%s' ",
 			namespace, clientSecret)
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx secret")
 		}
@@ -799,7 +831,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
 		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
 		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
-	_, err = commons.ExecuteCommand(n, c, p.capxEnvVars)
+	_, err = commons.ExecuteCommand(n, c, 5, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")
 	}
@@ -816,7 +848,7 @@ func enableSelfHealing(n nodes.Node, keosCluster commons.KeosCluster, namespace 
 		generateMHCManifest(n, keosCluster.Metadata.Name, namespace, machineHealthCheckControlPlaneNodePath, machineRole)
 
 		c = "kubectl -n " + namespace + " apply -f " + machineHealthCheckControlPlaneNodePath
-		_, err = commons.ExecuteCommand(n, c)
+		_, err = commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to apply the MachineHealthCheck manifest")
 		}
@@ -826,7 +858,7 @@ func enableSelfHealing(n nodes.Node, keosCluster commons.KeosCluster, namespace 
 	generateMHCManifest(n, keosCluster.Metadata.Name, namespace, machineHealthCheckWorkerNodePath, machineRole)
 
 	c = "kubectl -n " + namespace + " apply -f " + machineHealthCheckWorkerNodePath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to apply the MachineHealthCheck manifest")
 	}
@@ -864,7 +896,7 @@ spec:
       timeout: 180s`
 
 	c = "echo \"" + machineHealthCheck + "\" > " + manifestPath
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to write the MachineHealthCheck manifest")
 	}
@@ -890,7 +922,7 @@ func getManifest(parentPath string, name string, params interface{}) (string, er
 
 func patchDeploy(n nodes.Node, k string, ns string, deployName string, patch string) error {
 	c := "kubectl --kubeconfig " + k + " patch deploy -n " + ns + " " + deployName + " -p '" + patch + "'"
-	_, err := commons.ExecuteCommand(n, c)
+	_, err := commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return err
 	}
@@ -899,6 +931,29 @@ func patchDeploy(n nodes.Node, k string, ns string, deployName string, patch str
 
 func rolloutStatus(n nodes.Node, k string, ns string, deployName string) error {
 	c := "kubectl --kubeconfig " + k + " rollout status deploy -n " + ns + " " + deployName + " --timeout=5m"
-	_, err := commons.ExecuteCommand(n, c)
+	_, err := commons.ExecuteCommand(n, c, 5)
 	return err
+}
+
+func installCorednsPdb(n nodes.Node, k string) error {
+
+	// Define PodDisruptionBudget for coredns service
+	corednsPDBLocalPath := "files/common/coredns_pdb.yaml"
+	corednsPDB, err := getcapxPDB(corednsPDBLocalPath)
+	if err != nil {
+		return err
+	}
+
+	c := "echo \"" + corednsPDB + "\" > " + corednsPdbPath
+	_, err = commons.ExecuteCommand(n, c, 5)
+	if err != nil {
+		return errors.Wrap(err, "failed to create coredns PodDisruptionBudget file")
+	}
+
+	c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + corednsPdbPath
+	_, err = commons.ExecuteCommand(n, c, 5)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply coredns PodDisruptionBudget")
+	}
+	return nil
 }

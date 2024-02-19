@@ -19,6 +19,8 @@ package createworker
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -34,6 +36,9 @@ type KEOSDescriptor struct {
 	HelmRepository struct {
 		AuthRequired bool   `yaml:"auth_required"`
 		URL          string `yaml:"url"`
+		Type         string `yaml:"type,omitempty"`
+		User         string `yaml:"user,omitempty"`
+		Pass         string `yaml:"pass,omitempty"`
 	} `yaml:"helm_repository"`
 	AWS struct {
 		Enabled bool `yaml:"enabled"`
@@ -53,8 +58,8 @@ type KEOSDescriptor struct {
 			Ipip                 bool   `yaml:"ipip,omitempty"`
 			VXLan                bool   `yaml:"vxlan,omitempty"`
 			Pool                 string `yaml:"pool,omitempty"`
-			DeployTigeraOperator bool   `yaml:"deploy_tigera_operator"`
-		} `yaml:"calico"`
+			DeployTigeraOperator *bool  `yaml:"deploy_tigera_operator,omitempty"`
+		} `yaml:"calico,omitempty"`
 		ClusterID string `yaml:"cluster_id"`
 		Dns       struct {
 			ExternalDns struct {
@@ -85,7 +90,7 @@ type EFSConfig struct {
 	Permissions string `yaml:"permissions"`
 }
 
-func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) error {
+func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string, creds commons.ClusterCredentials) error {
 
 	var keosDescriptor KEOSDescriptor
 	var err error
@@ -102,6 +107,7 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 	// Helm repository
 	keosDescriptor.HelmRepository.URL = keosCluster.Spec.HelmRepository.URL
 	keosDescriptor.HelmRepository.AuthRequired = keosCluster.Spec.HelmRepository.AuthRequired
+	keosDescriptor.HelmRepository.Type = keosCluster.Spec.HelmRepository.Type
 
 	// AWS
 	if keosCluster.Spec.InfraProvider == "aws" {
@@ -143,7 +149,17 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 			keosDescriptor.Keos.Calico.Pool = "192.168.0.0/16"
 		}
 	}
-	keosDescriptor.Keos.Calico.DeployTigeraOperator = false
+	// Set deploy_tigera_operator to false for keos versions < 1.1
+	version := strings.TrimPrefix(keosCluster.Spec.Keos.Version, "v")
+	splitVersion := strings.Split(version, ".")
+	keosVersion, err := strconv.ParseFloat(splitVersion[0]+"."+splitVersion[1], 64)
+	if err != nil {
+		return err
+	}
+	deployTigeraOperator := false
+	if keosVersion < 1.1 {
+		keosDescriptor.Keos.Calico.DeployTigeraOperator = &deployTigeraOperator
+	}
 
 	// Keos - Storage
 	keosDescriptor.Keos.Storage.DefaultStorageClass = storageClass

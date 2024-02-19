@@ -7,6 +7,9 @@
 * [Core] Restrict the maximum number of unhealthy nodes in MachineHealthCheck
 * [Core] Add PDB and PriorityClass to capx components
 * [Core] Bump cluster api to v1.5.3
+* [Core] Enable scale from zero
+* [Core] Add core dns PDB if required
+* [Core] Add keos 1.1.x support
 
 ## 0.17.0-0.3.0 (2023-09-14)
 

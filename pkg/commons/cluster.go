@@ -95,10 +95,7 @@ type KeosSpec struct {
 
 	Security Security `yaml:"security,omitempty"`
 
-	Keos struct {
-		Flavour string `yaml:"flavour,omitempty"`
-		Version string `yaml:"version,omitempty"`
-	} `yaml:"keos,omitempty"`
+	Keos Keos `yaml:"keos,omitempty"`
 
 	ControlPlane struct {
 		Managed         bool                `yaml:"managed" validate:"boolean"`
@@ -115,6 +112,11 @@ type KeosSpec struct {
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
 
 	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
+}
+
+type Keos struct {
+	Flavour string `yaml:"flavour,omitempty"`
+	Version string `yaml:"version,omitempty"`
 }
 
 type Networks struct {
@@ -159,7 +161,7 @@ type Security struct {
 type WorkerNodes []struct {
 	Name             string            `yaml:"name" validate:"required"`
 	NodeImage        string            `yaml:"node_image,omitempty"`
-	Quantity         int               `yaml:"quantity" validate:"required,numeric,gt=0"`
+	Quantity         *int              `yaml:"quantity" validate:"required,numeric,gte=0"`
 	Size             string            `yaml:"size" validate:"required"`
 	ZoneDistribution string            `yaml:"zone_distribution,omitempty" validate:"omitempty,oneof='balanced' 'unbalanced'"`
 	AZ               string            `yaml:"az,omitempty"`
@@ -167,8 +169,8 @@ type WorkerNodes []struct {
 	Spot             bool              `yaml:"spot,omitempty" validate:"boolean"`
 	Labels           map[string]string `yaml:"labels,omitempty"`
 	Taints           []string          `yaml:"taints,omitempty"`
-	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"required_with=NodeGroupMinSize,numeric,omitempty"`
-	NodeGroupMinSize int               `yaml:"min_size,omitempty" validate:"required_with=NodeGroupMaxSize,numeric,omitempty"`
+	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
+	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
@@ -260,6 +262,7 @@ type HelmRepositoryCredentials struct {
 type HelmRepository struct {
 	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
 	URL          string `yaml:"url" validate:"required"`
+	Type         string `yaml:"type,omitempty" validate:"oneof='ecr' 'acr' 'gar' 'generic'"`
 }
 
 type AWS struct {
@@ -366,7 +369,8 @@ func (s KeosSpec) Init() KeosSpec {
 	s.ControlPlane.AWS.Logging.Scheduler = false
 
 	// Helm
-	s.HelmRepository.AuthRequired = true
+	s.HelmRepository.AuthRequired = false
+	s.HelmRepository.Type = "generic"
 
 	// Managed zones
 	s.Dns.ManageZone = true

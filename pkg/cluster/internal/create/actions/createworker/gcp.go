@@ -34,12 +34,6 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
-// //go:embed files/gcp/gcp-compute-persistent-disk-csi-driver.yaml
-// var csiManifest string
-//
-//go:embed templates/gcp/gcp-compute-persistent-disk-csi-driver.tmpl
-var csiManifest string
-
 //go:embed files/gcp/internal-ingress-nginx.yaml
 var gcpInternalIngress []byte
 
@@ -139,12 +133,15 @@ func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivatePar
 	// Create CSI secret in CSI namespace
 	secret, _ := b64.StdEncoding.DecodeString(strings.Split(b.capxEnvVars[0], "GCP_B64ENCODED_CREDENTIALS=")[1])
 	c = "kubectl --kubeconfig " + k + " -n " + b.csiNamespace + " create secret generic cloud-sa --from-literal=cloud-sa.json='" + string(secret) + "'"
-	_, err = commons.ExecuteCommand(n, c)
+	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create CSI secret in CSI namespace")
 	}
 
 	csiManifests, err := getManifest(privateParams.KeosCluster.Spec.InfraProvider, "gcp-compute-persistent-disk-csi-driver.tmpl", privateParams)
+	if err != nil {
+		return errors.Wrap(err, "failed to get CSI driver manifests")
+	}
 
 	// Deploy CSI driver
 	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
@@ -179,13 +176,13 @@ func (b *GCPBuilder) configureStorageClass(n nodes.Node, k string) error {
 	if b.capxManaged {
 		// Remove annotation from default storage class
 		c = "kubectl --kubeconfig " + k + ` get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
-		output, err := commons.ExecuteCommand(n, c)
+		output, err := commons.ExecuteCommand(n, c, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to get default storage class")
 		}
 		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
 			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
-			_, err = commons.ExecuteCommand(n, c)
+			_, err = commons.ExecuteCommand(n, c, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove annotation from default storage class")
 			}
@@ -256,6 +253,16 @@ func (b *GCPBuilder) getOverrideVars(p ProviderParams, networks commons.Networks
 }
 
 func (b *GCPBuilder) postInstallPhase(n nodes.Node, k string) error {
+	var coreDNSPDBName = "coredns"
+
+	c := "kubectl --kubeconfig " + kubeconfigPath + " get pdb " + coreDNSPDBName + " -n kube-system"
+	_, err := commons.ExecuteCommand(n, c, 5)
+	if err != nil {
+		err = installCorednsPdb(n, k)
+		if err != nil {
+			return errors.Wrap(err, "failed to add core dns PDB")
+		}
+	}
 
 	return nil
 }

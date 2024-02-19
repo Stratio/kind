@@ -83,11 +83,24 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 		}
 	}
 
+	for _, tag := range spec.ControlPlane.Tags {
+		for k, v := range tag {
+			label := k + "=" + v
+			fmt.Println(label)
+			if err = validateAWSLabel(label); err != nil {
+				return errors.Wrap(err, "spec.control_plane.tags: Invalid value")
+			}
+		}
+	}
+
 	if !spec.ControlPlane.Managed {
 		if spec.ControlPlane.NodeImage != "" {
 			if !isAWSNodeImage(spec.ControlPlane.NodeImage) {
 				return errors.New("spec.control_plane: Invalid value: \"node_image\": must have the format " + AWSNodeImageFormat)
 			}
+		}
+		if err := validateAWSInstanceType(cfg, spec.ControlPlane.Size); err != nil {
+			return errors.New("spec.control_plane.size: " + spec.ControlPlane.Size + " does not exists in AWS instance types")
 		}
 		if err := validateVolumeType(spec.ControlPlane.RootVolume.Type, AWSVolumes); err != nil {
 			return errors.Wrap(err, "spec.control_plane.root_volume: Invalid value: \"type\"")
@@ -121,6 +134,11 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 				if !commons.Contains(azs, wn.AZ) {
 					return errors.New(wn.AZ + " does not exist in this region, azs: " + fmt.Sprint(azs))
 				}
+			}
+		}
+		if wn.Size != "" {
+			if err := validateAWSInstanceType(cfg, wn.Size); err != nil {
+				return errors.New("spec.worker_nodes." + wn.Name + ".size: " + wn.Size + " does not exists in AWS instance types")
 			}
 		}
 		if err := validateVolumeType(wn.RootVolume.Type, AWSVolumes); err != nil {
@@ -376,9 +394,34 @@ func validateAWSStorageClass(sc commons.StorageClass, wn commons.WorkerNodes) er
 	}
 	// Validate labels
 	if sc.Parameters.Labels != "" {
-		if err = validateLabel(sc.Parameters.Labels); err != nil {
+		if err = validateAWSLabel(sc.Parameters.Labels); err != nil {
 			return errors.Wrap(err, "invalid labels")
 		}
+	}
+	return nil
+}
+
+func validateAWSInstanceType(cfg aws.Config, instanceType string) error {
+
+	client := ec2.NewFromConfig(cfg)
+
+	// Call DescribeInstanceTypes API to get details about the instance type
+	diti := &ec2.DescribeInstanceTypesInput{
+		InstanceTypes: []types.InstanceType{types.InstanceType(instanceType)},
+	}
+
+	_, err := client.DescribeInstanceTypes(context.TODO(), diti)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateAWSLabel(l string) error {
+	var isLabel = regexp.MustCompile(`^([\w\.\/-]+=[\w\.\/-]+)(\s?,\s?[\w\.\/-]+=[\w\.\/-]+)*$`).MatchString
+	if !isLabel(l) {
+		return errors.New("incorrect format. Must have the format 'key1=value1,key2=value2'")
 	}
 	return nil
 }
