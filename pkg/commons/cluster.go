@@ -360,7 +360,7 @@ func (s KeosSpec) Init() KeosSpec {
 	s.DeployAutoscaler = true
 
 	// EKS
-	s.Security.AWS.CreateIAM = true
+	s.Security.AWS.CreateIAM = false
 	s.ControlPlane.AWS.AssociateOIDCProvider = true
 	s.ControlPlane.AWS.Logging.ApiServer = false
 	s.ControlPlane.AWS.Logging.Audit = false
