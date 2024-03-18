@@ -393,7 +393,7 @@ root_volume:
 |Sí
 |===
 
-_** Se ha implementado la opción de establecer min_size como cero, lo que permite que el autoscalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad facilita un ahorro significativo de costos en comparación con versiones anteriores, ya que posibilita la creación o eliminación de parte de la infraestructura que no está siendo utilizada._
+_** Se ha implementado la opción de establecer min_size como cero, lo que permite que el autoscalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad facilita un ahorro significativo de costos en comparación con versiones anteriores, ya que posibilita la precreación virtual de parte de la infraestructura o su eliminación en el caso de considerarse no necesaria._
 
 === _Stratio KEOS_
 
