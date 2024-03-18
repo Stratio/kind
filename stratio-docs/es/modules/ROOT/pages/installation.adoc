@@ -340,7 +340,7 @@ Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://
 |t3.medium
 |No
 
-|_max++_++size_/_min++_++size_
+|_max++_++size_/_min++_++size**_
 |Máximo y mínimo número de instancias para el autoescalado.
 |6/18.
 |Sí
@@ -363,6 +363,7 @@ Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://
 |_labels_
 |Etiquetas de Kubernetes para los nodos _worker_.
 a|
+_** Se ha implementado la opción de establecer min_size como cero, lo que permite que el autoscalado pueda incrementar o disminuir el número de nodos según sea necesario. Esta funcionalidad facilita un ahorro significativo de costos en comparación con versiones anteriores, ya que permite eliminar parte de la infraestructura que no está siendo utilizada._
 
 [source,yaml]
 ----
@@ -938,7 +939,7 @@ A día de hoy estas acciones son requeridas para entornos en la nube pública _A
 
 Se trata de un operador encargado de la creación _Elastic Load Balancers_ para clústeres de _Kubernetes_ asistiendo en la creación de objetos tales como: _ingress_ y servicios de tipo _LoadBalancer_.
 
-Para garantizar una configuración adecuada de _aws-load-balancer-controller-manager_ (habilitado por defecto en entornos gestionados, EKS) es fundamental seguir una serie de pasos en los que se incluye la integración con https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IRSA]:
+Para garantizar una configuración adecuada de _aws-load-balancer-controller-manager_ (no habilitado por defecto en entornos gestionados, EKS) es fundamental seguir una serie de pasos en los que se incluye la integración con https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IRSA]:
 
 ==== Amazon Web Services (AWS)
 
