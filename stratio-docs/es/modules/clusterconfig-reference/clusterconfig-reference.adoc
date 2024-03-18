@@ -1,0 +1,8 @@
+= Manual de ClusterConfig
+
+El descriptor del clúster, `cluster.yaml`, está compuesto por dos recursos de Kubernetes. El recurso *KeosCluster*, que es obligatorio, define los parámetros y las especificaciones genéricas del clúster, y el recurso *ClusterConfig*, que permite indicar configuraciones específicas de ese clúster en particular.
+
+
+En caso de no indicarse el recurso ClusterConfig durante la instalación del cluster, se generará el recurso con los valores por defecto.
+
+Es posible consultar su API Reference aquí:  xref:pages/api-reference.adoc[ClusterConfig Reference]
