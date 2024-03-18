@@ -16,6 +16,7 @@ Al finalizar la creación del _cluster_ en esta fase y según un descriptor de _
 
 Una vez finalizada la instalación, todas las operaciones de día 2 sobre la propia infraestructura _cloud_ en la que se ejecuten los distintos servicios se deben realizar mediante la edición de _KeosCluster_ para gestionar los recursos del _cluster_. Estas ediciones serán validadas y aplicadas por el _Stratio Cluster Operator_.
 
+[id="{anchor_prefix}-keoscluster-object"]
 == Objeto _KeosCluster_
 
 Durante la fase de instalación, tras desplegar el _chart_ de Helm de _Stratio Cluster Operator_ y teniendo como punto de partida el descriptor del _cluster_, se creará por defecto un recurso _KeosCluster_ que centralizará la creación del _cluster_ y de todos los objetos de los distintos proveedores _Cloud_ y las operaciones sobre estos.
@@ -25,6 +26,14 @@ Durante la fase de instalación, tras desplegar el _chart_ de Helm de _Stratio C
 Al centralizar todas las operaciones sobre el _cluster_ y los distintos recursos _cloud_, una vez se inicie una operación desencadenada por una edición del objeto _KeosCluster_ el controlador _Stratio Cluster Operator_ denegará cualquier otra solicitud hasta que haya finalizado la operación previa.
 
 Para ello, se define el subrecurso del _KeosCluster_, _status_ que informará del tipo de operación que se encuentra haciendo en caso de que así sea.
+
+== Objeto _ClusterConfig_
+
+Del mismo modo que el xref:{anchor_prefix}-keoscluster-object[$$objeto KeosCluster$$], durante la fase de instalación se creará el recurso *ClusterConfig* que permite indicar configuraciones específicas de ese clúster en particular.
+
+La declaración de este recurso de Kubernetes deberá hacerse en el propio descriptor del _cluster_, junto al objeto KeosCluster. En caso de no indicarse el recurso ClusterConfig durante la instalación del cluster, se generará el recurso con los valores por defecto.
+
+Es posible consultar su API Reference aquí:  xref:clusterconfig-reference.adoc[ClusterConfig Reference]
 
 == Objetos del proveedor del _cloud_
 
