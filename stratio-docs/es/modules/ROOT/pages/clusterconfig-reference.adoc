@@ -1,6 +1,5 @@
 = API Reference
 
-[[ClusterConfig]]
 ==== ClusterConfig
 [cols="20a,50a,15a,15a", options="header"]
 |===
@@ -12,7 +11,7 @@
 | *`spec`* __<<ClusterConfigSpec>>__ |  |  | 
 | *`status`* __<<ClusterConfigStatus>>__ |  |  | 
 |===
-[[ClusterConfigSpec]]
+
 ==== ClusterConfigSpec
 ClusterConfigSpec define el estado deseado de ClusterConfig
 .Aparece en:
@@ -30,14 +29,14 @@ ClusterConfigSpec define el estado deseado de ClusterConfig
 | *`cluster_operator_image_version`* __string__ | Permite sobreescribir la versión de la imagen que se deplegará junto al chart. 
 Por defecto se instala la versión indicada en el values del chart, pero con este campo podemos sobreescribir la versión predeterminada |  | 
 |===
-[[ClusterConfigStatus]]
+
 ==== ClusterConfigStatus
 .Aparece en:
 ****
 - <<ClusterConfig>>
 ****
 ClusterConfigStatus define el estado observado de ClusterConfig
-[[ControlplaneConfig]]
+
 ==== ControlplaneConfig
 .Aparece en:
 ****
@@ -49,7 +48,7 @@ ClusterConfigStatus define el estado observado de ClusterConfig
 | *`max_unhealthy`* __integer__ | Permite especificar el porcentaje máximo de máquinas del controlplane que pueden encontrarse unhealthy antes de comenzar la remediación | 34 | Máximo: 100 +
 Mínimo: 0 +
 |===
-[[WorkersConfig]]
+
 ==== WorkersConfig
 .Aparece en:
 ****
