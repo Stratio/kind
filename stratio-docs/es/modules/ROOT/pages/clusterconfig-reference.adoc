@@ -1,7 +1,9 @@
 = API Reference
 
-== Objeto ClusterConfig
 === ClusterConfig
+
+Este Objeto de Kubernetes permite definir las distintas configuraciones para el KeosCluster junto al que se crea.
+
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
@@ -12,7 +14,6 @@
 | *`spec`* __<<ClusterConfigSpec>>__ |  |  | 
 | *`status`* __<<ClusterConfigStatus>>__ |  |  | 
 |===
-
 === ClusterConfigSpec
 ClusterConfigSpec define el estado deseado de ClusterConfig
 .Aparece en:
@@ -30,7 +31,6 @@ ClusterConfigSpec define el estado deseado de ClusterConfig
 | *`cluster_operator_image_version`* __string__ | Permite sobreescribir la versión de la imagen que se deplegará junto al chart. 
 Por defecto se instala la versión indicada en el values del chart, pero con este campo podemos sobreescribir la versión predeterminada |  | 
 |===
-
 === ClusterConfigStatus
 .Aparece en:
 ****
