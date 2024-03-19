@@ -32,11 +32,11 @@ Del mismo modo que el Objeto _KeosCluster_, durante la fase de instalación se c
 
 La declaración de este recurso de Kubernetes deberá hacerse en el propio descriptor del _cluster_, junto al objeto KeosCluster. En caso de no indicarse el recurso ClusterConfig durante la instalación del cluster, se generará el recurso con los valores por defecto.
 
-Es posible consultar su API Reference aquí:  xref:clusterconfig-reference.adoc#ClusterConfig[]
+Es posible consultar su API Reference en [blue]_clusterconfig-reference.adoc_
 
 === Elección del Cluster Operator
 
-Por defecto, se instalará la última versión del chart disponible en el repositorio de helm indicado en el objeto KeosCluster, aunque este comportamiento se puede sobrescribir e indicar la versión que queramos instalar, indicando el valor de xref:clusterconfig-reference.adoc#ClusterConfig[].
+Por defecto, se instalará la última versión del chart disponible en el repositorio de helm indicado en el objeto KeosCluster, aunque este comportamiento se puede sobrescribir e indicar la versión que queramos instalar, indicando el valor de [blue]_clusterconfig-reference.adoc_.
 
 Para la elección de la última versión disponible se tiene en cuenta tanto el orden de precedencia del versionado como la ordenación alfanumérica de las versiones. Es decir, en primer lugar se dará prioridad a las versiones en el siguiente orden: _release_, _prerelease_, _milestone_, _snapshots_ y _pull_request_. 
 
