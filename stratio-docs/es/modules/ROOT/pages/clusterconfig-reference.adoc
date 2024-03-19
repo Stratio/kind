@@ -1,8 +1,7 @@
 = API Reference
 
-[id="{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfig"]
+[[ClusterConfig]]
 ==== ClusterConfig
-
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
@@ -10,88 +9,55 @@
 | *`kind`* __string__ | `ClusterConfig` | |
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Consulta la documentación de la API de Kubernetes para conocer los campos de `metadata`.
  |  | 
-| *`spec`* __xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigspec[$$ClusterConfigSpec$$]__ |  |  | 
-| *`status`* __xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigstatus[$$ClusterConfigStatus$$]__ |  |  | 
+| *`spec`* __<<ClusterConfigSpec>>__ |  |  | 
+| *`status`* __<<ClusterConfigStatus>>__ |  |  | 
 |===
-
-[id="{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigspec"]
+[[ClusterConfigSpec]]
 ==== ClusterConfigSpec
-
 ClusterConfigSpec define el estado deseado de ClusterConfig
-
 .Aparece en:
 ****
-- xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfig[$$ClusterConfig$$]
+- <<ClusterConfig>>
 ****
-
-
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
 | *`eks_lb_controller`* __boolean__ | Permite instalar el operador aws-load-balancer-controller-manager  | false | 
 | *`private_registry`* __boolean__ | Permite especificar el tipo de instalación. En caso de habilitarse este campo, las imágenes que deban descargarse durante el proceso de instalación del cluster se recuperarán del registry indicado como keos_registry. | false | 
-| *`controlplane_config`* __xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-controlplaneconfig[$$ControlplaneConfig$$]__ | Permite indicar las distintas configuraciones para el controlplane |  | 
-| *`workers_config`* __xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-workersconfig[$$WorkersConfig$$]__ | Permite indicar las distintas configuraciones para los worker nodes |  | 
+| *`controlplane_config`* __<<ControlplaneConfig>>__ | Permite indicar las distintas configuraciones para el controlplane |  | 
+| *`workers_config`* __<<WorkersConfig>>__ | Permite indicar las distintas configuraciones para los worker nodes |  | 
 | *`cluster_operator_version`* __string__ | Permite especificar la versión del chart del cluster operator que se descargará desde el helm repository indicado en el keoscluster. Por defecto se descarga la ultima version presente en el helm repository. |  | Requerido +
-
 | *`cluster_operator_image_version`* __string__ | Permite sobreescribir la versión de la imagen que se deplegará junto al chart. 
 Por defecto se instala la versión indicada en el values del chart, pero con este campo podemos sobreescribir la versión predeterminada |  | 
 |===
-
-
-[id="{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigstatus"]
+[[ClusterConfigStatus]]
 ==== ClusterConfigStatus
-
 .Aparece en:
 ****
-- xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfig[$$ClusterConfig$$]
+- <<ClusterConfig>>
 ****
-
-
 ClusterConfigStatus define el estado observado de ClusterConfig
-
-
-[id="{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-controlplaneconfig"]
+[[ControlplaneConfig]]
 ==== ControlplaneConfig
-
-
-
-
-
-
-
 .Aparece en:
 ****
-- xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigspec[$$ClusterConfigSpec$$]
+- <<ClusterConfigSpec>>
 ****
-
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
 | *`max_unhealthy`* __integer__ | Permite especificar el porcentaje máximo de máquinas del controlplane que pueden encontrarse unhealthy antes de comenzar la remediación | 34 | Máximo: 100 +
 Mínimo: 0 +
-
 |===
-
-
-[id="{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-workersconfig"]
+[[WorkersConfig]]
 ==== WorkersConfig
-
-
-
-
-
-
-
 .Aparece en:
 ****
-- xref:{anchor_prefix}-installer-stratio-com-keosinstaller-api-v1beta1-clusterconfigspec[$$ClusterConfigSpec$$]
+-<<ClusterConfigSpec>>
 ****
-
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
 | *`max_unhealthy`* __integer__ | Permite especificar el porcentaje máximo de máquinas de un grupo de nodos workers que pueden encontrarse unhealthy antes de comenzar la remediación | 34 | Máximo: 100 +
 Mínimo: 0 +
-
 |===
