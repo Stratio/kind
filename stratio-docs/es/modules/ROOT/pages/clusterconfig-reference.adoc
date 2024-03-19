@@ -18,7 +18,7 @@ Este Objeto de Kubernetes permite definir las distintas configuraciones para el 
 ClusterConfigSpec define el estado deseado de ClusterConfig
 .Aparece en:
 ****
-- <<ClusterConfig>>
+- ClusterConfig
 ****
 [cols="20a,50a,15a,15a", options="header"]
 |===
@@ -32,16 +32,17 @@ ClusterConfigSpec define el estado deseado de ClusterConfig
 Por defecto se instala la versión indicada en el values del chart, pero con este campo podemos sobreescribir la versión predeterminada |  | 
 |===
 === ClusterConfigStatus
+ClusterConfigStatus define el estado observado de ClusterConfig
 .Aparece en:
 ****
-- <<ClusterConfig>>
+- ClusterConfig
 ****
-ClusterConfigStatus define el estado observado de ClusterConfig
 
 === ControlplaneConfig
+ControlplaneConfig define las configuraciones para el controlplane
 .Aparece en:
 ****
-- <<ClusterConfigSpec>>
+- ClusterConfigSpec
 ****
 [cols="20a,50a,15a,15a", options="header"]
 |===
@@ -51,9 +52,10 @@ Mínimo: 0 +
 |===
 
 === WorkersConfig
+WorkersConfig define las configuraciones para los workernodes
 .Aparece en:
 ****
--<<ClusterConfigSpec>>
+-ClusterConfigSpec
 ****
 [cols="20a,50a,15a,15a", options="header"]
 |===
