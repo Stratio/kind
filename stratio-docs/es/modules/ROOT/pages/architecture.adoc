@@ -35,6 +35,16 @@ La declaración de este recurso de Kubernetes deberá hacerse en el propio descr
 
 Es posible consultar su API Reference aquí:  xref:clusterconfig-reference.adoc[ClusterConfig Reference]
 
+=== Elección del Cluster Operator
+
+Por defecto, se instalará la última versión del chart disponible en el repositorio de helm indicado en el objeto KeosCluster, aunque este comportamiento se puede sobrescribir e indicar la versión que queramos instalar, indicando el valor de xref:clusterconfig-reference.adoc#cluster_operator_version[cluster_operator_version].
+
+Para la elección de la última versión disponible se tiene en cuenta tanto el orden de precedencia del versionado como la ordenación alfanumérica de las versiones. Es decir, en primer lugar se dará prioridad a las versiones en el siguiente orden: _release_, _prerelease_, _milestone_, _snapshots_ y _pull_request_. 
+
+En caso de que coincidan en un mismo repositorio varias versiones de la misma precedencia, se devolverá la última versión alfanuméricamente ordenada. De este modo, se devolverá antes, por ejemplo, la versión 0.2.1 a la versión 0.2.0.
+
+NOTE: Existe una excepción a este mecanismo de elección. Debido al _naming_ de versionado en _Stratio_, si las versiones existentes de mayor precedencia son _prereleases_, al no poder establecer el orden de forma alfanumérica se devolverá la última versión subida al repositorio de helm.
+
 == Objetos del proveedor del _cloud_
 
 En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor _cloud_ (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
