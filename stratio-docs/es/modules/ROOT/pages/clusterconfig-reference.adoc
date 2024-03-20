@@ -1,65 +1,106 @@
-= API Reference
+= Referencia API
 
-=== ClusterConfig
+== _ClusterConfig_
 
-Este Objeto de Kubernetes permite definir las distintas configuraciones para el KeosCluster junto al que se crea.
+Este objeto de Kubernetes permite definir las distintas configuraciones para el _keoscluster_ junto al que se crea.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
-| *`apiVersion`* __string__ | `installer.stratio.com/v1beta1` | |
-| *`kind`* __string__ | `ClusterConfig` | |
-| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Consulta la documentación de la API de Kubernetes para conocer los campos de `metadata`.
- |  | 
-| *`spec`* __<<ClusterConfigSpec>>__ |  |  | 
-| *`status`* __<<ClusterConfigStatus>>__ |  |  | 
-|===
-=== ClusterConfigSpec
-ClusterConfigSpec define el estado deseado de ClusterConfig
-.Aparece en:
-****
-- ClusterConfig
-****
-[cols="20a,50a,15a,15a", options="header"]
-|===
-| Campo | Descripción | Predeterminado | Validación
-| *`eks_lb_controller`* __boolean__ | Permite instalar el operador aws-load-balancer-controller-manager  | false | 
-| *`private_registry`* __boolean__ | Permite especificar el tipo de instalación. En caso de habilitarse este campo, las imágenes que deban descargarse durante el proceso de instalación del cluster se recuperarán del registry indicado como keos_registry. | false | 
-| *`controlplane_config`* __<<ControlplaneConfig>>__ | Permite indicar las distintas configuraciones para el controlplane |  | 
-| *`workers_config`* __<<WorkersConfig>>__ | Permite indicar las distintas configuraciones para los worker nodes |  | 
-| *`cluster_operator_version`* __string__ | Permite especificar la versión del chart del cluster operator que se descargará desde el helm repository indicado en el keoscluster. Por defecto se descarga la ultima version presente en el helm repository. |  | Requerido +
-| *`cluster_operator_image_version`* __string__ | Permite sobreescribir la versión de la imagen que se deplegará junto al chart. 
-Por defecto se instala la versión indicada en el values del chart, pero con este campo podemos sobreescribir la versión predeterminada |  | 
-|===
-=== ClusterConfigStatus
-ClusterConfigStatus define el estado observado de ClusterConfig
-.Aparece en:
-****
-- ClusterConfig
-****
 
-=== ControlplaneConfig
-ControlplaneConfig define las configuraciones para el controlplane
-.Aparece en:
-****
-- ClusterConfigSpec
-****
-[cols="20a,50a,15a,15a", options="header"]
-|===
-| Campo | Descripción | Predeterminado | Validación
-| *`max_unhealthy`* __integer__ | Permite especificar el porcentaje máximo de máquinas del controlplane que pueden encontrarse unhealthy antes de comenzar la remediación | 34 | Máximo: 100 +
-Mínimo: 0 +
+| *`apiVersion`* _string_
+| installer.stratio.com/v1beta1
+|
+|
+
+| *`kind`* _string_
+| _ClusterConfig_
+|
+|
+
+| *`metadata`* https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta[ObjectMeta]
+| Consulta la documentación de la API de Kubernetes para conocer los campos de _metadata_.
+|
+|
+
+| *`spec`* _ClusterConfigSpec_
+|
+|
+|
+
+| *`status`* _ClusterConfigStatus_
+|
+|
+|
 |===
 
-=== WorkersConfig
-WorkersConfig define las configuraciones para los workernodes
-.Aparece en:
-****
--ClusterConfigSpec
-****
+=== _ClusterConfigSpec_
+
+Este objeto define el estado deseado de _ClusterConfig_.
+
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Campo | Descripción | Predeterminado | Validación
-| *`max_unhealthy`* __integer__ | Permite especificar el porcentaje máximo de máquinas de un grupo de nodos workers que pueden encontrarse unhealthy antes de comenzar la remediación | 34 | Máximo: 100 +
-Mínimo: 0 +
+
+| *`eks_lb_controller`* _boolean_
+| Permite instalar el operador `aws-load-balancer-controller-manager`.
+| _false_
+|
+
+| *`private_registry`* _boolean_
+| Permite especificar el tipo de instalación. En caso de habilitarse este campo, las imágenes que deban descargarse durante el proceso de instalación del _cluster_ se recuperarán del _registry_ indicado como _keos++_++registry_.
+| _false_
+|
+
+| *`controlplane_config`* _ControlplaneConfig_
+| Permite indicar las distintas configuraciones para el _control-plane_.
+|
+|
+
+| *`workers_config`* _WorkersConfig_
+| Permite indicar las distintas configuraciones para los nodos _workers_.
+|
+|
+
+| *`cluster_operator_version`* _string_
+| Permite especificar la versión del _chart_ del _cluster operator_ que se descargará desde el repositorio de Helm indicado en el _keoscluster_. Por defecto, se descarga la última versión presente en el repositorio de Helm.
+|
+| Requerido.
+
+| *`cluster_operator_image_version`* _string_
+| Permite sobrescribir la versión de la imagen que se desplegará junto al _chart_. Por defecto, se instala la versión indicada en el fichero _values_ del _chart_, pero con este campo se puede sobrescribir la versión predeterminada.
+|
+|
+|===
+
+=== _ClusterConfigStatus_
+
+Define el estado observado de _ClusterConfig_.
+
+== _ControlplaneConfig_
+
+Define las configuraciones para el _control-plane_.
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Campo | Descripción | Predeterminado | Validación
+
+| *`max_unhealthy`* _integer_
+| Permite especificar el porcentaje máximo de máquinas del _control-plane_ que pueden encontrarse en estado _unhealthy_ antes de comenzar la reparación.
+| 34
+| Máximo: 100. Mínimo: 0.
+|===
+
+== _WorkersConfig_
+
+Define las configuraciones para los nodos _workers_.
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Campo | Descripción | Predeterminado | Validación
+
+| *`max_unhealthy`* _integer_
+| Permite especificar el porcentaje máximo de máquinas de un grupo de nodos _workers_ que pueden encontrarse en estado _unhealthy_ antes de comenzar la reparación.
+| 34
+| Máximo: 100. Mínimo: 0.
 |===
