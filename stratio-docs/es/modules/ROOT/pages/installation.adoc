@@ -340,7 +340,7 @@ Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://
 |t3.medium
 |No
 
-|_max++_++size_/_min++_++size**_
+|_max++_++size_/_min++_++size_
 |Máximo y mínimo número de instancias para el autoescalado.
 |6/18.
 |Sí
