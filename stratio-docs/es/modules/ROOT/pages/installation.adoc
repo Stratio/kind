@@ -1,4 +1,3 @@
-_TO BE TRANSLATED_
 = Instalación
 
 == Prerrequisitos
