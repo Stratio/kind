@@ -32,7 +32,7 @@ Del mismo modo que el objeto _KeosCluster_, durante la fase de instalación se c
 
 La declaración de este recurso de Kubernetes deberá hacerse en el propio fichero descriptor, junto al objeto _KeosCluster_. En caso de no indicarse durante la instalación del _cluster_, se generará el recurso con los valores por defecto.
 
-Para mas detalles, se puede consultar el xref:attachment$clusterconfig-reference.adoc[API Reference].
+TIP: Para más detalles, consulta el documento de xref:attachment$clusterconfig-reference.adoc[referencia API].
 
 === Elección del Cluster Operator
 
