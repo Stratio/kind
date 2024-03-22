@@ -30,7 +30,7 @@ Este objeto define el estado deseado de _ClusterConfig_.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
-| Parámetro | Descripción | Default | Validación
+| Parámetro | Descripción | Valor por defecto | Validación
 
 | *`eks_lb_controller`* _boolean_
 | Permite instalar el operador `aws-load-balancer-controller-manager`.
