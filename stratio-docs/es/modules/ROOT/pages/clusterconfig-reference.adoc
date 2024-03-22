@@ -6,7 +6,7 @@ Este objeto de Kubernetes permite definir las distintas configuraciones para el 
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
-| Parámetro | Descripción | Default | Validación
+| Parámetro | Descripción | Valor por defecto | Validación
 
 | *`metadata`* https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta[ObjectMeta]
 | Consulta la documentación de la API de Kubernetes para conocer los campos de _metadata_.
