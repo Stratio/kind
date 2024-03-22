@@ -44,7 +44,7 @@ En caso de que coincidan en un mismo repositorio varias versiones de la misma pr
 
 Existe una excepción a este mecanismo de elección. Debido al _naming_ de versionado en _Stratio_, si las versiones existentes de mayor precedencia son _prereleases_, al no poder establecer el orden de forma alfanumérica se devolverá la última versión subida al repositorio de helm.
 
-NOTE: En caso de optar por la elección por defecto del chart, no será necesario indicar el campo durante la instalación, pero sí se verá reflejado este campo cuando el objeto se cree en el cluster con la versión que se ha recuperado.
+NOTE: En caso de optar por la elección por defecto del _chart_, no será necesario indicar el campo durante la instalación pero sí se verá reflejado este campo cuando el objeto se cree en el _cluster_ con la versión que se ha recuperado.
 
 == Objetos del proveedor del _cloud_
 
