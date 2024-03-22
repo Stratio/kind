@@ -28,7 +28,7 @@ Para ello, se define el subrecurso del _KeosCluster_, _status_ que informará de
 
 == Objeto _ClusterConfig_
 
-Del mismo modo que el Objeto _KeosCluster_, durante la fase de instalación se creará el recurso *ClusterConfig* que permite indicar configuraciones específicas para ese _cluster_ en particular.
+Del mismo modo que el objeto _KeosCluster_, durante la fase de instalación se creará el recurso _ClusterConfig_, que permite indicar configuraciones específicas para ese _cluster_ en particular.
 
 La declaración de este recurso de Kubernetes deberá hacerse en el propio fichero descriptor, junto al objeto KeosCluster. En caso de no indicarse el recurso ClusterConfig durante la instalación del _cluster_, se generará el recurso con los valores por defecto.
 
