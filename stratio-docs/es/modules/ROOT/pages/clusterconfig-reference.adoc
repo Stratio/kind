@@ -58,7 +58,7 @@ Este objeto define el estado deseado de _ClusterConfig_.
 | -
 
 | *`cluster_operator_image_version`* _string_
-| Permite sobrescribir la versión de la imagen que se desplegará junto al _chart_. Por defecto, se instala la versión indicada en el fichero _values_ del _chart_, pero con este campo se puede sobrescribir la versión predeterminada.
+| Permite sobrescribir la versión de la imagen que se desplegará junto al _chart_. Por defecto, se instala la versión indicada en el fichero _values.yaml_ del _chart_, pero con este campo se puede sobrescribir la versión predeterminada.
 | -
 | -
 |===
