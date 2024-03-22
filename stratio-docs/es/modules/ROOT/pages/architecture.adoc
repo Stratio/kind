@@ -34,7 +34,7 @@ La declaración de este recurso de Kubernetes deberá hacerse en el propio fiche
 
 TIP: Para más detalles, consulta el documento de xref:attachment$clusterconfig-reference.adoc[referencia API].
 
-=== Elección del Cluster Operator
+=== Elección del _Cluster Operator_
 
 Por defecto, se instalará la última versión del chart disponible en el repositorio de helm indicado en el objeto KeosCluster, aunque este comportamiento se puede sobrescribir e indicar la versión que queramos instalar, indicando el valor de [blue]_clusterconfig-reference.adoc_.
 
