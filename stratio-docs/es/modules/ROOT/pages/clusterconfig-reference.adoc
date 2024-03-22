@@ -73,7 +73,7 @@ Define las configuraciones para el _control-plane_.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
-| Parámetro | Descripción | Default | Validación
+| Parámetro | Descripción | Valor por defecto | Validación
 
 | *`max_unhealthy`* _integer_
 | Permite especificar el porcentaje máximo de máquinas del _control-plane_ que pueden encontrarse en estado _unhealthy_ antes de comenzar la reparación.
