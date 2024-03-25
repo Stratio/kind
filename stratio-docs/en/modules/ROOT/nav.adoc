@@ -14,3 +14,4 @@
 *** xref:operations-manual:offline-installation/azure-vms-images.adoc[]
 *** xref:operations-manual:offline-installation/gcp-vms-images.adoc[]
 *** xref:operations-manual:offline-installation/common-images.adoc[]
+** xref:operations-manual:api-reference.adoc[]
