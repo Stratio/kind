@@ -940,7 +940,7 @@ A día de hoy estas acciones son requeridas para entornos en la nube pública _A
 
 Se trata de un operador encargado de la creación _Elastic Load Balancers_ para clústeres de _Kubernetes_ asistiendo en la creación de objetos tales como: _ingress_ y servicios de tipo _LoadBalancer_.
 
-Para garantizar una configuración adecuada de _aws-load-balancer-controller-manager_ (no habilitado por defecto en entornos gestionados, EKS) es fundamental seguir una serie de pasos en los que se incluye la integración con https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IRSA]:
+Para garantizar una configuración adecuada de _aws-load-balancer-controller-manager_ (no habilitado por defecto en entornos gestionados, EKS) es fundamental seguir una serie de pasos en los que se incluye la integración con https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IRSA].
 
 ==== Amazon Web Services (AWS)
 
