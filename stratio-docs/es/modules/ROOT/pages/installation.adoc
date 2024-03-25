@@ -393,7 +393,7 @@ root_volume:
 |Sí
 |===
 
-NOTE: Se ha implementado la opción de establecer un min_size igual a cero, lo que permite que el autoscalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad facilita un ahorro significativo de costos en comparación con versiones anteriores, ya que posibilita la definición de un grupo de workers sin instanciar ningún recurso en el _cloud provider_ que no sea necesario.
+NOTE: Se ha implementado la opción de establecer un _min++_++size_ igual a cero, lo que permite que el autoescalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores ya que permite la definición de un grupo de _workers_ sin instanciar ningún recurso en el proveedor _cloud_ que no sea necesario.
 
 === _Stratio KEOS_
 
