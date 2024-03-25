@@ -36,7 +36,7 @@ TIP: For more details, see the xref:operations-manual:api-reference.adoc[API ref
 
 === Choice of the _Cluster Operator_
 
-By default, the latest version of the chart available in the Helm repository indicated in the _KeosCluster_ object will be installed, although this behavior can be overridden and you can indicate the version you want to install by indicating the value in the xref::clusterconfig-reference.adoc[_ClusterConfig_ configuration].
+By default, the latest version of the chart available in the Helm repository indicated in the _KeosCluster_ object will be installed, although this behavior can be overridden and you can indicate the version you want to install by indicating the value in the xref:operations-manual:api-reference.adoc[_ClusterConfig_ configuration].
 
 The choice of the latest available version considers both the order of precedence of the versioning and the alphanumeric ordering of the versions. That is, priority will be given to versions in the following order: _release_, _prerelease_, _milestone_, _snapshot_ and _pull++_++request_.
 

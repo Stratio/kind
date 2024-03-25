@@ -36,7 +36,7 @@ TIP: Para más detalles, consulta la sección de xref:operations-manual:api-refe
 
 === Elección del _Cluster Operator_
 
-Por defecto, se instalará la última versión del _chart_ disponible en el repositorio de Helm indicado en el objeto _KeosCluster_, aunque este comportamiento se puede sobrescribir e indicar la versión que se quiere instalar indicando el valor en la xref::clusterconfig-reference.adoc[configuración del _ClusterConfig_].
+Por defecto, se instalará la última versión del _chart_ disponible en el repositorio de Helm indicado en el objeto _KeosCluster_, aunque este comportamiento se puede sobrescribir e indicar la versión que se quiere instalar indicando el valor en la xref:operations-manual:api-reference.adoc[configuración del _ClusterConfig_].
 
 Para la elección de la última versión disponible se tiene en cuenta tanto el orden de precedencia del versionado como la ordenación alfanumérica de las versiones. Es decir, se dará prioridad a las versiones en el siguiente orden: _release_, _prerrelease_, _milestone_, _snapshot_ y _pull++_++request_.
 
