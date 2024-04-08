@@ -1013,6 +1013,7 @@ $ cat << EOF > policy.json
 		{
 			"Action": [
         			"ec2:DescribeAvailabilityZones",
+				"ec2:DescribeInstances",
 				"ec2:DescribeSecurityGroups",
 				"ec2:DescribeSubnets",
 				"elasticloadbalancing:DescribeListeners",
