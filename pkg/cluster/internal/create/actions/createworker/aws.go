@@ -100,6 +100,44 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 	}
 }
 
+var awsCharts = ChartsDictionary{
+	Charts: map[string]map[string]commons.ChartEntry{
+		"managed": {
+			"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.6.2", Pull: false},
+		},
+		"unmanaged": {
+			"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Pull: true},
+			"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.20.0", Pull: true},
+		},
+	},
+}
+
+func (b *AWSBuilder) pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterType string) error {
+	if clusterConfigSpec.EKSLBController && clusterType == "managed" {
+		for name, chart := range awsCharts.Charts[clusterType] {
+			if name == "aws-load-balancer-controller" {
+				chart.Pull = true
+				awsCharts.Charts[clusterType][name] = chart
+			}
+		}
+	}
+	return pullGenericCharts(n, clusterConfigSpec, keosSpec, awsCharts, clusterType)
+
+}
+
+func (b *AWSBuilder) getOverriddenCharts(charts *[]commons.Chart, clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart {
+	providerCharts := ConvertToChart(awsCharts.Charts[clusterType])
+	for _, ovChart := range clusterConfigSpec.Charts {
+		for _, chart := range *providerCharts {
+			if chart.Name == ovChart.Name {
+				chart.Version = ovChart.Version
+			}
+		}
+	}
+	*charts = append(*charts, *providerCharts...)
+	return *charts
+}
+
 func (b *AWSBuilder) getProvider() Provider {
 	return Provider{
 		capxProvider:     b.capxProvider,

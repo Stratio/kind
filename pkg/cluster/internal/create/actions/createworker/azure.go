@@ -53,6 +53,17 @@ type AzureBuilder struct {
 	csiNamespace     string
 }
 
+var azureCharts = ChartsDictionary{
+	Charts: map[string]map[string]commons.ChartEntry{
+		"managed": {},
+		"unmanaged": {
+			"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Version: "v1.28.3", Pull: true},
+			"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Version: "v1.28.3", Pull: true},
+			"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Version: "v1.26.7", Pull: true},
+		},
+	},
+}
+
 func newAzureBuilder() *AzureBuilder {
 	return &AzureBuilder{}
 }
@@ -89,6 +100,23 @@ func (b *AzureBuilder) setSC(p ProviderParams) {
 	if p.StorageClass.EncryptionKey != "" {
 		b.scParameters.DiskEncryptionSetID = p.StorageClass.EncryptionKey
 	}
+}
+
+func (b *AzureBuilder) pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterType string) error {
+	return pullGenericCharts(n, clusterConfigSpec, keosSpec, azureCharts, clusterType)
+}
+
+func (b *AzureBuilder) getOverriddenCharts(charts *[]commons.Chart, clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart {
+	providerCharts := ConvertToChart(azureCharts.Charts[clusterType])
+	for _, ovChart := range clusterConfigSpec.Charts {
+		for _, chart := range *providerCharts {
+			if chart.Name == ovChart.Name {
+				chart.Version = ovChart.Version
+			}
+		}
+	}
+	*charts = append(*charts, *providerCharts...)
+	return *charts
 }
 
 func (b *AzureBuilder) setCapxEnvVars(p ProviderParams) {

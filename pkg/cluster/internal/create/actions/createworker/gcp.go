@@ -49,6 +49,10 @@ type GCPBuilder struct {
 	csiNamespace     string
 }
 
+var googleCharts = ChartsDictionary{
+	Charts: map[string]map[string]commons.ChartEntry{},
+}
+
 func newGCPBuilder() *GCPBuilder {
 	return &GCPBuilder{}
 }
@@ -106,6 +110,23 @@ func (b *GCPBuilder) setSC(p ProviderParams) {
 	if p.StorageClass.EncryptionKey != "" {
 		b.scParameters.DiskEncryptionKmsKey = p.StorageClass.EncryptionKey
 	}
+}
+
+func (b *GCPBuilder) pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterType string) error {
+	return pullGenericCharts(n, clusterConfigSpec, keosSpec, googleCharts, clusterType)
+}
+
+func (b *GCPBuilder) getOverriddenCharts(charts *[]commons.Chart, clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart {
+	providerCharts := ConvertToChart(googleCharts.Charts[clusterType])
+	for _, ovChart := range clusterConfigSpec.Charts {
+		for _, chart := range *providerCharts {
+			if chart.Name == ovChart.Name {
+				chart.Version = ovChart.Version
+			}
+		}
+	}
+	*charts = append(*charts, *providerCharts...)
+	return *charts
 }
 
 func (b *GCPBuilder) getProvider() Provider {

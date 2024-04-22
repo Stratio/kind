@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -60,8 +61,6 @@ const (
 
 	scName = "keos"
 
-	certManagerVersion = "v1.12.3"
-
 	postInstallAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes"
 	corednsPdbPath        = "/kind/coredns_pdb.yaml"
 
@@ -73,6 +72,10 @@ const (
 //go:embed files/common/calico-metrics.yaml
 var calicoMetrics string
 
+type ChartsDictionary struct {
+	Charts map[string]map[string]commons.ChartEntry
+}
+
 type PrivateParams struct {
 	KeosCluster commons.KeosCluster
 	KeosRegUrl  string
@@ -83,6 +86,8 @@ type PBuilder interface {
 	setCapx(managed bool)
 	setCapxEnvVars(p ProviderParams)
 	setSC(p ProviderParams)
+	pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterType string) error
+	getOverriddenCharts(charts *[]commons.Chart, clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart
 	installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error
 	installCSI(n nodes.Node, k string, privateParams PrivateParams) error
 	getProvider() Provider
@@ -103,6 +108,7 @@ type Provider struct {
 	scParameters     commons.SCParameters
 	scProvisioner    string
 	csiNamespace     string
+	providerCharts   ChartsDictionary
 }
 
 type Node struct {
@@ -167,6 +173,21 @@ var scTemplate = DefaultStorageClass{
 	VolumeBindingMode:    "WaitForFirstConsumer",
 }
 
+var commonsCharts = ChartsDictionary{
+	Charts: map[string]map[string]commons.ChartEntry{
+		"managed": {
+			"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.29.1", Pull: true},
+			"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.26.1", Pull: true},
+			"cert-manager":       {Repository: "https://charts.jetstack.io", Version: "v1.12.3", Pull: true},
+		},
+		"unmanaged": {
+			"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.29.1", Pull: true},
+			"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.26.1", Pull: true},
+			"cert-manager":       {Repository: "https://charts.jetstack.io", Version: "v1.12.3", Pull: true},
+		},
+	},
+}
+
 func getBuilder(builderType string) PBuilder {
 	if builderType == "aws" {
 		return newAWSBuilder()
@@ -195,6 +216,71 @@ func (i *Infra) buildProvider(p ProviderParams) Provider {
 	return i.builder.getProvider()
 }
 
+func (i *Infra) pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec) error {
+	clusterType := "managed"
+	if !keosSpec.ControlPlane.Managed {
+		clusterType = "unmanaged"
+	}
+
+	if err := pullGenericCharts(n, clusterConfigSpec, keosSpec, commonsCharts, clusterType); err != nil {
+		return err
+	}
+
+	if err := i.builder.pullProviderCharts(n, clusterConfigSpec, keosSpec, clusterType); err != nil {
+		return err
+	}
+	clusterConfigSpec.Charts = i.getOverriddenCharts(clusterConfigSpec, clusterType)
+	return nil
+
+}
+
+func (i *Infra) getOverriddenCharts(clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart {
+	charts := ConvertToChart(commonsCharts.Charts[clusterType])
+	for _, ovChart := range clusterConfigSpec.Charts {
+		for _, chart := range *charts {
+			if chart.Name == ovChart.Name {
+				chart.Version = ovChart.Version
+			}
+		}
+	}
+	return i.builder.getOverriddenCharts(charts, clusterConfigSpec, clusterType)
+}
+
+func ConvertToChart(chartEntries map[string]commons.ChartEntry) *[]commons.Chart {
+	var charts []commons.Chart
+	for name, entry := range chartEntries {
+		if entry.Pull {
+			chart := commons.Chart{
+				Name:    name,
+				Version: entry.Version,
+			}
+			charts = append(charts, chart)
+		}
+
+	}
+	return &charts
+}
+
+func pullGenericCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, chartDictionary ChartsDictionary, clusterType string) error {
+	chartsToInstall := chartDictionary.Charts[clusterType]
+
+	for _, overrideChart := range clusterConfigSpec.Charts {
+		chart := chartsToInstall[overrideChart.Name]
+		if !reflect.DeepEqual(chart, commons.ChartEntry{}) {
+
+			chart.Version = overrideChart.Version
+			chartsToInstall[overrideChart.Name] = chart
+		}
+	}
+	if clusterConfigSpec.PrivateHelmRepo {
+		for name, entry := range chartsToInstall {
+			entry.Repository = keosSpec.HelmRepository.URL
+			chartsToInstall[name] = entry
+		}
+	}
+	return pullCharts(n, chartsToInstall)
+}
+
 func (i *Infra) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
 	return i.builder.installCloudProvider(n, k, privateParams)
 }
@@ -211,7 +297,7 @@ func (i *Infra) internalNginx(p ProviderParams, networks commons.Networks) (bool
 	return i.builder.internalNginx(p, networks)
 }
 
-func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks,clusterConfigSpec commons.ClusterConfigSpec) (map[string][]byte, error) {
+func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks, clusterConfigSpec commons.ClusterConfigSpec) (map[string][]byte, error) {
 	return i.builder.getOverrideVars(p, networks, clusterConfigSpec)
 }
 
@@ -267,38 +353,25 @@ func getcapxPDB(commonsPDBLocalPath string) (string, error) {
 	return string(capaPDBContent), nil
 }
 
-func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubeconfigPath string) error {
-	c := "kubectl create -f " + CAPILocalRepository + "/cert-manager/" + certManagerVersion + "/cert-manager.crds.yaml"
+func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubeconfigPath string, certManagerVersion string, private bool) error {
+
+	c := "helm install --wait cert-manager /stratio/helm/cert-manager" +
+		" --namespace=cert-manager" +
+		" --create-namespace" +
+		" --set installCRDs=true"
+	if private {
+		c += " --set cainjector.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-cainjector" +
+			" --set webhook.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-webhook" +
+			" --set acmesolver.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-acmesolver" +
+			" --set startupapicheck.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-ctl" +
+			" --set image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-controller"
+	}
+
 	if kubeconfigPath != "" {
 		c += " --kubeconfig " + kubeconfigPath
 	}
+
 	_, err := commons.ExecuteCommand(n, c, 5)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cert-manager crds")
-	}
-
-	c = "kubectl create ns cert-manager"
-	if kubeconfigPath != "" {
-		c += " --kubeconfig " + kubeconfigPath
-	}
-	_, err = commons.ExecuteCommand(n, c, 5)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cert-manager namespace")
-	}
-
-	c = "helm install --wait cert-manager /stratio/helm/cert-manager" +
-		" --set namespace=cert-manager" +
-		" --set cainjector.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-cainjector" +
-		" --set webhook.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-webhook" +
-		" --set acmesolver.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-acmesolver" +
-		" --set startupapicheck.image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-ctl" +
-		" --set image.repository=" + keosRegistryUrl + "/jetstack/cert-manager-controller"
-
-	if kubeconfigPath != "" {
-		c += " --kubeconfig " + kubeconfigPath
-	}
-
-	_, err = commons.ExecuteCommand(n, c, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cert-manager Helm Chart")
 	}
@@ -392,29 +465,8 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		helmRepository.url = keosCluster.Spec.HelmRepository.URL
 		if strings.HasPrefix(keosCluster.Spec.HelmRepository.URL, "oci://") {
 			stratio_helm_repo = helmRepoCreds.URL
-			urlLogin := strings.Split(strings.Split(keosCluster.Spec.HelmRepository.URL, "//")[1], "/")[0]
-
-			c = "helm registry login " + urlLogin + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepoCreds.URL)
-			}
-		} else if keosCluster.Spec.HelmRepository.AuthRequired {
-			helmRepository.user = clusterCredentials.HelmRepositoryCredentials["User"]
-			helmRepository.pass = clusterCredentials.HelmRepositoryCredentials["Pass"]
-			stratio_helm_repo = "stratio-helm-repo"
-			c = "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepository.url)
-			}
 		} else {
 			stratio_helm_repo = "stratio-helm-repo"
-			c = "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to add helm repository: "+helmRepoCreds.URL)
-			}
 		}
 
 		if firstInstallation {
@@ -983,4 +1035,77 @@ func installCorednsPdb(n nodes.Node) error {
 		return errors.Wrap(err, "failed to apply coredns PodDisruptionBudget")
 	}
 	return nil
+}
+
+func pullCharts(n nodes.Node, charts map[string]commons.ChartEntry) error {
+	for name, chart := range charts {
+		if chart.Pull {
+			c := "helm pull " + name + " --version " + chart.Version + " --repo " + chart.Repository + " --untar --untardir /stratio/helm"
+			if strings.HasPrefix(chart.Repository, "oci://") {
+				c = "helm pull " + chart.Repository + "/" + name + " --version " + chart.Version + " --untar --untardir /stratio/helm"
+			}
+			_, err := commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to pull the helm chart: "+fmt.Sprint(chart))
+			}
+		}
+
+	}
+	return nil
+}
+
+func loginHelmRepo(n nodes.Node, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, helmRepoCreds *HelmRegistry, infra *Infra, providerParams ProviderParams) error {
+
+	var helmRepository helmRepository
+	var err error
+
+	helmRepoCreds.Type = keosCluster.Spec.HelmRepository.Type
+	helmRepoCreds.URL = keosCluster.Spec.HelmRepository.URL
+	if keosCluster.Spec.HelmRepository.Type != "generic" {
+		urlLogin := strings.Split(strings.Split(helmRepoCreds.URL, "//")[1], "/")[0]
+		helmRepoCreds.User, helmRepoCreds.Pass, err = infra.getRegistryCredentials(providerParams, urlLogin)
+		if err != nil {
+			return errors.Wrap(err, "failed to get helm registry credentials")
+		}
+	} else {
+		helmRepoCreds.User = clusterCredentials.HelmRepositoryCredentials["User"]
+		helmRepoCreds.Pass = clusterCredentials.HelmRepositoryCredentials["Pass"]
+	}
+
+	if strings.HasPrefix(keosCluster.Spec.HelmRepository.URL, "oci://") {
+		stratio_helm_repo = helmRepoCreds.URL
+		urlLogin := strings.Split(strings.Split(keosCluster.Spec.HelmRepository.URL, "//")[1], "/")[0]
+
+		c := "helm registry login " + urlLogin + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
+		_, err := commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepoCreds.URL)
+		}
+	} else if keosCluster.Spec.HelmRepository.AuthRequired {
+		helmRepository.user = clusterCredentials.HelmRepositoryCredentials["User"]
+		helmRepository.pass = clusterCredentials.HelmRepositoryCredentials["Pass"]
+		stratio_helm_repo = "stratio-helm-repo"
+		c := "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL + " --username " + helmRepoCreds.User + " --password " + helmRepoCreds.Pass
+		_, err := commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to add and authenticate to helm repository: "+helmRepository.url)
+		}
+	} else {
+		stratio_helm_repo = "stratio-helm-repo"
+		c := "helm repo add " + stratio_helm_repo + " " + helmRepoCreds.URL
+		_, err := commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to add helm repository: "+helmRepoCreds.URL)
+		}
+	}
+	return nil
+}
+
+func getChartVersion(charts []commons.Chart, majorVersion string, chartName string) string {
+	for _, chart := range charts {
+		if chart.Name == chartName {
+			return chart.Version
+		}
+	}
+	return ""
 }

@@ -57,6 +57,15 @@ func validateClusterConfig(spec commons.KeosSpec, clusterConfigSpec commons.Clus
 			return errors.New("spec: Invalid value: \"controlplane_config.max_unhealthy\" in clusterConfig: This field cannot be set with managed cluster")
 		}
 	}
+	for i, chart := range clusterConfigSpec.Charts {
+		for j, chartCheck := range clusterConfigSpec.Charts {
+			if i != j {
+				if chart.Name == chartCheck.Name {
+					return errors.New("spec: Invalid value: Cannot be indicated more than one version: " + chart.Version + ", " + chartCheck.Version + " for the same chart: " + chart.Name)
+				}
+			}
+		}
+	}
 	return nil
 }
 

@@ -98,6 +98,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	var err error
 	var keosRegistry KeosRegistry
 	var helmRegistry HelmRegistry
+	var majorVersion = strings.Split(a.keosCluster.Spec.K8SVersion, ".")[1]
 
 	// Get the target node
 	n, err := ctx.GetNode()
@@ -117,6 +118,20 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	providerBuilder := getBuilder(a.keosCluster.Spec.InfraProvider)
 	infra := newInfra(providerBuilder)
 	provider := infra.buildProvider(providerParams)
+
+	ctx.Status.Start("Pulling Helm Charts 🎖️")
+
+	err = loginHelmRepo(n, a.keosCluster, a.clusterCredentials, &helmRegistry, infra, providerParams)
+	if err != nil {
+		return err
+	}
+
+	err = infra.pullProviderCharts(n, &a.clusterConfig.Spec, a.keosCluster.Spec)
+	if err != nil {
+		return err
+	}
+
+	ctx.Status.End(true)
 
 	for _, registry := range a.keosCluster.Spec.DockerRegistries {
 		if registry.KeosRegistry {
@@ -194,19 +209,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.Start("Installing CAPx 🎖️")
 	defer ctx.Status.End(false)
 
-	helmRegistry.Type = a.keosCluster.Spec.HelmRepository.Type
-	helmRegistry.URL = a.keosCluster.Spec.HelmRepository.URL
-	if a.keosCluster.Spec.HelmRepository.Type != "generic" {
-		urlLogin := strings.Split(strings.Split(helmRegistry.URL, "//")[1], "/")[0]
-		helmRegistry.User, helmRegistry.Pass, err = infra.getRegistryCredentials(providerParams, urlLogin)
-		if err != nil {
-			return errors.Wrap(err, "failed to get helm registry credentials")
-		}
-	} else {
-		helmRegistry.User = a.clusterCredentials.HelmRepositoryCredentials["User"]
-		helmRegistry.Pass = a.clusterCredentials.HelmRepositoryCredentials["Pass"]
-	}
-
 	for _, registry := range a.keosCluster.Spec.DockerRegistries {
 		if registry.KeosRegistry {
 			keosRegistry.url = registry.URL
@@ -266,11 +268,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
+	certManagerVersion := getChartVersion(a.clusterConfig.Spec.Charts, majorVersion, "cert-manager")
+	if certManagerVersion == "" {
+		return errors.New("Cert manager helm chart version cannot be found ")
+	}
+	err = provider.deployCertManager(n, keosRegistry.url, "", certManagerVersion, privateParams.Private)
+	if err != nil {
+		return err
+	}
+
+	c = "echo \"cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
+		"echo \"  version: " + certManagerVersion + "\" >> /root/.cluster-api/clusterctl.yaml "
+
+	_, err = commons.ExecuteCommand(n, c, 5)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to set cert-manager version in clusterctl config")
+	}
+
 	if privateParams.Private {
-		err = provider.deployCertManager(n, keosRegistry.url, "")
-		if err != nil {
-			return err
-		}
 
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cluster-api:\" >> /root/.cluster-api/clusterctl.yaml && " +
@@ -589,11 +605,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.Start("Installing CAPx in workload cluster 🎖️")
 		defer ctx.Status.End(false)
 
-		if privateParams.Private {
-			err = provider.deployCertManager(n, keosRegistry.url, kubeconfigPath)
-			if err != nil {
-				return err
-			}
+		err = provider.deployCertManager(n, keosRegistry.url, kubeconfigPath, certManagerVersion, privateParams.Private)
+		if err != nil {
+			return err
 		}
 
 		err = provider.installCAPXWorker(n, a.keosCluster, kubeconfigPath, allowCommonEgressNetPolPath)
