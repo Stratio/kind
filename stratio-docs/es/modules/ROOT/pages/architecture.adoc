@@ -206,7 +206,7 @@ spec:
 
 NOTE: El CIDR secundario asignado al VPC para los _pods_ debe indicarse en el parámetro _spec.networks.pods_cidr_ obligatoriamente.
 
-El CIDR de cada _subnet_ (obtenido del CIDR secundario del VPC), deberá ser el mismo que el descrito más arriba (con máscara de 18 bits) y las 3 _subnets_ para _pods_ deberán tener el siguiente _tag_: _sigs.k8s.io/_cluster_-api-provider-aws/association=secondary_.
+El CIDR de cada _subnet_ (obtenido del CIDR secundario del VPC), deberá ser el mismo que el descrito más arriba (con máscara de 18 bits) y las 3 _subnets_ para _pods_ deberán tener el siguiente _tag_: `sigs.k8s.io/cluster-api-provider-aws/association=secondary`.
 
 ==== GCP y Azure no gestionado
 
@@ -273,7 +273,9 @@ A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de 
 
 ==== EKS
 
-Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el API Server que se utilizará para el acceso al _cluster_ desde el instalador y las operaciones del ciclo de vida. Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas de AWS Identity and Access Management (IAM) y el Role Based Access Control (RBAC) nativo de Kubernetes.
+Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el API Server que se utilizará para el acceso al _cluster_ desde el instalador y las operaciones del ciclo de vida.
+
+Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas de AWS Identity and Access Management (IAM) y el Role Based Access Control (RBAC) nativo de Kubernetes.
 
 ==== GCP
 
@@ -328,7 +330,7 @@ spec:
     class: premium
 ----
 
-El parámetro _class_ puede ser "premium" o "standard", esto dependerá del proveedor _cloud_:
+El parámetro `class` puede ser "premium" o "standard", esto dependerá del proveedor _cloud_:
 
 [.center,cols="1,2,2",width=70%,center]
 |===
@@ -365,7 +367,7 @@ Estos últimos también dependen del proveedor _cloud_:
 
 [.center,cols="1,2",width=80%]
 |===
-^|Provider ^|Parámetro
+^|Proveedor ^|Parámetro
 
 ^|All
 a|
@@ -455,7 +457,7 @@ spec:
       - billing-area: data
 ----
 
-Para añadir _tags_ a los volúmenes creados por la _StorageClass_, se deberá utilizar el parámetro _labels_ en la sección correspondiente:
+Para añadir _tags_ a los volúmenes creados por la _StorageClass_, se deberá utilizar el parámetro `labels` en la sección correspondiente:
 
 [source,bash]
 ----
