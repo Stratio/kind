@@ -186,6 +186,66 @@ def install_lb_controller(cluster_name, account_id, dry_run):
                 " --repo https://aws.github.io/eks-charts")
     execute_command(command, dry_run)
 
+def enable_minsize_zero(cluster_name, provider, dry_run):
+    print("[INFO] Enabled min_size 0 value:", end=" ", flush=True)
+    rbacRoleCA = {
+        "apiVersion": "rbac.authorization.k8s.io/v1",
+        "kind": "Role",
+        "metadata": {
+            "labels": {
+                "app.kubernetes.io/name": "clusterapi-cluster-autoscaler"
+            },
+            "name": "cluster-autoscaler-clusterapi-cluster-autoscaler",
+            "namespace": "cluster-" + cluster_name
+        },
+        "rules": [
+            {
+                "apiGroups": [
+                    "infrastructure.cluster.x-k8s.io"
+                ],
+                "resources": [
+                    provider + "machinetemplates"
+                ],
+                "verbs": [
+                    "get",
+                    "list",
+                    "watch"
+                ]
+            }
+        ]
+    }
+    rbacRoleBindingCA = {
+        "apiVersion": "rbac.authorization.k8s.io/v1",
+        "kind": "RoleBinding",
+        "metadata": {
+            "labels": {
+                "app.kubernetes.io/name": "clusterapi-cluster-autoscaler"
+            },
+            "name": "cluster-autoscaler-clusterapi-cluster-autoscaler",
+            "namespace": "cluster-" + cluster_name
+        },
+        "roleRef": {
+            "apiGroup": "rbac.authorization.k8s.io",
+            "kind": "Role",
+            "name": "cluster-autoscaler-clusterapi-cluster-autoscaler"
+        },
+        "subjects": [
+            {
+                "kind": "ServiceAccount",
+                "name": "cluster-autoscaler-clusterapi-cluster-autoscaler",
+                "namespace": "kube-system"
+            }
+        ]
+    }
+    rbacCA_resources = [rbacRoleCA, rbacRoleBindingCA]
+
+    for rbacCA in rbacCA_resources:
+        with open('./rbacCA.yaml', 'w') as rbacCA_file:
+            yaml.dump(rbacCA, rbacCA_file, default_flow_style=False)
+        command = "kubectl apply -f rbacCA.yaml"
+        execute_command(command, dry_run)
+        os.remove('./rbacCA.yaml')
+
 def upgrade_capx(kubeconfig, managed, provider, namespace, version, env_vars, dry_run):
     print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
     # Check if capx & capi are already upgraded
@@ -550,6 +610,12 @@ if __name__ == '__main__':
         else:
             print("[WARN] AWS LoadBalancer Controller is only supported for EKS managed clusters")
             sys.exit(0)
+    if not config["yes"]:
+        request_confirmation()
+
+    # Enable min_size = 0
+    if not (provider == "azure" and managed):
+        enable_minsize_zero(cluster_name, provider, config["dry_run"])
     if not config["yes"]:
         request_confirmation()
 
