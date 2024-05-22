@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"os"
 	"strings"
 
@@ -247,7 +248,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Create docker-registry secret in provider-system namespace
 		c = "kubectl create secret docker-registry regcred" +
-			" --docker-server=" + keosRegistry.url +
+			" --docker-server=" + strings.Split(keosRegistry.url, "/")[0] +
 			" --docker-username=" + keosRegistry.user +
 			" --docker-password=" + keosRegistry.pass +
 			" --namespace=" + provider.capxName + "-system"
@@ -507,8 +508,8 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			// Wait for container metrics to be available
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deployment metrics-server --timeout=90s"
-			_, err = commons.ExecuteCommand(n, c, 5)
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deployment -l k8s-app=metrics-server --timeout=90s"
+			_, err = commons.ExecuteCommand(n, c, 15)
 			if err != nil {
 				return errors.Wrap(err, "failed to wait for container metrics to be available")
 			}
@@ -541,6 +542,29 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
 			}
 			ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
+		}
+
+		if awsEKSEnabled {
+			c = "kubectl --kubeconfig " + kubeconfigPath + " get clusterrole aws-node -o jsonpath='{.rules}'"
+			awsnoderules, err := commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to get aws-node clusterrole rules")
+			}
+			var rules []json.RawMessage
+			err = json.Unmarshal([]byte(awsnoderules), &rules)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse aws-node clusterrole rules")
+			}
+			rules = append(rules, json.RawMessage(`{"apiGroups": [""],"resources": ["pods"],"verbs": ["patch"]}`))
+			newawsnoderules, err := json.Marshal(rules)
+			if err != nil {
+				return errors.Wrap(err, "failed to marshal aws-node clusterrole rules")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " patch clusterrole aws-node -p '{\"rules\": " + string(newawsnoderules) + "}'"
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to patch aws-node clusterrole")
+			}
 		}
 
 		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
