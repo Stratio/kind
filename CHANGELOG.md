@@ -7,6 +7,7 @@
 * [Core] Support k8s v1.28
 * [Core] Fix panic when keos_version is not defined
 * [Core] Script the upgrade
+* [Core] Fix the version of cloud provisioner
 
 ## 0.17.0-0.4.0 (2024-02-22)
 

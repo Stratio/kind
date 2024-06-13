@@ -19,6 +19,7 @@ package version
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -29,20 +30,18 @@ import (
 
 // Version returns the kind CLI Semantic Version
 func Version() string {
-	v := versionCore
-	// add pre-release version info if we have it
-	if versionPreRelease != "" {
-		// If gitTag was set, set it as version
-		if gitTag != "" {
-			v = gitTag
-		} else {
-			v += "-" + versionPreRelease
-		}
+	var v string
+	if gitBranch != "" {
+		re := regexp.MustCompile(`branch-(.+)`)
+		versionFromBranch := re.FindStringSubmatch(gitBranch)
+		v = versionFromBranch[1] + "-SNAPSHOT"
 		// otherwise if commit was set, add to the pre-release version
 		if gitCommit != "" {
 			// NOTE: use 14 character short hash, like Kubernetes
 			v += " GitCommit:" + truncate(gitCommit, 14)
 		}
+	} else {
+		v = gitTag
 	}
 	return v
 }
@@ -53,13 +52,9 @@ func DisplayVersion() string {
 	return "cloud-provisioner Version:" + Version() + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
 }
 
-// versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
-
-const versionCore = "0.17.0-0.4.0"
-
-// versionPreRelease is the base pre-release portion of the kind CLI version per
-// Semantic Versioning 2.0.0
-const versionPreRelease = "SNAPSHOT"
+// gitBranch is the git branch used to build the kind binary, if available.
+// It is injected at build time.
+var gitBranch = ""
 
 // gitTag is the git tag used to build the kind binary, if available.
 // It is injected at build time.
