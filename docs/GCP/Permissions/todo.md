@@ -1,0 +1,1 @@
+# Create permissions table for GCP (AWS and Azure alike)

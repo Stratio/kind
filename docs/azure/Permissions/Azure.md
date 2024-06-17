@@ -96,9 +96,9 @@ capz-role-restricted-aks  Microsoft.Authorization/roleDefinitions  Restricted ro
 | Scope   |	Application |	ClientID    |	Type	|   Managed Identity    |	Role    |	spec    |
 | ---     |	---         |	---         |	---	|   ---                 |	---     |	---        |
 | ALL	    |Cloud-provisioner|7cf3ce06-2689-4c17-b2da-09df11fb725b|Development|capz-agentpool|AcrPull, Managed Identity Operator, Contributor|credentials.azure.client_id|
-| AWS managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-cloud-provisioner|capz-role-restricted-aks|credentials.azure.client_id|
-| AWS managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-controlplane|capz-aks-role-controlplane|security.control_plane_identity|
-| AWS managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-agp-restricted|capz-aks-role-node|security.nodes_identity|
-| AWS unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-cloud-provisioner|capz-role-restricted|credentials.azure.client_id|
-| AWS unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-controlplane|capz-role-controlplane|security.control_plane_identity|
-| AWS unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-agentpool-restricted|capz-role-node|security.nodes_identity|
+| Azure managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-cloud-provisioner|capz-role-restricted-aks|credentials.azure.client_id|
+| Azure managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-controlplane|capz-aks-role-controlplane|security.control_plane_identity|
+| Azure managed|cloud-provisioner-restricted-aks|e3b6e5b9-e729-4612-a3cf-4bda74c240c4|Production|capz-aks-agp-restricted|capz-aks-role-node|security.nodes_identity|
+| Azure unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-cloud-provisioner|capz-role-restricted|credentials.azure.client_id|
+| Azure unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-controlplane|capz-role-controlplane|security.control_plane_identity|
+| Azure unmanaged|cloud-provisioner-restricted|e979a59d-ba11-4fcc-b174-64cfab548943|Production|capz-agentpool-restricted|capz-role-node|security.nodes_identity|
