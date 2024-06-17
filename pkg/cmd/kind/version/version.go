@@ -34,10 +34,10 @@ func Version() string {
 		v = gitTag
 	} else {
 		v = packageVersion
-	}
-	if gitCommit != "" {
-		// NOTE: use 14 character short hash, like Kubernetes
-		v += " GitCommit:" + truncate(gitCommit, 14)
+		if gitCommit != "" {
+			// NOTE: use 14 character short hash, like Kubernetes
+			v += " GitCommit:" + truncate(gitCommit, 14)
+		}
 	}
 	return v
 }
