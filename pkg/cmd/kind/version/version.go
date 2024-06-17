@@ -19,7 +19,6 @@ package version
 
 import (
 	"fmt"
-	"regexp"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -31,17 +30,14 @@ import (
 // Version returns the kind CLI Semantic Version
 func Version() string {
 	var v string
-	if gitBranch != "" {
-		re := regexp.MustCompile(`branch-(.+)`)
-		versionFromBranch := re.FindStringSubmatch(gitBranch)
-		v = versionFromBranch[1] + "-SNAPSHOT"
-		// otherwise if commit was set, add to the pre-release version
-		if gitCommit != "" {
-			// NOTE: use 14 character short hash, like Kubernetes
-			v += " GitCommit:" + truncate(gitCommit, 14)
-		}
-	} else {
+	if gitTag != "" {
 		v = gitTag
+	} else {
+		v = packageVersion
+	}
+	if gitCommit != "" {
+		// NOTE: use 14 character short hash, like Kubernetes
+		v += " GitCommit:" + truncate(gitCommit, 14)
 	}
 	return v
 }
@@ -51,10 +47,6 @@ func Version() string {
 func DisplayVersion() string {
 	return "cloud-provisioner Version:" + Version() + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
 }
-
-// gitBranch is the git branch used to build the kind binary, if available.
-// It is injected at build time.
-var gitBranch = ""
 
 // gitTag is the git tag used to build the kind binary, if available.
 // It is injected at build time.
@@ -67,6 +59,10 @@ var gitCommitCount = ""
 // gitCommit is the commit used to build the kind binary, if available.
 // It is injected at build time.
 var gitCommit = ""
+
+// packageVersion is the name used to name the artifact, if available.
+// It is injected at build time.
+var packageVersion = ""
 
 // NewCommand returns a new cobra.Command for version
 func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {

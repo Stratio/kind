@@ -31,8 +31,6 @@ COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null)
 COMMIT_COUNT?=$(shell git describe --tags | rev | cut -d- -f2 | rev)
 # record the current tag name in the binary
 TAG=$(shell git describe --exact-match --tags 2>/dev/null)
-# record the current branch name in the binary
-BRANCH=$(shell git branch --show-current 2>/dev/null)
 ################################################################################
 # ========================= Setup Go With Gimme ================================
 # go version to use for build etc.
@@ -61,7 +59,7 @@ KIND_BINARY_NAME?=cloud-provisioner
 # - smaller binaries: -w (trim debugger data, but not panics)
 # - metadata: -X=... to bake in git commit
 KIND_VERSION_PKG:=sigs.k8s.io/kind/pkg/cmd/kind/version
-KIND_BUILD_LD_FLAGS:=-X=$(KIND_VERSION_PKG).gitTag=$(TAG) -X=$(KIND_VERSION_PKG).gitCommit=$(COMMIT) -X=$(KIND_VERSION_PKG).gitBranch=$(BRANCH)
+KIND_BUILD_LD_FLAGS:=-X=$(KIND_VERSION_PKG).gitTag=$(TAG) -X=$(KIND_VERSION_PKG).gitCommit=$(COMMIT) -X=$(KIND_VERSION_PKG).packageVersion=$(version)
 KIND_BUILD_FLAGS?=-trimpath -ldflags="-buildid= -w $(KIND_BUILD_LD_FLAGS)"
 ################################################################################
 # ================================= Building ===================================
@@ -116,7 +114,7 @@ shellcheck:
 	hack/make-rules/verify/shellcheck.sh
 
 package:
-	make build && bin/package.sh $(version)
+	make build version=$(version) && bin/package.sh $(version)
 
 deploy:
 	bin/deploy.sh $(version)
