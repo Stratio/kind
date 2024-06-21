@@ -12,6 +12,6 @@ spec:
     protocol: TCP
   order: 0
   namespaceSelector: kubernetes.io/metadata.name in { 'kube-system', 'capg-system' }
-  selector: app == 'gcp-compute-persistent-disk-csi-driver' || cluster.x-k8s.io/provider == 'infrastructure-gcp'
+  selector: app in {'gcp-compute-persistent-disk-csi-driver','source-controller'} || cluster.x-k8s.io/provider == 'infrastructure-gcp'
   types:
   - Egress

@@ -410,12 +410,14 @@ metadata:
   name: csi-gce-pd-controller
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: gcp-compute-persistent-disk-csi-driver
   template:
     metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: socket-dir
       labels:
         app: gcp-compute-persistent-disk-csi-driver
     spec:

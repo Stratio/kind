@@ -1,0 +1,26 @@
+cli:
+  image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/flux-cli
+
+# controllers
+
+helmController:
+  image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/helm-controller
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: temp
+
+imageAutomationController:
+  create: false
+
+imageReflectionController:
+  create: false
+
+kustomizeController:
+  create: false
+
+notificationController:
+  create: false
+  
+sourceController:
+  image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/source-controller
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: data,tmp

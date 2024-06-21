@@ -64,6 +64,20 @@ type ClusterConfigSpec struct {
 	WorkersConfig               WorkersConfig      `yaml:"workers_config"`
 	ClusterOperatorVersion      string             `yaml:"cluster_operator_version,omitempty"`
 	ClusterOperatorImageVersion string             `yaml:"cluster_operator_image_version,omitempty"`
+	PrivateHelmRepo             bool               `yaml:"private_helm_repo"`
+	Charts                      []Chart            `yaml:"charts,omitempty"`
+}
+
+type Chart struct {
+	Name    string `yaml:"name,omitempty"`
+	Version string `yaml:"version,omitempty"`
+}
+
+type ChartEntry struct {
+	Repository string
+	Version    string
+	Namespace  string
+	Pull       bool
 }
 
 type ControlplaneConfig struct {
@@ -447,7 +461,6 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				if err != nil {
 					return nil, nil, err
 				}
-
 				err = validate.Struct(clusterConfig)
 				if err != nil {
 					return nil, nil, err
