@@ -2,7 +2,6 @@
 
 ## 0.17.0-0.5.1 (2024-06-19)
 
-* [Core] Fix the version of cloud provisioner
 * [Core] Ensure that keoscluster exists in the upgrade script
 
 ## 0.17.0-0.5.0 (2024-06-10)

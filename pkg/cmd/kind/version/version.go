@@ -29,11 +29,16 @@ import (
 
 // Version returns the kind CLI Semantic Version
 func Version() string {
-	var v string
-	if gitTag != "" {
-		v = gitTag
-	} else {
-		v = packageVersion
+	v := versionCore
+	// add pre-release version info if we have it
+	if versionPreRelease != "" {
+		// If gitTag was set, set it as version
+		if gitTag != "" {
+			v = gitTag
+		} else {
+			v += "-" + versionPreRelease
+		}
+		// otherwise if commit was set, add to the pre-release version
 		if gitCommit != "" {
 			// NOTE: use 14 character short hash, like Kubernetes
 			v += " GitCommit:" + truncate(gitCommit, 14)
@@ -48,6 +53,14 @@ func DisplayVersion() string {
 	return "cloud-provisioner Version:" + Version() + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
 }
 
+// versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
+
+const versionCore = "0.17.0-0.5.0"
+
+// versionPreRelease is the base pre-release portion of the kind CLI version per
+// Semantic Versioning 2.0.0
+const versionPreRelease = "SNAPSHOT"
+
 // gitTag is the git tag used to build the kind binary, if available.
 // It is injected at build time.
 var gitTag = ""
@@ -59,10 +72,6 @@ var gitCommitCount = ""
 // gitCommit is the commit used to build the kind binary, if available.
 // It is injected at build time.
 var gitCommit = ""
-
-// packageVersion is the name used to name the artifact, if available.
-// It is injected at build time.
-var packageVersion = ""
 
 // NewCommand returns a new cobra.Command for version
 func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
@@ -91,3 +100,4 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen]
 }
+
