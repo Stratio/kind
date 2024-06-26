@@ -593,7 +593,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to patch aws-node clusterrole")
 			}
 		}
-		
+
 		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
 		defer ctx.Status.End(false)
 
