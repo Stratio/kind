@@ -545,14 +545,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		ctx.Status.End(true) // End Preparing nodes in workload cluster
 
-		// Ensure CoreDNS replicas are assigned to different nodes
-		// once more than 2 control planes or workers are running
-		c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout restart deployment coredns"
-		_, err = commons.ExecuteCommand(n, c, 5)
-		if err != nil {
-			return errors.Wrap(err, "failed to restart coredns deployment")
-		}
-
 		if awsEKSEnabled {
                         c = "kubectl --kubeconfig " + kubeconfigPath + " get clusterrole aws-node -o jsonpath='{.rules}'"
                         awsnoderules, err := commons.ExecuteCommand(n, c, 5)
@@ -574,6 +566,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
                         if err != nil {
                                 return errors.Wrap(err, "failed to patch aws-node clusterrole")
                         }
+                }
+
+                // Ensure CoreDNS replicas are assigned to different nodes
+                // once more than 2 control planes or workers are running
+                c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout restart deployment coredns"
+                _, err = commons.ExecuteCommand(n, c, 5)
+                if err != nil {
+                        return errors.Wrap(err, "failed to restart coredns deployment")
                 }
 
 		// Wait for CoreDNS deployment to be ready
