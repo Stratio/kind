@@ -5,6 +5,7 @@ metadata:
   name: allow-traffic-to-gcp-imds-capg
 spec:
   egress:
+  - action: Log
   - action: Allow
     destination:
       nets:

@@ -15,6 +15,7 @@
 * [Azure] Bump cluster-api-provider-azure to v1.11.4
 * [Azure] Add priority class to NMI
 * [Core] Bump cluster api to v1.5.3
+* [Azure] Restric imds access
 * [Core] Enable scale from zero for node groups
 * [Core] Added new CR ClusterConfig for cluster configurations
 * [Core] Support OCI helm repositories

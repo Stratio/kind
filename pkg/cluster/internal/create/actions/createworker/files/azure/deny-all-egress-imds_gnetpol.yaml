@@ -1,0 +1,23 @@
+# NMI intercepts all traffic and redirects it to 127.0.0.1:2579
+# target     prot opt source               destination         
+# DNAT       tcp  -- !localhost            169.254.169.254      tcp dpt:http to:127.0.0.1:2579
+# RETURN     all  --  anywhere             anywhere 
+---
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: deny-all-traffic-to-az-imds
+spec:
+  egress:
+  - action: Log
+  - action: Deny
+    destination:
+      nets:
+        - 127.0.0.1/32
+      ports:
+        - 2579
+    protocol: TCP
+  order: 10
+  selector: all()
+  types:
+  - Egress

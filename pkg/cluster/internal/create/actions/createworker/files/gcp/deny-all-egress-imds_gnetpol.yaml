@@ -5,10 +5,13 @@ metadata:
   name: deny-all-traffic-to-gcp-imds
 spec:
   egress:
+  - action: Log
   - action: Deny
     destination:
       nets:
-      - 169.254.169.254/32
+        - 169.254.169.254/32
+      ports:
+        - 80
     protocol: TCP
   order: 10
   selector: all()

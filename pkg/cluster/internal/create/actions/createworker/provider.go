@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -239,18 +240,33 @@ func (p *Provider) getDenyAllEgressIMDSGNetPol() (string, error) {
 }
 
 func (p *Provider) getAllowCAPXEgressIMDSGNetPol() (string, error) {
-	allowEgressIMDSGNetPolLocalPath := "files/" + p.capxProvider + "/allow-egress-imds_gnetpol.yaml"
-	allowEgressIMDSgnpFile, err := allowEgressIMDSgnpFiles.Open(allowEgressIMDSGNetPolLocalPath)
-	if err != nil {
-		return "", errors.Wrap(err, "error opening the allow egress IMDS file")
-	}
-	defer allowEgressIMDSgnpFile.Close()
-	allowEgressIMDSgnpContent, err := io.ReadAll(allowEgressIMDSgnpFile)
-	if err != nil {
-		return "", err
-	}
+  var allowEgressIMDSgnpContent string
+  var err error
 
-	return string(allowEgressIMDSgnpContent), nil
+  if p.capxProvider == "azure" {
+    azureParams := struct {
+      Managed bool
+    }{
+      Managed: p.capxManaged,
+	  }
+	  allowEgressIMDSgnpContent, err = getManifest("azure", "allow-egress-imds_gnetpol.yaml.tmpl", azureParams)
+	  if err != nil {
+		  return "", errors.Wrap(err, "error opening the allow egress IMDS file")
+	  }
+  } else {
+	  allowEgressIMDSGNetPolLocalPath := "files/" + p.capxProvider + "/allow-egress-imds_gnetpol.yaml"
+	  allowEgressIMDSgnpFile, err := allowEgressIMDSgnpFiles.Open(allowEgressIMDSGNetPolLocalPath)
+	  if err != nil {
+		  return "", errors.Wrap(err, "error opening the allow egress IMDS file")
+	  }
+	  defer allowEgressIMDSgnpFile.Close()
+	  allowEgressIMDSgnpContentBytes, err := ioutil.ReadAll(allowEgressIMDSgnpFile)
+	  if err != nil {
+		  return "", err
+    }
+    allowEgressIMDSgnpContent = string(allowEgressIMDSgnpContentBytes)
+  }
+  return allowEgressIMDSgnpContent, nil
 }
 
 func getcapxPDB(commonsPDBLocalPath string) (string, error) {

@@ -5,6 +5,7 @@ metadata:
   name: allow-traffic-to-aws-imds-capa
 spec:
   egress:
+  - action: Log
   - action: Allow
     destination:
       nets:

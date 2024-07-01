@@ -621,66 +621,60 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.End(true) // End Installing CAPx in workload cluster
 
 		// Use Calico as network policy engine in managed systems
-		if provider.capxProvider != "azure" && !isMachinePool {
-			ctx.Status.Start("Configuring Network Policy Engine in workload cluster 🚧")
-			defer ctx.Status.End(false)
+		ctx.Status.Start("Configuring Network Policy Engine in workload cluster 🚧")
+		defer ctx.Status.End(false)
 
-			// Use Calico as network policy engine in managed systems
-			if a.keosCluster.Spec.ControlPlane.Managed {
+		// Use Calico as network policy engine in managed systems
+		if awsEKSEnabled {
+			err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath)
+      if err != nil {
+        return errors.Wrap(err, "failed to install Network Policy Engine in workload cluster")
+      }
+    }
 
-				err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath)
-				if err != nil {
-					return errors.Wrap(err, "failed to install Network Policy Engine in workload cluster")
-				}
-			}
+		// Create the allow and deny (global) network policy file in the container
+		denyallEgressIMDSGNetPolPath := "/kind/deny-all-egress-imds_gnetpol.yaml"
+		allowCAPXEgressIMDSGNetPolPath := "/kind/allow-egress-imds_gnetpol.yaml"
 
-			// Create the allow and deny (global) network policy file in the container
-			denyallEgressIMDSGNetPolPath := "/kind/deny-all-egress-imds_gnetpol.yaml"
-			allowCAPXEgressIMDSGNetPolPath := "/kind/allow-egress-imds_gnetpol.yaml"
-
-			// Allow egress in kube-system Namespace
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system apply -f " + allowCommonEgressNetPolPath
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply kube-system egress NetworkPolicy")
-			}
-			denyEgressIMDSGNetPol, err := provider.getDenyAllEgressIMDSGNetPol()
-			if err != nil {
-				return err
-			}
-
-			c = "echo \"" + denyEgressIMDSGNetPol + "\" > " + denyallEgressIMDSGNetPolPath
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to write the deny-all-traffic-to-aws-imds global network policy")
-			}
-			allowEgressIMDSGNetPol, err := provider.getAllowCAPXEgressIMDSGNetPol()
-			if err != nil {
-				return err
-			}
-
-			c = "echo \"" + allowEgressIMDSGNetPol + "\" > " + allowCAPXEgressIMDSGNetPolPath
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to write the allow-traffic-to-aws-imds-capa global network policy")
-			}
-
-			// Deny CAPA egress to AWS IMDS
-			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + denyallEgressIMDSGNetPolPath
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply deny IMDS traffic GlobalNetworkPolicy")
-			}
-
-			// Allow CAPA egress to AWS IMDS
-			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + allowCAPXEgressIMDSGNetPolPath
-			_, err = commons.ExecuteCommand(n, c, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply allow CAPX as egress GlobalNetworkPolicy")
-			}
-
-			ctx.Status.End(true) // End Installing Network Policy Engine in workload cluster
+		// Allow egress in kube-system Namespace
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system apply -f " + allowCommonEgressNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply kube-system egress NetworkPolicy")
 		}
+		denyEgressIMDSGNetPol, err := provider.getDenyAllEgressIMDSGNetPol()
+		if err != nil {
+			return err
+		}
+
+		c = "echo \"" + denyEgressIMDSGNetPol + "\" > " + denyallEgressIMDSGNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to write the deny-all-traffic-to-aws-imds global network policy")
+		}
+		allowEgressIMDSGNetPol, err := provider.getAllowCAPXEgressIMDSGNetPol()
+		if err != nil {
+			return err
+		}
+
+		c = "echo \"" + allowEgressIMDSGNetPol + "\" > " + allowCAPXEgressIMDSGNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to write the allow-traffic-to-aws-imds-capa global network policy")
+		}
+
+		// Deny CAPA egress to AWS IMDS
+		c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + denyallEgressIMDSGNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply deny IMDS traffic GlobalNetworkPolicy")
+		}
+
+		// Allow CAPA egress to AWS IMDS
+		c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + allowCAPXEgressIMDSGNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 5)
+
+		ctx.Status.End(true) // End Installing Network Policy Engine in workload cluster
 
 		if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
 			ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")

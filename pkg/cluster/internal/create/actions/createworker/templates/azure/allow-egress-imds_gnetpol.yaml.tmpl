@@ -1,0 +1,25 @@
+---
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-traffic-to-az-imds-capz
+spec:
+  egress:
+  - action: Log
+  - action: Allow
+    destination:
+      nets:
+        - 127.0.0.1/32
+      ports:
+        - 2579
+    protocol: TCP
+  order: 0
+{{- if $.Managed }}
+  namespaceSelector: kubernetes.io/metadata.name == 'capz-system'
+  selector: cluster.x-k8s.io/provider == 'infrastructure-azure'
+{{- else }}
+  namespaceSelector: kubernetes.io/metadata.name in { 'kube-system', 'capz-system' }
+  selector: component == 'cloud-controller-manager' || app in { 'csi-azuredisk-controller', 'csi-azurefile-controller' } || cluster.x-k8s.io/provider == 'infrastructure-azure'
+{{- end }}
+  types: 
+  - Egress
