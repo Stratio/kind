@@ -541,6 +541,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to create the worker Cluster")
 			}
+			if a.keosCluster.Spec.InfraProvider == "azure" {
+				c = "kubectl --kubeconfig " + kubeconfigPath + " scale deployment cloud-controller-manager -n kube-system --replicas=2"
+				_, err = commons.ExecuteCommand(n, c, 5)
+				if err != nil {
+					return errors.Wrap(err, "failed to scale deployment cloud-controller-manager")
+				}
+			}
 		}
 
 		ctx.Status.End(true) // End Preparing nodes in workload cluster

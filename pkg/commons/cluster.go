@@ -29,6 +29,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var EtcdVolumeDeviceName = "/dev/xvdb"
+var EtcdVolumeMountPath = "/var/lib/etcd"
+var EtcdVolumeName = "etcd_disk"
+var EtcdVolumeLabel = "etcd_disk"
+var EtcdVolumeSize = 8
+var CriVolumeDeviceName = "/dev/xvdc"
+var CriVolumeName = "cri_disk"
+var CriVolumeMountPath = "/var/lib/containerd"
+var CriVolumeLabel = "cri_disk"
+var CriVolumeSize = 128
+var RootVolumeDefaultSize = 128
+var RootVolumeManagedDefaultSize = 256
+var DeviceNameRegex = "^/dev/(sd[a-z]|xvd([a-d]|[a-d][a-z]|[e-z]))$"
+
+var AWSVolumeType = "gp3"
+var AzureVMsVolumeType = "Standard_LRS"
+var GCPVMsVolumeType = "pd-standard"
+
 type Resource struct {
 	APIVersion string      `yaml:"apiVersion" validate:"required"`
 	Kind       string      `yaml:"kind" validate:"required"`
@@ -110,21 +128,25 @@ type KeosSpec struct {
 
 	Keos Keos `yaml:"keos,omitempty"`
 
-	ControlPlane struct {
-		Managed         bool                `yaml:"managed" validate:"boolean"`
-		NodeImage       string              `yaml:"node_image,omitempty"`
-		HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
-		Size            string              `yaml:"size,omitempty" validate:"required_if=Managed false"`
-		RootVolume      RootVolume          `yaml:"root_volume,omitempty"`
-		Tags            []map[string]string `yaml:"tags,omitempty"`
-		AWS             AWSCP               `yaml:"aws,omitempty"`
-		Azure           AzureCP             `yaml:"azure,omitempty"`
-		ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
-	} `yaml:"control_plane"`
+	ControlPlane Controlplane `yaml:"control_plane" validate:"required,dive"`
 
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
 
 	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
+}
+
+type Controlplane struct {
+	Managed         bool                `yaml:"managed" validate:"boolean"`
+	NodeImage       string              `yaml:"node_image,omitempty"`
+	HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
+	Size            string              `yaml:"size,omitempty" validate:"required_if=Managed false"`
+	RootVolume      RootVolume          `yaml:"root_volume,omitempty"`
+	Tags            []map[string]string `yaml:"tags,omitempty"`
+	AWS             AWSCP               `yaml:"aws,omitempty"`
+	Azure           AzureCP             `yaml:"azure,omitempty"`
+	CRIVolume       ExtraVolume         `yaml:"cri_volume,omitempty"  validate:"dive"`
+	ETCDVolume      ExtraVolume         `yaml:"etcd_volume,omitempty"  validate:"dive"`
+	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
 
 type Keos struct {
@@ -185,6 +207,7 @@ type WorkerNodes []struct {
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
 	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
+	CRIVolume        ExtraVolume       `yaml:"cri_volume,omitempty"  validate:"dive"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
 
@@ -206,12 +229,28 @@ type RootVolume struct {
 type ExtraVolume struct {
 	Name          string `yaml:"name,omitempty"`
 	DeviceName    string `yaml:"device_name,omitempty"`
+	Size          int    `yaml:"size,omitempty"`
+	Type          string `yaml:"type,omitempty"`
+	Label         string `yaml:"label,omitempty"`
+	Encrypted     bool   `yaml:"encrypted,omitempty" validate:"boolean"`
+	EncryptionKey string `yaml:"encryption_key,omitempty"`
+	MountPath     string `yaml:"mount_path,omitempty"`
+}
+
+type ETCDVolume struct {
 	Size          int    `yaml:"size" validate:"required,numeric"`
 	Type          string `yaml:"type,omitempty"`
 	Label         string `yaml:"label" validate:"required"`
 	Encrypted     bool   `yaml:"encrypted,omitempty" validate:"boolean"`
 	EncryptionKey string `yaml:"encryption_key,omitempty"`
-	MountPath     string `yaml:"mount_path" validate:"required"`
+}
+
+type CRIVolume struct {
+	Size          int    `yaml:"size" validate:"required,numeric"`
+	Type          string `yaml:"type,omitempty"`
+	Label         string `yaml:"label" validate:"required"`
+	Encrypted     bool   `yaml:"encrypted,omitempty" validate:"boolean"`
+	EncryptionKey string `yaml:"encryption_key,omitempty"`
 }
 
 type ClusterCredentials struct {
@@ -392,6 +431,70 @@ func (s KeosSpec) Init() KeosSpec {
 	return s
 }
 
+func (s KeosSpec) InitVolumes() KeosSpec {
+	var volumeType string
+
+	switch s.InfraProvider {
+	case "aws":
+		volumeType = AWSVolumeType
+		if !s.ControlPlane.Managed {
+			s.ControlPlane.CRIVolume.DeviceName = CriVolumeDeviceName
+			s.ControlPlane.ETCDVolume.DeviceName = EtcdVolumeDeviceName
+			s = initControlPlaneVolumes(s, volumeType)
+		}
+
+		for i := range s.WorkerNodes {
+			s.WorkerNodes[i].CRIVolume.DeviceName = CriVolumeDeviceName
+			s.WorkerNodes[i].CRIVolume.MountPath = CriVolumeMountPath
+			s.WorkerNodes[i].CRIVolume.Label = CriVolumeLabel
+			checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
+			checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
+			checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
+			checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
+		}
+
+	case "gcp":
+		if !s.ControlPlane.Managed {
+			volumeType = GCPVMsVolumeType
+			s = initControlPlaneVolumes(s, volumeType)
+			for i := range s.WorkerNodes {
+				s.WorkerNodes[i].CRIVolume.MountPath = CriVolumeMountPath
+				s.WorkerNodes[i].CRIVolume.Label = CriVolumeLabel
+				checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
+				checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
+				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
+				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
+			}
+		}
+	case "azure":
+		if !s.ControlPlane.Managed {
+			volumeType = AzureVMsVolumeType
+			checkAndFill(&s.ControlPlane.CRIVolume.Name, CriVolumeName)
+			checkAndFill(&s.ControlPlane.ETCDVolume.Name, EtcdVolumeName)
+			s = initControlPlaneVolumes(s, volumeType)
+			for i := range s.WorkerNodes {
+				s.WorkerNodes[i].CRIVolume.Name = CriVolumeName
+				s.WorkerNodes[i].CRIVolume.MountPath = CriVolumeMountPath
+				s.WorkerNodes[i].CRIVolume.Label = CriVolumeLabel
+				checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
+				checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
+				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
+				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
+			}
+		}
+	}
+	if s.ControlPlane.Managed && s.InfraProvider == "aws" {
+
+		for i := range s.WorkerNodes {
+			checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeManagedDefaultSize)
+			checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
+		}
+	}
+
+	return s
+
+}
+
 // Read descriptor file
 func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, error) {
 	var keosCluster KeosCluster
@@ -433,7 +536,7 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				if err != nil {
 					return nil, nil, err
 				}
-
+				keosCluster.Spec = keosCluster.Spec.InitVolumes()
 				err = validate.Struct(keosCluster)
 				if err != nil {
 					return nil, nil, err

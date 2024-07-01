@@ -62,6 +62,7 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 	if err != nil {
 		return err
 	}
+
 	if !commons.Contains(regions, spec.Region) {
 		return errors.New("spec.region: " + spec.Region + " region does not exist")
 	}
@@ -119,6 +120,9 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 	}
 
 	if spec.ControlPlane.Managed {
+		if !reflect.DeepEqual(spec.ControlPlane.ExtraVolumes, commons.ExtraVolume{}) {
+			return errors.New("spec.control_plane.extra_volumes: Invalid value \"extra_volumes\": unsupported, extra_volumes cannot be indicated")
+		}
 		if err = validateAKSVersion(spec, creds, providerSecrets["SubscriptionID"]); err != nil {
 			return err
 		}
@@ -139,9 +143,21 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 		if err := validateVolumeType(spec.ControlPlane.RootVolume.Type, AzureVolumes); err != nil {
 			return errors.Wrap(err, "spec.control_plane.root_volume: Invalid value: \"type\"")
 		}
+		if err := validateVolumeType(spec.ControlPlane.CRIVolume.Type, AzureVolumes); err != nil {
+			return errors.Wrap(err, "spec.control_plane.cri_volume: Invalid value: \"type\"")
+		}
+		if err := validateVolumeType(spec.ControlPlane.ETCDVolume.Type, AzureVolumes); err != nil {
+			return errors.Wrap(err, "spec.control_plane.etcd_volume: Invalid value: \"type\"")
+		}
 		for i, ev := range spec.ControlPlane.ExtraVolumes {
 			if ev.Name == "" {
 				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Required value: \"name\"")
+			}
+			if ev.Name == commons.CriVolumeName {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"name\":" + ev.Name + " reserved for cri_volume")
+			}
+			if ev.Name == commons.EtcdVolumeName {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"name\":" + ev.Name + " reserved for etcd_volume")
 			}
 			if err := validateVolumeType(ev.Type, AzureVolumes); err != nil {
 				return errors.Wrap(err, "spec.control_plane.extra_volumes["+strconv.Itoa(i)+"]: Invalid value: \"type\"")
@@ -169,6 +185,9 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 			for i, ev := range wn.ExtraVolumes {
 				if ev.Name == "" {
 					return errors.New("spec.worker_nodes." + wn.Name + ".extra_volumes[" + strconv.Itoa(i) + "]: Required value: \"name\"")
+				}
+				if ev.Name == commons.CriVolumeName {
+					return errors.New("spec.worker_nodes." + wn.Name + ".extra_volumes[" + strconv.Itoa(i) + "]: \"name\": reserved for cri_volume")
 				}
 				if err := validateVolumeType(ev.Type, AzureVolumes); err != nil {
 					return errors.Wrap(err, "spec.worker_nodes."+wn.Name+".extra_volumes["+strconv.Itoa(i)+"]: Invalid value: \"type\"")
@@ -423,6 +442,9 @@ func validateAKSNodes(wn commons.WorkerNodes) error {
 		}
 		if n.RootVolume.Type != "" && !commons.Contains(AzureAKSVolumes, n.RootVolume.Type) {
 			return errors.New("spec.worker_nodes." + n.Name + ".root_volume: Invalid value \"type\": " + n.RootVolume.Type + " unsupported, supported types: " + fmt.Sprint(strings.Join(AzureAKSVolumes, ", ")))
+		}
+		if !reflect.DeepEqual(n.ExtraVolumes, commons.ExtraVolume{}) {
+			return errors.New("spec.worker_nodes." + n.Name + ".extra_volumes: Invalid value \"extra_volumes\": unsupported, extra_volumes cannot be indicated")
 		}
 	}
 	if numberOfSystemPool == 0 {

@@ -401,3 +401,33 @@ func AzureGetConfig(secrets map[string]string) (*azidentity.ClientSecretCredenti
 	}
 	return cfg, nil
 }
+
+func initControlPlaneVolumes(s KeosSpec, volumeType string) KeosSpec {
+
+	checkAndFill(&s.ControlPlane.CRIVolume.Size, CriVolumeSize)
+	checkAndFill(&s.ControlPlane.CRIVolume.Type, volumeType)
+	s.ControlPlane.CRIVolume.Label = CriVolumeLabel
+	s.ControlPlane.CRIVolume.MountPath = CriVolumeMountPath
+	checkAndFill(&s.ControlPlane.ETCDVolume.Size, EtcdVolumeSize)
+	checkAndFill(&s.ControlPlane.ETCDVolume.Type, volumeType)
+	s.ControlPlane.ETCDVolume.Label = EtcdVolumeLabel
+	s.ControlPlane.ETCDVolume.MountPath = EtcdVolumeMountPath
+	checkAndFill(&s.ControlPlane.RootVolume.Size, RootVolumeDefaultSize)
+	checkAndFill(&s.ControlPlane.RootVolume.Type, volumeType)
+
+	return s
+}
+
+func checkAndFill(arg1 interface{}, arg2 interface{}) {
+	switch v := arg1.(type) {
+	case *string:
+		if *v == "" {
+			*v = arg2.(string)
+		}
+	case *int:
+		if *v == 0 {
+			*v = arg2.(int)
+		}
+	}
+
+}

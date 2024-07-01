@@ -5,6 +5,7 @@
 * [Core] Update runc golang module to fix GHSA-xr7r-f8xq-vfvv
 * [Core] Improve command execution retries
 * [Core] Support k8s v1.28
+* [Core] Added the default creation of volumes for containerd, etcd and root, if not indicated in the keoscluster
 
 ## 0.17.0-0.4.0 (2024-02-22)
 

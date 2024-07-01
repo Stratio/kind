@@ -193,8 +193,30 @@ func validateWorkersType(wns commons.WorkerNodes) error {
 }
 
 func validateVolumes(spec commons.KeosSpec) error {
+
 	if !spec.ControlPlane.Managed {
 		for i, ev := range spec.ControlPlane.ExtraVolumes {
+			if ev.MountPath == "" {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": cannot be empty")
+			}
+			if ev.Label == "" {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": cannot be empty")
+			}
+			if ev.Size == 0 {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"size\": cannot be empty or 0")
+			}
+			if ev.Label == commons.CriVolumeLabel {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": reserved for cri_volume")
+			}
+			if ev.Label == commons.EtcdVolumeLabel {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": reserved for etcd_volume")
+			}
+			if ev.MountPath == commons.CriVolumeMountPath {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": reserved for cri_volume")
+			}
+			if ev.MountPath == commons.EtcdVolumeMountPath {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": reserved for etcd_volume")
+			}
 			for _, ev2 := range spec.ControlPlane.ExtraVolumes[i+1:] {
 				if ev.Label == ev2.Label {
 					return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": is duplicated")
@@ -207,6 +229,27 @@ func validateVolumes(spec commons.KeosSpec) error {
 	}
 	for _, wn := range spec.WorkerNodes {
 		for i, ev := range wn.ExtraVolumes {
+			if ev.MountPath == "" {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": cannot be empty")
+			}
+			if ev.Label == "" {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": cannot be empty")
+			}
+			if ev.Label == commons.CriVolumeLabel {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": reserved for cri_volume")
+			}
+			if ev.Label == commons.EtcdVolumeLabel {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": reserved for etcd_volume")
+			}
+			if ev.MountPath == commons.CriVolumeMountPath {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": reserved for cri_volume")
+			}
+			if ev.MountPath == commons.EtcdVolumeMountPath {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"mount_path\": reserved for etcd_volume")
+			}
+			if ev.Size == 0 {
+				return errors.New("spec.control_plane.extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"size\": cannot be empty or 0")
+			}
 			for _, ev2 := range wn.ExtraVolumes[i+1:] {
 				if ev.Label == ev2.Label {
 					return errors.New("spec.worker_nodes." + wn.Name + ".extra_volumes[" + strconv.Itoa(i) + "]: Invalid value: \"label\": is duplicated")
