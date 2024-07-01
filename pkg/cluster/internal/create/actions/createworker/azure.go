@@ -139,7 +139,7 @@ func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, privateParam
 		c += " --set cloudControllerManager.imageRepository=" + privateParams.KeosRegUrl + "/oss/kubernetes" +
 			" --set cloudNodeManager.imageRepository=" + privateParams.KeosRegUrl + "/oss/kubernetes"
 	}
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy cloud-provider-azure Helm Chart")
 	}
@@ -160,7 +160,7 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string, privateParams PrivateP
 		c += " --set image.baseRepo=" + privateParams.KeosRegUrl
 	}
 
-	_, err = commons.ExecuteCommand(n, c, 5)
+	_, err = commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure Disk CSI driver Helm Chart")
 	}
@@ -175,7 +175,7 @@ func (b *AzureBuilder) installCSI(n nodes.Node, k string, privateParams PrivateP
 		c += " --set image.baseRepo=" + privateParams.KeosRegUrl
 	}
 
-	_, err = commons.ExecuteCommand(n, c, 5)
+	_, err = commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy Azure File CSI driver Helm Chart")
 	}
@@ -229,14 +229,14 @@ func (b *AzureBuilder) configureStorageClass(n nodes.Node, k string) error {
 	if b.capxManaged {
 		// Remove annotation from default storage class
 		c = "kubectl --kubeconfig " + k + ` get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
-		output, err := commons.ExecuteCommand(n, c, 5)
+		output, err := commons.ExecuteCommand(n, c, 3, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to get default storage class")
 		}
 
 		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
 			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
-			_, err = commons.ExecuteCommand(n, c, 5)
+			_, err = commons.ExecuteCommand(n, c, 3, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove annotation from default storage class")
 			}
@@ -350,7 +350,7 @@ func (b *AzureBuilder) postInstallPhase(n nodes.Node, k string) error {
 	}
 
 	c := "kubectl --kubeconfig " + kubeconfigPath + " get pdb " + coreDNSPDBName + " -n kube-system"
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		err = installCorednsPdb(n)
 		if err != nil {
