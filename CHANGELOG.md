@@ -1,10 +1,25 @@
 # Changelog
 
-## 0.17.0-0.5.0 (upcoming)
+## 0.17.0-0.6.0 (upcoming)
+
+* [Core] Ensure CoreDNS replicas are assigned to different nodes
+
+## 0.17.0-0.5.2 (2024-06-25)
+
+* [Core] Delete cluster autoscaler references in the upgrade script
+
+## 0.17.0-0.5.1 (2024-06-21)
+
+* [Core] Ensure that keoscluster exists in the upgrade script
+* [Core] Fix clusterctl move retries
+
+## 0.17.0-0.5.0 (2024-06-10)
 
 * [Core] Update runc golang module to fix GHSA-xr7r-f8xq-vfvv
 * [Core] Improve command execution retries
 * [Core] Support k8s v1.28
+* [Core] Fix panic when keos_version is not defined
+* [Core] Script the upgrade
 
 ## 0.17.0-0.4.0 (2024-02-22)
 
@@ -97,3 +112,4 @@
 * Add clusterAPI capabilities for EKS
 
 ## Previous development
+

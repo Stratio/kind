@@ -134,7 +134,7 @@ func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, privateParams 
 		c += " --set image.repository=" + privateParams.KeosRegUrl + "/provider-aws/cloud-controller-manager"
 	}
 
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy aws-cloud-controller-manager Helm Chart")
 	}
@@ -158,7 +158,7 @@ func (b *AWSBuilder) installCSI(n nodes.Node, k string, privateParams PrivatePar
 			" --set sidecars.volumemodifier.image.repository=" + privateParams.KeosRegUrl + "/ebs-csi-driver/volume-modifier-for-k8s"
 
 	}
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy AWS EBS CSI driver Helm Chart")
 	}
@@ -180,7 +180,7 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 		c += " --set image.repository=" + privateParams.KeosRegUrl + "/eks/aws-load-balancer-controller"
 	}
 
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy aws-load-balancer-controller Helm Chart")
 	}
@@ -212,14 +212,14 @@ spec:
 	// Create the eks.config file in the container
 	eksConfigPath := "/kind/eks.config"
 	c = "echo \"" + eksConfigData + "\" > " + eksConfigPath
-	_, err = commons.ExecuteCommand(n, c, 5)
+	_, err = commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		return errors.Wrap(err, "failed to create eks.config")
 	}
 
 	// Run clusterawsadm with the eks.config file previously created (this will create or update the CloudFormation stack in AWS)
 	c = "clusterawsadm bootstrap iam create-cloudformation-stack --config " + eksConfigPath
-	_, err = commons.ExecuteCommand(n, c, 5, envVars)
+	_, err = commons.ExecuteCommand(n, c, 3, 5, envVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
@@ -282,13 +282,13 @@ func (b *AWSBuilder) configureStorageClass(n nodes.Node, k string) error {
 	if b.capxManaged {
 		// Remove annotation from default storage class
 		c = "kubectl --kubeconfig " + k + ` get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
-		output, err := commons.ExecuteCommand(n, c, 5)
+		output, err := commons.ExecuteCommand(n, c, 3, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to get default storage class")
 		}
 		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
 			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
-			_, err = commons.ExecuteCommand(n, c, 5)
+			_, err = commons.ExecuteCommand(n, c, 3, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove annotation from default storage class")
 			}
@@ -349,7 +349,7 @@ func (b *AWSBuilder) postInstallPhase(n nodes.Node, k string) error {
 	var coreDNSPDBName = "coredns"
 
 	c := "kubectl --kubeconfig " + kubeconfigPath + " get pdb " + coreDNSPDBName + " -n kube-system"
-	_, err := commons.ExecuteCommand(n, c, 5)
+	_, err := commons.ExecuteCommand(n, c, 3, 5)
 	if err != nil {
 		err = installCorednsPdb(n)
 		if err != nil {
