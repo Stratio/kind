@@ -436,9 +436,6 @@ func validateAWSAZs(ctx context.Context, cfg aws.Config, spec commons.KeosSpec) 
 			if err != nil {
 				return err
 			}
-			if len(azs) < 3 {
-				return errors.New("insufficient Availability Zones in region " + spec.Region + ". Please add at least 3 private subnets in different Availability Zones")
-			}
 		}
 	} else {
 		azs, err = commons.AWSGetAZs(ctx, svc)
