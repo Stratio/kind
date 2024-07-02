@@ -219,7 +219,7 @@ spec:
 
 	// Run clusterawsadm with the eks.config file previously created (this will create or update the CloudFormation stack in AWS)
 	c = "clusterawsadm bootstrap iam create-cloudformation-stack --config " + eksConfigPath
-	_, err = commons.ExecuteCommand(n, c, 3, 5, envVars)
+	_, err = commons.ExecuteCommand(n, c, 3, 5, envVars...)
 	if err != nil {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}

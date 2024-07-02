@@ -240,12 +240,12 @@ func removeKey(nodes []*yaml.Node, key string) []*yaml.Node {
 	return newNodes
 }
 
-func ExecuteCommand(n nodes.Node, command string, retries int, timeout int, envVars ...[]string) (string, error) {
+func ExecuteCommand(n nodes.Node, command string, retries int, timeout int, envVars ...string) (string, error) {
 	var err error
 	var raw bytes.Buffer
 	cmd := n.Command("sh", "-c", command)
 	if len(envVars) > 0 {
-		cmd.SetEnv(envVars[0]...)
+		cmd.SetEnv(envVars...)
 	}
 	retryConditions := []string{"dial tcp", "NotFound", "timed out waiting", "failed calling webhook.*timeout.*"}
 	provisionCommands := strings.Contains(command, "kubectl") || strings.Contains(command, "helm") || strings.Contains(command, "clusterctl")
