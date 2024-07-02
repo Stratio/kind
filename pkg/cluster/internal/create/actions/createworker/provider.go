@@ -642,7 +642,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
 		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
 		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
-	_, err = commons.ExecuteCommand(n, c, 3, 5, p.capxEnvVars...)
+	_, err = commons.ExecuteCommand(n, c, 3, 5, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in workload cluster")
 	}
@@ -878,7 +878,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node) error {
 		" --bootstrap " + CAPIBootstrapProvider + ":" + CAPIVersion +
 		" --control-plane " + CAPIControlPlaneProvider + ":" + CAPIVersion +
 		" --infrastructure " + p.capxProvider + ":" + p.capxVersion
-	_, err = commons.ExecuteCommand(n, c, 3, 5, p.capxEnvVars...)
+	_, err = commons.ExecuteCommand(n, c, 3, 5, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")
 	}
