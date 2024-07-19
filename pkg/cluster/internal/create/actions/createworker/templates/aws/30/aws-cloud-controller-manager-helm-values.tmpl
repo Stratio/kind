@@ -1,0 +1,12 @@
+args:
+- --v=2
+- --cloud-provider=aws
+- --cluster-cidr={{ $.PodsCidr }}
+- --cluster-name={{ $.ClusterName }}
+
+# https://github.com/projectcalico/calico/issues/8453
+hostNetworking: true
+
+image:
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}registry.k8s.io{{ end }}/provider-aws/cloud-controller-manager
+  tag: v1.30.1

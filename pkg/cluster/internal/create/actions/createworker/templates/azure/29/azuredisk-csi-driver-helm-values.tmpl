@@ -1,0 +1,6 @@
+controller:
+  podAnnotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: socket-dir,azure-cred
+
+image:
+  baseRepo: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}

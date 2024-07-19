@@ -17,6 +17,7 @@
 
 * [Core] Update runc golang module to fix GHSA-xr7r-f8xq-vfvv
 * [Core] Improve command execution retries
+* [Core] Uncouple chart installation from Dockerfile
 * [Core] Support k8s v1.28
 * [Core] Fix panic when keos_version is not defined
 * [Core] Script the upgrade

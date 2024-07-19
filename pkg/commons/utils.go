@@ -19,6 +19,7 @@ package commons
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"regexp"
 	"time"
 	"unicode"
@@ -240,7 +241,7 @@ func removeKey(nodes []*yaml.Node, key string) []*yaml.Node {
 	return newNodes
 }
 
-func ExecuteCommand(n nodes.Node, command string, retries int, timeout int, envVars ...[]string) (string, error) {
+func ExecuteCommand(n nodes.Node, command string, timeout int, retries int, envVars ...[]string) (string, error) {
 	var err error
 	var raw bytes.Buffer
 	cmd := n.Command("sh", "-c", command)
@@ -255,6 +256,7 @@ func ExecuteCommand(n nodes.Node, command string, retries int, timeout int, envV
 		retry := false
 		for _, condition := range retryConditions {
 			if regexp.MustCompile(condition).MatchString(raw.String()) {
+				fmt.Println(raw.String())
 				retry = true
 			}
 		}
