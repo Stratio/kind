@@ -1,0 +1,187 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xiamconfigs
+spec:
+  compositeTypeRef:
+    apiVersion: configs.stratio.io/v1alpha1
+    kind: xIamConfig
+  resources:
+    - name: User
+      patches:
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.user.arn
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.uniqueId
+        toFieldPath: status.user.uniqueId
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-user"
+      - type: CombineFromComposite
+        toFieldPath: metadata.labels["id"]
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-prerrequisite-user"
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: User
+        spec:
+          forProvider: {}
+    - name: UserPolicy
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-user-policy" 
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.policy.arn
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: metadata.labels["id"]
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-prerrequisite-policy"
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Policy
+        spec:
+          forProvider: 
+            policy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "route53:ListTagsForResource",
+                            "route53:ChangeTagsForResource",
+                            "route53:CreateHostedZone",
+                            "route53:GetChange",
+                            "route53:GetHostedZone",
+                            "route53:ListResourceRecordSets",
+                            "route53:DeleteHostedZone",
+                            "iam:GetPolicyVersion",
+                            "iam:DeleteAccessKey",
+                            "iam:GetPolicy",
+                            "iam:AttachUserPolicy",
+                            "iam:DeletePolicy",
+                            "iam:DeleteUser",
+                            "iam:DeletePolicyVersion",
+                            "iam:CreateUser",
+                            "iam:CreateAccessKey",
+                            "iam:CreatePolicy",
+                            "iam:ListPolicyVersions",
+                            "iam:ListGroupsForUser",
+                            "iam:ListAttachedUserPolicies",
+                            "iam:GetUser",
+                            "iam:DetachUserPolicy",
+                            "iam:ListAccessKeys",
+                            "iam:TagUser",
+                            "iam:TagPolicy",
+                            "ec2:DescribeVpcs"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+              }
+    - name: UserPolicyAttachment
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-user-policy-attachment" 
+      - fromFieldPath: status.atProvider.id
+        toFieldPath: status.userPolicyAttachment.id
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.policyArn
+        toFieldPath: status.userPolicyAttachment.policyArn
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.user
+        toFieldPath: status.userPolicyAttachment.user
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.policyArnSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-prerrequisite-policy"
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.userSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-prerrequisite-user"
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: UserPolicyAttachment
+        spec:
+          forProvider: {}
+    - name: UserAccessKey
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-user-accesskey" 
+      - fromFieldPath: status.atProvider.id
+        toFieldPath: status.accessKey.id
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.user
+        toFieldPath: status.accessKey.user
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.writeConnectionSecretToRef.name
+        toFieldPath: status.accessKey.connectionSecret.name
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.writeConnectionSecretToRef.namespace
+        toFieldPath: status.accessKey.connectionSecret.namespace
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.userSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-prerrequisite-user"
+      - type: CombineFromComposite
+        toFieldPath: spec.writeConnectionSecretToRef.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-crossplane-accesskey-secret"
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: AccessKey
+        spec:
+          forProvider: {}
+          writeConnectionSecretToRef:
+            namespace: crossplane-system

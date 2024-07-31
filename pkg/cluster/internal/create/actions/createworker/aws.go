@@ -20,11 +20,14 @@ import (
 	"context"
 	_ "embed"
 	"encoding/base64"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
@@ -39,20 +42,42 @@ var awsInternalIngress []byte
 //go:embed files/aws/public-ingress-nginx.yaml
 var awsPublicIngress []byte
 
+//go:embed files/aws/compositeresourcedefinition-hostedzones-aws.yaml
+var awsCRDHostedZones []byte
+
+//go:embed files/aws/composition-hostedzones-aws.yaml
+var awsCompositionHostedZones []byte
+
+//go:embed files/aws/composition-iam-aws.yaml
+var awsCompositionIAM []byte
+
+//go:embed files/aws/compositionresourcedefinition-iam-aws.yaml
+var awsCRDIAM []byte
+
 type AWSBuilder struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider               string
+	capxVersion                string
+	capxImageVersion           string
+	capxManaged                bool
+	capxName                   string
+	capxEnvVars                []string
+	scParameters               commons.SCParameters
+	scProvisioner              string
+	csiNamespace               string
+	crossplaneProviders        []string
+	crossplaneProvidersVersion string
 }
 
 func newAWSBuilder() *AWSBuilder {
 	return &AWSBuilder{}
+}
+
+type CrossplaneAwsParams struct {
+	Region             string
+	VPCId              string
+	ClusterName        string
+	ExternalDomain     string
+	ProviderConfigName string
 }
 
 func (b *AWSBuilder) setCapx(managed bool) {
@@ -98,6 +123,22 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 		b.scParameters.Encrypted = "true"
 		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
 	}
+}
+
+func (b *AWSBuilder) setCrossplaneProviders() {
+
+	b.crossplaneProviders = []string{
+		"provider-family-aws",
+		"provider-aws-ec2",
+		"provider-aws-efs",
+		"provider-aws-route53",
+		"provider-aws-iam"}
+	b.crossplaneProvidersVersion = "v1.8.0"
+}
+
+func (b *AWSBuilder) GetCrossplaneProviders() ([]string, string) {
+	b.setCrossplaneProviders()
+	return b.crossplaneProviders, b.crossplaneProvidersVersion
 }
 
 func (b *AWSBuilder) getProvider() Provider {
@@ -370,3 +411,103 @@ func (b *AWSBuilder) postInstallPhase(n nodes.Node, k string) error {
 
 	return nil
 }
+
+func (b *AWSBuilder) getCrossplaneProviderConfigContent(credentials map[string]string) (string, error) {
+	awsCredentials := "[default]\naws_access_key_id = " + credentials["AccessKey"] + "\naws_secret_access_key = " + credentials["SecretKey"] + "\n"
+	return awsCredentials, nil
+}
+
+func (b *AWSBuilder) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string) ([]string, error) {
+	var manifests = []string{}
+	vpcId := keosCluster.Spec.Networks.VPCID
+	if vpcId == "" {
+		var ctx = context.TODO()
+		cfg, err := commons.AWSGetConfig(ctx, credentials, keosCluster.Spec.Region)
+		if err != nil {
+			return nil, err
+		}
+		vpcs, _ := getAWSVPCByName(cfg, keosCluster.Metadata.Name+"-vpc")
+		if len(vpcs) == 0 {
+			return nil, errors.New("Cannot create Crossplane Resources: No VPCs found")
+		}
+		if len(vpcs) > 1 {
+			return nil, errors.New("Cannot create Crossplane Resources: More than one VPC found")
+		}
+		vpcId = vpcs[0]
+
+	}
+
+	params := CrossplaneAwsParams{
+		Region:             keosCluster.Spec.Region,
+		VPCId:              vpcId,
+		ClusterName:        keosCluster.Metadata.Name,
+		ExternalDomain:     keosCluster.Spec.ExternalDomain,
+		ProviderConfigName: b.capxProvider + "-crossplane-secret",
+	}
+
+	fmt.Println("Params: ", params)
+
+	// manifests = append(manifests, string(awsCRDHostedZones))
+	// manifests = append(manifests, string(awsCompositionHostedZones))
+	// hostedZone, err := getManifest("aws", "hostedzone.aws.tmpl", params)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// manifests = append(manifests, hostedZone)
+
+	manifests = append(manifests, string(awsCRDIAM))
+	manifests = append(manifests, string(awsCompositionIAM))
+	iamResource, err := getManifest("aws", "iam.aws.tmpl", params)
+	if err != nil {
+		return nil, err
+	}
+	manifests = append(manifests, iamResource)
+
+	// if b.capxManaged {
+	// 	return b.getCrossplaneEKSManifests(privateParams, credentials, workloadClusterInstallation)
+	// }
+
+	return manifests, nil
+}
+
+func (b *AWSBuilder) getCrossplaneAwsManifests() {
+
+}
+
+func getAWSVPCByName(config aws.Config, vpcName string) ([]string, error) {
+	vpcs := []string{}
+
+	client := ec2.NewFromConfig(config)
+	DescribeVpcOpts := &ec2.DescribeVpcsInput{Filters: []types.Filter{
+		{
+			Name:   aws.String("tag:Name"),
+			Values: []string{vpcName},
+		},
+	}}
+	output, err := client.DescribeVpcs(context.Background(), DescribeVpcOpts)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, vpc := range output.Vpcs {
+		vpcs = append(vpcs, *vpc.VpcId)
+	}
+	return vpcs, nil
+}
+
+// func (b *AWSBuilder) getCrossplaneEKSManifests(offlineParams OfflineParams, credentials map[string]string, workloadClusterInstallation bool) (string, error) {
+// 	cr_filename := crossplane_cr_basename + "eks.tmpl"
+// 	cidr, err := getCIDRFromVPC(credentials, offlineParams.KeosCluster.Spec.Region, offlineParams.KeosCluster.Spec.Networks.VPCID)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	params := CrossplaneEKSParams{
+// 		Region:                      offlineParams.KeosCluster.Spec.Region,
+// 		VPCId:                       offlineParams.KeosCluster.Spec.Networks.VPCID,
+// 		CIDR:                        cidr,
+// 		WorkloadClusterInstallation: workloadClusterInstallation,
+// 		SgId:                        b.sgId,
+// 	}
+// 	return getManifest(b.capxProvider, cr_filename, params)
+
+// }

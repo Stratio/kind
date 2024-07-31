@@ -22,6 +22,7 @@ ENV CLOUD_PROVIDER_AZURE_CHART=v1.28.5
 ENV CLUSTER_AUTOSCALER_CHART=9.29.1
 ENV TIGERA_OPERATOR_CHART=v3.26.1
 ENV CERT_MANAGER_CHART_VERSION=v1.12.3
+ENV CROSSPLANE_CHART=1.16.0
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
@@ -29,10 +30,22 @@ ENV CAPA=v2.2.1
 ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
 
+# Crossplane artifacts
+ENV CROSSPLANE_CACHE=/kind/cache
+ENV AWS_FAMILY_PROVIDER=provider-family-aws
+ENV AWS_PROVIDER_EC2=provider-aws-ec2
+ENV AWS_PROVIDER_EFS=provider-aws-efs
+ENV AWS_PROVIDER_ROUTE53=provider-aws-route53
+ENV AWS_CROSSPLANE_PROVIDERS_VERSION=v1.8.0
+
 # Install vim
 RUN apt-get update && apt-get install -y \
   vim python3-pip git \
   && rm -rf /var/lib/apt/lists/*
+
+# Install up
+RUN curl -sL "https://cli.upbound.io" | sh \
+    && mv up /usr/bin/
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
@@ -71,7 +84,8 @@ RUN mkdir -p /stratio/helm \
   && for i in $(seq 1 3); do timeout 5 helm pull cloud-provider-azure --version ${CLOUD_PROVIDER_AZURE_CHART} --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo --untar --untardir /stratio/helm && break; done \
   && for i in $(seq 1 3); do timeout 5 helm pull cluster-autoscaler --version ${CLUSTER_AUTOSCALER_CHART} --repo https://kubernetes.github.io/autoscaler --untar --untardir /stratio/helm && break; done \
   && for i in $(seq 1 3); do timeout 5 helm pull tigera-operator --version ${TIGERA_OPERATOR_CHART} --repo https://docs.projectcalico.org/charts --untar --untardir /stratio/helm && break; done \
-  && for i in $(seq 1 3); do timeout 5 helm pull cert-manager --version ${CERT_MANAGER_CHART_VERSION} --repo  https://charts.jetstack.io --untar --untardir /stratio/helm && break; done
+  && for i in $(seq 1 3); do timeout 5 helm pull cert-manager --version ${CERT_MANAGER_CHART_VERSION} --repo  https://charts.jetstack.io --untar --untardir /stratio/helm && break; done \
+  && for i in $(seq 1 3); do timeout 5 helm pull crossplane --version ${CROSSPLANE_CHART} --repo https://charts.crossplane.io/stable --untar --untardir /stratio/helm && break; done
 
 # Prepare cluster-api private repository
 RUN mkdir -p ${CAPI_REPO}/infrastructure-aws/${CAPA} ${CAPI_REPO}/infrastructure-gcp/${CAPG} ${CAPI_REPO}/infrastructure-azure/${CAPZ} ${CAPI_REPO}/cluster-api/${CLUSTERCTL} ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL} ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL} ${CROSSPLANE_CACHE} \
@@ -95,3 +109,10 @@ RUN curl -L  https://github.com/kubernetes-sigs/cluster-api/releases/download/${
     && curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/metadata.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/metadata.yaml
+
+RUN set -e; \
+    for provider in ${AWS_FAMILY_PROVIDER} ${AWS_PROVIDER_EC2} ${AWS_PROVIDER_ROUTE53} ${AWS_PROVIDER_EFS}; do \
+      up xpkg xp-extract xpkg.upbound.io/upbound/${provider}:${AWS_CROSSPLANE_PROVIDERS_VERSION} \
+      && mv out.gz ${CROSSPLANE_CACHE}/${provider}.gz \
+      && chmod 644 ${CROSSPLANE_CACHE}/${provider}.gz; \
+    done

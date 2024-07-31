@@ -83,6 +83,7 @@ type PBuilder interface {
 	setCapx(managed bool)
 	setCapxEnvVars(p ProviderParams)
 	setSC(p ProviderParams)
+	setCrossplaneProviders()
 	installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error
 	installCSI(n nodes.Node, k string, privateParams PrivateParams) error
 	getProvider() Provider
@@ -91,18 +92,25 @@ type PBuilder interface {
 	getOverrideVars(p ProviderParams, networks commons.Networks, clusterConfigSpec commons.ClusterConfigSpec) (map[string][]byte, error)
 	getRegistryCredentials(p ProviderParams, u string) (string, string, error)
 	postInstallPhase(n nodes.Node, k string) error
+	getCrossplaneProviderConfigContent(credentials map[string]string) (string, error)
+	getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string) ([]string, error)
+	GetCrossplaneProviders() ([]string, string)
 }
 
 type Provider struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider        string
+	capxVersion         string
+	capxImageVersion    string
+	capxManaged         bool
+	capxName            string
+	capxEnvVars         []string
+	scParameters        commons.SCParameters
+	scProvisioner       string
+	csiNamespace        string
+	crossplaneProviders map[string]string
+}
+
+type CrossplaneParams struct {
 }
 
 type Node struct {
@@ -217,6 +225,18 @@ func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks, clu
 
 func (i *Infra) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
 	return i.builder.getRegistryCredentials(p, u)
+}
+
+func (i *Infra) getCrossplaneProviderConfigContent(credentials map[string]string) (string, error) {
+	return i.builder.getCrossplaneProviderConfigContent(credentials)
+}
+
+func (i *Infra) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string) ([]string, error) {
+	return i.builder.getCrossplaneCRManifests(keosCluster, credentials)
+}
+
+func (i *Infra) GetCrossplaneProviders() ([]string, string) {
+	return i.builder.GetCrossplaneProviders()
 }
 
 func (i *Infra) postInstallPhase(n nodes.Node, k string) error {

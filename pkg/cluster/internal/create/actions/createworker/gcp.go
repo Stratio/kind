@@ -38,15 +38,17 @@ import (
 var gcpInternalIngress []byte
 
 type GCPBuilder struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider              string
+	capxVersion               string
+	capxImageVersion          string
+	capxManaged               bool
+	capxName                  string
+	capxEnvVars               []string
+	scParameters              commons.SCParameters
+	scProvisioner             string
+	csiNamespace              string
+	crossplaneProviders       []string
+	crossplaneProviderVersion string
 }
 
 func newGCPBuilder() *GCPBuilder {
@@ -266,4 +268,23 @@ func (b *GCPBuilder) postInstallPhase(n nodes.Node, k string) error {
 	}
 
 	return nil
+}
+
+func (b *GCPBuilder) getCrossplaneProviderConfigContent(credentials map[string]string) (string, error) {
+	return "", nil
+}
+
+func (b *GCPBuilder) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string) ([]string, error) {
+	return []string{}, nil
+}
+
+func (b *GCPBuilder) setCrossplaneProviders() {
+
+	b.crossplaneProviders = []string{}
+	b.crossplaneProviderVersion = ""
+}
+
+func (b *GCPBuilder) GetCrossplaneProviders() ([]string, string) {
+	b.setCrossplaneProviders()
+	return b.crossplaneProviders, b.crossplaneProviderVersion
 }
