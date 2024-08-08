@@ -27,22 +27,30 @@ installation:
     {{- if eq $.Spec.InfraProvider "azure" }}
     mtu: 1350
     {{- end }}
+    {{- if not $.IsNetPolEngine }}
     ipPools:
       - cidr: {{- if $.Spec.Networks.PodsCidrBlock }} {{ $.Spec.Networks.PodsCidrBlock }} {{- else }} 192.168.0.0/16 {{- end }}
         encapsulation: {{- if eq $.Spec.InfraProvider "azure" }} VXLAN {{- else }} IPIP {{- end }}
+    {{- end }}
   {{- end }}
   cni:
-  {{- if and ($.Spec.ControlPlane.Managed) (eq $.Spec.InfraProvider "aws") }}
+  {{- if and $.Spec.ControlPlane.Managed (eq $.Spec.InfraProvider "aws") }}
     ipam:
       type: AmazonVPC
     type: AmazonVPC
+  {{- else if and $.Spec.ControlPlane.Managed (eq $.Spec.InfraProvider "gcp") $.IsNetPolEngine }}
+    ipam:
+      type: HostLocal
+    type: GKE
   {{- else }}
     ipam:
       type: Calico
     type: Calico
   {{- end }}
+  {{- if not $.IsNetPolEngine }}
   enabled: true
-  kubernetesProvider: {{- if and ($.Spec.ControlPlane.Managed) (eq $.Spec.InfraProvider "aws") }} EKS {{- else }} "" {{- end }}
+  {{- end }}
+  kubernetesProvider: {{- if and $.Spec.ControlPlane.Managed (eq $.Spec.InfraProvider "aws") }} EKS {{- else if and $.Spec.ControlPlane.Managed (eq $.Spec.InfraProvider "gcp") }} GKE {{- else }} "" {{- end }}
   nodeMetricsPort: 9191
   {{- if $.Private }}
   registry: {{ $.KeosRegUrl }}

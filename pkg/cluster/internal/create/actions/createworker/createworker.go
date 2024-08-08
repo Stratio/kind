@@ -20,8 +20,10 @@ package createworker
 import (
 	"bytes"
 	"context"
+	"embed"
 	_ "embed"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 
@@ -78,6 +80,9 @@ var allowCommonEgressNetPol string
 
 //go:embed files/gcp/rbac-loadbalancing.yaml
 var rbacInternalLoadBalancing string
+
+//go:embed files/gcp/coredns_*.yaml
+var gcpCoreDNSDeploy embed.FS
 
 // NewAction returns a new action for installing default CAPI
 func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, clusterConfig *commons.ClusterConfig) actions.Action {
@@ -453,7 +458,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Installing Calico in workload cluster 🔌")
 			defer ctx.Status.End(false)
 
-			err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath)
+			err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath, false)
 			if err != nil {
 				return errors.Wrap(err, "failed to install Calico in workload cluster")
 			}
@@ -552,6 +557,132 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		ctx.Status.End(true) // End Preparing nodes in workload cluster
 
+		if gcpGKEEnabled {
+			ctx.Status.Start("Enabling CoreDNS as DNS server 📡")
+			defer ctx.Status.End(false)
+
+			gcpCoreDNSDeploymentPath := "files/gcp/coredns_deployment.yaml"
+			gcpCoreDNSRBACPath := "files/gcp/coredns_rbac.yaml"
+			combinedCoreDNSPath := "/kind/coredns-deployment.yaml"
+
+			gcpCoreDNSRBAC, err := gcpCoreDNSDeploy.Open(gcpCoreDNSRBACPath)
+			if err != nil {
+				return errors.Wrap(err, "error opening the CoreDNS RBAC file")
+			}
+			defer gcpCoreDNSRBAC.Close()
+			gcpCoreDNSDeployment, err := gcpCoreDNSDeploy.Open(gcpCoreDNSDeploymentPath)
+			if err != nil {
+				return errors.Wrap(err, "error opening the CoreDNS deployment file")
+			}
+			defer gcpCoreDNSDeployment.Close()
+
+			// Create a buffer to hold the combined contents
+			var combinedCoreDNSContents bytes.Buffer
+
+			// Combine the contents of gcpCoreDNSRBAC and gcpCoreDNSDeployment with a newline in between
+			combinedReader := io.MultiReader(gcpCoreDNSRBAC, strings.NewReader("\n"), gcpCoreDNSDeployment)
+
+			// Read all combined contents into the buffer
+			if _, err := combinedCoreDNSContents.ReadFrom(combinedReader); err != nil {
+				return errors.Wrap(err, "error reading the combined CoreDNS files")
+			}
+			combinedCoreDNS := combinedCoreDNSContents.String()
+
+			coreDNSTemplate := "/kind/coredns-configmap.yaml"
+			coreDNSConfigmap, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_configmap.tmpl", a.keosCluster.Spec)
+			if err != nil {
+				return errors.Wrap(err, "failed to get CoreDNS file")
+			}
+			c = "echo '" + coreDNSConfigmap + "' > " + coreDNSTemplate
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to create CoreDNS configmap file")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + coreDNSTemplate
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply CoreDNS configmap")
+			}
+			c := "echo '" + combinedCoreDNS + "' > " + combinedCoreDNSPath
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to create CoreDNS deployment and RBAC file")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + combinedCoreDNSPath
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply CoreDNS deployment and RBAC")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system rollout status deploy/coredns --timeout=3m"
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to wait for the CoreDNS deployment to be ready")
+			}
+
+			c = "kubectl --kubeconfig " + kubeconfigPath + " scale deployment kube-dns-autoscaler -n kube-system --replicas=0"
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to disable kube-dns-autoscaler deployment")
+			}
+			c = "kubectl --kubeconfig " + kubeconfigPath + " scale deployment kube-dns -n kube-system --replicas=0"
+			_, err = commons.ExecuteCommand(n, c, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to disable kube-dns deployment")
+			}
+		}
+
+		// Apply custom CoreDNS configuration
+		if a.keosCluster.Spec.Dns.Forwarders != nil && len(a.keosCluster.Spec.Dns.Forwarders) > 0 && (!awsEKSEnabled || !gcpGKEEnabled) {
+			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
+			defer ctx.Status.End(false)
+
+			err = customCoreDNS(n, a.keosCluster)
+			if err != nil {
+				return errors.Wrap(err, "failed to customized CoreDNS configuration")
+			}
+
+			ctx.Status.End(true) // End Customizing CoreDNS configuration
+		}
+
+		ctx.Status.Start("Installing CAPx in workload cluster 🎖️")
+		defer ctx.Status.End(false)
+
+		if privateParams.Private {
+			err = provider.deployCertManager(n, keosRegistry.url, kubeconfigPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = provider.installCAPXWorker(n, a.keosCluster, kubeconfigPath, allowCommonEgressNetPolPath)
+		if err != nil {
+			return err
+		}
+
+		err = provider.configCAPIWorker(n, a.keosCluster, kubeconfigPath, allowCommonEgressNetPolPath)
+		if err != nil {
+			return err
+		}
+
+		ctx.Status.End(true) // End Installing CAPx in workload cluster
+
+		ctx.Status.Start("Enabling workload cluster's self-healing 🏥")
+		defer ctx.Status.End(false)
+
+		err = enableSelfHealing(n, a.keosCluster, capiClustersNamespace, a.clusterConfig)
+		if err != nil {
+			return errors.Wrap(err, "failed to enable workload cluster's self-healing")
+		}
+
+		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
+		defer ctx.Status.End(false)
+
+		err = infra.configureStorageClass(n, kubeconfigPath)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure StorageClass in workload cluster")
+		}
+		ctx.Status.End(true) // End Installing StorageClass in workload cluster
+
 		if awsEKSEnabled && a.clusterConfig.Spec.EKSLBController {
 			ctx.Status.Start("Installing AWS LB controller in workload cluster ⚖️")
 			defer ctx.Status.End(false)
@@ -586,56 +717,17 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
-		ctx.Status.Start("Installing StorageClass in workload cluster 💾")
-		defer ctx.Status.End(false)
-
-		err = infra.configureStorageClass(n, kubeconfigPath)
-		if err != nil {
-			return errors.Wrap(err, "failed to configure StorageClass in workload cluster")
-		}
-		ctx.Status.End(true) // End Installing StorageClass in workload cluster
-
-		ctx.Status.Start("Enabling workload cluster's self-healing 🏥")
-		defer ctx.Status.End(false)
-
-		err = enableSelfHealing(n, a.keosCluster, capiClustersNamespace, a.clusterConfig)
-		if err != nil {
-			return errors.Wrap(err, "failed to enable workload cluster's self-healing")
-		}
-
 		ctx.Status.End(true) // End Enabling workload cluster's self-healing
 
-		ctx.Status.Start("Installing CAPx in workload cluster 🎖️")
-		defer ctx.Status.End(false)
-
-		if privateParams.Private {
-			err = provider.deployCertManager(n, keosRegistry.url, kubeconfigPath)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = provider.installCAPXWorker(n, a.keosCluster, kubeconfigPath, allowCommonEgressNetPolPath)
-		if err != nil {
-			return err
-		}
-
-		err = provider.configCAPIWorker(n, a.keosCluster, kubeconfigPath, allowCommonEgressNetPolPath)
-		if err != nil {
-			return err
-		}
-
-		ctx.Status.End(true) // End Installing CAPx in workload cluster
-
 		// Use Calico as network policy engine in managed systems
-		if provider.capxProvider != "azure" && !isMachinePool {
+		if provider.capxProvider != "azure" {
 			ctx.Status.Start("Configuring Network Policy Engine in workload cluster 🚧")
 			defer ctx.Status.End(false)
 
 			// Use Calico as network policy engine in managed systems
 			if a.keosCluster.Spec.ControlPlane.Managed {
 
-				err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath)
+				err = installCalico(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath, true)
 				if err != nil {
 					return errors.Wrap(err, "failed to install Network Policy Engine in workload cluster")
 				}
@@ -751,19 +843,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		ctx.Status.End(true)
-
-		// Apply custom CoreDNS configuration
-		if a.keosCluster.Spec.Dns.Forwarders != nil && len(a.keosCluster.Spec.Dns.Forwarders) > 0 && !awsEKSEnabled {
-			ctx.Status.Start("Customizing CoreDNS configuration 🪡")
-			defer ctx.Status.End(false)
-
-			err = customCoreDNS(n, a.keosCluster)
-			if err != nil {
-				return errors.Wrap(err, "failed to customized CoreDNS configuration")
-			}
-
-			ctx.Status.End(true) // End Customizing CoreDNS configuration
-		}
 
 		// Create cloud-provisioner Objects backup
 		ctx.Status.Start("Creating cloud-provisioner Objects backup 🗄️")
