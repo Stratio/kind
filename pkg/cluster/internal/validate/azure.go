@@ -153,7 +153,8 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 			}
 		}
 		for _, wn := range spec.WorkerNodes {
-			if wn.NodeImage != "" {
+			// Skip NodeImage validation if the control plane is unmanaged
+			if spec.ControlPlane.Managed && wn.NodeImage != "" {
 				if !isAzureNodeImage(wn.NodeImage) {
 					return errors.New("spec.worker_nodes." + wn.Name + ": \"node_image\": must have the format " + AzureNodeImageFormat)
 				}
