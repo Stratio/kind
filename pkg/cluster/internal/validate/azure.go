@@ -128,11 +128,6 @@ func validateAzure(spec commons.KeosSpec, providerSecrets map[string]string, clu
 	}
 
 	if !spec.ControlPlane.Managed {
-		if spec.ControlPlane.NodeImage != "" {
-			if !isAzureNodeImage(spec.ControlPlane.NodeImage) {
-				return errors.New("spec.control_plane: Invalid value: \"node_image\": must have the format " + AzureNodeImageFormat)
-			}
-		}
 		if err := validateAzureInstanceType(creds, spec.ControlPlane.Size, providerSecrets["SubscriptionID"], spec.Region); err != nil {
 			return errors.New("spec.control_plane.size: " + spec.ControlPlane.Size + " does not exist as a GCP instance types in region " + spec.Region)
 		}
