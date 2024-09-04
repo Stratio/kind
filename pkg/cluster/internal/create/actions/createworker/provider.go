@@ -68,6 +68,7 @@ const (
 	machineHealthCheckWorkerNodePath       = "/kind/manifests/machinehealthcheckworkernode.yaml"
 	machineHealthCheckControlPlaneNodePath = "/kind/manifests/machinehealthcheckcontrolplane.yaml"
 	defaultScAnnotation                    = "storageclass.kubernetes.io/is-default-class"
+	externalDnsWorkloadCredsFile           = "/kind/external-dns-creds.yaml"
 )
 
 //go:embed files/common/calico-metrics.yaml
@@ -83,6 +84,7 @@ type PBuilder interface {
 	setCapx(managed bool)
 	setCapxEnvVars(p ProviderParams)
 	setSC(p ProviderParams)
+	setCrossplaneProviders(addons []string)
 	installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error
 	installCSI(n nodes.Node, k string, privateParams PrivateParams) error
 	getProvider() Provider
@@ -91,18 +93,26 @@ type PBuilder interface {
 	getOverrideVars(p ProviderParams, networks commons.Networks, clusterConfigSpec commons.ClusterConfigSpec) (map[string][]byte, error)
 	getRegistryCredentials(p ProviderParams, u string) (string, string, error)
 	postInstallPhase(n nodes.Node, k string) error
+	getCrossplaneProviderConfigContent(credentials map[string]*map[string]string, addon string, clusterName string, kubeconfigString string) (string, bool, error)
+	getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string, workloadClusterInstallation bool, credentialsFound bool, addon string) ([]string, map[string]string, error)
+	GetCrossplaneProviders(addons []string) ([]string, string)
+	getAddons(clusterManaged bool, addonsParams map[string]*bool) []string
 }
 
 type Provider struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider        string
+	capxVersion         string
+	capxImageVersion    string
+	capxManaged         bool
+	capxName            string
+	capxEnvVars         []string
+	scParameters        commons.SCParameters
+	scProvisioner       string
+	csiNamespace        string
+	crossplaneProviders map[string]string
+}
+
+type CrossplaneParams struct {
 }
 
 type Node struct {
@@ -217,6 +227,22 @@ func (i *Infra) getOverrideVars(p ProviderParams, networks commons.Networks, clu
 
 func (i *Infra) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
 	return i.builder.getRegistryCredentials(p, u)
+}
+
+func (i *Infra) getCrossplaneProviderConfigContent(credentials map[string]*map[string]string, addon string, clusterName string, kubeconfigString string) (string, bool, error) {
+	return i.builder.getCrossplaneProviderConfigContent(credentials, addon, clusterName, kubeconfigString)
+}
+
+func (i *Infra) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string, workloadClusterInstallation bool, credentialsFound bool, addon string) ([]string, map[string]string, error) {
+	return i.builder.getCrossplaneCRManifests(keosCluster, credentials, workloadClusterInstallation, credentialsFound, addon)
+}
+
+func (i *Infra) GetCrossplaneProviders(addons []string) ([]string, string) {
+	return i.builder.GetCrossplaneProviders(addons)
+}
+
+func (i *Infra) getAddons(clusterManaged bool, addonsParams map[string]*bool) []string {
+	return i.builder.getAddons(clusterManaged, addonsParams)
 }
 
 func (i *Infra) postInstallPhase(n nodes.Node, k string) error {
@@ -487,6 +513,112 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 
 	// TODO: Change this when status is available in cluster-operator
 	time.Sleep(10 * time.Second)
+
+	return nil
+}
+
+func installExternalDNS(n nodes.Node, kubeconfigPath string, privateParams PrivateParams, allowCommonEgressNetPolPath string, customParams map[string]string, credentials map[string]string) error {
+	var c string
+	var err error
+
+	c = "kubectl create ns external-dns"
+	if kubeconfigPath != "" {
+		c += " --kubeconfig " + kubeconfigPath
+	}
+	_, err = commons.ExecuteCommand(n, c, 3, 5)
+	if err != nil {
+		return errors.Wrap(err, "failed to create external-dns namespace")
+	}
+
+	switch privateParams.KeosCluster.Spec.InfraProvider {
+	case "aws":
+		if !privateParams.KeosCluster.Spec.ControlPlane.Managed {
+			c = "echo '[default]\naws_access_key_id = " + credentials["AccessKey"] + "\naws_secret_access_key = " + credentials["SecretKey"] + "\n' > " + externalDnsWorkloadCredsFile
+			// Create secret for AWS credentials
+			_, err = commons.ExecuteCommand(n, c, 3, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to create external-dns credentials secret")
+			}
+
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n external-dns create secret generic external-dns-creds" +
+				" --from-file=credentials=" + externalDnsWorkloadCredsFile
+			_, err = commons.ExecuteCommand(n, c, 3, 5)
+			if err != nil {
+				return errors.Wrap(err, "failed to create external-dns credentials secret")
+			}
+		}
+	case "azure":
+		// Create secret for Azure credentials
+	case "gcp":
+		// Create secret for GCP credentials
+
+	}
+
+	if kubeconfigPath != "" {
+		// Allow egress in external-dns namespace
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n external-dns apply -f " + allowCommonEgressNetPolPath
+		_, err = commons.ExecuteCommand(n, c, 3, 5)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply external-dns egress NetworkPolicy")
+		}
+	}
+
+	// Deploy external-dns
+	c = "helm install external-dns /stratio/helm/external-dns" +
+		" --namespace external-dns" +
+		" --set provider=" + privateParams.KeosCluster.Spec.InfraProvider +
+		" --set domainFilters={" + privateParams.KeosCluster.Spec.ExternalDomain + "}" +
+		" --set image.tag=v0.13.6" +
+		" --set cluster-autoscaler.kubernetes.io/safe-to-evict=true" +
+		" --set securityContext.runAsNonRoot=false" +
+		" --set securityContext.runAsUser=0"
+	// PRIORITY CLASS "{{ keos_priorityclasses.core.name }}" ?¿
+	// CUANDO SE INSTALA CON NOMBRE private-external-dns ?¿
+
+	if privateParams.Private {
+		c += " --set image.repository=" + privateParams.KeosRegUrl + "/external-dns/external-dns"
+	}
+
+	if kubeconfigPath != "" {
+		c += " --kubeconfig " + kubeconfigPath
+	}
+
+	if privateParams.KeosCluster.Spec.InfraProvider == "aws" && privateParams.KeosCluster.Spec.ControlPlane.Managed {
+		c += " --set annotations.eks.amazonaws.com/role-arn=" + customParams["roleArn"]
+	}
+
+	switch privateParams.KeosCluster.Spec.InfraProvider {
+	case "aws":
+		if privateParams.KeosCluster.Spec.ControlPlane.Managed {
+			c += " --set annotations.eks.amazonaws.com/role-arn=" + customParams["roleArn"]
+		} else {
+			c += " --set extraVolumes[0].name=aws-credentials" +
+				" --set extraVolumes[0].secret.secretName=external-dns-creds" +
+				" --set env[0].name=AWS_SHARED_CREDENTIALS_FILE" +
+				" --set env[0].value=/.aws/credentials" +
+				" --set env[1].name=AWS_DEFAULT_REGION" +
+				" --set env[1].value=" + privateParams.KeosCluster.Spec.Region +
+				" --set extraVolumeMounts[0].name=aws-credentials" +
+				" --set extraVolumeMounts[0].mountPath=/.aws" +
+				" --set extraVolumeMounts[0].readOnly=true"
+		}
+	case "azure":
+		c += " --set extraVolumes[0].name=azure-config" +
+			" --set extraVolumes[0].secret.secretName=" + customParams["external_dns_azure_config_secret_name"]
+	case "gcp":
+		c += " --set extraVolumes[0].name=google-service-account" +
+			" --set extraVolumes[0].secret.secretName=" + customParams["external_dns_gcp_config_secret_name"] +
+			" --set extraVolumeMounts[0].name=google-service-account" +
+			" --set extraVolumeMounts[0].mountPath=/etc/secrets/service-account/" +
+			" --set extraVolumeMounts[0].readOnly=true" +
+			" --set env[0].name=GOOGLE_APPLICATION_CREDENTIALS" +
+			" --set env[0].value=/etc/secrets/service-account/gcp.json"
+	}
+
+	_, err = commons.ExecuteCommand(n, c, 3, 5)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy external-dns Helm Chart")
+	}
 
 	return nil
 }
@@ -1013,4 +1145,12 @@ func installCorednsPdb(n nodes.Node) error {
 		return errors.Wrap(err, "failed to apply coredns PodDisruptionBudget")
 	}
 	return nil
+}
+
+func convertToMapStringString(m map[string]interface{}) map[string]string {
+	var m2 = map[string]string{}
+	for k, v := range m {
+		m2[k] = v.(string)
+	}
+	return m2
 }

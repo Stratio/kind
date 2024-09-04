@@ -1,0 +1,77 @@
+apiVersion:  apiextensions.crossplane.io/v1 
+kind:  CompositeResourceDefinition 
+metadata: 
+  name:  xzonesconfigs.configs.stratio.io 
+spec: 
+  group: configs.stratio.io
+  names: 
+    kind:  xZonesConfig 
+    plural:  xzonesconfigs
+  versions: 
+    -  name:  v1alpha1 
+       served:  true 
+       referenceable:  true 
+       schema: 
+         openAPIV3Schema: 
+           type:  object 
+           properties: 
+            spec: 
+                type:  object
+                properties:
+                  region:
+                    type: string
+                  vpcId:
+                    type: string
+                  externalDomain:
+                    type: string
+                  clusterName:
+                    type: string
+                  providerConfigName:
+                    type: string
+                    default: "default"
+            status:
+                type: object
+                properties:
+                  hostedZones:
+                    type: object
+                    properties:
+                      publicZoneArn: 
+                        type: string
+                      privateZoneArn: 
+                        type: string
+                  policy:
+                    type: object
+                    properties:
+                      arn: 
+                        type: string
+                  user:
+                    type: object
+                    properties:
+                      arn:
+                        type: string
+                      uniqueId:
+                        type: string
+                  userPolicyAttachment:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      policyArn:
+                        type: string
+                      user:
+                        type: string
+                  accessKey:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      user:
+                        type: string
+                      connectionSecret:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+---

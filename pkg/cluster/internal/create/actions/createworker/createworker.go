@@ -23,8 +23,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 
+	"github.com/fatih/structs"
+	"github.com/oleiade/reflections"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -79,6 +82,10 @@ var allowCommonEgressNetPol string
 //go:embed files/gcp/rbac-loadbalancing.yaml
 var rbacInternalLoadBalancing string
 
+var infra *Infra
+
+var credentials map[string]*map[string]string
+
 // NewAction returns a new action for installing default CAPI
 func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, clusterConfig *commons.ClusterConfig) actions.Action {
 	return &action{
@@ -115,7 +122,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	}
 
 	providerBuilder := getBuilder(a.keosCluster.Spec.InfraProvider)
-	infra := newInfra(providerBuilder)
+	infra = newInfra(providerBuilder)
 	provider := infra.buildProvider(providerParams)
 
 	for _, registry := range a.keosCluster.Spec.DockerRegistries {
@@ -726,7 +733,81 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to deploy cluster-autoscaler in workload cluster")
 			}
 
+			ctx.Status.End(true)
+
+			addonEnabled := map[string]*bool{
+				"external-dns": &a.keosCluster.Spec.Dns.ManageZone,
+			}
+
+			addons := infra.getAddons(a.keosCluster.Spec.ControlPlane.Managed, addonEnabled)
+
+			if len(addons) > 0 {
+
+				crossplaneCreds, err := reflections.GetField(a.keosCluster.Spec.Credentials.Crossplane, strings.ToUpper(a.keosCluster.Spec.InfraProvider))
+				if err != nil {
+					return errors.Wrap(err, "failed to get crossplane credentials")
+				}
+				crossplaneCredsMap := convertToMapStringString(structs.Map(crossplaneCreds))
+
+				externalDnsCreds, err := reflections.GetField(a.keosCluster.Spec.Credentials.ExternalDNS, strings.ToUpper(a.keosCluster.Spec.InfraProvider))
+				if err != nil {
+					return errors.Wrap(err, "failed to get external-dns credentials")
+				}
+
+				externalDnsCredsMap := convertToMapStringString(structs.Map(externalDnsCreds))
+
+				customParams := map[string]string{}
+
+				credentials = map[string]*map[string]string{
+					"provisioner":  commons.ToPtr(providerParams.Credentials),
+					"crossplane":   commons.ToPtr(crossplaneCredsMap),
+					"external-dns": commons.ToPtr(externalDnsCredsMap),
+				}
+
+				if a.clusterConfig.Spec.DNS.CreateInfra && (!isEmptyCredsMap(*credentials["external-dns"]) || !isEmptyCredsMap(*credentials["crossplane"])) {
+
+					ctx.Status.Start("Installing Crossplane and deploying crs in workload cluster🎖️")
+
+					_, err = installCrossplane(n, kubeconfigPath, keosRegistry.url, credentials, infra, privateParams, true, allowCommonEgressNetPolPath, &customParams, addons)
+					if err != nil {
+						return err
+					}
+
+					ctx.Status.End(true)
+
+				}
+
+				if a.clusterConfig.Spec.DNS.CreateInfra && !isEmptyCredsMap(*credentials["crossplane"]) && isEmptyCredsMap(*credentials["external-dns"]) {
+					c = "cat " + kubeconfigPath
+					kubeconfigString, err := commons.ExecuteCommand(n, c, 3, 5)
+					if err != nil {
+						return errors.Wrap(err, "failed to get workload kubeconfig string")
+					}
+					*credentials["external-dns"], err = getExternalDNSCreds(a.keosCluster.Metadata.Name, kubeconfigString)
+					if err != nil {
+						return errors.Wrap(err, "failed to get external-dns credentials")
+					}
+				}
+
+				for _, addon := range addons {
+					switch addon {
+					case "external-dns":
+						if !isEmptyCredsMap(*credentials["external-dns"]) {
+							ctx.Status.Start("Installing External-DNS in workload cluster 🎖️")
+							defer ctx.Status.End(false)
+
+							err = installExternalDNS(n, kubeconfigPath, privateParams, allowCommonEgressNetPolPath, customParams, *credentials["external-dns"])
+							if err != nil {
+								return errors.Wrap(err, "failed to install External-DNS in workload cluster")
+							}
+							ctx.Status.End(true)
+						}
+					}
+				}
+			}
+
 			if !a.moveManagement {
+
 				autoscalerRBACPath := "/kind/autoscaler_rbac.yaml"
 
 				autoscalerRBAC, err := getManifest("common", "autoscaler_rbac.tmpl", a.keosCluster)
@@ -926,4 +1007,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	ctx.Status.End(true) // End Generating KEOS descriptor
 
 	return nil
+}
+
+func isEmptyCredsMap(creds map[string]string) bool {
+	if reflect.DeepEqual(creds, map[string]string{}) {
+		return true
+	}
+	if creds["AccessKey"] == "" || creds["SecretKey"] == "" {
+		return true
+	}
+	return false
 }

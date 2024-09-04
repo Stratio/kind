@@ -42,16 +42,20 @@ var azureStorageClasses string
 var azureInternalIngress []byte
 
 type AzureBuilder struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider               string
+	capxVersion                string
+	capxImageVersion           string
+	capxManaged                bool
+	capxName                   string
+	capxEnvVars                []string
+	scParameters               commons.SCParameters
+	scProvisioner              string
+	csiNamespace               string
+	crossplaneProviders        []string
+	crossplaneProvidersVersion string
 }
+
+var crossplaneAzureAddons = []string{"external-dns"}
 
 func newAzureBuilder() *AzureBuilder {
 	return &AzureBuilder{}
@@ -358,4 +362,35 @@ func (b *AzureBuilder) postInstallPhase(n nodes.Node, k string) error {
 		}
 	}
 	return nil
+}
+
+func (b *AzureBuilder) getCrossplaneProviderConfigContent(credentials map[string]*map[string]string, addon string, clusterName string, kubeconfigString string) (string, bool, error) {
+	return "", false, nil
+}
+
+func (b *AzureBuilder) getAddons(clusterManaged bool, addonsParams map[string]*bool) []string {
+	var addons []string
+	switch clusterManaged {
+	case true:
+		return addons
+	case false:
+		return addons
+	}
+
+	return addons
+}
+
+func (b *AzureBuilder) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string, workloadClusterInstallation bool, credentialsFound bool, addon string) ([]string, map[string]string, error) {
+	return []string{}, nil, nil
+}
+
+func (b *AzureBuilder) setCrossplaneProviders(addons []string) {
+
+	b.crossplaneProviders = []string{}
+	b.crossplaneProvidersVersion = ""
+}
+
+func (b *AzureBuilder) GetCrossplaneProviders(addons []string) ([]string, string) {
+	b.setCrossplaneProviders(addons)
+	return b.crossplaneProviders, b.crossplaneProvidersVersion
 }

@@ -24,9 +24,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -39,21 +44,37 @@ var awsInternalIngress []byte
 //go:embed files/aws/public-ingress-nginx.yaml
 var awsPublicIngress []byte
 
+//go:embed files/aws/compositeresourcedefinition-hostedzones-aws.yaml
+var awsCRDHostedZones []byte
+
 type AWSBuilder struct {
-	capxProvider     string
-	capxVersion      string
-	capxImageVersion string
-	capxManaged      bool
-	capxName         string
-	capxEnvVars      []string
-	scParameters     commons.SCParameters
-	scProvisioner    string
-	csiNamespace     string
+	capxProvider               string
+	capxVersion                string
+	capxImageVersion           string
+	capxManaged                bool
+	capxName                   string
+	capxEnvVars                []string
+	scParameters               commons.SCParameters
+	scProvisioner              string
+	csiNamespace               string
+	crossplaneProviders        []string
+	crossplaneProvidersVersion string
 }
 
 func newAWSBuilder() *AWSBuilder {
 	return &AWSBuilder{}
 }
+
+type CrossplaneAwsParams struct {
+	Region            string
+	VPCId             string
+	ClusterName       string
+	ExternalDomain    string
+	CreateCredentials bool
+	Addon             string
+}
+
+var crossplaneAwsAddons = []string{"external-dns"}
 
 func (b *AWSBuilder) setCapx(managed bool) {
 	b.capxProvider = "aws"
@@ -98,6 +119,27 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 		b.scParameters.Encrypted = "true"
 		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
 	}
+}
+
+func (b *AWSBuilder) setCrossplaneProviders(addons []string) {
+
+	b.crossplaneProviders = []string{
+		"provider-family-aws",
+	}
+
+	for _, addon := range addons {
+		switch addon {
+		case "external-dns":
+			b.crossplaneProviders = append(b.crossplaneProviders, "provider-aws-route53")
+			b.crossplaneProviders = append(b.crossplaneProviders, "provider-aws-iam")
+		}
+	}
+	b.crossplaneProvidersVersion = "v1.8.0"
+}
+
+func (b *AWSBuilder) GetCrossplaneProviders(addons []string) ([]string, string) {
+	b.setCrossplaneProviders(addons)
+	return b.crossplaneProviders, b.crossplaneProvidersVersion
 }
 
 func (b *AWSBuilder) getProvider() Provider {
@@ -369,4 +411,124 @@ func (b *AWSBuilder) postInstallPhase(n nodes.Node, k string) error {
 	}
 
 	return nil
+}
+
+func (b *AWSBuilder) getCrossplaneProviderConfigContent(credentials map[string]*map[string]string, addon string, clusterName string, kubeconfigString string) (string, bool, error) {
+	credentialsFound := true
+	addonCredentials := credentials[addon]
+	if isEmptyCredsMap(*addonCredentials) {
+		credentialsFound = false
+		addonCredentials = credentials["crossplane"]
+	}
+	awsCredentials := "[default]\naws_access_key_id = " + (*addonCredentials)["AccessKey"] + "\naws_secret_access_key = " + (*addonCredentials)["SecretKey"] + "\n"
+	return awsCredentials, credentialsFound, nil
+}
+
+func (b *AWSBuilder) getAddons(clusterManaged bool, addonsParams map[string]*bool) []string {
+	var addons []string
+	switch clusterManaged {
+	case true:
+		return addons
+	case false:
+		for _, addon := range crossplaneAwsAddons {
+			enabled := addonsParams[addon]
+			if (enabled != nil && *enabled) || enabled == nil {
+				addons = append(addons, addon)
+			}
+		}
+	}
+
+	return addons
+}
+
+func (b *AWSBuilder) getCrossplaneCRManifests(keosCluster commons.KeosCluster, credentials map[string]string, workloadClusterInstallation bool, credentialsFound bool, addon string) ([]string, map[string]string, error) {
+	var manifests = []string{}
+	compositionsToWait := make(map[string]string)
+	params := CrossplaneAwsParams{
+		Region:            keosCluster.Spec.Region,
+		ClusterName:       keosCluster.Metadata.Name,
+		ExternalDomain:    keosCluster.Spec.ExternalDomain,
+		CreateCredentials: !credentialsFound,
+		Addon:             addon,
+	}
+
+	switch addon {
+	case "external-dns":
+		vpcId := keosCluster.Spec.Networks.VPCID
+		if vpcId == "" {
+			var ctx = context.TODO()
+			cfg, err := commons.AWSGetConfig(ctx, credentials, keosCluster.Spec.Region)
+			if err != nil {
+				return nil, nil, err
+			}
+			vpcs, _ := getAWSVPCByName(cfg, keosCluster.Metadata.Name+"-vpc")
+			if len(vpcs) == 0 {
+				return nil, nil, errors.New("Cannot create Crossplane Resources: No VPCs found")
+			}
+			if len(vpcs) > 1 {
+				return nil, nil, errors.New("Cannot create Crossplane Resources: More than one VPC found")
+			}
+			vpcId = vpcs[0]
+
+		}
+
+		params.VPCId = vpcId
+		manifests = append(manifests, string(awsCRDHostedZones))
+		compositionsToWait["xZonesConfig"] = keosCluster.Metadata.Name + "-zones-config"
+		compositionHostedZones, err := getManifest("aws", "composition-hostedzones-aws.tmpl", params)
+		if err != nil {
+			return nil, nil, err
+		}
+		manifests = append(manifests, compositionHostedZones)
+		hostedZone, err := getManifest("aws", "hostedzone.aws.tmpl", params)
+		if err != nil {
+			return nil, nil, err
+		}
+		manifests = append(manifests, hostedZone)
+	}
+
+	return manifests, compositionsToWait, nil
+}
+
+func getAWSVPCByName(config aws.Config, vpcName string) ([]string, error) {
+	vpcs := []string{}
+
+	client := ec2.NewFromConfig(config)
+	DescribeVpcOpts := &ec2.DescribeVpcsInput{Filters: []types.Filter{
+		{
+			Name:   aws.String("tag:Name"),
+			Values: []string{vpcName},
+		},
+	}}
+	output, err := client.DescribeVpcs(context.Background(), DescribeVpcOpts)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, vpc := range output.Vpcs {
+		vpcs = append(vpcs, *vpc.VpcId)
+	}
+	return vpcs, nil
+}
+
+func getExternalDNSCreds(clusterName string, kubeconfigString string) (map[string]string, error) {
+
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigString))
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	secret, err := clientset.CoreV1().Secrets("crossplane-system").Get(context.TODO(), clusterName+"-external-dns-accesskey-secret", metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get external-dns credentials secret")
+	}
+	accessKey := string(secret.Data["username"])
+	secretKey := string(secret.Data["password"])
+	externalDnsCredsMap := map[string]string{
+		"AccessKey": accessKey,
+		"SecretKey": secretKey,
+	}
+	return externalDnsCredsMap, nil
 }

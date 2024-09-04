@@ -58,6 +58,21 @@ func validateClusterConfig(spec commons.KeosSpec, clusterConfigSpec commons.Clus
 			return errors.New("spec: Invalid value: \"controlplane_config.max_unhealthy\" in clusterConfig: This field cannot be set with managed cluster")
 		}
 	}
+	switch spec.InfraProvider {
+	case "aws":
+		if reflect.DeepEqual(spec.Credentials.Crossplane.AWS, commons.AWSCredentials{}) && reflect.DeepEqual(spec.Credentials.ExternalDNS.AWS, commons.AWSCredentials{}) && clusterConfigSpec.DNS.CreateInfra {
+			return errors.New("spec: Invalid value: \"keoscluster.spec.credentials.crossplane.aws\" or \"keoscluster.spec.credentials.external_dns.aws\" must be defined for aws infra provider")
+		}
+	case "gcp":
+		if reflect.DeepEqual(spec.Credentials.Crossplane.GCP, commons.GCPCredentials{}) && reflect.DeepEqual(spec.Credentials.ExternalDNS.GCP, commons.GCPCredentials{}) && clusterConfigSpec.DNS.CreateInfra {
+			return errors.New("spec: Invalid value: \"keoscluster.spec.credentials.crossplane.gcp\" or \"keoscluster.spec.credentials.external_dns.gcp\" must be defined for gcp infra provider")
+		}
+	case "azure":
+		if reflect.DeepEqual(spec.Credentials.Crossplane.AZURE, commons.AzureCredentials{}) && reflect.DeepEqual(spec.Credentials.ExternalDNS.AZURE, commons.AzureCredentials{}) && clusterConfigSpec.DNS.CreateInfra {
+			return errors.New("spec: Invalid value: \"keoscluster.spec.credentials.crossplane.azure\" or \"keoscluster.spec.credentials.external_dns.azure\" must be defined for azure infra provider")
+		}
+	}
+
 	return nil
 }
 

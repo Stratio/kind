@@ -74,6 +74,12 @@ type ClusterConfigSpec struct {
 	WorkersConfig               WorkersConfig      `yaml:"workers_config"`
 	ClusterOperatorVersion      string             `yaml:"cluster_operator_version,omitempty"`
 	ClusterOperatorImageVersion string             `yaml:"cluster_operator_image_version,omitempty"`
+	DNS                         InfraConfig        `yaml:"dns,omitempty"`
+	EFS                         InfraConfig        `yaml:"efs,omitempty"`
+}
+
+type InfraConfig struct {
+	CreateInfra bool `yaml:"create_infra"`
 }
 
 type ControlplaneConfig struct {
@@ -267,6 +273,14 @@ type Credentials struct {
 	GithubToken      string                      `yaml:"github_token"`
 	DockerRegistries []DockerRegistryCredentials `yaml:"docker_registries"`
 	HelmRepository   HelmRepositoryCredentials   `yaml:"helm_repository"`
+	ExternalDNS      AddonCredentials            `yaml:"external-dns,omitempty"`
+	Crossplane       AddonCredentials            `yaml:"crossplane,omitempty"`
+}
+
+type AddonCredentials struct {
+	AWS   AWSCredentials   `yaml:"aws" validate:"excluded_with=AZURE GCP"`
+	AZURE AzureCredentials `yaml:"azure" validate:"excluded_with=AWS GCP"`
+	GCP   GCPCredentials   `yaml:"gcp" validate:"excluded_with=AWS AZURE"`
 }
 
 type AWSCredentials struct {

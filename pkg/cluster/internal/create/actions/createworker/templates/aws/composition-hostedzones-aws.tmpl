@@ -1,0 +1,269 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xzonesconfigs
+  labels:
+    keos.stratio.com/cluster: "{{ .ClusterName }}"
+spec:
+  compositeTypeRef:
+    apiVersion: configs.stratio.io/v1alpha1
+    kind: xZonesConfig
+  resources:
+    - name: PrivateZone
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-private-zone" 
+      - fromFieldPath: spec.region
+        toFieldPath: spec.forProvider.region
+        type: FromCompositeFieldPath
+      - fromFieldPath: spec.externalDomain
+        toFieldPath: spec.forProvider.name
+        type: FromCompositeFieldPath
+      - fromFieldPath: spec.vpcId
+        toFieldPath: spec.forProvider.vpc[0].vpcId
+        type: FromCompositeFieldPath
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.hostedZones.privateZoneArn
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      base:
+        apiVersion: route53.aws.upbound.io/v1beta1
+        kind: Zone
+        spec:
+          forProvider:
+            comment: ""
+            tags:
+              owner: stratio
+    - name: PublicZone
+      patches: 
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-public-zone" 
+      - fromFieldPath: spec.region
+        toFieldPath: spec.forProvider.region
+        type: FromCompositeFieldPath
+      - fromFieldPath: spec.externalDomain
+        toFieldPath: spec.forProvider.name
+        type: FromCompositeFieldPath
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.hostedZones.publicZoneArn
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      base:
+        apiVersion: route53.aws.upbound.io/v1beta1
+        kind: Zone
+        spec:
+          forProvider:
+            comment: ""
+            tags:
+              owner: stratio
+    {{- if .CreateCredentials }}
+    - name: User
+      patches:
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.user.arn
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.uniqueId
+        toFieldPath: status.user.uniqueId
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns"
+      - type: CombineFromComposite
+        toFieldPath: metadata.labels["id"]
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-prerrequisite-user"
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: User
+        spec:
+          forProvider: {}
+    - name: UserPolicy
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-user-policy" 
+      - fromFieldPath: status.atProvider.arn
+        toFieldPath: status.policy.arn
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns"
+      - type: CombineFromComposite
+        toFieldPath: metadata.labels["id"]
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-prerrequisite-policy"
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.policy
+        combine:
+          variables:
+            - fromFieldPath: status.hostedZones.privateZoneArn
+            - fromFieldPath: status.hostedZones.publicZoneArn
+          strategy: string
+          string:
+            fmt: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": "route53:ChangeResourceRecordSets",
+                      "Resource": [
+                        "%s",
+                        "%s"
+                       ]
+                  },
+                  {
+                  "Effect": "Allow",
+                    "Action": [
+                        "route53:ListHostedZones",
+                        "route53:ListResourceRecordSets",
+                        "route53:ListTagsForResource"
+                    ],
+                    "Resource": [
+                        "*"
+                    ]
+                  }
+                ]
+              }
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Policy
+        spec:
+          forProvider: {}
+    - name: UserPolicyAttachment
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-user-policy-attachment" 
+      - fromFieldPath: status.atProvider.id
+        toFieldPath: status.userPolicyAttachment.id
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.policyArn
+        toFieldPath: status.userPolicyAttachment.policyArn
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.user
+        toFieldPath: status.userPolicyAttachment.user
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.policyArnSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-prerrequisite-policy"
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.userSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-prerrequisite-user"
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: UserPolicyAttachment
+        spec:
+          forProvider: {}
+    - name: UserAccessKey
+      patches:
+      - type: CombineFromComposite
+        toFieldPath: metadata.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-user-accesskey" 
+      - fromFieldPath: status.atProvider.id
+        toFieldPath: status.accessKey.id
+        type: ToCompositeFieldPath
+      - fromFieldPath: status.atProvider.user
+        toFieldPath: status.accessKey.user
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.writeConnectionSecretToRef.name
+        toFieldPath: status.accessKey.connectionSecret.name
+        type: ToCompositeFieldPath
+      - fromFieldPath: spec.writeConnectionSecretToRef.namespace
+        toFieldPath: status.accessKey.connectionSecret.namespace
+        type: ToCompositeFieldPath
+      - type: CombineFromComposite
+        toFieldPath: spec.forProvider.userSelector.matchLabels.id
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-prerrequisite-user"
+      - type: CombineFromComposite
+        toFieldPath: spec.writeConnectionSecretToRef.name
+        combine:
+          variables:
+          - fromFieldPath: spec.clusterName
+          strategy: string
+          string:
+            fmt: "%s-external-dns-accesskey-secret"
+      - fromFieldPath: spec.providerConfigName
+        toFieldPath: spec.providerConfigRef.name
+        type: FromCompositeFieldPath
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: AccessKey
+        spec:
+          forProvider: {}
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+    {{- end }}
