@@ -501,10 +501,11 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, allowCom
 	calicoTemplate := "/kind/calico-helm-values.yaml"
 
 	calicoHelmParams := calicoHelmParams{
-		Spec:       keosCluster.Spec,
-		KeosRegUrl: privateParams.KeosRegUrl,
-		Private:    privateParams.Private,
-		Annotations: map[string]string{
+		Spec:           keosCluster.Spec,
+		KeosRegUrl:     privateParams.KeosRegUrl,
+		Private:        privateParams.Private,
+		IsNetPolEngine: isNetPolEngine,
+		Annotations:    map[string]string{
 			postInstallAnnotation: "var-lib-calico",
 		},
 	}

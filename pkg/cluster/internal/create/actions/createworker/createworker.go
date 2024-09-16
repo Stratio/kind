@@ -443,7 +443,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Install unmanaged cluster addons
 		if !a.keosCluster.Spec.ControlPlane.Managed {
-
 			if a.keosCluster.Spec.InfraProvider != "gcp" {
 				ctx.Status.Start("Installing cloud-provider in workload cluster ☁️")
 				defer ctx.Status.End(false)
@@ -453,6 +452,30 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 					return errors.Wrap(err, "failed to install external cloud-provider in workload cluster")
 				}
 				ctx.Status.End(true) // End Installing cloud-provider in workload cluster
+			} else if !gcpGKEEnabled {
+				// XXX Ref kubernetes/kubernetes#86793 Starting from v1.18, gcp cloud-controller-manager requires RBAC to patch,update service/status (in-tree)
+				ctx.Status.Start("Creating Kubernetes RBAC for internal loadbalancing 🔐")
+				defer ctx.Status.End(false)
+
+				requiredInternalNginx, err := infra.internalNginx(providerParams, a.keosCluster.Spec.Networks)
+				if err != nil {
+					return err
+				}
+				if requiredInternalNginx {
+					rbacInternalLoadBalancingPath := "/kind/internalloadbalancing_rbac.yaml"
+					// Deploy Kubernetes RBAC internal loadbalancing
+					c = "echo \"" + rbacInternalLoadBalancing + "\" > " + rbacInternalLoadBalancingPath
+					_, err = commons.ExecuteCommand(n, c, 3, 5)
+					if err != nil {
+						return errors.Wrap(err, "failed to write the kubernetes RBAC internal loadbalancing")
+					}
+					c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + rbacInternalLoadBalancingPath
+					_, err = commons.ExecuteCommand(n, c, 3, 5)
+					if err != nil {
+						return errors.Wrap(err, "failed to the kubernetes RBAC internal loadbalancing")
+					}
+				}
+				ctx.Status.End(true)
 			}
 
 			ctx.Status.Start("Installing Calico in workload cluster 🔌")
@@ -473,6 +496,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			ctx.Status.End(true)
+		}
 
 		ctx.Status.Start("Preparing nodes in workload cluster 📦")
 		defer ctx.Status.End(false)
@@ -754,32 +778,31 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return errors.Wrap(err, "failed to apply allow CAPX as egress GlobalNetworkPolicy")
 			}
 
+			// After calico is installed and network policies are applied, patch the tigera-operator clusterrole to allow resourcequotas creation
+			if gcpGKEEnabled {
+				c = "kubectl --kubeconfig " + kubeconfigPath + " get clusterrole tigera-operator -o jsonpath='{.rules}'"
+				tigerarules, err := commons.ExecuteCommand(n, c, 3, 5)
+				if err != nil {
+					return errors.Wrap(err, "failed to get tigera-operator clusterrole rules")
+				}
+				var rules []json.RawMessage
+				err = json.Unmarshal([]byte(tigerarules), &rules)
+				if err != nil {
+					return errors.Wrap(err, "failed to parse tigera-operator clusterrole rules")
+				}
+				// create, delete
+				rules = append(rules, json.RawMessage(`{"apiGroups": [""],"resources": ["resourcequotas"],"verbs": ["create"]}`))
+				newtigerarules, err := json.Marshal(rules)
+				if err != nil {
+					return errors.Wrap(err, "failed to marshal tigera-operator clusterrole rules")
+				}
+				c = "kubectl --kubeconfig " + kubeconfigPath + " patch clusterrole tigera-operator -p '{\"rules\": " + string(newtigerarules) + "}'"
+				_, err = commons.ExecuteCommand(n, c, 3, 5)
+				if err != nil {
+					return errors.Wrap(err, "failed to patch tigera-operator clusterrole")
+				}
+			}
 			ctx.Status.End(true) // End Installing Network Policy Engine in workload cluster
-		}
-
-		// After calico is installed and network policies are applied, patch the tigera-operator clusterrole to allow resourcequotas creation
-		if gcpGKEEnabled {
-			c = "kubectl --kubeconfig " + kubeconfigPath + " get clusterrole tigera-operator -o jsonpath='{.rules}'"
-			tigerarules, err := commons.ExecuteCommand(n, c, 3, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to get tigera-operator clusterrole rules")
-			}
-			var rules []json.RawMessage
-			err = json.Unmarshal([]byte(tigerarules), &rules)
-			if err != nil {
-				return errors.Wrap(err, "failed to parse tigera-operator clusterrole rules")
-			}
-			// create, delete
-			rules = append(rules, json.RawMessage(`{"apiGroups": [""],"resources": ["resourcequotas"],"verbs": ["create"]}`))
-			newtigerarules, err := json.Marshal(rules)
-			if err != nil {
-				return errors.Wrap(err, "failed to marshal tigera-operator clusterrole rules")
-			}
-			c = "kubectl --kubeconfig " + kubeconfigPath + " patch clusterrole tigera-operator -p '{\"rules\": " + string(newtigerarules) + "}'"
-			_, err = commons.ExecuteCommand(n, c, 3, 5)
-			if err != nil {
-				return errors.Wrap(err, "failed to patch tigera-operator clusterrole")
-			}
 		}
 
 
@@ -856,37 +879,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 			ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
 		}
-
-		if provider.capxProvider == "gcp" {
-			// XXX Ref kubernetes/kubernetes#86793 Starting from v1.18, gcp cloud-controller-manager requires RBAC to patch,update service/status (in-tree)
-			ctx.Status.Start("Creating Kubernetes RBAC for internal loadbalancing 🔐")
-			defer ctx.Status.End(false)
-
-			requiredInternalNginx, err := infra.internalNginx(providerParams, a.keosCluster.Spec.Networks)
-			if err != nil {
-				return err
-			}
-
-			if requiredInternalNginx {
-				rbacInternalLoadBalancingPath := "/kind/internalloadbalancing_rbac.yaml"
-
-				// Deploy Kubernetes RBAC internal loadbalancing
-				c = "echo \"" + rbacInternalLoadBalancing + "\" > " + rbacInternalLoadBalancingPath
-				_, err = commons.ExecuteCommand(n, c, 3, 5)
-				if err != nil {
-					return errors.Wrap(err, "failed to write the kubernetes RBAC internal loadbalancing")
-				}
-
-				c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + rbacInternalLoadBalancingPath
-				_, err = commons.ExecuteCommand(n, c, 3, 5)
-				if err != nil {
-					return errors.Wrap(err, "failed to the kubernetes RBAC internal loadbalancing")
-				}
-			}
-
-			ctx.Status.End(true)
-		}
-	}
 
 		// Create cloud-provisioner Objects backup
 		ctx.Status.Start("Creating cloud-provisioner Objects backup 🗄️")
