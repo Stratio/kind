@@ -145,9 +145,10 @@ type helmRepository struct {
 }
 
 type calicoHelmParams struct {
-	Spec        commons.KeosSpec
-	KeosRegUrl  string
-	Private     bool
+	Spec           commons.KeosSpec
+	KeosRegUrl     string
+	Private        bool
+	IsNetPolEngine bool
 	Annotations map[string]string
 }
 
@@ -491,7 +492,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 	return nil
 }
 
-func installCalico(n nodes.Node, k string, privateParams PrivateParams, allowCommonEgressNetPolPath string) error {
+func installCalico(n nodes.Node, k string, privateParams PrivateParams, allowCommonEgressNetPolPath string, isNetPolEngine bool) error {
 	var c string
 	var cmd exec.Cmd
 	var err error
@@ -573,7 +574,7 @@ func customCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 		coreDNSSuffix = "-aks"
 	}
 
-	coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
+	coreDNSConfigmap, err := getManifest(keosCluster.Spec.InfraProvider, "coredns-patch_configmap"+coreDNSSuffix+".tmpl", keosCluster.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CoreDNS file")
 	}

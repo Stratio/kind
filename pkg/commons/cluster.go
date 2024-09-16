@@ -289,6 +289,7 @@ type GCPCredentials struct {
 	PrivateKey   string `yaml:"private_key"`
 	ClientEmail  string `yaml:"client_email"`
 	ClientID     string `yaml:"client_id"`
+	Region       string `yaml:"region"`
 }
 
 type DockerRegistryCredentials struct {
