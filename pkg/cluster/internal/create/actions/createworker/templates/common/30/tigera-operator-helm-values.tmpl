@@ -6,11 +6,10 @@ defaultFelixConfiguration:
 calicoctl:
 {{- if $.Private }}
   image: {{ $.KeosRegUrl }}/calico/ctl
-  tag: 3.28.2
 {{- else }}
   image: docker.io/calico/ctl
-  tag: 3.28.2
 {{- end }}
+  tag: 3.28.2
 certs:
   node:
     cert:
