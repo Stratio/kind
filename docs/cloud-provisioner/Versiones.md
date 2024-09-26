@@ -62,8 +62,8 @@ Files:
 
 | Version | Release Date | Latest Version | Latest Release Date |
 | ------- | ------------ | -------------- | ------------------- |
-| v1.30.5 (tigera) | 2023-08-05   | v1.31.0        | 2023-09-01          |
-| v3.26.1 (calicoctl)(Tigera chart) | 2022-06-17   | v3.26.1        | 2022-06-17          |
+| v1.34.5 (tigera) | 2024-09-19   | v1.35.1        | 2024-09-19          |
+| 3.28.2 (calicoctl)(Tigera chart) | 2024-09-18   | 3.28.2        | 2024-09-18          |
 
 Files:  
 *   DEPENDENCIES

@@ -53,31 +53,31 @@ var googleCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
 		"28": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 			"unmanaged": {
 				"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.34.1", Namespace: "kube-system", Pull: false},
-				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 		},
 		"29": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 			"unmanaged": {
 				"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.35.0", Namespace: "kube-system", Pull: false},
-				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 		},
 		"30": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 			"unmanaged": {
 				// "default" repository defaults to the descriptor Helm repository
 				"gcp-cloud-controller-manager": {Repository: "default", Version: "1.30.0", Namespace: "kube-system", Pull: true},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 		},
 	},

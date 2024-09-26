@@ -59,49 +59,49 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en GCP no gesti
 | _Chart_ | Versión | Imagen pública | Versión
 
 | *tigera-operator*
-| *v3.26.1*
+| *3.28.2*
 |
 |
 
 |
 |
 | docker.io/calico/kube-controllers
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/typha
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/node
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/csi
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/node-driver-registrar
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/ctl
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/cni
-| v3.26.1
+| 3.28.2
 
 |
 |
 | docker.io/calico/pod2daemon-flexvol
-| v3.26.1
+| 3.28.2
 
 |
 |

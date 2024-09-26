@@ -114,26 +114,26 @@ var awsCharts = ChartsDictionary{
 			"managed": {
 				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.8.0", Namespace: "kube-system", Pull: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.34.1", Namespace: "kube-system", Pull: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: false},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: false},
 			},
 			"unmanaged": {
 				"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Namespace: "kube-system", Pull: true},
 				"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.31.0", Namespace: "kube-system", Pull: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.34.1", Namespace: "kube-system", Pull: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 		},
 		"29": {
 			"managed": {
 				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.8.0", Namespace: "kube-system", Pull: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.35.0", Namespace: "kube-system", Pull: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: false},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: false},
 			},
 			"unmanaged": {
 				"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Namespace: "kube-system", Pull: true},
 				"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.31.0", Namespace: "kube-system", Pull: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.35.0", Namespace: "kube-system", Pull: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.28.2", Namespace: "tigera-operator", Pull: true},
 			},
 		},
 		"30": {
