@@ -1,0 +1,9 @@
+---
+apiVersion: aadpodidentity.k8s.io/v1
+kind: AzurePodIdentityException
+metadata:
+  name: flux-source-controller
+  namespace: kube-system
+spec:
+  podLabels:
+    app: source-controller

@@ -45,7 +45,6 @@ type KEOSDescriptor struct {
 	Azure struct {
 		Enabled       bool   `yaml:"enabled"`
 		AKS           bool   `yaml:"aks"`
-		ResourceGroup string `yaml:"resource_group"`
 	} `yaml:"azure,omitempty"`
 	GCP struct {
 		Enabled bool `yaml:"enabled"`
@@ -116,7 +115,6 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 	if keosCluster.Spec.InfraProvider == "azure" {
 		keosDescriptor.Azure.Enabled = true
 		keosDescriptor.Azure.AKS = keosCluster.Spec.ControlPlane.Managed
-		keosDescriptor.Azure.ResourceGroup = keosCluster.Metadata.Name
 	}
 
 	// GCP

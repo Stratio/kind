@@ -33,7 +33,7 @@ const (
 	MinWorkerNodeNameLength = 3
 )
 
-var k8sVersionSupported = []string{"1.24", "1.25", "1.26", "1.27", "1.28"}
+var k8sVersionSupported = []string{"1.28", "1.29", "1.30"}
 
 func validateCommon(spec commons.KeosSpec, clusterConfigSpec commons.ClusterConfigSpec) error {
 	var err error
@@ -56,6 +56,15 @@ func validateClusterConfig(spec commons.KeosSpec, clusterConfigSpec commons.Clus
 	if spec.ControlPlane.Managed {
 		if clusterConfigSpec.ControlplaneConfig.MaxUnhealthy != nil {
 			return errors.New("spec: Invalid value: \"controlplane_config.max_unhealthy\" in clusterConfig: This field cannot be set with managed cluster")
+		}
+	}
+	for i, chart := range clusterConfigSpec.Charts {
+		for j, chartCheck := range clusterConfigSpec.Charts {
+			if i != j {
+				if chart.Name == chartCheck.Name {
+					return errors.New("spec: Invalid value: Cannot be indicated more than one version: " + chart.Version + ", " + chartCheck.Version + " for the same chart: " + chart.Name)
+				}
+			}
 		}
 	}
 	return nil

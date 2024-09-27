@@ -49,6 +49,40 @@ type GCPBuilder struct {
 	csiNamespace     string
 }
 
+var googleCharts = ChartsDictionary{
+	Charts: map[string]map[string]map[string]commons.ChartEntry{
+		"28": {
+			"managed": {
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+			"unmanaged": {
+				"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.34.1", Namespace: "kube-system", Pull: false},
+				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+		},
+		"29": {
+			"managed": {
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+			"unmanaged": {
+				"cluster-autoscaler": {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.35.0", Namespace: "kube-system", Pull: false},
+				"tigera-operator":    {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+		},
+		"30": {
+			"managed": {
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+			"unmanaged": {
+				// "default" repository defaults to the descriptor Helm repository
+				"gcp-cloud-controller-manager": {Repository: "default", Version: "1.30.0", Namespace: "kube-system", Pull: true},
+				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.27.3", Namespace: "tigera-operator", Pull: true},
+			},
+		},
+	},
+}
+
 func newGCPBuilder() *GCPBuilder {
 	return &GCPBuilder{}
 }
@@ -96,16 +130,33 @@ func (b *GCPBuilder) setSC(p ProviderParams) {
 	b.scProvisioner = "pd.csi.storage.gke.io"
 
 	if b.scParameters.Type == "" {
-		if p.StorageClass.Class == "premium" {
-			b.scParameters.Type = "pd-ssd"
-		} else {
-			b.scParameters.Type = "pd-standard"
-		}
+		b.scParameters.Type = "pd-ssd"
 	}
 
 	if p.StorageClass.EncryptionKey != "" {
 		b.scParameters.DiskEncryptionKmsKey = p.StorageClass.EncryptionKey
 	}
+}
+
+func (b *GCPBuilder) pullProviderCharts(n nodes.Node, clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterCredentials commons.ClusterCredentials, clusterType string) error {
+	return pullGenericCharts(n, clusterConfigSpec, keosSpec, clusterCredentials, googleCharts, clusterType)
+}
+
+func (b *GCPBuilder) getProviderCharts(clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, clusterType string) map[string]commons.ChartEntry {
+	return getGenericCharts(clusterConfigSpec, keosSpec, googleCharts, clusterType)
+}
+
+func (b *GCPBuilder) getOverriddenCharts(charts *[]commons.Chart, clusterConfigSpec *commons.ClusterConfigSpec, clusterType string) []commons.Chart {
+	providerCharts := ConvertToChart(googleCharts.Charts[majorVersion][clusterType])
+	for _, ovChart := range clusterConfigSpec.Charts {
+		for _, chart := range *providerCharts {
+			if chart.Name == ovChart.Name {
+				chart.Version = ovChart.Version
+			}
+		}
+	}
+	*charts = append(*charts, *providerCharts...)
+	return *charts
 }
 
 func (b *GCPBuilder) getProvider() Provider {
@@ -123,10 +174,46 @@ func (b *GCPBuilder) getProvider() Provider {
 }
 
 func (b *GCPBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
+	var podsCidrBlock string
+	keosCluster := privateParams.KeosCluster
+	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
+		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
+	} else {
+		podsCidrBlock = "192.168.0.0/16"
+	}
+
+	cloudControllerManagerValuesFile := "/kind/gcp-cloud-controller-manager-helm-values.yaml"
+	cloudControllerManagerHelmParams := cloudControllerHelmParams{
+		ClusterName: privateParams.KeosCluster.Metadata.Name,
+		Private:     privateParams.Private,
+		KeosRegUrl:  privateParams.KeosRegUrl,
+		PodsCidr:    podsCidrBlock,
+	}
+
+	// Generate the CCM helm values
+	cloudControllerManagerHelmValues, err := getManifest(b.capxProvider, "gcp-cloud-controller-manager-helm-values.tmpl", majorVersion, cloudControllerManagerHelmParams)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
+	}
+	c := "echo '" + cloudControllerManagerHelmValues + "' > " + cloudControllerManagerValuesFile
+	_, err = commons.ExecuteCommand(n, c, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
+	}
+
+	c = "helm install gcp-cloud-controller-manager /stratio/helm/gcp-cloud-controller-manager" +
+		" --kubeconfig " + k +
+		" --namespace kube-system" +
+		" --values " + cloudControllerManagerValuesFile
+	_, err = commons.ExecuteCommand(n, c, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy gcp-cloud-controller-manager Helm Chart")
+	}
+
 	return nil
 }
 
-func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams) error {
+func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams, providerParams ProviderParams, charstList map[string]commons.ChartEntry) error {
 	var c string
 	var err error
 	var cmd exec.Cmd
@@ -134,12 +221,12 @@ func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivatePar
 	// Create CSI secret in CSI namespace
 	secret, _ := b64.StdEncoding.DecodeString(strings.Split(b.capxEnvVars[0], "GCP_B64ENCODED_CREDENTIALS=")[1])
 	c = "kubectl --kubeconfig " + k + " -n " + b.csiNamespace + " create secret generic cloud-sa --from-literal=cloud-sa.json='" + string(secret) + "'"
-	_, err = commons.ExecuteCommand(n, c, 3, 5)
+	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
 		return errors.Wrap(err, "failed to create CSI secret in CSI namespace")
 	}
 
-	csiManifests, err := getManifest(privateParams.KeosCluster.Spec.InfraProvider, "gcp-compute-persistent-disk-csi-driver.tmpl", privateParams)
+	csiManifests, err := getManifest(privateParams.KeosCluster.Spec.InfraProvider, "gcp-compute-persistent-disk-csi-driver.tmpl", majorVersion, privateParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CSI driver manifests")
 	}
@@ -177,13 +264,13 @@ func (b *GCPBuilder) configureStorageClass(n nodes.Node, k string) error {
 	if b.capxManaged {
 		// Remove annotation from default storage class
 		c = "kubectl --kubeconfig " + k + ` get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
-		output, err := commons.ExecuteCommand(n, c, 3, 5)
+		output, err := commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to get default storage class")
 		}
 		if strings.TrimSpace(output) != "" && strings.TrimSpace(output) != "No resources found" {
 			c = "kubectl --kubeconfig " + k + " annotate sc " + strings.TrimSpace(output) + " " + defaultScAnnotation + "-"
-			_, err = commons.ExecuteCommand(n, c, 3, 5)
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
 				return errors.Wrap(err, "failed to remove annotation from default storage class")
 			}
@@ -257,7 +344,7 @@ func (b *GCPBuilder) postInstallPhase(n nodes.Node, k string) error {
 	var coreDNSPDBName = "coredns"
 
 	c := "kubectl --kubeconfig " + kubeconfigPath + " get pdb " + coreDNSPDBName + " -n kube-system"
-	_, err := commons.ExecuteCommand(n, c, 3, 5)
+	_, err := commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
 		err = installCorednsPdb(n)
 		if err != nil {

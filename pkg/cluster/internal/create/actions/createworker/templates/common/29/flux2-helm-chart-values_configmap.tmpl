@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 00-{{ $.CMName }}-helm-chart-default-values
+  namespace: {{ $.CMNamespace }}
+data:
+  values.yaml: |-
+    {{- indent 4 $.CMValue }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 01-{{ $.CMName }}-helm-chart-override-values
+  namespace: {{ $.CMNamespace }}
+data:
+  values.yaml: ""

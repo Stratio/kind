@@ -72,6 +72,10 @@ func EnsureSecretsFile(spec KeosSpec, vaultPassword string, clusterCredentials C
 	helmRepository := clusterCredentials.HelmRepositoryCredentials
 	github_token := clusterCredentials.GithubToken
 
+	if spec.InfraProvider == "gcp" || spec.ControlPlane.Managed {
+		credentials["region"] = spec.Region
+	}
+
 	_, err = os.Stat(secretPath)
 	if err != nil {
 		secretMap := map[string]interface{}{}
@@ -240,7 +244,7 @@ func removeKey(nodes []*yaml.Node, key string) []*yaml.Node {
 	return newNodes
 }
 
-func ExecuteCommand(n nodes.Node, command string, retries int, timeout int, envVars ...[]string) (string, error) {
+func ExecuteCommand(n nodes.Node, command string, timeout int, retries int, envVars ...[]string) (string, error) {
 	var err error
 	var raw bytes.Buffer
 	cmd := n.Command("sh", "-c", command)

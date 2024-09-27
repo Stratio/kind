@@ -4,6 +4,8 @@
 
 * [Core] Ensure CoreDNS replicas are assigned to different nodes
 * [Core] Added the default creation of volumes for containerd, etcd and root, if not indicated in the keoscluster
+* [Core] Support k8s v1.30
+* [Core] Deprecated Kubernetes versions prior to 1.28
 
 ## 0.17.0-0.5.2 (2024-06-25)
 
@@ -18,6 +20,7 @@
 
 * [Core] Update runc golang module to fix GHSA-xr7r-f8xq-vfvv
 * [Core] Improve command execution retries
+* [Core] Uncouple chart installation from Dockerfile
 * [Core] Support k8s v1.28
 * [Core] Fix panic when keos_version is not defined
 * [Core] Script the upgrade

@@ -1,0 +1,9 @@
+args:
+- --v=2
+- --cloud-provider=aws
+- --cluster-cidr={{ $.PodsCidr }}
+- --cluster-name={{ $.ClusterName }}
+
+image:
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}registry.k8s.io{{ end }}/provider-aws/cloud-controller-manager
+

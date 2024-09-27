@@ -37,7 +37,7 @@ var DeviceNameRegex = "^/dev/(sd[a-z]|xvd([a-d]|[a-d][a-z]|[e-z]))$"
 
 var AWSVolumeType = "gp3"
 var AzureVMsVolumeType = "Standard_LRS"
-var GCPVMsVolumeType = "pd-standard"
+var GCPVMsVolumeType = "pd-ssd"
 
 type Resource struct {
 	APIVersion string      `yaml:"apiVersion" validate:"required"`
@@ -74,6 +74,20 @@ type ClusterConfigSpec struct {
 	WorkersConfig               WorkersConfig      `yaml:"workers_config"`
 	ClusterOperatorVersion      string             `yaml:"cluster_operator_version,omitempty"`
 	ClusterOperatorImageVersion string             `yaml:"cluster_operator_image_version,omitempty"`
+	PrivateHelmRepo             bool               `yaml:"private_helm_repo"`
+	Charts                      []Chart            `yaml:"charts,omitempty"`
+}
+
+type Chart struct {
+	Name    string `yaml:"name,omitempty"`
+	Version string `yaml:"version,omitempty"`
+}
+
+type ChartEntry struct {
+	Repository string
+	Version    string
+	Namespace  string
+	Pull       bool
 }
 
 type ControlplaneConfig struct {
@@ -311,9 +325,13 @@ type HelmRepositoryCredentials struct {
 }
 
 type HelmRepository struct {
-	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
-	URL          string `yaml:"url" validate:"required"`
-	Type         string `yaml:"type,omitempty" validate:"oneof='ecr' 'acr' 'gar' 'generic'"`
+	AuthRequired          bool   `yaml:"auth_required" validate:"boolean"`
+	URL                   string `yaml:"url" validate:"required"`
+	Type                  string `yaml:"type,omitempty" validate:"oneof='ecr' 'acr' 'gar' 'generic'"`
+	ReleaseInterval       string `yaml:"release_interval,omitempty"`
+	ReleaseRetries        *int   `yaml:"release_retries,omitempty"`
+	ReleaseSourceInterval string `yaml:"release_source_interval,omitempty"`
+	RepositoryInterval    string `yaml:"repository_interval,omitempty"`
 }
 
 type AWS struct {
@@ -585,7 +603,6 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				if err != nil {
 					return nil, nil, err
 				}
-
 				err = validate.Struct(clusterConfig)
 				if err != nil {
 					return nil, nil, err
