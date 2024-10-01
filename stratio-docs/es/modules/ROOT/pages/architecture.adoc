@@ -435,12 +435,14 @@ Estos últimos también dependen del proveedor _cloud_:
 
 ^|All
 a|
+
 ----
      fsType
 ----
 
 ^|AWS, GCP
 a|
+
 ----
      type
      labels
@@ -448,6 +450,7 @@ a|
 
 ^|AWS
 a|
+
 ----
      iopsPerGB
      kmsKeyId
@@ -461,6 +464,7 @@ a|
 
 ^|GCP
 a|
+
 ----
      provisioned-iops-on-create
      replication-type
@@ -469,6 +473,7 @@ a|
 
 ^|Azure
 a|
+
 ----
      provisioner
      skuName
