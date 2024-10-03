@@ -142,17 +142,28 @@ type KeosSpec struct {
 }
 
 type Controlplane struct {
-	Managed         bool                `yaml:"managed" validate:"boolean"`
-	NodeImage       string              `yaml:"node_image,omitempty"`
-	HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
-	Size            string              `yaml:"size,omitempty" validate:"required_if=Managed false"`
-	RootVolume      RootVolume          `yaml:"root_volume,omitempty"`
-	Tags            []map[string]string `yaml:"tags,omitempty"`
-	AWS             AWSCP               `yaml:"aws,omitempty"`
-	Azure           AzureCP             `yaml:"azure,omitempty"`
-	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"dive"`
-	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
-	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+    Managed         bool                `yaml:"managed" validate:"boolean"`
+    NodeImage       string              `yaml:"node_image,omitempty"`
+    HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
+    Size            string              `yaml:"size,omitempty" validate:"required_if=Managed false"`
+    RootVolume      RootVolume          `yaml:"root_volume,omitempty"`
+    Tags            []map[string]string `yaml:"tags,omitempty"`
+    AWS             AWSCP               `yaml:"aws,omitempty"`
+    Azure           AzureCP             `yaml:"azure,omitempty"`
+    CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"dive"`
+    ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
+    ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+    ClusterNetwork  *ClusterNetwork     `yaml:"cluster_network,omitempty"`
+}
+
+type ClusterNetwork struct {
+    PrivateCluster *PrivateCluster `yaml:"private_cluster,omitempty"`
+}
+
+type PrivateCluster struct {
+    // +kubebuilder:default=true
+    EnablePrivateNodes bool `yaml:"enable_private_nodes,omitempty"`
+	ControlPlaneCidrBlock string `yaml:"control_plane_cidr_block,omitempty"`
 }
 
 type Keos struct {

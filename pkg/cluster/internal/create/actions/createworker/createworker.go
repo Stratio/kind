@@ -27,6 +27,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"fmt"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -233,8 +234,17 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	chartsList := infra.getProviderCharts(&a.clusterConfig.Spec, a.keosCluster.Spec)
 
+	// Print keoscluster.yaml in a human-readable format
+	keosClusterYaml, err := json.MarshalIndent(a.keosCluster, "", "  ")
+	if err != nil {
+	    return errors.Wrap(err, "failed to marshal keos cluster")
+	}
+	fmt.Println(string(keosClusterYaml))
+
 	ctx.Status.Start("Installing CAPx 🎖️")
 	defer ctx.Status.End(false)
+
+	// 
 
 	for _, registry := range a.keosCluster.Spec.DockerRegistries {
 		if registry.KeosRegistry {
@@ -365,6 +375,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	ctx.Status.End(true) // End Installing CAPx
 
+	// Generate secrets file
 	ctx.Status.Start("Generating secrets file 📝🗝️")
 	defer ctx.Status.End(false)
 
@@ -395,6 +406,19 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
 		return errors.Wrap(err, "failed to write the allow-all-egress network policy")
+	}
+
+	// Apply the local file using kubectl
+	localFile := "infrastructure.cluster.x-k8s.io_gcpmanagedcontrolplanes.yaml"
+	destPath := "/root/.cluster-api/local-repository/infrastructure-gcp/v1.6.1/"
+
+	ctx.Status.Start("Applying local file to Kubernetes 🎖️")
+	defer ctx.Status.End(false)
+	applyCmd := `kubectl apply -f ` + destPath + localFile
+
+	_, err = commons.ExecuteCommand(n, applyCmd, 5, 3)
+	if err != nil {
+	    return err
 	}
 
 	ctx.Status.Start("Installing keos cluster operator 💻")

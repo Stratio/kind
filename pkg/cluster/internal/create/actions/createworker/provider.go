@@ -535,6 +535,32 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if keosCluster.Spec.InfraProvider != "aws" || (keosCluster.Spec.InfraProvider == "aws" && !keosCluster.Spec.ControlPlane.Managed) {
 			keosCluster.Spec.ControlPlane.AWS = commons.AWSCP{}
 		}
+		if keosCluster.Spec.InfraProvider == "gcp" && keosCluster.Spec.ControlPlane.Managed {
+			fmt.Println("GCP managed")
+			
+			// Debugging output
+			fmt.Println("ClusterNetwork:", keosCluster.Spec.ControlPlane.ClusterNetwork)
+			if keosCluster.Spec.ControlPlane.ClusterNetwork != nil {
+				fmt.Println("PrivateCluster:", keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster)
+			} else {
+				fmt.Println("ClusterNetwork is nil")
+			}
+		
+			// Ensure ClusterNetwork is initialized
+			if keosCluster.Spec.ControlPlane.ClusterNetwork == nil {
+				fmt.Println("Initializing ClusterNetwork")
+				keosCluster.Spec.ControlPlane.ClusterNetwork = &commons.ClusterNetwork{}
+			}
+			
+			// Ensure PrivateCluster is initialized
+			if keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster == nil {
+				fmt.Println("Initializing PrivateCluster")
+				keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster = &commons.PrivateCluster{}
+			}
+			
+			keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster.EnablePrivateNodes = keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster.EnablePrivateNodes
+			keosCluster.Spec.ControlPlane.ClusterNetwork.PrivateCluster.ControlPlaneCidrBlock = "10.0.0.0/28"
+		}
 		if keosCluster.Spec.ControlPlane.Managed {
 			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
 		}
@@ -556,6 +582,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if err != nil {
 			return err
 		}
+		fmt.Println("Human readable keoscluster file:", string(keosClusterYAML))
 		// Write keoscluster file
 		c = "echo '" + string(keosClusterYAML) + "' > " + manifestsPath + "/keoscluster.yaml"
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
