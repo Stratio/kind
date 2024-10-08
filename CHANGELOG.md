@@ -1,6 +1,8 @@
 # Changelog
 
+## 0.17.0-0.5.4 (upcoming)
 
+* [PLT-806] Support for private clusters on GKE
 
 ## 0.17.0-0.5.3 (2024-09-24)
 
