@@ -3,6 +3,8 @@
 ## 0.17.0-0.5.4 (2024-10-08)
 
 * [PLT-806] Support for private clusters on GKE
+* [PLT-920] Added use-local-stratio-image flag to reuse local image
+* [PLT-917] Replace coredns yaml files with a single coredns tmpl file 
 
 ## 0.17.0-0.5.3 (2024-09-24)
 
