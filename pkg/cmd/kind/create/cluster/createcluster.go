@@ -41,18 +41,19 @@ import (
 )
 
 type flagpole struct {
-	Name           string
-	Config         string
-	ImageName      string
-	Retain         bool
-	Wait           time.Duration
-	Kubeconfig     string
-	VaultPassword  string
-	DescriptorPath string
-	MoveManagement bool
-	AvoidCreation  bool
-	ForceDelete    bool
-	ValidateOnly   bool
+	Name                 string
+	Config               string
+	ImageName            string
+	Retain               bool
+	Wait                 time.Duration
+	Kubeconfig           string
+	VaultPassword        string
+	DescriptorPath       string
+	MoveManagement       bool
+	AvoidCreation        bool
+	ForceDelete          bool
+	ValidateOnly         bool
+	UseLocalStratioImage bool
 }
 
 const clusterDefaultPath = "./cluster.yaml"
@@ -146,6 +147,12 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		false,
 		"by setting this flag the descriptor will be validated and the cluster won't be created",
 	)
+	cmd.Flags().BoolVar(
+		&flags.UseLocalStratioImage,
+		"use-local-stratio-image",
+		false,
+		"by setting this flag the the stratio image will not be build and the local one will be used",
+	)
 
 	return cmd
 }
@@ -220,6 +227,7 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		flags.DescriptorPath,
 		flags.MoveManagement,
 		flags.AvoidCreation,
+		flags.UseLocalStratioImage,
 		dockerRegUrl,
 		clusterConfig,
 		*keosCluster,

@@ -78,6 +78,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		// increase verbosity for debugging
 		"--v=6",
 	)
+
 	lines, err := exec.CombinedOutputLines(cmd)
 	ctx.Logger.V(3).Info(strings.Join(lines, "\n"))
 	if err != nil {

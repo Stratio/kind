@@ -63,7 +63,7 @@ func (p *provider) String() string {
 }
 
 // Provision is part of the providers.Provider interface
-func (p *provider) Provision(status *cli.Status, cfg *config.Cluster, dockerRegUrl string) (err error) {
+func (p *provider) Provision(status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool) (err error) {
 	if err := ensureMinVersion(); err != nil {
 		return err
 	}

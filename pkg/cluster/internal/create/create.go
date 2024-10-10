@@ -57,14 +57,15 @@ type ClusterOptions struct {
 	NameOverride string // overrides config.Name
 
 	// Stratio
-	VaultPassword      string
-	DescriptorPath     string
-	MoveManagement     bool
-	AvoidCreation      bool
-	KeosCluster        commons.KeosCluster
-	ClusterConfig      *commons.ClusterConfig
-	ClusterCredentials commons.ClusterCredentials
-	DockerRegUrl       string
+	VaultPassword        string
+	DescriptorPath       string
+	MoveManagement       bool
+	AvoidCreation        bool
+	UseLocalStratioImage bool
+	KeosCluster          commons.KeosCluster
+	ClusterConfig        *commons.ClusterConfig
+	ClusterCredentials   commons.ClusterCredentials
+	DockerRegUrl         string
 
 	// Force local container delete before creating the cluster if it already exists
 	ForceDelete bool
@@ -120,7 +121,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	logger.V(0).Infof("Creating temporary cluster %q ...\n", opts.Config.Name)
 
 	// Create node containers implementing defined config Nodes
-	if err := p.Provision(status, opts.Config, opts.DockerRegUrl); err != nil {
+	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage); err != nil {
 		// In case of errors nodes are deleted (except if retain is explicitly set)
 		if !opts.Retain {
 			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
@@ -240,9 +241,9 @@ func logSalutation(logger log.Logger) {
 		"2. Stratio KEOS documentation",
 	}
 
-    for _, salutation := range salutations {
-        logger.V(0).Info(salutation)
-    }
+	for _, salutation := range salutations {
+		logger.V(0).Info(salutation)
+	}
 }
 
 func fixupOptions(opts *ClusterOptions) error {

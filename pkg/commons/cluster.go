@@ -134,14 +134,14 @@ type KeosSpec struct {
 
 	Keos Keos `yaml:"keos,omitempty"`
 
-	ControlPlane Controlplane `yaml:"control_plane" validate:"required,dive"`
+	ControlPlane ControlPlane `yaml:"control_plane" validate:"required,dive"`
 
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
 
 	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
 }
 
-type Controlplane struct {
+type ControlPlane struct {
 	Managed         bool                `yaml:"managed" validate:"boolean"`
 	NodeImage       string              `yaml:"node_image,omitempty"`
 	HighlyAvailable *bool               `yaml:"highly_available,omitempty" validate:"boolean"`
@@ -153,6 +153,17 @@ type Controlplane struct {
 	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"dive"`
 	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
 	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+	ClusterNetwork  *ClusterNetwork     `yaml:"cluster_network,omitempty"`
+}
+
+type ClusterNetwork struct {
+	PrivateCluster *PrivateCluster `yaml:"private_cluster,omitempty"`
+}
+
+type PrivateCluster struct {
+	// +kubebuilder:default=true
+	EnablePrivateNodes    bool   `yaml:"enable_private_nodes,omitempty"`
+	ControlPlaneCidrBlock string `yaml:"control_plane_cidr_block,omitempty"`
 }
 
 type Keos struct {
