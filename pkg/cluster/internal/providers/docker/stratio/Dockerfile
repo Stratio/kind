@@ -28,7 +28,7 @@ ENV CAPI_REPO=/root/.cluster-api/local-repository
 ENV CAPA=v2.2.1
 ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
-ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.0-M2/"
+ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.0-M4/"
 
 # Install vim
 RUN apt-get update && apt-get install -y \
