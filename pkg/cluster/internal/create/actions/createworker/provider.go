@@ -723,14 +723,14 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 		}
 
 		// Wait for calico-system namespace to be created
-		c = "kubectl --kubeconfig " + kubeconfigPath + " get ns calico-system"
+		c = "kubectl --kubeconfig " + kubeconfigPath + " get ns tigera-operator"
 		_, err = commons.ExecuteCommand(n, c, 20, 5)
 		if err != nil {
-			return errors.Wrap(err, "failed to wait for calico-system namespace")
+			return errors.Wrap(err, "failed to wait for tigera-operator namespace")
 		}
 
 		// Create calico metrics services
-		cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
+		cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-n", "tigera-operator", "-f", "-")
 		if err = cmd.SetStdin(strings.NewReader(calicoMetrics)).Run(); err != nil {
 			return errors.Wrap(err, "failed to create calico metrics services")
 		}

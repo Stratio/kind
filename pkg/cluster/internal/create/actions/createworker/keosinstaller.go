@@ -43,8 +43,8 @@ type KEOSDescriptor struct {
 		EKS     bool `yaml:"eks"`
 	} `yaml:"aws,omitempty"`
 	Azure struct {
-		Enabled       bool   `yaml:"enabled"`
-		AKS           bool   `yaml:"aks"`
+		Enabled bool `yaml:"enabled"`
+		AKS     bool `yaml:"aks"`
 	} `yaml:"azure,omitempty"`
 	GCP struct {
 		Enabled bool `yaml:"enabled"`
@@ -147,29 +147,7 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 
 	// Keos - Storage
 	keosDescriptor.Keos.Storage.DefaultStorageClass = storageClass
-	if keosCluster.Spec.StorageClass.EFS.Name != "" {
-		keosDescriptor.Keos.Storage.Providers = []string{"csi-aws"}
-
-		name := keosCluster.Spec.StorageClass.EFS.Name
-		id := keosCluster.Spec.StorageClass.EFS.ID
-		permissions := keosCluster.Spec.StorageClass.EFS.Permissions
-
-		if permissions == "" {
-			permissions = "700"
-		}
-		keosDescriptor.Keos.Storage.Config.CSIAWS.EFS = []EFSConfig{
-			{
-				Name:        name,
-				ID:          id,
-				Permissions: permissions,
-			},
-		}
-		if keosCluster.Spec.StorageClass.EncryptionKey != "" {
-			keosDescriptor.Keos.Storage.Config.CSIAWS.KMSKeyID = keosCluster.Spec.StorageClass.EncryptionKey
-		}
-	} else {
-		keosDescriptor.Keos.Storage.Providers = []string{"custom"}
-	}
+	keosDescriptor.Keos.Storage.Providers = []string{"custom"}
 
 	// Keos - External dns
 	if !keosCluster.Spec.Dns.ManageZone {

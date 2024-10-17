@@ -497,14 +497,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 			ctx.Status.End(true) // End Installing cloud-provider in workload cluster
 		}
-
 		if !a.keosCluster.Spec.ControlPlane.Managed || a.keosCluster.Spec.InfraProvider == "aws" {
 			ctx.Status.Start("Installing Calico in workload cluster 🔌")
 			defer ctx.Status.End(false)
 
-			isNetPolEngine := gcpGKEEnabled || awsEKSEnabled
-
-			err = installCalico(n, kubeconfigPath, privateParams, isNetPolEngine, false)
+			err = installCalico(n, kubeconfigPath, privateParams, awsEKSEnabled, false)
 
 			if err != nil {
 				return errors.Wrap(err, "failed to install Calico in workload cluster")
@@ -691,7 +688,6 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		ctx.Status.End(true) // End Enabling workload cluster's self-healing
 
-		//// <<<<<<< HEAD
 		ctx.Status.Start("Configuring Network Policy Engine in workload cluster 🚧")
 		defer ctx.Status.End(false)
 
@@ -704,10 +700,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			// Allow egress in calico-system namespace
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n calico-system apply -f " + allowCommonEgressNetPolPath
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + "tigera-operator" + " apply -f " + allowCommonEgressNetPolPath
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
-				return errors.Wrap(err, "failed to apply calico-system egress NetworkPolicy")
+				return errors.Wrap(err, "failed to apply tigera-operator egress NetworkPolicy")
 			}
 		}
 

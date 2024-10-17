@@ -402,7 +402,6 @@ type EFS struct {
 }
 
 type StorageClass struct {
-	EFS           EFS          `yaml:"efs,omitempty"`
 	EncryptionKey string       `yaml:"encryptionKey,omitempty"`
 	Class         string       `yaml:"class,omitempty" validate:"omitempty,oneof='standard' 'premium'"`
 	Parameters    SCParameters `yaml:"parameters,omitempty"`

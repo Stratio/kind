@@ -6,7 +6,6 @@ metadata:
     prometheus.io/port: "9191"
     prometheus.io/scrape: "true"
   name: calico-node-metrics
-  namespace: calico-system
   labels:
     k8s-app: calico-node
 spec:
