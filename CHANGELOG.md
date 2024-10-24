@@ -14,6 +14,8 @@
 * [PLT-929] Removed calico installation as policy manager by helm chart in GKE
 * [PLT-911] Support for Disable External Endpoint in GKE
 * [PLT-923] Remove path /stratio from container image reference for kube-rbac-proxy image
+* [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig 
+* [PLT-988] Uncouple CAPX from Dockerfile
 
 ## 0.17.0-0.5.3 (2024-09-24)
 

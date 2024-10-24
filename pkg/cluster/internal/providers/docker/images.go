@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 	"sigs.k8s.io/kind/pkg/log"
 
+	"sigs.k8s.io/kind/pkg/cluster/internal/create"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers/common"
 	"sigs.k8s.io/kind/pkg/internal/apis/config"
 	"sigs.k8s.io/kind/pkg/internal/cli"
@@ -64,6 +65,7 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 				status.End(false)
 				return err
 			}
+
 			stratioImage := "stratio-capi-image:" + strings.Split(friendlyImageName, ":")[1]
 			err = buildStratioImage(logger, stratioImage, dockerfileDir)
 			if err != nil {
@@ -108,7 +110,13 @@ func ensureStratioImageFiles(logger log.Logger) (dir string, err error) {
 
 // buildStratioImage builds the stratio image
 func buildStratioImage(logger log.Logger, image string, path string) error {
-	cmd := exec.Command("docker", "build", "--tag="+image, path)
+	capx_opts := create.Capx_opts
+	cmd := exec.Command("docker", "build",
+		"--build-arg", "CLUSTERCTL="+capx_opts.CAPI_Version,
+		"--build-arg", "CAPA="+capx_opts.CAPA_Version,
+		"--build-arg", "CAPG="+capx_opts.CAPG_Version,
+		"--build-arg", "CAPZ="+capx_opts.CAPZ_Version,
+		"--tag="+image, path)
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "failed to build image %q", image)
 	}

@@ -39,6 +39,13 @@ var AWSVolumeType = "gp3"
 var AzureVMsVolumeType = "Standard_LRS"
 var GCPVMsVolumeType = "pd-ssd"
 
+var (
+	capi_version = "v1.7.4"
+	capa_version = "v2.5.2"
+	capz_version = "v1.12.4"
+	capg_version = "1.6.1-0.2.0"
+)
+
 type Resource struct {
 	APIVersion string      `yaml:"apiVersion" validate:"required"`
 	Kind       string      `yaml:"kind" validate:"required"`
@@ -76,6 +83,17 @@ type ClusterConfigSpec struct {
 	ClusterOperatorImageVersion string             `yaml:"cluster_operator_image_version,omitempty"`
 	PrivateHelmRepo             bool               `yaml:"private_helm_repo"`
 	Charts                      []Chart            `yaml:"charts,omitempty"`
+	Capx                        CAPX               `yaml:"capx,omitempty"`
+}
+
+type CAPX struct {
+	CAPI_Version       string `yaml:"capi_version,omitempty"`
+	CAPA_Version       string `yaml:"capa_version,omitempty"`
+	CAPA_Image_version string `yaml:"capa_image_version,omitempty"`
+	CAPG_Version       string `yaml:"capg_version,omitempty"`
+	CAPG_Image_version string `yaml:"capg_image_version,omitempty"`
+	CAPZ_Version       string `yaml:"capz_version,omitempty"`
+	CAPZ_Image_version string `yaml:"capz_image_version,omitempty"`
 }
 
 type Chart struct {
@@ -463,7 +481,27 @@ type SCParameters struct {
 func (s ClusterConfigSpec) Init() ClusterConfigSpec {
 	s.Private = false
 	s.WorkersConfig.MaxUnhealthy = ToPtr[int](100)
+
 	return s
+}
+
+func (s ClusterConfigSpec) InitCapx() ClusterConfigSpec {
+
+	setDefaultValue(&s.Capx.CAPI_Version, capi_version)
+	setDefaultValue(&s.Capx.CAPA_Version, capa_version)
+	setDefaultValue(&s.Capx.CAPA_Image_version, s.Capx.CAPA_Version)
+	setDefaultValue(&s.Capx.CAPZ_Version, capz_version)
+	setDefaultValue(&s.Capx.CAPZ_Image_version, s.Capx.CAPZ_Version)
+	setDefaultValue(&s.Capx.CAPG_Version, capg_version)
+	setDefaultValue(&s.Capx.CAPG_Image_version, s.Capx.CAPG_Version)
+
+	return s
+}
+
+func setDefaultValue(s *string, value string) {
+	if *s == "" {
+		*s = value
+	}
 }
 
 // Init sets default values for the Spec
@@ -686,6 +724,8 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 			clusterConfig.Spec.ControlplaneConfig.MaxUnhealthy = ToPtr[int](34)
 		}
 	}
+
+	clusterConfig.Spec = clusterConfig.Spec.InitCapx()
 
 	return &keosCluster, &clusterConfig, nil
 }

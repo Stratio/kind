@@ -23,6 +23,13 @@ import (
 	"sigs.k8s.io/kind/pkg/internal/cli"
 )
 
+type CAPX_Options struct {
+	CAPI_Version string
+	CAPA_Version string
+	CAPG_Version string
+	CAPZ_Version string
+}
+
 // Provider represents a provider of cluster / node infrastructure
 // This is an alpha-grade internal API
 type Provider interface {

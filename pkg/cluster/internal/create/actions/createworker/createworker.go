@@ -70,8 +70,6 @@ const (
 	manifestsPath            = "/kind/manifests"
 	cniDefaultFile           = "/kind/manifests/default-cni.yaml"
 	storageDefaultPath       = "/kind/manifests/default-storage.yaml"
-	infraGCPVersion          = "v1.6.1"
-	infraAWSVersion          = "v2.5.2"
 	GKECoreDNSDeploymentPath = "/kind/manifests/coredns-deployment.yaml"
 )
 
@@ -125,6 +123,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		Credentials:  a.clusterCredentials.ProviderCredentials,
 		GithubToken:  a.clusterCredentials.GithubToken,
 		StorageClass: a.keosCluster.Spec.StorageClass,
+		Capx:         a.clusterConfig.Spec.Capx,
 	}
 
 	providerBuilder := getBuilder(a.keosCluster.Spec.InfraProvider)
@@ -259,7 +258,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return errors.Wrap(err, "failed to create docker-registry secret")
 	}
 
-	if provider.capxVersion != provider.capxImageVersion {
+	if gcpGKEEnabled {
 
 		infraComponents := CAPILocalRepository + "/infrastructure-" + provider.capxProvider + "/" + provider.capxVersion + "/infrastructure-components.yaml"
 
@@ -311,26 +310,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	if privateParams.Private {
 
-		gcpVersion := infraGCPVersion
-		if gcpGKEEnabled {
-			gcpVersion = provider.capxImageVersion
-		}
-
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cluster-api:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  bootstrap-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  control-plane-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-aws:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    tag: " + infraAWSVersion + "\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPA_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    tag: " + gcpVersion + "\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPZ_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cert-manager\" >> /root/.cluster-api/clusterctl.yaml "
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
@@ -338,7 +336,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to add private image registry clusterctl config")
 		}
 
-		c = `sed -i 's/@sha256:[[:alnum:]_-].*$//g' /root/.cluster-api/local-repository/infrastructure-gcp/` + infraGCPVersion + `/infrastructure-components.yaml`
+		c = `sed -i 's/@sha256:[[:alnum:]_-].*$//g' /root/.cluster-api/local-repository/infrastructure-gcp/` + a.clusterConfig.Spec.Capx.CAPG_Version + `/infrastructure-components.yaml`
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return err
@@ -347,7 +345,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    tag: " + provider.capxImageVersion + "\" >> /root/.cluster-api/clusterctl.yaml "
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml "
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -355,7 +353,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
-	err = provider.installCAPXLocal(n)
+	err = provider.installCAPXLocal(n, *a.clusterConfig)
 	if err != nil {
 		return err
 	}
@@ -649,7 +647,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return err
 		}
 
-		err = provider.installCAPXWorker(n, a.keosCluster, kubeconfigPath)
+		err = provider.installCAPXWorker(n, a.keosCluster, *a.clusterConfig, kubeconfigPath)
 		if err != nil {
 			return err
 		}

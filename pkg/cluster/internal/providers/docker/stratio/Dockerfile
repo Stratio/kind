@@ -7,16 +7,16 @@ ENV CLUSTER_TOPOLOGY=true
 ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
 # Tools versions
-ENV CLUSTERCTL=v1.7.4
+ARG CLUSTERCTL
 ENV CLUSTERAWSADM=v2.5.2
 ENV HELM=v3.13.1
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
-ENV CAPA=v2.5.2
-ENV CAPG=v1.6.1
-ENV CAPZ=v1.12.4
-ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.0-3344876/"
+ARG CAPA
+ARG CAPG
+ARG CAPZ
+ENV CAPG_FORK_URL_GKE="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/"
 
 # Install vim
 RUN apt-get update && apt-get install -y \
@@ -63,7 +63,7 @@ RUN mkdir -p ${CAPI_REPO}/infrastructure-aws/${CAPA} ${CAPI_REPO}/infrastructure
 # Download cluster-api artifacts
 RUN for i in metadata.yaml infrastructure-components.yaml; do \
       curl -L https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/download/${CAPA}/${i} -o ${CAPI_REPO}/infrastructure-aws/${CAPA}/${i} \
-      && curl -L ${CAPG_FORK_URL}/${i} -o ${CAPI_REPO}/infrastructure-gcp/${CAPG}/${i} \
+      && curl -L https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/${i} -o ${CAPI_REPO}/infrastructure-gcp/${CAPG}/${i} \
       && curl -L https://github.com/kubernetes-sigs/cluster-api-provider-azure/releases/download/${CAPZ}/${i} -o ${CAPI_REPO}/infrastructure-azure/${CAPZ}/${i}; done
 
 RUN curl -L  https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/core-components.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/core-components.yaml \
@@ -73,6 +73,3 @@ RUN curl -L  https://github.com/kubernetes-sigs/cluster-api/releases/download/${
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/metadata.yaml
 
-# Modify GCP infrastructure components
-RUN sed -i "/machinepools\/status/{n;N;N;N;s/.*/  verbs:\n  - get\n  - list\n  - watch\n  - update\n  - patch/}" ${CAPI_REPO}/infrastructure-gcp/${CAPG}/infrastructure-components.yaml    
-RUN sed -i "/insecure-diagnostics/a \        - --sync-period=2m" ${CAPI_REPO}/infrastructure-gcp/${CAPG}/infrastructure-components.yaml

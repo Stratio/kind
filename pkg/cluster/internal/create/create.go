@@ -51,6 +51,8 @@ const (
 	clusterNameMax = 50
 )
 
+var Capx_opts providers.CAPX_Options
+
 // ClusterOptions holds cluster creation options
 type ClusterOptions struct {
 	Config       *config.Cluster
@@ -119,6 +121,8 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 	// we're going to start creating now, tell the user
 	logger.V(0).Infof("Creating temporary cluster %q ...\n", opts.Config.Name)
+
+	Capx_opts = getCAPXVersion(opts.ClusterConfig.Spec.Capx)
 
 	// Create node containers implementing defined config Nodes
 	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage); err != nil {
@@ -292,4 +296,18 @@ func validateProvider(p providers.Provider) error {
 		}
 	}
 	return nil
+}
+
+func getCAPXVersion(capx commons.CAPX) providers.CAPX_Options {
+	capx_opts := providers.CAPX_Options{}
+
+	capx_opts = providers.CAPX_Options{
+		CAPI_Version: capx.CAPI_Version,
+		CAPA_Version: capx.CAPA_Version,
+		CAPG_Version: capx.CAPG_Version,
+		CAPZ_Version: capx.CAPZ_Version,
+	}
+
+	return capx_opts
+
 }
