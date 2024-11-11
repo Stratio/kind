@@ -44,8 +44,8 @@ const (
 
 var AzureVolumes = []string{"Standard_LRS", "Premium_LRS", "StandardSSD_LRS", "UltraSSD_LRS", "Premium_ZRS", "StandardSSD_ZRS", "PremiumV2_LRS"}
 var AzureAKSVolumes = []string{"Managed", "Ephemeral"}
-var isAzureNodeImage = regexp.MustCompile(`(?i)^\/subscriptions\/[\w-]+\/resourceGroups\/[\w\.-]+\/providers\/Microsoft\.Compute\/images\/[\w\.-]+$`).MatchString
-var AzureNodeImageFormat = "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.Compute/images/[IMAGE_NAME]"
+var isAzureNodeImage = regexp.MustCompile(`(?i)(?:^\/subscriptions\/[\w-]+\/resourceGroups\/[\w\.-]+\/providers\/Microsoft\.Compute\/images\/[\w\.-]+$)|(?:^\/CommunityGalleries\/[\w\.\-]+\/images\/[\w\.\-]+\/versions\/[\w\.\-]+$)`).MatchString
+var AzureNodeImageFormat = "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.Compute/images/[IMAGE_NAME] or /CommunityGalleries/[GALLERY_ID]/Images/[REPO_NAME]/Versions/[IMAGE_VERSION]"
 var isAzureIdentity = regexp.MustCompile(`(?i)^\/subscriptions\/[\w-]+\/resourcegroups\/[\w\.-]+\/providers\/Microsoft\.ManagedIdentity\/userAssignedIdentities\/[\w\.-]+$`).MatchString
 var AzureIdentityFormat = "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.ManagedIdentity/userAssignedIdentities/[IDENTITY_NAME]"
 var isPremium = regexp.MustCompile(`^(Premium|Ultra).*$`).MatchString
