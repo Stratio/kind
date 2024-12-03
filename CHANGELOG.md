@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.0-0.6.1 (upcoming)
+
+* [PLT-1178] Fix aws-load-balancer-controller
+* [PLT-964] Validaciones nuevos parámetros GKE
+ 
 ## 0.17.0-0.6.0 (2024-11-11)
 
 * [Core] Ensure CoreDNS replicas are assigned to different nodes
