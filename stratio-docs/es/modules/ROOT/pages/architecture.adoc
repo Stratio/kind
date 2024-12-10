@@ -88,6 +88,21 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 balanceador de carga tipo _Classic_ para la exposición de _Services_ tipo _Load Balancer_.
 ** 1 _Listener_ por puerto para cada _Service_.
 
+=== GKE (Private Cluster)
+
+* 1 Google Kubernetes Engine (GKE) cluster. (VPC-native).
+* 1 VPC.
+* 1 subnet per region.
+** Primary CIDR block for the subnet. (Nodes).
+** Secondary CIDR block for the subnet. (Pods & Services).
+* 1 ruta de _peering_. (VPC Network peering).
+* 2 rutas, para los  CIDR secundarios de los _pods_ y _services_.
+* 1 Red de VPC _peering_.
+* 5 Reglas de _Firewall_ de VPC (gke-<cluster-name>-<id>-[master, vms, exkubelet, inkubelet, all]).
+* Máquinas virtuales para _Workers_ (según descriptor del _cluster_ y autoescalado).
+* 1 volumen persistente por máquina virtual.
+
+
 === GCP
 
 * 1 balanceador de carga tipo SSL/TCP para el _API Server_.
@@ -167,6 +182,13 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|Calico
 ^|IpIp
 ^|BGP
+
+^|GKE
+^|Calico
+^|Calico
+^|Calico
+^|No
+^|VPC-native
 
 ^|GCP
 ^|Calico
@@ -277,6 +299,10 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
+==== GKE
+
+La red de pods en GKE se configura automáticamente con el CIDR secundario de la red de _pods_ y servicios, que se obtiene de la configuración de la red de VPC al desplegar el _cluster_.
+
 == Seguridad
 
 === Autenticación
@@ -294,7 +320,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
-==== GCP
+==== GCP / GKE
 
 Al igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
@@ -340,6 +366,11 @@ Este _endpoint_ se publica a internet, y su acceso se restringe con una combinac
 ==== AWS no gestionado
 
 Para el acceso al _API Server_ se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_) y un _Target group_ con los nodos del _control-plane_ correspondiente.
+
+==== GKE
+
+En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se podrá acceder a él desde la IP asignada al endpoint privado del _cluster_.
+La IP asignada al endpoint privado pertencera al rango que se especifica en el descriptor del _cluster_.
 
 ==== GCP
 
