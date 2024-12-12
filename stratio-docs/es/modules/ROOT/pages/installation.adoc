@@ -45,7 +45,7 @@ Para los entornos en GCP no gestionado se deberá utilizar https://github.com/ku
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 +
-Para GKE, el sistema operativo utilizado por defecto es Container-Optimized OS (COS) y no se deberá indicar ninguna imagen.
+Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS) y no es necesario indicar ninguna imagen específica.
 +
 
 * Habilitar "Google Kubernetes Engine API" para GKE.
