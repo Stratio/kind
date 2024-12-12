@@ -1,0 +1,20 @@
+cli:
+  image: ghcr.io/fluxcd/flux-cli
+helmController:
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: temp
+  image: ghcr.io/fluxcd/helm-controller
+imageAutomationController:
+  create: false
+imageReflectionController:
+  create: false
+kustomizeController:
+  create: false
+notificationController:
+  create: false
+policies:
+  create: false
+sourceController:
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: data,tmp
+  image: ghcr.io/fluxcd/source-controller
