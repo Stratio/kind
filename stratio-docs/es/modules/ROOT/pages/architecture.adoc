@@ -188,7 +188,7 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|Calico
 ^|Calico
 ^|No
-^|VPC-native
+^|VPC-nativa
 
 ^|GCP
 ^|Calico
