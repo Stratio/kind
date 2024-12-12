@@ -98,7 +98,7 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 ruta de _peering_: conexión mediante _VPC Network peering_.
 * 2 rutas: para los CIDR secundarios de _pods_ y servicios.
 * 1 Red de VPC _peering_.
-* 5 Reglas de _Firewall_ de VPC (gke-<cluster-name>-<id>-[master, vms, exkubelet, inkubelet, all]).
+* 5 Reglas de _firewall_ de VPC: (gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all]).
 * Máquinas virtuales para _Workers_ (según descriptor del _cluster_ y autoescalado).
 * 1 volumen persistente por máquina virtual.
 
