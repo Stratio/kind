@@ -322,7 +322,7 @@ k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '
 
 ==== GCP / GKE
 
-Al igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
+Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
 [source,bash]
 ----
