@@ -96,7 +96,7 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 ** Bloque CIDR principal para la subred (nodos).
 ** Bloque CIDR secundario para la subred (_pods_ y servicios).
 * 1 ruta de _peering_: conexión mediante _VPC Network peering_.
-* 2 rutas, para los  CIDR secundarios de los _pods_ y _services_.
+* 2 rutas: para los CIDR secundarios de _pods_ y servicios.
 * 1 Red de VPC _peering_.
 * 5 Reglas de _Firewall_ de VPC (gke-<cluster-name>-<id>-[master, vms, exkubelet, inkubelet, all]).
 * Máquinas virtuales para _Workers_ (según descriptor del _cluster_ y autoescalado).
