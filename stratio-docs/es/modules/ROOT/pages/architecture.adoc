@@ -369,8 +369,7 @@ Para el acceso al _API Server_ se crea un balanceador de carga con nombre `<clus
 
 ==== GKE
 
-En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se podrá acceder a él desde la IP asignada al endpoint privado del _cluster_.
-La IP asignada al endpoint privado pertencera al rango que se especifica en el descriptor del _cluster_.
+En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se puede acceder desde la IP asignada al _endpoint_ privado del _cluster_. Esta IP pertenece al rango especificado en el descriptor del _cluster_.
 
 ==== GCP
 
