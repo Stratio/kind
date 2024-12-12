@@ -88,7 +88,7 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 balanceador de carga tipo _Classic_ para la exposición de _Services_ tipo _Load Balancer_.
 ** 1 _Listener_ por puerto para cada _Service_.
 
-=== GKE (Private Cluster)
+=== GKE (_cluster_ privado)
 
 * 1 Google Kubernetes Engine (GKE) cluster. (VPC-native).
 * 1 VPC.
