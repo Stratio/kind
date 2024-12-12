@@ -94,7 +94,7 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 VPC.
 * 1 subred por región.
 ** Bloque CIDR principal para la subred (nodos).
-** Secondary CIDR block for the subnet. (Pods & Services).
+** Bloque CIDR secundario para la subred (_pods_ y servicios).
 * 1 ruta de _peering_. (VPC Network peering).
 * 2 rutas, para los  CIDR secundarios de los _pods_ y _services_.
 * 1 Red de VPC _peering_.
