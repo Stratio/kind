@@ -92,7 +92,7 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 
 * 1 _cluster_ de Google Kubernetes Engine (GKE): configurado como VPC-nativa.
 * 1 VPC.
-* 1 subnet per region.
+* 1 subred por región.
 ** Primary CIDR block for the subnet. (Nodes).
 ** Secondary CIDR block for the subnet. (Pods & Services).
 * 1 ruta de _peering_. (VPC Network peering).
