@@ -301,7 +301,7 @@ spec:
 
 ==== GKE
 
-La red de pods en GKE se configura automáticamente con el CIDR secundario de la red de _pods_ y servicios, que se obtiene de la configuración de la red de VPC al desplegar el _cluster_.
+La red de _pods_ en GKE se configura automáticamente con el CIDR secundario para _pods_ y servicios, obtenido de la configuración de la red VPC al desplegar el _cluster_.
 
 == Seguridad
 
