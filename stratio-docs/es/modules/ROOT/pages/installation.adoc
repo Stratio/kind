@@ -1079,7 +1079,7 @@ Actualmente, este binario incluye las siguientes opciones:
 - `--avoid-creation`: no se crea el _cluster_ _worker_, sólo el _cluster_ local.
 - `--keep-mgmt`: crea el _cluster_ _worker_ pero deja su gestión en el _cluster_ local (sólo para entornos *no productivos*).
 - `--retain`: permite mantener el _cluster_ local aún sin gestión.
-- `--use-local-stratio-image`: No se construira la imagen _stratio-capi-image_ y se usará la imagen local.
+- `--use-local-stratio-image`: no se construye la imagen _stratio-capi-image_ y usa la imagen local.
 
 Para crear un _cluster_, basta con un simple comando (consulta las particularidades de cada proveedor en sus guías de inicio rápido):
 
