@@ -37,21 +37,27 @@ aws:
     node-driver-registrar: v2.8.0-eks-1-27-3
     volume-modifier-for-k8s: v0.1.0
 azure:
-  cluster-api-azure: v1.11.4
-  cluster-api-azure-templates: v1.11.4
+  common:
+    capz:
+      cluster-api-azure: v1.11.4
+      cluster-api-azure-templates: v1.11.4
   unmanaged:
-    cloud-provider-azure-chart: v1.28.5
-    azure-cloud-controller-manager: v1.24.18
-    azure-cloud-node-manager: v1.24.18
-    azuredisk-csi-driver-chart: v1.28.7
-    azuredisk-csi-driver: v1.28.7
-    azurefile-csi-driver-chart: v1.28.7
-    azurefile-csi-driver: v1.28.7
-    csi-provisioner: v3.3.0
-    csi-attacher: v4.0.0
-    csi-snapshotter: v5.0.1
-    csi-resizer: v1.6.0
-    livenessprobe: v2.8.0
+    charts:
+      azuredisk-csi-driver: v1.28.7
+      azurefile-csi-driver: v1.28.7
+      cloud-provider-azure: v1.28.5
+    images:
+      azure-cloud-controller-manager: v1.28.1
+      azure-cloud-node-manager: v1.28.1
+      azuredisk-csi: v1.28.7
+      azurefile-csi: v1.28.7
+      csi-attacher: v4.3.0
+      csi-node-driver-registrar: v2.8.0
+      csi-provisioner: v3.5.0
+      csi-resizer: v1.8.0
+      csi-snapshotter: v6.2.1
+      livenessprobe: v2.10.0
+      snapshot-controller: v6.2.1
 gcp:
   cluster-api-gcp: v1.6.1
   cluster-api-gcp-templates: v1.6.1
