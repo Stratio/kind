@@ -36,8 +36,10 @@ Para los despliegues en Google Cloud Platform no gestionado se necesitarán prin
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 
++
 En el caso de GKE, además de los permisos anteriores se necesitarán permisos adicionales para la creación de _clusters_.
 ** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
++
 
 * Sistemas operativos certificados
 +
@@ -683,6 +685,8 @@ En este ejemplo se pueden ver las siguientes particularidades:
 * Kubernetes versión 1.28.x.
 * Uso de un _Docker registry_ tipo gar.
 * Uso de un repositorio de Helm tipo gar.
+* _nodes_identity_ (Cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del cluster).
+* _scopes_ (La lista de alcances que estarán disponibles para esta cuenta de servicio).
 * Sin control de la zona DNS (habilitado por defecto).
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Características del _control-plane_: (Solo configurables en tiempo de creación del cluster).
@@ -691,6 +695,11 @@ En este ejemplo se pueden ver las siguientes particularidades:
 **** _enable_private_endpoint_.
 **** _enable_private_nodes_.
 **** _control_plane_cidr_block_.
+** ip_allocation_policy.
+*** cluster_ipv4_cidr_block
+*** services_ipv4_cidr_block
+*** cluster_secondary_range_name
+*** services_secondary_range_name
 ** _monitoring_config_
 *** _enable_managed_prometheus_.
 ** _master_authorized_networks_config_.
@@ -724,6 +733,12 @@ spec:
       project_id: gcp-prod
       region: europe-west4
       client_id: "6767910929.."
+  security:
+    node_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
+    gcp:
+      scopes:
+        - "https://www.googleapis.com/auth/cloud-platform"
+        - "https://www.googleapis.com/auth/userinfo.email"
   k8s_version: v1.28.15
   region: europe-west4
   docker_registries:
@@ -759,6 +774,11 @@ spec:
           enable_private_endpoint: true
           enable_private_nodes: true
           control_plane_cidr_block: 172.16.16.0/28
+      ip_allocation_policy:
+        cluster_ipv4_cidr_block: 172.16.0.0/16
+        services_ipv4_cidr_block: 172.17.0.0/20
+        cluster_secondary_range_name: "gkepods-europ-west1"
+        services_secondary_range_name: "gkeservices-europe-west1"
       monitoring_config:
         enable_managed_prometheus: false
       master_authorized_networks_config:
@@ -778,10 +798,12 @@ spec:
       min_size: 6
       size: c2d-highcpu-8
       labels:
-        disktype: standard
+        disktype: standard 
       root_volume:
         size: 50
         type: pd-standard
+        encrypted: true
+        encryption_key: projects/gcp-prod/locations/europe-west4/keyRings/keos-keyring/cryptoKeys/keos-key
     - name: gcp-prod-medium-az
       quantity: 3
       size: c2d-highcpu-4

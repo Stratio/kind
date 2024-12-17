@@ -439,8 +439,18 @@ En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar qu
 *** _enable_private_endpoint_: Indica si se utiliza la dirección IP interna del _master_ como _endpoint_ del clúster.  (Obligatorio: true)(Default: true)
 *** _enable_private_nodes_: Indica si los nodos del clúster tienen direcciones IP internas únicamente.  (Obligatorio: true)(Default: true)
 *** _control_plane_cidr_block_ (master-ipv4-cidr): Es el rango de IP en notación CIDR que se utilizará para la red del _master_. Este rango no debe superponerse con ningún otro rango en uso dentro de la red del clúster. Se aplica cuando _enabled_private_nodes_ es true y debe ser una subred /28. (Obligatorio)
+* ip_allocation_policy: Representa las opciones de configuración para la asignación de IP del clúster GKE. (Si no se especifica, se usarán los valores predeterminados de GKE).
+** cluster_ipv4_cidr_block: Representa el rango de direcciones IP para las IP de los pods del clúster GKE. (Si no se especifica, se elegirá el rango con el tamaño predeterminado).
+** services_ipv4_cidr_block: Representa el rango de direcciones IP para las IP de los servicios del clúster GKE. (Si no se especifica, se elegirá el rango con el tamaño predeterminado).
+** cluster_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR del clúster GKE. El rango se utilizará para las direcciones IP de los pods y debe ser un rango secundario existente asociado con la subred del clúster.
+** services_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR de los servicios. El rango se utilizará para las IP de los servicios y debe ser un rango secundario existente asociado con la subred del clúster.
+
+NOTE: Si los rangos de IP ya están creados, se usarán los nombres especificados. Si no existen, se utilizará la notación CIDR para crearlos.
+
 * _master_authorized_networks_config_: Representa la configuración de redes autorizadas del clúster.
+
 NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo el tráfico externo acceda al _master_ de kubernetes a través de HTTPS, excepto el tráfico de los bloques de CIDR especificados, las IP públicas de Google Compute Engine y las IP de los servicios de Google Cloud.
+
 ** _cidr_blocks_: Lista de bloques CIDR que se permiten acceder al _master_. (Opcional ya que gcp_public_cidrs_access_enabled es siempre true)
 *** _cidr_block_: Rango de IP en notación CIDR que se permitirá acceder al _master_. (Obligatorio en el caso de que _cidr_blocks_ esté presente)
 *** _display_name_: Nombre de la red autorizada. (Opcional)
