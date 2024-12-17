@@ -1,0 +1,6 @@
+mcr.microsoft.com/oss/kubernetes-csi/azuredisk-csi:v1.28.7
+mcr.microsoft.com/oss/kubernetes-csi/csi-attacher:v4.3.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:v2.8.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-provisioner:v3.5.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-resizer:v1.8.0
+mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:v2.10.0
