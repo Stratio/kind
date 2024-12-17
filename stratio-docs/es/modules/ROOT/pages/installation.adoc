@@ -734,7 +734,7 @@ spec:
       region: europe-west4
       client_id: "6767910929.."
   security:
-    node_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
+    nodes_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
     gcp:
       scopes:
         - "https://www.googleapis.com/auth/cloud-platform"
