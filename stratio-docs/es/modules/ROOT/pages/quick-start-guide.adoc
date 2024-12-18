@@ -424,7 +424,7 @@ A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando _keos-inst
 
 NOTE: La instalación *no requiere* una imagen personalizada.
 
-NOTE: Crear un bastión para proceder a la instalación.
+TIP: Se recomienda crear un bastión para proceder a la instalación.
 
 ==== Requisitos del bastión
 
