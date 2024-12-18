@@ -445,7 +445,7 @@ En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar qu
 ** cluster_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR del clúster GKE. El rango se utilizará para las direcciones IP de los pods y debe ser un rango secundario existente asociado con la subred del clúster.
 ** services_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR de los servicios. El rango se utilizará para las IP de los servicios y debe ser un rango secundario existente asociado con la subred del clúster.
 
-NOTE: Si los rangos de IP ya están creados, se usarán los nombres especificados. Si no existen, se utilizará la notación CIDR para crearlos.
+NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (services_secondary_range_name y cluster_secondary_range_name). Si no existen, se debe usar la notación CIDR (services_ipv4_cidr_block y cluster_ipv4_cidr_block) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
 
 * _master_authorized_networks_config_: Representa la configuración de redes autorizadas del clúster.
 
