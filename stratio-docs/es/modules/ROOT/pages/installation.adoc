@@ -816,7 +816,6 @@ spec:
     cluster_operator_image_version: 0.3.4
 ----
 
-
 ==== GCP
 
 En este ejemplo se pueden ver las siguientes particularidades:

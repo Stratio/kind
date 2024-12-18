@@ -422,46 +422,47 @@ A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando _keos-inst
 ** Grupos de nodos.
 ** Información necesaria para la instalación de _Stratio KEOS_.
 
-NOTE: La instalación NO requiere una imagen personalizada.
+NOTE: La instalación *no requiere* una imagen personalizada.
 
 NOTE: Crear un bastión para proceder a la instalación.
 
-==== Requisitos Bastión
+==== Requisitos del bastión
 
-- Docker instalado. (27.0.3 o superior)
-- Imagen local: stratio-capi-image:v1.27.0
+- Tener Docker instalado (versión 27.0.3 o superior).
+- Tener una imagen local: _stratio-capi-image:v1.27.0_.
 
 ==== _control-plane_
-En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar que se trata de un *_control-plane_ gestionado* y las siguientes especificaciones han de ser incluidas:
 
-* _cluster_network_: Define la red del cluster.  (Obligatorio)
-** _private_cluster_: Define la _spec_ del cluster privado. (Obligatorio)
-*** _enable_private_endpoint_: Indica si se utiliza la dirección IP interna del _master_ como _endpoint_ del clúster.  (Obligatorio: true)(Default: true)
-*** _enable_private_nodes_: Indica si los nodos del clúster tienen direcciones IP internas únicamente.  (Obligatorio: true)(Default: true)
-*** _control_plane_cidr_block_ (master-ipv4-cidr): Es el rango de IP en notación CIDR que se utilizará para la red del _master_. Este rango no debe superponerse con ningún otro rango en uso dentro de la red del clúster. Se aplica cuando _enabled_private_nodes_ es true y debe ser una subred /28. (Obligatorio)
-* ip_allocation_policy: Representa las opciones de configuración para la asignación de IP del clúster GKE. (Si no se especifica, se usarán los valores predeterminados de GKE).
-** cluster_ipv4_cidr_block: Representa el rango de direcciones IP para las IP de los pods del clúster GKE. (Si no se especifica, se elegirá el rango con el tamaño predeterminado).
-** services_ipv4_cidr_block: Representa el rango de direcciones IP para las IP de los servicios del clúster GKE. (Si no se especifica, se elegirá el rango con el tamaño predeterminado).
-** cluster_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR del clúster GKE. El rango se utilizará para las direcciones IP de los pods y debe ser un rango secundario existente asociado con la subred del clúster.
-** services_secondary_range_name: Representa el nombre del rango secundario que se utilizará para el bloque CIDR de los servicios. El rango se utilizará para las IP de los servicios y debe ser un rango secundario existente asociado con la subred del clúster.
+En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar que se trata de un *_control-plane_ gestionado* y se deben incluir las siguientes especificaciones:
 
-NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (services_secondary_range_name y cluster_secondary_range_name). Si no existen, se debe usar la notación CIDR (services_ipv4_cidr_block y cluster_ipv4_cidr_block) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
+* _cluster++_++network_ (obligatorio): define la red del _cluster_.
+** _private++_++cluster_ (obligatorio): define la _spec_ del _cluster_ privado.
+*** _enable++_++private++_++endpoint_ (obligatorio: true; default: true): indica si se utiliza la dirección IP interna del _master_ como _endpoint_ del _cluster_.
+*** _enable++_++private++_++nodes_ (obligatorio: true; default: true): indica si los nodos del _cluster_ tienen direcciones IP internas únicamente.
+*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (obligatorio): es el rango de IP en notación CIDR que se utilizará para la red del _master_. Este rango no debe superponerse con ningún otro rango en uso dentro de la red del _cluster_. Se aplica cuando _enabled++_++private++_++nodes_ es "true" y debe ser una subred /28.
+* ip++_++allocation++_++policy: representa las opciones de configuración para la asignación de IP del _cluster_ GKE (si no se especifica, se usarán los valores predeterminados de GKE).
+** cluster++_++ipv4++_++cidr++_++block: representa el rango de direcciones IP para las IP de los _pods_ del _cluster_ GKE (si no se especifica, se elegirá el rango con el tamaño predeterminado).
+** services++_++ipv4++_++cidr++_++block: representa el rango de direcciones IP para las IP de los servicios del _cluster_ GKE (si no se especifica, se elegirá el rango con el tamaño predeterminado).
+** cluster++_++secondary++_++range++_++name: representa el nombre del rango secundario que se utilizará para el bloque CIDR del _cluster_ GKE. El rango se utilizará para las direcciones IP de los _pods_ y debe ser un rango secundario existente asociado con la subred del _cluster_.
+** services++_++secondary++_++range++_++name: representa el nombre del rango secundario que se utilizará para el bloque CIDR de los servicios. El rango se utilizará para las IP de los servicios y debe ser un rango secundario existente asociado con la subred del _cluster_.
 
-* _master_authorized_networks_config_: Representa la configuración de redes autorizadas del clúster.
+NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (services++_++secondary++_++range++_++name y cluster++_++secondary++_++range++_++name). Si no existen, se debe usar la notación CIDR (services++_++ipv4++_++cidr++_++block y cluster++_++ipv4++_++cidr++_++block) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
 
-NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo el tráfico externo acceda al _master_ de kubernetes a través de HTTPS, excepto el tráfico de los bloques de CIDR especificados, las IP públicas de Google Compute Engine y las IP de los servicios de Google Cloud.
+* _master++_++authorized++_++networks++_++config_: representa la configuración de redes autorizadas del _cluster_.
 
-** _cidr_blocks_: Lista de bloques CIDR que se permiten acceder al _master_. (Opcional ya que gcp_public_cidrs_access_enabled es siempre true)
-*** _cidr_block_: Rango de IP en notación CIDR que se permitirá acceder al _master_. (Obligatorio en el caso de que _cidr_blocks_ esté presente)
-*** _display_name_: Nombre de la red autorizada. (Opcional)
-** _gcp_public_cidrs_access_enabled_: Indica si se permite el acceso a las direcciones IP públicas de Google Compute Engine. (Obligatorio: false, si _enable_private_endpoint es true)(Default: false)
-* _monitoring_config_: Define la monitorización del cluster.
-** _enable_managed_prometheus_: Habilita la monitorización gestionada del cluster con Prometheus. (Obligatorio)(Default: false)
-* _logging_config_: Define la configuración de _logging_ del cluster.
-** _system_components_: Habilita el componente _system_ de _logging_. (Obligatorio)(Default: false)
-** _workloads_: Habilita el componente _workloads_ de _logging_. (Obligatorio)(Default: false)
+NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo el tráfico externo acceda al _master_ de Kubernetes a través de HTTPS excepto el tráfico de los bloques de CIDR especificados, las IP públicas de Google Compute Engine y las IP de los servicios de Google Cloud.
 
-NOTE: Cualquier modificaciónde los parámetros anteriormente mencionados no tendrá efecto, sólo se aplican en tiempo de creación del cluster. 
+** _cidr++_++blocks_ (opcional, ya que gcp++_++public++_++cidrs++_++access++_++enabled es siempre "true"): lista de bloques CIDR que se permiten acceder al _master_.
+*** _cidr++_++block_ (obligatorio en el caso de que _cidr++_++blocks_ esté presente): rango de IP en notación CIDR que se permitirá acceder al _master_.
+*** _display++_++name_ (opcional): nombre de la red autorizada.
+** _gcp++_++public++_++cidrs++_++access++_++enabled_ (obligatorio: "false", si _enable++_++private++_++endpoint es "true") (default: false): indica si se permite el acceso a las direcciones IP públicas de Google Compute Engine.
+* _monitoring++_++config_: define la monitorización del _cluster_.
+** _enable++_++managed++_++prometheus_ (obligatorio) (default: false): habilita la monitorización gestionada del _cluster_ con Prometheus.
+* _logging++_++config_: define la configuración de _logging_ del _cluster_.
+** _system++_++components_ (obligatorio) (default: false): habilita el componente _system_ de _logging_.
+** _workloads_ (obligatorio) (default: false): habilita el componente _workloads_ de _logging_.
+
+NOTE: Cualquier modificación de los parámetros anteriormente mencionados no tendrá efecto, sólo se aplican en tiempo de creación del _cluster_. 
 
 ==== Nodos _worker_
 
@@ -473,12 +474,12 @@ En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con la
 * _min++_++size_: número mínimo de nodos para el autoescalado (opcional).
 * _max++_++size_: número máximo de nodos para el autoescalado (opcional).
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
-* _taints_: taints de los nodos en Kubernetes (opcional).
+* _taints_: _taints_ de los nodos en Kubernetes (opcional).
 * _root++_++volume_: particularidades del disco (opcional).
 ** _size_: tamaño en GB (por defecto: 30GB).
 ** _type_: tipo de disco (por defecto: Managed).
 * _zone++_++distribution_: indica si la cantidad de nodos debe quedar balanceada en las zonas o no (por defecto: _balanced_).
-* _az_: zona del grupo de _workers_ (opcional). En caso de especificarse, solamente se utilizará ésta para todo el grupo. Este parámetro invalida lo especificado en _zone++_++distribution_.
+* _az_: zona del grupo de _workers_ (opcional). En caso de especificarse, solamente se utilizará esta para todo el grupo. Este parámetro invalida lo especificado en _zone++_++distribution_.
 
 NOTE: Por defecto, el reparto de nodos se hará en las zonas a, b y c de la región indicada de forma balanceada, por lo tanto, el resto de la división por tres de la cantidad de nodos se descartará. Ejemplo: si se indica 'quantity=7', sólo se desplegarán 2 nodos en cada una de las zonas.
 
