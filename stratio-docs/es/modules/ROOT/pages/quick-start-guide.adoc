@@ -498,8 +498,8 @@ Para cualquier personalización extra, deberá modificarse el fichero antes de e
 
 ==== Consideraciones
 
-
-* En caso de utilizar una infraestructura personalizada, se deberá indicar la VPC y la subnet de la región.
+* En caso de utilizar una infraestructura personalizada, se deberá indicar la VPC y la subred de la región.
++
 [source,yaml]
 ----
   networks:
@@ -508,14 +508,14 @@ Para cualquier personalización extra, deberá modificarse el fichero antes de e
       - subnet_id: "subnet-name"
 ----
 
-* La versión de Kubernetes ha de ser (1.28) y ha de estar soportada por GKE.
+* La versión de Kubernetes debe ser (1.28) y estar soportada por GKE.
 * Los nombres de los grupos de _worker++_++nodes_ no pueden repetirse.
 
 TIP: Para más detalles, consulta la xref:ROOT:installation.adoc[guía de instalación].
 
 === Instalación
 
-Esta fase (aprovisionamiento e instalación de Kubernetes) deberá ejecutarse desde la máquina bastíon.
+Esta fase (aprovisionamiento e instalación de Kubernetes) deberá ejecutarse desde la máquina bastión.
 
 Una vez descargado el fichero `.tgz` del _cloud-provisioner_, se procederá a descomprimirlo y ejecutarlo con los parámetros de creación:
 
@@ -551,8 +551,8 @@ Creating temporary cluster "example-gke" ...
  ✓ Rotating and generating override_vars structure ⚒️
 
 The cluster has been installed successfully. Please refer to the documents below on how to proceed:
-1. Post-installation Stratio cloud-provisioner documentation
-2. Stratio KEOS documentation
+1. Post-installation Stratio cloud-provisioner documentation.
+2. Stratio KEOS documentation.
 ----
 
 === Siguientes pasos
