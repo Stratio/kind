@@ -35,7 +35,6 @@ WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmen
 Para los despliegues en Google Cloud Platform no gestionado se necesitarán principalmente permisos en _compute_ (instancias, discos, imágenes, _routers_, redes, etc.). Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
-
 +
 En el caso de GKE, además de los permisos anteriores se necesitarán permisos adicionales para la creación de _clusters_.
 ** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
