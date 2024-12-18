@@ -37,8 +37,8 @@ Para los despliegues en Google Cloud Platform no gestionado se necesitarán prin
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 +
 En el caso de GKE, además de los permisos anteriores se necesitarán permisos adicionales para la creación de _clusters_.
+
 ** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
-+
 
 * Sistemas operativos certificados
 +
@@ -46,14 +46,12 @@ Para los entornos en GCP no gestionado se deberá utilizar https://github.com/ku
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 +
-Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS) y no es necesario indicar ninguna imagen específica.
-+
+Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
 
 * Habilitar "Google Kubernetes Engine API" para GKE.
 * Bastion
 +
-Para el despliegue de _Stratio KEOS_ en GCP gestionado, se ha de realizar a través de un _bastion_ que permita la comunicación con el _cluster_ de GKE. Para ello, se deberá crear un _bastion_ en la misma red que el _cluster_ de GKE.
-
+El despliegue de _Stratio KEOS_ en GCP gestionado debe realizarse mediante un _bastion_ que facilite la comunicación con el _cluster_ de GKE. Para ello, es necesario crear un _bastion_ en la misma red que el _cluster_.
 
 === Azure no gestionado
 
@@ -684,32 +682,32 @@ En este ejemplo se pueden ver las siguientes particularidades:
 * Kubernetes versión 1.28.x.
 * Uso de un _Docker registry_ tipo gar.
 * Uso de un repositorio de Helm tipo gar.
-* _nodes_identity_ (Cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del cluster).
-* _scopes_ (La lista de alcances que estarán disponibles para esta cuenta de servicio).
+* _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
+* _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
 * Sin control de la zona DNS (habilitado por defecto).
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
-* Características del _control-plane_: (Solo configurables en tiempo de creación del cluster).
-** _cluster_network_
-*** _private_cluster_.
-**** _enable_private_endpoint_.
-**** _enable_private_nodes_.
-**** _control_plane_cidr_block_.
-** ip_allocation_policy.
-*** cluster_ipv4_cidr_block
-*** services_ipv4_cidr_block
-*** cluster_secondary_range_name
-*** services_secondary_range_name
-** _monitoring_config_
-*** _enable_managed_prometheus_.
-** _master_authorized_networks_config_.
-*** _cidr_blocks_.
-*** _gcp_public_cidrs_access_enabled_.
-** _logging_config_.
-*** _system_components_.
+* Características del _control-plane_: solo configurables en tiempo de creación del _cluster_.
+** _cluster++_++network_
+*** _private++_++cluster_.
+**** _enable++_++private++_++endpoint_.
+**** _enable++_++private++_++nodes_.
+**** _control++_++plane++_++cidr++_++block_.
+** ip++_++allocation++_++policy.
+*** cluster++_++ipv4++_++cidr++_++block
+*** services++_++ipv4++_++cidr++_++block
+*** cluster++_++secondary++_++range++_++name
+*** services++_++secondary++_++range++_++name
+** _monitoring++_++config_
+*** _enable++_++managed++_++prometheus_.
+** _master++_++authorized++_++networks++_++config_.
+*** _cidr++_++blocks_.
+*** _gcp++_++public++_++cidrs++_++access++_++enabled_.
+** _logging++_++config_.
+*** _system++_++components_.
 *** _workloads_.
 * Grupos de nodos _worker_ con múltiples casuísticas:
 ** Diferentes tipos de instancia.
-** Sin imagen específica (Se utilizará la imagen por defecto del proveedor _cloud_).
+** Sin imagen específica (se utilizará la imagen por defecto del proveedor _cloud_).
 ** Con etiquetas de K8s.
 ** Con rangos de autoescalado.
 ** En una zona fija.
