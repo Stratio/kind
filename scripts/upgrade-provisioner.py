@@ -1384,6 +1384,9 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         if output == tigera_version:
             check_and_delete_releases("tigera-operator")
             prepare_calico_kube_controller(1)
+            command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
+            #logger.info(f"Command: {command}")
+            output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
             print("SKIP")
             #logger.info("La version de installation es la misma que la version de Tigera")
             return
@@ -1425,6 +1428,7 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         if provider == "azure" and "installation.operator.tigera.io/default configured" in output:
             time.sleep(120)
             restart_tigera_operator_manifest(provider, tigera_version)
+        prepare_calico_kube_controller(1)
         #logger.info(f"Output: {output}")
         if provider == "aws":
             prepare_calico_kube_controller(1)
@@ -1748,6 +1752,9 @@ def patch_kubeadm_controlplane(namespace):
     try:
         # Ejecutar el comando y obtener la salida
         result, err = run_command(command)
+        if "image-credential-provider-bin-dir" in result and "image-credential-provider-config" in result and "azure-container-registry-config" not in result:
+            print("SKIP")
+            return
         #logger.info(f"Salida del comando: {result}")
         data = json.loads(result)
         #logger.info(f"Data: {data}")
@@ -2033,6 +2040,11 @@ def update_default_volumes(keos_cluster):
             #logger.error("Error al actualizar el keoscluster.")
             keos_cluster, clusterconfig = get_keos_cluster_cluster_config()
             update_default_volumes(keos_cluster)
+        command = (
+            kubectl + " wait --for=jsonpath=\"{.status.ready}\"=false KeosCluster "
+            + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
+        )
+        execute_command(command, False)
         #logger.info(f"Output: {output}")
     except Exception as e:
         print("FAILED")
@@ -2099,6 +2111,47 @@ data:
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error creating and applying the Azure secret '{name}: {e}")
+        
+def patch_webhook_timeout(webhook_name, webhook_path, new_timeout):
+    """
+    Updates the timeoutSeconds field of a webhook in a ValidatingWebhookConfiguration.
+
+    Args:
+        webhook_name (str): Name of the ValidatingWebhookConfiguration.
+        webhook_path (str): Name of the webhook within the resource.
+        new_timeout (int): New value for timeoutSeconds.
+
+    Returns:
+        None
+    """
+    try:
+        print(f"[INFO] Updating the timeoutSeconds of the webhook '{webhook_path}' in {webhook_name}:", end=" ", flush=True)
+        # 1. Obtener la configuración actual
+        webhook_config_json = run_command(f"kubectl get validatingwebhookconfiguration {webhook_name} -o json")
+        if isinstance(webhook_config_json, tuple):
+            webhook_config_json = webhook_config_json[0]
+        webhook_config = json.loads(webhook_config_json)
+
+        # 2. Verificar que existe el webhook especificado
+        for webhook in webhook_config["webhooks"]:
+            if webhook["name"] == webhook_path:
+                webhook["timeoutSeconds"] = new_timeout
+                break
+        else:
+            raise Exception(f"[ERROR] Can not find webhook '{webhook_path}' in {webhook_name}.")
+
+        # 3. Guardar el nuevo contenido en un archivo temporal
+        updated_config_file = "/tmp/updated_webhook_config.json"
+        with open(updated_config_file, "w") as f:
+            json.dump(webhook_config, f, indent=2)
+
+        # 4. Aplicar el parche
+        run_command(f"kubectl apply -f {updated_config_file}")
+        print("OK")
+
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {e}")
 
 def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remove):
     """
@@ -2122,31 +2175,47 @@ def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remov
         # 1. Obtener el ConfigMap
         command_get_cm = f"kubectl get configmap {configmap_name} -n {namespace} -o yaml"
         configmap_yaml = run_command(command_get_cm)
+        # print(f"configmap_yaml: {configmap_yaml}")
+        if configmap_yaml is None:
+            raise Exception(f"ConfigMap '{configmap_name}' does not exist in namespace '{namespace}'.")
+
+        # print(f"[DEBUG] Type of configmap_yaml: {type(configmap_yaml)}")
+        # print(f"[DEBUG] Content of configmap_yaml: {configmap_yaml}")
+        if isinstance(configmap_yaml, tuple):
+            configmap_yaml = configmap_yaml[0]
+            
         configmap_dict = ryaml.load(configmap_yaml)
+        # print(f"configmap_dict: {configmap_dict}")
 
         # 2. Validar la existencia de la key a actualizar
         if "data" not in configmap_dict or key_to_update not in configmap_dict["data"]:
             raise Exception(f"The key '{key_to_update}' does not exist in the ConfigMap '{configmap_name}'.")
 
+        
         # 3. Parsear el valor YAML existente
         data_yaml_content = configmap_dict["data"][key_to_update]
         data_dict = ryaml.load(data_yaml_content)
 
+        # print(f"data_dict: {data_dict}")
         # 4. Eliminar la key en el YAML si existe
         if yaml_key_to_remove in data_dict:
             del data_dict[yaml_key_to_remove]
         else:
             print("SKIP")
+            return
 
         # 5. Convertir de nuevo el YAML con formato en bloque '|-' (sin salto al final)
         stream = StringIO()
         ryaml.dump(data_dict, stream)
+        # print(f"stream.getvalue(): {stream.getvalue()}")
         formatted_yaml = stream.getvalue().rstrip('\n')  # Eliminar salto final para usar el formato '|-'
 
+        # print(f"formatted_yaml: {formatted_yaml}")
         # 6. Actualizar el ConfigMap
         # Reemplazar la cadena de saltos de línea adecuadamente en la cadena YAML
         updated_yaml_escaped = formatted_yaml.replace('\n', '\\n').replace('"', '\\"')
 
+        # print(f"updated_yaml_escaped: {updated_yaml_escaped}")
         # El comando debe ser generado con la escapatoria correcta
         command_patch_cm = (
             f"kubectl patch configmap {configmap_name} -n {namespace} "
@@ -2174,7 +2243,7 @@ def disable_cri_etcd_volume(last_kc):
 
 if __name__ == '__main__':
     
-    
+   
     # Init variables
     start_time = time.time()
     backup_dir = "./backup/upgrade/"
@@ -2274,10 +2343,11 @@ if __name__ == '__main__':
             env_vars += " EXP_MACHINE_POOL=true EXP_CAPG_GKE=true"
         env_vars += " GCP_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
-        if config['user-assign-identity'] == "":
-            print("[ERROR] Secrets file not found")
+        if config['user_assign_identity'] == "":
+            print("[ERROR] The flag --user-assign-identity must be indicated with azure provider")
             sys.exit(1)
-        userAssignIdentity = config['user-assign-identity']
+        userAssignIdentity = config['user_assign_identity']
+        print(f"[INFO] User assigned identity: {userAssignIdentity}")
         namespace = "capz-system"
         version = CAPZ
         if managed:
@@ -2307,7 +2377,7 @@ if __name__ == '__main__':
             else:
                 print("[ERROR] Helm repository credentials not found in secrets file")
                 sys.exit(1)
-
+                
     # Backup
     if not config["disable_backup"]:
         now = datetime.now()
@@ -2382,6 +2452,7 @@ if __name__ == '__main__':
         
         
         stop_keoscluster_controller()
+        patch_webhook_timeout("keoscluster-validating-webhook-configuration", "vkeoscluster.kb.io", 30)
         disable_keoscluster_webhooks()
         update_clusterconfig(cluster_config, charts, provider)
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
@@ -2425,7 +2496,7 @@ if __name__ == '__main__':
     if "1.29" in current_k8s_version:
         required_k8s_version=validate_k8s_version("second", False)
         #required_k8s_version="1.30.0"
-        print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
+        print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
         command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
         run_command(command)
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
@@ -2440,18 +2511,41 @@ if __name__ == '__main__':
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
     
+    
+    if not managed:
+        cp_global_network_policy("patch", networks, provider, backup_dir, False)
+        
     print("[INFO] Updating default volumes:", end =" ", flush=True)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     update_default_volumes(keos_cluster)
     time.sleep(30)
-    print("OK")
         
-    print("[INFO] Waiting for the CRI Volumes updating:", end =" ", flush=True)
+    print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
     command = (
-        "kubectl wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
-        + cluster_name + " -n cluster-" + cluster_name + " --timeout 60m"
+        f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
+        f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
     )
     execute_command(command, False)
+    
+    print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
+    if provider == "azure":
+        command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
+    if provider == "aws":
+        command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
+
+    i = 1
+    while i !=0:
+        output = execute_command(command, False, False)
+        i = len(output.splitlines())
+        time.sleep(30)
+    print("OK")
+    if not managed:
+        cp_global_network_policy("restore", networks, provider, backup_dir, False)
+   
+    #     "kubectl wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
+    #     + cluster_name + " -n cluster-" + cluster_name + " --timeout 60m"
+    # )
+    # execute_command(command, False)
     
     end_time = time.time()
     elapsed_time = end_time - start_time
