@@ -27,6 +27,7 @@ core:
       cluster-operator: 0.3.6
       kube-rbac-proxy: v0.15.0
     kind:
+      kindnetd: v20221004-44d545d1
       node: v1.27.0
     tigera:
       operator: v1.30.5
