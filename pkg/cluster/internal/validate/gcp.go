@@ -106,6 +106,21 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 		}
 	}
 
+	if spec.ControlPlane.Managed {
+		// Validate encryptionKey for managed clusters root volume
+		isKeyValid := regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`).MatchString
+		for _, wn := range spec.WorkerNodes {
+			if wn.RootVolume.Encrypted {
+				if wn.RootVolume.EncryptionKey == "" {
+					return errors.New("spec.control_plane.root_volume: \"encryption_key\": is required when \"encrypted\" is set to true")
+				}
+				if !isKeyValid(wn.RootVolume.EncryptionKey) {
+					return errors.New("spec.control_plane.root_volume: \"encryption_key\": it must have the format projects/[PROJECT_ID]/locations/[REGION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]")
+				}
+			}
+		}
+	}
+
 	for _, wn := range spec.WorkerNodes {
 		if wn.AZ != "" {
 			if len(azs) > 0 {

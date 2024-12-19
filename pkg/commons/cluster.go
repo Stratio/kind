@@ -133,6 +133,8 @@ type GCPCP struct {
 	MasterAuthorizedNetworksConfig MasterAuthorizedNetworksConfig `yaml:"master_authorized_networks_config,omitempty"`
 	MonitoringConfig               MonitoringConfig               `yaml:"monitoring_config,omitempty"`
 	LoggingConfig                  LoggingConfig                  `yaml:"logging_config,omitempty"`
+	ClusterIpv4Cidr                string                         `yaml:"cluster_ipv4_cidr,omitempty"`
+	IPAllocationPolicy             IPAllocationPolicy             `yaml:"ip_allocation_policy,omitempty"`
 }
 
 type ClusterNetwork struct {
@@ -173,6 +175,15 @@ type LoggingConfig struct {
 	SystemComponents *bool `yaml:"system_components,omitempty"`
 	// +kubebuilder:default=false
 	Workloads *bool `yaml:"workloads,omitempty"`
+}
+
+type IPAllocationPolicy struct {
+	// +kubebuilder:default=true
+	UseIPAliases               bool   `yaml:"use_ip_aliases,omitempty"`
+	ClusterSecondaryRangeName  string `yaml:"cluster_secondary_range_name,omitempty"`
+	ServicesSecondaryRangeName string `yaml:"services_secondary_range_name,omitempty"`
+	ClusterIpv4CidrBlock       string `yaml:"cluster_ipv4_cidr_block,omitempty"`
+	ServicesIpv4CidrBlock      string `yaml:"services_ipv4_cidr_block,omitempty"`
 }
 
 type Keos struct {
@@ -217,6 +228,9 @@ type Security struct {
 	AWS                  struct {
 		CreateIAM bool `yaml:"create_iam" validate:"boolean"`
 	} `yaml:"aws,omitempty"`
+	GCP struct {
+		Scopes []string `yaml:"scopes,omitempty"`
+	} `yaml:"gcp,omitempty"`
 }
 
 type WorkerNodes []struct {

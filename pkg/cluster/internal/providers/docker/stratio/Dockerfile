@@ -20,6 +20,7 @@ ENV AZUREDISK_CSI_DRIVER_CHART=v1.28.7
 ENV AZUREFILE_CSI_DRIVER_CHART=v1.28.7
 ENV CLOUD_PROVIDER_AZURE_CHART=v1.28.5
 ENV CLUSTER_AUTOSCALER_CHART=9.29.1
+
 ENV TIGERA_OPERATOR_CHART=v3.26.1
 ENV CERT_MANAGER_CHART_VERSION=v1.12.3
 
@@ -28,7 +29,7 @@ ENV CAPI_REPO=/root/.cluster-api/local-repository
 ENV CAPA=v2.2.1
 ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
-ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.0/"
+ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.1/"
 
 # Install vim
 RUN apt-get update && apt-get install -y \
