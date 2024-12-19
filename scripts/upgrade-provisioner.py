@@ -50,8 +50,6 @@ eks_chart_versions = {
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        # "cert-manager": {"chart_version": "v1.14.5", "app_version": "v1.14.5"},
-        #"flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
@@ -59,8 +57,6 @@ eks_chart_versions = {
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        # "cert-manager": {"chart_version": "v1.14.5", "app_version": "v1.14.5"},
-        #"flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
@@ -68,8 +64,6 @@ eks_chart_versions = {
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        # "cert-manager": {"chart_version": "v1.14.5", "app_version": "v1.14.5"},
-        #"flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
@@ -82,7 +76,6 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
-       # "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
@@ -92,7 +85,6 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
-        #"flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
@@ -102,7 +94,6 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
-        #"flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
@@ -118,7 +109,6 @@ namespaces = {
         'calico': 'tigera-operator',
         'tigera-operator': 'tigera-operator',
         'cert-manager': 'cert-manager',
-        # "flux2": "kube-system",
         "flux": "kube-system",
         "cluster-operator": "kube-system"
     }
@@ -138,7 +128,6 @@ specific_repos = {
     'cluster-autoscaler': 'https://kubernetes.github.io/autoscaler',
     'tigera-operator': 'https://docs.projectcalico.org/charts',
     'cert-manager': 'https://charts.jetstack.io',
-    # "flux2": "https://fluxcd-community.github.io/helm-charts",
     "flux": "https://fluxcd-community.github.io/helm-charts",
     "cluster-operator": ""
 }
@@ -165,7 +154,6 @@ def parse_args():
     parser.add_argument("-p", "--vault-password", help="Set the vault password file for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
     parser.add_argument("-i", "--user-assign-identity", help="Set the secrets file for decrypting secrets")
-    # parser.add_argument("-d", "--descriptor", help="Set the cluster descriptor file", default="cluster.yaml")
     parser.add_argument("--enable-lb-controller", action="store_true", help="Install AWS Load Balancer Controller for EKS clusters (disabled by default)")
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
@@ -174,6 +162,8 @@ def parse_args():
     return vars(args)
 
 def backup(backup_dir, namespace, cluster_name, dry_run):
+    '''Backup CAPX and capsule files'''
+    
     print("[INFO] Backing up files into directory " + backup_dir)
     # Backup CAPX files
     print("[INFO] Backing up CAPX files:", end =" ", flush=True)
@@ -219,6 +209,8 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
         print("DRY-RUN")
 
 def prepare_capsule(dry_run):
+    '''Prepare capsule for the upgrade process'''
+    
     print("[INFO] Preparing capsule-mutating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -260,6 +252,8 @@ def prepare_capsule(dry_run):
         print("DRY-RUN")
 
 def restore_capsule(dry_run):
+    '''Restore capsule after the upgrade process'''
+    
     print("[INFO] Restoring capsule-mutating-webhook-configuration:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -298,6 +292,8 @@ def restore_capsule(dry_run):
         print("DRY-RUN")
 
 def install_lb_controller(cluster_name, account_id, dry_run):
+    '''Install AWS Load Balancer Controller for EKS clusters'''
+    
     print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
     if not dry_run:
         chart_version = get_chart_version("aws-load-balancer-controller", "kube-system")
@@ -330,6 +326,8 @@ def install_lb_controller(cluster_name, account_id, dry_run):
         print("DRY-RUN")
 
 def patch_clusterrole_aws_node(dry_run):
+    '''Patch aws-node ClusterRole'''
+    
     aws_node_clusterrole = """
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -380,6 +378,8 @@ rules:
         print("DRY-RUN")
 
 def scale_cluster_autoscaler(replicas, dry_run):
+    '''Scale cluster-autoscaler deployment'''
+    
     command = kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system -o=jsonpath='{.spec.replicas}'"
     output = execute_command(command, False, False)
     current_replicas = int(output)
@@ -399,6 +399,8 @@ def scale_cluster_autoscaler(replicas, dry_run):
         output = execute_command(command, False)
     
 def validate_k8s_version(validation, dry_run):
+    '''Validate the Kubernetes version to upgrade'''
+    
     if validation == "first":
         minor = "29"
         dry_run_version = "1.29.X"
@@ -426,12 +428,16 @@ def validate_k8s_version(validation, dry_run):
         return dry_run_version
     
 def get_kubernetes_version():
+    '''Get the Kubernetes version'''
+    
     command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
 
 def wait_for_workers(cluster_name, current_k8s_version):
+    '''Wait for the worker nodes to be updated'''
+    
     print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
     previous_node = 1
     while previous_node != 0:
@@ -451,10 +457,13 @@ def wait_for_workers(cluster_name, current_k8s_version):
     execute_command(command, False)
 
 def is_node_image_defined(node_group):
-    # Check if 'node_image' is defined in node_group
+    '''Check if 'node_image' is defined in node_group'''
+    
     return 'node_image' in node_group
 
 def prompt_for_node_image(node_name, kubernetes_version):
+    '''Prompt user for node image'''
+    
     node_image = input(f"Please provide the image ID associated with the Kubernetes version: {kubernetes_version} for {node_name}: ")
 
     while True:
@@ -472,6 +481,8 @@ def prompt_for_node_image(node_name, kubernetes_version):
     
 
 def get_k8s_lower_version(versions):
+    '''Get the lower version of the two Kubernetes versions'''
+    
     # Extract the version numbers from the strings
     version_1_num = versions.splitlines()[0].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
     version_2_num = versions.splitlines()[1].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
@@ -486,6 +497,8 @@ def get_k8s_lower_version(versions):
         return versions.splitlines()[1]
 
 def cp_global_network_policy(action, networks, provider, backup_dir, dry_run):
+    '''Patch or restore the allow control plane GlobalNetworkPolicy'''
+    
     command = kubectl + " get GlobalNetworkPolicy allow-all-traffic-from-control-plane"
     status, _ = subprocess.getstatusoutput(command)
     if status == 0:
@@ -576,6 +589,7 @@ spec:
 
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
+    '''Upgrade Kubernetes version'''
     aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
@@ -673,6 +687,8 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         sys.exit(1)
 
 def wait_for_keos_cluster(cluster_name, time):
+    '''Wait for the KeosCluster to be ready'''
+    
     command = (
         "kubectl wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
         + cluster_name + " -n cluster-" + cluster_name + " --timeout "+time+"m"
@@ -680,6 +696,8 @@ def wait_for_keos_cluster(cluster_name, time):
     execute_command(command, False, False)
 
 def update_helm_registry(cluster_name, oci_registry, dry_run):
+    '''Update the Helm registry'''
+    
     wait_for_keos_cluster(cluster_name, "10")
 
     
@@ -700,25 +718,25 @@ def update_helm_registry(cluster_name, oci_registry, dry_run):
         existing_helmrepo = False
         
     if existing_helmrepo:
-        #logger.info("Updating existing keos HelmRepository")
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
         execute_command(command, False, False)
     
     wait_for_keos_cluster(cluster_name, "10")
     
 def update_docker_registry(cluster_name, docker_registry, dry_run):
+    '''Update the Docker registry'''
+    
     wait_for_keos_cluster(cluster_name, "10")
     index = -1
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     
-    # Verificar que el campo docker_registries existe
     if "docker_registries" in keos_cluster["spec"]:
         for i, registry in enumerate(keos_cluster["spec"]["docker_registries"]):
             if registry.get("keos_registry"):
                 index = i
                 break
     
-    # Si no se encuentra un índice válido, lanzar una excepción
+    # If a valid index can not be found, throw an exception
     if index == -1:
         raise ValueError("A Registry with keos_registry: true was not found")
     
@@ -734,6 +752,8 @@ def update_docker_registry(cluster_name, docker_registry, dry_run):
     wait_for_keos_cluster(cluster_name, "10")
 
 def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=5):
+    '''Execute a command and handle the output'''
+    
     output = ""
     retries = 0
 
@@ -758,6 +778,8 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
                     sys.exit(1)
 
 def get_chart_version(chart, namespace):
+    '''Get the version of a Helm chart'''
+    
     command = helm + " -n " + namespace + " list"
     output = execute_command(command, False, False)
     for line in output.split("\n"):
@@ -770,21 +792,27 @@ def get_chart_version(chart, namespace):
     return None
 
 def get_version(version):
+    '''Get the version number'''
+    
     return re.sub(r'\D', '', version)
 
 def print_upgrade_support():
+    '''Print the upgrade support message'''
     print("[WARN] Upgrading cloud-provisioner from a version minor than " + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " to " + CLOUD_PROVISIONER + " is NOT SUPPORTED")
     print("[WARN] You have to upgrade to cloud-provisioner:"+ CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " first")
     sys.exit(0)
 
 def request_confirmation():
+    '''Request confirmation to continue'''
+    
     enter = input("Press ENTER to continue upgrading the cluster or any other key to abort: ")
     if enter != "":
         sys.exit(0)
 
 def get_keos_cluster_cluster_config():
+    '''Get the KeosCluster and ClusterConfig objects'''
+    
     try:
-        #logger.info("Obteniendo keoscluster...")
         keoscluster_list_output, err = run_command(kubectl + " get keoscluster -A -o json")
         keos_cluster = json.loads(keoscluster_list_output)["items"][0]
         clusterconfig_list_output, err = run_command(kubectl + " get clusterconfig -A -o json")
@@ -792,40 +820,35 @@ def get_keos_cluster_cluster_config():
         return keos_cluster, cluster_config
     except Exception as e:
         print(f"[ERROR] {e}.")
-        #logger.error(f"Error al obtener la lista de keoscluster: {e}")
         raise e
     
     
 def run_command(command, allow_errors=False, retries=3, retry_delay=2):
+    '''Run a command and return the output'''
+    
     attempts = 0
     
     while attempts <= retries:
-        #logger.debug(f"Ejecutando comando: {command} (Intento {attempts + 1}/{retries + 1})")
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         
         if result.returncode == 0:
-            return result.stdout, result.stderr  # Comando exitoso, retornar resultados
+            return result.stdout, result.stderr  
         
-        # Si el comando falla y se permite el error, devolver el resultado sin excepción
+        # If the command fails and the error is allowed, return the result without raising an exception
         if allow_errors:
-            #logger.warning(f"Comando fallido con error permitido '{command}': {result.stderr}")
             return result.stdout, result.stderr
         
-        # Si el comando falla y no se permite el error, pero quedan reintentos, esperar y reintentar
-        #logger.error(f"Error ejecutando '{command}': {result.stderr}")
-        
+        # If the command fails and the error is not allowed, but there are retries left, wait and retry        
         attempts += 1
         if attempts > retries:
-            # Si se han agotado los reintentos, lanzar excepción
             raise Exception(f"Error executing '{command}' after {retries + 1} attempts: {result.stderr}")
         
-        # Espera antes del próximo intento
         time.sleep(retry_delay)
-        #logger.info(f"Reintentando comando '{command}'...")
 
 def get_docker_registry(keos_cluster):
+    '''Get the Docker registry URL'''
+    
     try:
-        # Obtener el valor de docker_registry
         docker_registries = keos_cluster["spec"]["docker_registries"]
         
         for i, docker_registry in enumerate(docker_registries):
@@ -834,62 +857,55 @@ def get_docker_registry(keos_cluster):
             else:
                 continue
     except KeyError as e:
-        # Si falta alguna de las claves en el diccionario, manejar la excepción
-        #logger.info(f"Error: clave no encontrada {e}")
         return None
 
 def get_helm_registry_oci(keos_cluster):
+    '''Get the Helm registry URL'''
+    
     try:
-        # Obtener el valor de helm_repository.url
         helm_registry_oci = keos_cluster["spec"]["helm_repository"]["url"]
         
-        # Comprobar si helm_registry_oci tiene un valor válido
         if helm_registry_oci:
-            #logger.info(f"El valor de helm_registry_oci es: {helm_registry_oci}")
             return helm_registry_oci
         else:
-            #logger.info("El campo 'helm_repository.url' está vacío.")
             return None
     except KeyError as e:
-        # Si falta alguna de las claves en el diccionario, manejar la excepción
-        #logger.info(f"Error: clave no encontrada {e}")
         return None
 
-# Verificar si Flux está instalado
+# Check if Flux is installed
 def check_flux_installed():
+    '''Check if Flux is installed'''
+    
     print("[INFO] Installing Flux:", end =" ", flush=True)
-    #logger.info("Comprobando si Flux está instalado...")
     try:
         charts = get_installed_helm_charts()
         for chart in charts:
             if chart['name'] == 'flux':
                 print("SKIP")
-                #logger.info("Flux está instalado.")
                 return True
-        #logger.warning("Flux no está instalado. Procediendo a instalarlo...")
         return False
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error checking flux installation{e}.")
-        #logger.error("Error al verificar la instalación de Flux.")
         raise e
 
-# Listar todos los Helm charts instalados en el clúster
+# List all Helm charts installed in the cluster
 def get_installed_helm_charts():
-    #logger.info("Obteniendo lista de Helm charts instalados en el clúster...")
+    '''Get all Helm charts installed in the cluster'''
+    
     try:
         output, err = run_command(helm  + " list --all-namespaces --output json")
         charts = json.loads(output)
-        #logger.info(f"Se encontraron {len(charts)} charts instalados.")
         return charts
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error getting charts installed {e}.")
-        #logger.error("Error al obtener la lista de charts instalados.")
         raise e
 
-# Instalar Flux si no está presente
+# Install Flux if it is not present
 def install_flux(provider):
+    '''Install Flux'''
+    
     repository_url = "https://fluxcd-community.github.io/helm-charts"
     chart_name = "flux2"
     release_name = "flux"
@@ -898,24 +914,19 @@ def install_flux(provider):
     values_file = "files/flux-values.yaml"
 
     try:
-        #logger.info("Añadiendo el repositorio de Flux...")
         run_command(f"{helm} repo add fluxcd {repository_url}")
-        #logger.info("Actualizando el repositorio de Flux...")
         run_command(f"{helm} repo update")  # Actualizar el repositorio
-        #logger.info("Instalando Flux...")
         run_command(f"{helm} install {release_name} fluxcd/{chart_name} --version {chart_version} -n {namespace} --create-namespace --values {values_file}")
         if provider == "azure":
-            #logger.info("Creando AzurePodIdentityException...")
             install_azurePodIdentityException()
-        #logger.info("Flux ha sido instalado exitosamente.")
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
-        #logger.error(f"Error al instalar Flux: {e}")
         raise
     
 def install_azurePodIdentityException():
+    '''Install AzurePodIdentityException'''
     try:
         azurePodIdentityException = """
 ---
@@ -936,27 +947,24 @@ spec:
         raise
     
 def update_allow_global_netpol(provider):
+    '''Update the allow-traffic-to-aws-imds GlobalNetworkPolicy'''
+    
     try:
         print("[INFO] Updating IMDS GlobalNetworkPolicy:", end =" ", flush=True)
         globalnetpol_name = "allow-traffic-to-aws-imds-capa"
-        # Actualizar el valor del nombre globalnetpol_name
         if provider == "azure":
             print("SKIP")
             return
         elif provider == "gcp":
             globalnetpol_name = "allow-traffic-to-gcp-imds-capa"
             
-        #logger.info("Comprobando si la política global existe en el cluster...")
         check_command = f"{kubectl} get globalnetworkpolicies.crd.projectcalico.org "
         check_result, err = run_command(check_command)
-        #logger.info(f"Resultado de la comprobación: {check_result}")
         if globalnetpol_name in check_result:
-            #logger.info(f"Eliminando la política {globalnetpol_name} existente...")
             delete_command = f"{kubectl} delete globalnetworkpolicies.crd.projectcalico.org {globalnetpol_name}"
             run_command(delete_command)
 
             
-        #logger.info("Aplicando la nueva política global...")
         globalnetpol_allow = ""
         if provider == "aws":
             globalnetpol_allow = """
@@ -981,16 +989,15 @@ spec:
 
         command = f"cat <<EOF | {kubectl} apply -f -" + globalnetpol_allow + "EOF"
         run_command(command)
-        #logger.info("Valor de allow_global_netpol actualizado con éxito.")
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
-        #logger.error("Error al actualizar el valor de allow_global_netpol.")
         raise e
     
 def upgrade_capx(managed, provider, namespace, version, env_vars):
-    # CAPI = "v1.7.4"
+    '''Upgrade CAPX'''
+    
     print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
     capx_version = get_deploy_version(namespace.split("-")[0] + "-controller-manager", namespace, "controller")
     capi_version = get_deploy_version("capi-controller-manager", "capi-system", "controller")
@@ -1004,7 +1011,6 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
             command += ( " --bootstrap capi-kubeadm-bootstrap-system/kubeadm:" + CAPI +
                 " --control-plane capi-kubeadm-control-plane-system/kubeadm:" + CAPI )
                     
-        #logger.info(f"Ejecutando comando: {command}")
         execute_command(command, False)
         if provider == "azure":
             command =  f"{kubectl} -n " + namespace + " rollout status ds capz-nmi --timeout 120s"
@@ -1047,36 +1053,33 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
     command = f"{kubectl}  -n capi-kubeadm-bootstrap-system scale --replicas " + replicas + " deploy capi-kubeadm-bootstrap-controller-manager"
     execute_command(command, False)
 
-# Function que compruebe si existen los pdbs en el namespace stratio-genai y elimine todos los pdbs
 def delete_stratio_genai_pdb():
+    '''Delete PodDisruptionBudgets in stratio-genai namespace'''
     try:
         print("[INFO] Disabling PodDisruptionBudgets in stratio-genai namespace:", end =" ", flush=True)
-        #logger.info("Comprobando si existen los pdb en el namespace stratio-genai...")
         command = f"{kubectl} get pdb -n stratio-genai"
         output, err = run_command(command)
         if output:
-            #logger.info("Eliminando los pdb en el namespace stratio-genai...")
             command = f"{kubectl} delete pdb --all -n stratio-genai"
             run_command(command)
             print("OK")
-            #logger.info("Los pdb en el namespace stratio-genai han sido eliminados.")
         else:
             print("SKIP")
-            #logger.info("No se encontraron pdb en el namespace stratio-genai.")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
-        #logger.error("Error al eliminar los pdb en el namespace stratio-genai.")
         raise e
 
 def get_deploy_version(deploy, namespace, container):
+    '''Get the version of a deployment'''
+    
     command = f"{kubectl} -n " + namespace + " get deploy " + deploy + " -o json  | jq -r '.spec.template.spec.containers[].image' | grep '" + container + "' | cut -d: -f2"
     output = execute_command(command, False, False)
     return output.split("@")[0]
 
 
-# Obtener lista de Helm charts y adoptarlos uno por uno
 def adopt_all_helm_charts(keos_cluster, credentials, specific_charts):
+    '''Adopt all Helm charts'''
     charts = get_installed_helm_charts()
     for chart in charts:
         try:
@@ -1087,22 +1090,18 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts):
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
                 adopt_helm_chart(chart, credentials)
                 
-                #logger.info(f"Ignorando chart {chart['name']} (no se encuentra en la lista de charts específicos).")
         except Exception as e:
             print("FAILED")
             print(f"[ERROR] {e}")
-                #logger.error(f"Error al adoptar el chart {chart['name']} en el namespace {chart['namespace']}: {e}")
 
 def check_releases(namespace):
-    #command = ["helm", "list", "--namespace", namespace, "--output", "json"]
+    '''Check if the releases exist'''
+    
     command = f"{helm} list --namespace {namespace} --output json"
     try:
-        # Ejecutar el comando y obtener la salida en formato JSON
-        #result = subprocess.run(command, capture_output=True, text=True, check=True)
         result, err = run_command(command)
         releases = json.loads(result)
         
-        # Verificar la existencia de las releases
         calico_exists = any(release['name'] == 'calico' for release in releases)
         tigera_operator_exists = any(release['name'] == 'tigera-operator' for release in releases)
 
@@ -1112,6 +1111,7 @@ def check_releases(namespace):
         print(f"[ERROR] {e}")
 
 def delete_release(release_name, namespace):
+    '''Delete a Helm release'''
     resources = [
             {"kind": "ServiceAccount", "name": "tigera-operator", "namespace": "tigera-operator"},
             {"kind": "ClusterRole", "name": "tigera-operator"},
@@ -1122,38 +1122,32 @@ def delete_release(release_name, namespace):
     update_annotation_label("calico", "tigera-operator", "helm.sh/resource-policy", "keep", resources)
     command = f"{helm} uninstall {release_name} --namespace {namespace}"
     run_command(command, False)
-    # delete_command = ["helm", "uninstall", release_name, "--namespace", namespace]
-    # subprocess.run(delete_command, check=True)
         
 def check_and_delete_releases(namespace):
+    '''Check if the releases exist and delete calico'''
+    
     attempts = 0
     max_attempts = 10
     while attempts < max_attempts:
         attempts += 1
-        # logger.info(f"Intento {attempts} de {max_attempts} para verificar las releases...")
 
         calico_exists, tigera_operator_exists = check_releases(namespace)
 
         if calico_exists and tigera_operator_exists:
-            delete_release("calico", namespace)  # Eliminar solo "calico"
-            # logger.info("Ambas releases están presentes. Se ha eliminado 'calico'.")
+            delete_release("calico", namespace)  
             break
         else:
-            # logger.info("No se encontraron ambas releases, esperando 20 segundos...")
             time.sleep(20)
         
-# Generar y aplicar HelmRelease y HelmRepository
+# Generate and apply HelmRelease and HelmRepository
 def adopt_helm_chart(chart, credentials):
-    
-    #logger.info(f"Adoptando chart {chart} ...")
+    '''Adopt a Helm chart'''
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
-    #logger.info(f"chart_name: {chart_name}")
     
-    # Verificar si ya existe un HelmRelease con el nombre chart_name
+    # Check if there is already a HelmRelease with the name chart_name
     existing_helmrelease, err = run_command(f"{kubectl} get helmrelease {chart_name} -n {chart['namespace']} --ignore-not-found")
     if existing_helmrelease:
         print("SKIP")
-        #logger.info(f"HelmRelease {chart_name} ya existe en el namespace {chart['namespace']}. No se realizará ninguna acción.")
         return
     
     schema = "default"
@@ -1161,23 +1155,16 @@ def adopt_helm_chart(chart, credentials):
     repo_name = chart_name
     user = ""
     password = ""
-    # Ignorar charts no listados en `specific_repos`
     if chart_name not in specific_repos:
         print("SKIP")
-        #logger.info(f"Ignorando chart {chart_name} (no se encuentra en la lista de repositorios específicos).")
         return
     
-    # Imprimir el chart que se va a adoptar
-    #logger.info(f"Adoptando chart {chart['name']} en el namespace {chart['namespace']}.")
     if chart_name in "cluster-operator":
-        #logger.info("El chart cluster-operator no tiene un repositorio específico. Recuperando...")
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
-        #logger.info(f"El repositorio de Helm para cluster-operator es {repo}")
         schema = "oci"
         repo_name = "keos"
         
     if chart_name == "tigera-operator":
-        #logger.info("Actualizando la anotación...")
         resources = [
             {"kind": "ServiceAccount", "name": "tigera-operator", "namespace": "tigera-operator"},
             {"kind": "ClusterRole", "name": "tigera-operator"},
@@ -1207,7 +1194,6 @@ def adopt_helm_chart(chart, credentials):
     else:
         namespace = "kube-system"
         
-    # Contexto para HelmRepository
     repository_context = {
         'repository_name': repo_name,
         'namespace': chart['namespace'],
@@ -1219,7 +1205,6 @@ def adopt_helm_chart(chart, credentials):
         'password': password
     }
     
-    # Contexto para HelmRelease
     release_context = {
         'ChartName': chart_name,
         'ChartNamespace': chart['namespace'],
@@ -1230,54 +1215,45 @@ def adopt_helm_chart(chart, credentials):
         'HelmReleaseRetries': 3
     }
 
-    # Renderizar YAML de HelmRepository y HelmRelease
+    # Render HelmRepository and HelmRelease YAML
     try:
-        #logger.info("Renderizando plantilla HelmRepository...")
         helmrepository_yaml = helmrepository_template.render(repository_context)
-        #logger.info("Renderizando plantilla HelmRelease...")
         helmrelease_yaml = helmrelease_template.render(release_context)
     except Exception as e:
-        #logger.error(f"Error renderizando plantillas para el chart {chart['name']}: {e}")
         raise e
 
-    # Guardar en archivos temporales
+    # Save to temporary files
     try:
         repository_file = f'/tmp/{release_context["ChartName"]}_helmrepository.yaml'
         release_file = f'/tmp/{release_context["ChartName"]}_helmrelease.yaml'
 
-        #logger.info(f"Escribiendo HelmRepository en {repository_file}...")
         with open(repository_file, 'w') as f:
             f.write(helmrepository_yaml)
 
-        #logger.info(f"Escribiendo HelmRelease en {release_file}...")
         with open(release_file, 'w') as f:
             f.write(helmrelease_yaml)
     except Exception as e:
-        #logger.error(f"Error al escribir archivos temporales para {chart['name']}: {e}")
         raise e
     
 
-    # Aplicar los manifiestos al clúster
+    # Apply the manifests to the cluster
     try:
         command = f"{kubectl} apply -f {repository_file} "
-        #logger.info(f"Aplicando HelmRepository para {chart['name']} en el namespace {chart['namespace']}...")
         run_command(command)
         
         command = f"{kubectl} apply -f {release_file} -n {chart['namespace']}"
-        #logger.info(f"Aplicando HelmRelease para {chart['name']} en el namespace {chart['namespace']}...")
         run_command(command)
         
-        # logger.info(f"Adoptado chart {chart['name']} en el namespace {chart['namespace']}.")
         if chart_name == "tigera-operator":
             check_and_delete_releases("tigera-operator")
         
         print("OK")
 
     except Exception as e:
-        #logger.error(f"Error al aplicar HelmRepository o HelmRelease para {chart['name']}: {e}")
         raise e
     
 def update_annotation_label(name, namespace, annotation_label_key, annotation_label_value, resources, type="annotation"):
+    '''Update the annotation or label of a resource'''
     
     for resource in resources:
         kind = resource["kind"]
@@ -1288,32 +1264,25 @@ def update_annotation_label(name, namespace, annotation_label_key, annotation_la
             action_type = "label"
         try: 
             command = f"{kubectl} get {kind} {name} "
-            #log = f"Comprobando la existencia de {kind} {name} "
             if ns:
                 command = command + f" -n {ns}"
-                #log = log + f"en el namespace {ns}..."
-            #logger.info(log)
             output, err = run_command(command, allow_errors=True)
             if "not found" in err.lower():
                 
-                #logger.warning(f"{kind} {name} no encontrado. No se aplicará ninguna acción.")
                 continue
         except Exception as e:
             print("FAILED")
             print(f"[ERROR] Error checking the existence of {kind} {name}: {e}")
-            #logger.error(f"Error al comprobar la existencia de {kind} {name}: {e}")
             return
         
         command = f"{kubectl} {action_type} {kind} {name} {annotation_label_key}={annotation_label_value} --overwrite "
-        #log = f"Aplicando {action_type} {annotation_label_key} en el {kind} {name} "
         if ns:
             command = command + f" -n {ns}"
-            #log = log + f"en el namespace {ns}..."
-        #logger.info(log)
-        #logger.info(f"command: {command}")
         output, err = run_command(command)
         
 def get_keos_registry_url(keos_cluster):
+    '''Get the Keos registry URL'''
+    
     docker_registries = keos_cluster["spec"]["docker_registries"]
     for registry in docker_registries:
         if registry.get("keos_registry", False):
@@ -1322,6 +1291,8 @@ def get_keos_registry_url(keos_cluster):
 
 
 def get_pods_cidr(keos_cluster):
+    '''Get the pods CIDR'''
+    
     try:
         return keos_cluster["spec"]["networks"]["pods_cidr"]
     except KeyError:
@@ -1329,9 +1300,9 @@ def get_pods_cidr(keos_cluster):
 
 
 def render_values_template(values_file, keos_cluster, cluster_config, credentials):
+    '''Render the values template'''
+    
     try:
-        #logger.info(f"Renderizando el template de valores {values_file}...")
-        # creds = get_credentials(keos_cluster["spec"]["infra_provider"])
         values_params = {
             "private": cluster_config["spec"]["private_registry"],
             "cluster_name": keos_cluster["metadata"]["name"],
@@ -1342,20 +1313,16 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
             "cluster_operator_version" : "0.4.0-aa18b1f",
             "credentials": credentials
         }
-        #logger.info(f"Parametros para el template de valores: {values_params}")
-        # Cargar la plantilla
+        
         template = env.get_template(values_file)
-        # Renderizar la plantilla
         rendered_values = template.render(values_params)
-        #logger.info(f"Plantilla de valores renderizada con éxito, values: {rendered_values}.")
         return rendered_values
     except Exception as e:
-        logger.error(f"Error al renderizar el template de valores: {e}")
         raise e
     
 def prepare_calico_kube_controller(n):
-
-    #logger.info("Preparando el controlador de Calico...")
+    '''Prepare the Calico kube-controllers'''
+    
     netpol = """
 ---
 apiVersion: networking.k8s.io/v1
@@ -1377,145 +1344,105 @@ spec:
     run_command(rollout_command)
     
 def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
+    '''Restart the Tigera Operator manifest'''
+    
     try:
-        #logger.info("Comprobando version de installation")
         command = kubectl+ " get installation.operator.tigera.io/default -n tigera-operator -o jsonpath='{.status.calicoVersion}'"
         output, err = run_command(command, allow_errors=True)
         if output == tigera_version:
             check_and_delete_releases("tigera-operator")
             prepare_calico_kube_controller(1)
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
-            #logger.info(f"Command: {command}")
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
             print("SKIP")
-            #logger.info("La version de installation es la misma que la version de Tigera")
             return
-        #logger.info("Reiniciando el operador de Tigera...")
         command = f'{kubectl} wait --for=jsonpath="{{.spec.version}}"={tigera_version} helmchart -n kube-system tigera-operator-tigera-operator --timeout=3m'        
-        #logger.info(f"Command: {command}")
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-        #logger.info(f"Output: {output}")
         command = f"{kubectl} wait --namespace tigera-operator --for=condition=Ready helmrelease/tigera-operator --timeout=5m"
-        #logger.info(f"Command: {command}")
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-        #logger.info(f"Output: {output}")
         command = f"{kubectl} wait --for=condition=Available deploy -n tigera-operator tigera-operator --all --timeout=300s"
-        #logger.info(f"Command: {command}")
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-        #logger.info(f"Output: {output}")
         if provider == "aws":
             time.sleep(120)
         if provider == "azure":
             
             command = "kubectl wait --namespace=calico-system --for=condition=Ready=False pods --timeout=300s --all"
-            #logger.info(f"Command: {command}")
             output = run_command(command)
-            #logger.info(f"Output: {output}")
-            # logger.info("Paramos 4 minutos para que se reinicie el operador de Tigera...")
-            # time.sleep(300)
             command = "kubectl delete po -n calico-system --all --force --grace-period=0"
-            #logger.info(f"Command: {command}")
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-            #logger.info(f"Output: {output}")
             command = "kubectl wait --for=delete pods --all --namespace=calico-system --timeout=300s"
-            #logger.info(f"Command: {command}")
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-            #logger.info(f"Output: {output}")
             
         command = "helm get manifest tigera-operator -n tigera-operator | kubectl apply -f -"
-        #logger.info(f"Command: {command}")
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
         if provider == "azure" and "installation.operator.tigera.io/default configured" in output:
             time.sleep(120)
             restart_tigera_operator_manifest(provider, tigera_version)
         prepare_calico_kube_controller(1)
-        #logger.info(f"Output: {output}")
         if provider == "aws":
             prepare_calico_kube_controller(1)
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
-            #logger.info(f"Command: {command}")
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-            #logger.info(f"Output: {output}")
-            #prepare_calico_kube_controller(1)
         command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
-        #logger.info(f"Command: {command}")
         output, err = run_command(command)
-        #logger.info(f"Output: {output}")
         command = f"{kubectl} wait --for=condition=Available deployment -n calico-system --all --timeout=300s"
-        #logger.info(f"Command: {command}")
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
-        #logger.info(f"Output: {output}")
-        #logger.info("Operador de Tigera reiniciado con éxito.")
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
-        #logger.error("Error al reiniciar el operador de Tigera.")
         raise e
 
 def export_release_values(chart_name, namespace, release_values_file, provider, credentials):
-    """Exporta los valores de un release de Helm instalado."""
+    '''Export the release values'''
     try:
         name = chart_name
         allow_errors = False
-        #logger.info(f"Exportando valores del release {chart_name} en el namespace {namespace}...")
-        #logger.info(f"chart_name: {chart_name}")
         if chart_name == "cert-manager":
-            #logger.info(f"El chart {chart_name} no requiere valores de release; creando archivo vacío en {release_values_file}...")
-            open(release_values_file, 'w').close()  # Crea un archivo vacío
-            #logger.info(f"Archivo de valores del release {release_values_file} creado vacío para {chart_name}.")
+            open(release_values_file, 'w').close() 
             return
         elif chart_name == "cluster-operator":
             values, err = run_command(f"{helm} get values {name} -n {namespace} --output yaml > {release_values_file}", allow_errors=allow_errors)
-            #logger.info(f"comando: helm get values {name} -n {namespace} --output yaml > {release_values_file}")
-            #logger.info(f"Valores del release exportados exitosamente en {release_values_file}.")
         else:
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials)
             run_command(f"echo '{values}' > {release_values_file}")
-            #logger.info(f"Valores del release exportados exitosamente en {release_values_file}.")
         return values
     except Exception as e:
-        #logger.error(f"Error al exportar los valores del release {name}: {e}")
         raise
 
 def create_empty_values_file(values_file):
+    ''' Create an empty values file'''
+    
     try:
-        #logger.info(f"Creando archivo de valores vacío en {values_file}...")
-        open(values_file, 'w').close()  # Crea un archivo vacío
-        #logger.info(f"Archivo de valores vacío creado.")
+        open(values_file, 'w').close()  
     except Exception as e:
-        #logger.error(f"Error al crear archivo de valores vacío: {e}")
         raise e
 
 def export_default_values(chart, repo, default_values_file):
-    """Exporta los valores predeterminados de un chart de Helm."""
+    '''Export the default values'''
+    
     try: 
-        #logger.info(f"Exportando valores predeterminados para {chart}...")
         chart_name, chart_version = chart["chart"].rsplit("-", 1)
         command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name}> {default_values_file}"
         if chart['name'] == "cluster-operator":
             command = f"{helm} show values {repo}/{chart_name} --version {chart['app_version']} > {default_values_file}"
         
-        #logger.info(f"Exportando valores predeterminados para {chart_name} y version {chart_version}...")
         default_values, err = run_command(command)
-        #logger.info(f"Valores predeterminados exportados exitosamente en {default_values_file}.")
         return default_values
     except Exception as e:
-        #logger.error(f"Error al exportar los valores predeterminados de {chart_name}: {e}")
         raise
     
     
 def create_configmap_from_values(configmap_name, namespace, values_file):
-    #logger.info(f"Creando ConfigMap {configmap_name} en el namespace {namespace}...")
+    '''Create a ConfigMap from values'''
     try:
         command = f"{kubectl} create configmap {configmap_name} -n {namespace} --from-file=values.yaml={values_file} --dry-run=client -o yaml | kubectl apply -f -"
         run_command(command)
-        #logger.info(f"ConfigMap {configmap_name} creado con éxito.")
     except Exception as e:
-        #logger.error(f"Error al crear ConfigMap {configmap_name}: {e}")
         raise e
 
 def install_cert_manager(provider):
+    '''Install cert-manager'''
     try:
         print("[INFO] Adopting cert-manager...")
         chart_cert_manager = {
@@ -1525,13 +1452,10 @@ def install_cert_manager(provider):
             'app_version': 'v1.14.5',
             'provider': provider
         }
-        # Verificar si ya existe un HelmRelease con el nombre cert-manager
         existing_helmrelease, err = run_command(f"{kubectl} get helmrelease cert-manager -n cert-manager --ignore-not-found")
         if existing_helmrelease:
-            #logger.info(f"HelmRelease cert-manager ya existe en el namespace cert-manager. No se realizará ninguna acción.")
             return
         
-        #logger.info("Instalando cert-manager...")
         resources_service_accounts = [
             {"kind": "ServiceAccount", "name": "cert-manager-cainjector", "namespace": "cert-manager"},
             {"kind": "ServiceAccount", "name": "cert-manager", "namespace": "cert-manager"},
@@ -1592,14 +1516,14 @@ def install_cert_manager(provider):
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
         adopt_helm_chart(chart_cert_manager, "")
-        #logger.info("cert-manager instalado con éxito.")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
-        #logger.error("Error al instalar cert-manager.")
         raise e
     
 def update_chart_versions(keos_cluster, cluster_config, charts, crendentials):
+    '''Update the chart versions'''
+    
     try:
         
         charts_updated = {}
@@ -1607,81 +1531,63 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials):
         k8s_version = keos_cluster["spec"]["k8s_version"].split(".")[1]
         provider = keos_cluster["spec"]["infra_provider"]
         print(f"[INFO] Updating chart versions for Kubernetes {k8s_version} in {provider}:")
-        #logger.info(f"Actualizando las versiones de los charts para Kubernetes {k8s_version} en {provider}...")
         for chart_name, chart_info in charts[k8s_version].items():
             print(f"[INFO] Updating chart {chart_name} to version {chart_info['chart_version']}:", end =" ", flush=True)
-            #logger.info(f"Actualizando el chart {chart_name}...")
-            # Obtener la versión actual del chart
             chart_version = chart_info["chart_version"]
-            # Obtener la versión actual de la aplicación
             app_version = chart_info["app_version"]
-            # Actualizar la versión del chart si es diferente
             if k8s_version == "28":
                 updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
             elif chart_name in updatable_charts:
-                #logger.info(f"Dentro de updatable_charts. Actualizando el chart {chart_name} a la versión {app_version}...")
                 updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
             else:
                 print("SKIP")
             if updated and not chart_name == "cluster-operator":
                 charts_updated[chart_name] = chart_version
-            # Actualizar los valores del chart si es diferente
-            # if k8s_version == "28" and updated:
             if k8s_version == "28" and updated and not chart_name == "tigera-operator":
                 file_type = "default"
                 if chart_name == "cluster-operator":
                     file_type = "override" 
                 update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials)
             
-            #logger.info(f"Chart {chart_name} actualizado a la versión {chart_version} y valores actualizados.")
         return charts_updated
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating chart versions: {e}")
-        #logger.error(f"Error al actualizar las versiones de los charts: {e}")
         raise e
 
-# Función adaptada para actualizar la versión del HelmRelease
 def update_helmrelease_version(chart_name, namespace, version):
+    '''Update the version of a HelmRelease'''
+    
     try:
-        #logger.info(f"Actualizando la versión del chart {chart_name} en el namespace {namespace}...")
         
-        # Comprobar si el HelmRelease existe antes de intentar actualizarlo
         check_command = f"{kubectl} get helmrelease {chart_name} -n {namespace}"
         stdout, stderr = run_command(check_command, allow_errors=True)
         
         if "not found" in stderr.lower():
             print("SKIP")
-            #logger.warning(f"El HelmRelease {chart_name} no existe en el namespace {namespace}. Saliendo sin hacer cambios.")
-            return  False# Salir de la función sin error si no existe
+            return  False
 
-        # Ejecutar el comando de actualización si el HelmRelease existe
         update_command = f"{kubectl} get helmrelease {chart_name} -n {namespace} -o json | jq '.spec.chart.spec.version = \"{version}\"' | kubectl apply -f -"
         run_command(update_command)
         print("OK")
-        #logger.info(f"Versión del chart {chart_name} actualizada a {version}.")
         return True
         
     except Exception as e:
         error_message = str(e)
         if "the object has been modified; please apply your changes to the latest version and try again" in error_message:
-            #logger.warning(f"El objeto ha sido modificado; por favor aplique sus cambios a la última versión e intente nuevamente. Ignorando el error para {chart_name}.")
             print("[WARN] The object has been modified; please apply your changes to the latest version and try again. Ignoring the error for", chart_name)
             return False
         else:
             print("FAILED")
             print(f"[ERROR] Error updating the version of the chart {chart_name}: {e}")
-            #logger.error(f"Error al actualizar la versión del chart {chart_name}: {e}")
             raise e
 
-#Funcion para actualizar los values por defecto de un chart en helmrelease en el configmap
 def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials):
+    '''Update the values of a HelmRelease'''
     try:
         print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
-        # Definicion de la plantilla de valores por defecto
-        #logger.info(f"Actualizando los valores del chart {chart_name} en el namespace {namespace}...")
+        
         values = render_values_template(values_file, keos_cluster, cluster_config, credentials)
-        # Convertir a JSON para escapar correctamente caracteres especiales
         values_json = json.dumps({"data": {"values.yaml": values}})
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
@@ -1692,29 +1598,23 @@ def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, 
             
         run_command(command)
         print("OK")
-        #logger.info(f"Valores del chart {chart_name} actualizados con éxito.")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the values for chart {chart_name} in namespace {namespace}: {e}")
-        #logger.error(f"Error al actualizar los valores del chart {chart_name}: {e}")
         raise e
 
 def patch_kubeadm_config_templates(namespace):
-    #logger.info("Aplicando patch a los KubeadmConfigTemplates...")
+    '''Patch the KubeadmConfigTemplates'''
+    
     print("[INFO] Applying patch to KubeadmConfigTemplates:", end =" ", flush=True)
-    # Comando kubectl para obtener los KubeadmConfigTemplate en formato JSON
+
     command = f"{kubectl} get kubeadmconfigtemplate -n {namespace} -o json"
     try:
-        # Ejecutar el comando y obtener la salida
         result, err = run_command(command)
-        #logger.info(f"Salida del comando: {result}")
         data = json.loads(result)
-        #logger.info(f"Data: {data}")
         
-        # Iterar sobre los items obtenidos y aplicar el patch a cada uno
         for item in data.get("items", []):
             name = item["metadata"]["name"]
-            #logger.info(f"Aplicando patch a {name}...")
             
             patch = [
                 {
@@ -1736,8 +1636,6 @@ def patch_kubeadm_config_templates(namespace):
                 command = f"{kubectl} patch kubeadmconfigtemplate {name} -n {namespace} --type=json -p '[{json.dumps(subpatch)}]'"
                 run_command(command, allow_errors=True)
                 
-            # Ejecutar el comando patch para el KubeadmConfigTemplate
-            # subprocess.run(cmd_patch, check=True)
         print(f"OK")
     
     except Exception as e:
@@ -1745,24 +1643,20 @@ def patch_kubeadm_config_templates(namespace):
         print(f"[ERROR] {e}")
         
 def patch_kubeadm_controlplane(namespace):
-    #logger.info("Aplicando patch a los KubeadmConfigTemplates...")
+    '''Patch the KubeadmControlPlane'''
+    
     print("[INFO] Applying patch to KubeadmControlPLane:", end =" ", flush=True)
-    # Comando kubectl para obtener los KubeadmConfigTemplate en formato JSON
     command = f"{kubectl} get kubeadmcontrolplane -n {namespace} -o json"
     try:
-        # Ejecutar el comando y obtener la salida
         result, err = run_command(command)
         if "image-credential-provider-bin-dir" in result and "image-credential-provider-config" in result and "azure-container-registry-config" not in result:
             print("SKIP")
             return
-        #logger.info(f"Salida del comando: {result}")
         data = json.loads(result)
-        #logger.info(f"Data: {data}")
         
-        # Iterar sobre los items obtenidos y aplicar el patch a cada uno
         for item in data.get("items", []):
             name = item["metadata"]["name"]
-            #logger.info(f"Aplicando patch a {name}...")
+
             
             patch = [
                 {
@@ -1795,8 +1689,6 @@ def patch_kubeadm_controlplane(namespace):
                 command = f"{kubectl} patch kubeadmcontrolplane {name} -n {namespace} --type=json -p '[{json.dumps(subpatch)}]'"
                 run_command(command, allow_errors=True)
                 
-            # Ejecutar el comando patch para el KubeadmConfigTemplate
-            # subprocess.run(cmd_patch, check=True)
         print(f"OK")
         print("[INFO] Waiting to begin the updating kubelet process in controlplane nodes:", end =" ", flush=True)
         command = (
@@ -1817,51 +1709,46 @@ def patch_kubeadm_controlplane(namespace):
         print(f"[ERROR] {e}")
             
 def stop_keoscluster_controller():
+    '''Stop the KEOSCluster controller'''
+    
     try:
         print("[INFO] Stopping keoscluster-controller-manager deployment:", end =" ", flush=True)
-        #logger.info("Deteniendo el controlador de KEOSCluster...")
         run_command(f"{kubectl} scale deployment -n kube-system keoscluster-controller-manager --replicas=0", allow_errors=True)
-        #logger.info("Controlador de KEOSCluster detenido con éxito.")
+
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error stopping the KEOSCluster controller: {e}")
-        #logger.error("Error al detener el controlador de KEOSCluster.")
         raise e
 
 def disable_keoscluster_webhooks():
-    """Elimina los webhooks de validación y mutación de KEOSCluster"""
+    '''Disable the KEOSCluster webhooks'''
     try:
         backup_keoscluster_webhooks()
         print("[INFO] Disabling KEOSCluster webhooks:", end =" ", flush=True)
-        #logger.info("Eliminando los webhooks de validación y mutación de KEOSCluster...")
+        
         run_command(f"{kubectl} delete validatingwebhookconfiguration keoscluster-validating-webhook-configuration", allow_errors=True)
         run_command(f"{kubectl} delete mutatingwebhookconfiguration keoscluster-mutating-webhook-configuration", allow_errors=True)
-        #logger.info("Webhooks eliminados exitosamente.")
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error disabling KEOSCluster webhooks: {e}")
-        #logger.error("Error al eliminar los webhooks.")
         raise e
 
 def backup_keoscluster_webhooks():
-    """Realiza el backup de los webhooks de validación y mutación"""
+    '''Backup the KEOSCluster webhooks'''
     try:
-        #Create cluster-operator directory in backup directory
         if not os.path.exists(backup_dir+'/cluster-operator'):
             os.makedirs(backup_dir+'/cluster-operator')
         print("[INFO] Backing up KEOSCluster webhooks...")
-        #logger.info("Haciendo backup de los webhooks...")
         print("[INFO] Backup of validation webhooks:", end =" ", flush=True)
-        # Backup de los webhooks de validación
         validating_webhook = run_command(f"{kubectl} get validatingwebhookconfiguration keoscluster-validating-webhook-configuration -o json --ignore-not-found")
         if isinstance(validating_webhook, tuple):
             validating_webhook = validating_webhook[0]
         else:
             print("SKIP")
         if validating_webhook != "":
-            validating_webhook_json = json.loads(validating_webhook)  # Convierte el string JSON a un objeto Python
+            validating_webhook_json = json.loads(validating_webhook)  
             
             with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration-backup.json', 'w') as f:
                 json.dump(validating_webhook_json, f, indent=4)
@@ -1870,14 +1757,13 @@ def backup_keoscluster_webhooks():
         print("OK")
         
         print("[INFO] Backup of mutation webhooks:", end =" ", flush=True)
-        # Backup de los webhooks de mutación
         mutating_webhook = run_command("kubectl get mutatingwebhookconfiguration keoscluster-mutating-webhook-configuration -o json --ignore-not-found")
         if isinstance(mutating_webhook, tuple):
             mutating_webhook = mutating_webhook[0]
         else:
             print("SKIP")
         if mutating_webhook != "":
-            mutating_webhook_json = json.loads(mutating_webhook)  # Convierte el string JSON a un objeto Python
+            mutating_webhook_json = json.loads(mutating_webhook)  
             with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration-backup.json', 'w') as f:
                 json.dump(mutating_webhook_json, f, indent=4)
         else:
@@ -1885,18 +1771,15 @@ def backup_keoscluster_webhooks():
         
         print("OK")
 
-        #logger.info("Backup de los webhooks realizado con éxito.")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error backing up KEOSCluster webhooks: {e}")
-        #logger.error(f"Error al hacer el backup de los webhooks: {e}")
         raise e
 
 def update_clusterconfig(cluster_config, charts, provider):
+    '''Update the clusterconfig'''
     try:
         print("[INFO] Updating clusterconfig:", end =" ", flush=True)
-        #logger.info("Actualizando el clusterconfig...")
-        #logger.info(f"Charts actualizados: {charts}")
         clusterconfig_name = cluster_config["metadata"]["name"]
         clusterconfig_namespace = cluster_config["metadata"]["namespace"]
         
@@ -1916,19 +1799,16 @@ def update_clusterconfig(cluster_config, charts, provider):
         clusterconfig_json = json.dumps(cluster_config)
         command = f"{kubectl} patch clusterconfig {clusterconfig_name} -n {clusterconfig_namespace} --type merge -p '{clusterconfig_json}'"
         output, err = run_command(command)
-        #logger.info(f"Command: {command}, output: {output}")
-        #logger.info("Clusterconfig actualizado con éxito.")
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the clusterconfig: {e}")
-        #logger.error("Error al actualizar el clusterconfig.")
         raise e
     
 def update_keoscluster(keos_cluster, provider):
+    '''Update the KEOSCluster'''
     try:
         print("[INFO] Updating keoscluster:", end =" ", flush=True)
-        #logger.info("Actualizando el keoscluster...")
         keoscluster_name = keos_cluster["metadata"]["name"]
         keoscluster_namespace = keos_cluster["metadata"]["namespace"]
         managed_cluster = keos_cluster["spec"]["control_plane"]["managed"]
@@ -1955,31 +1835,24 @@ def update_keoscluster(keos_cluster, provider):
             if not wn.get("root_volume"):
                 wn["root_volume"] = {"size": 128, "type": "gp3"}
         
-        # Convertir keoscluster a JSON
         keoscluster_json = json.dumps(keos_cluster)
         
-        # Actualizar el comando kubectl patch
         command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
         output, err = run_command(command)
         if "no change" in output.lower() and "cri_volume" in command:
-            #logger.info("No se realizaron cambios en el keoscluster. Reintentando...")
             output, err = run_command(command)
-        #logger.info(f"Command: {command}, output: {output}")
-        #logger.info("Keoscluster actualizado con éxito.")
         print("OK") 
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the keoscluster: {e}")
-        #logger.error("Error al actualizar el keoscluster.")
         raise e   
     
 def restore_keoscluster_webhooks():
-    """Restaura los webhooks desde el backup"""
+    '''Restore the KEOSCluster webhooks'''
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup...")
-        #logger.info("Restaurando los webhooks de KEOSCluster desde el backup...")
         print("[INFO] Restoring validation webhooks:", end =" ", flush=True)
-        # Restaurar el webhook de validación
+
         with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration-backup.json', 'r') as f:
             validating_webhook = json.load(f)
             with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration.yaml', 'w') as backup_file:
@@ -1988,35 +1861,36 @@ def restore_keoscluster_webhooks():
             print("OK")
         
         print("[INFO] Restoring mutation webhooks:", end =" ", flush=True)
-        # Restaurar el webhook de mutación
+
         with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration-backup.json', 'r') as f:
             mutating_webhook = json.load(f)
             with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration.yaml', 'w') as backup_file:
                 yaml.dump(mutating_webhook, backup_file)
             run_command(f"{kubectl} create -f {backup_dir}/cluster-operator/keoscluster-mutating-webhook-configuration.yaml", allow_errors=True)
             print("OK")
-        #logger.info("Webhooks restaurados exitosamente.")
+        
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error restoring KEOSCluster webhooks from backup: {e}")
-        #logger.error("Error al restaurar los webhooks desde el backup.")
         raise e
 
 def start_keoscluster_controller():
+    '''Start the KEOSCluster controller'''
     try:
         print("[INFO] Starting keoscluster-controller-manager deployment:", end =" ", flush=True)
-        #logger.info("Iniciando el controlador de KEOSCluster...")
+
         run_command(f"{kubectl} scale deployment -n kube-system keoscluster-controller-manager --replicas=2")
         run_command(f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s")
         print("OK")
-        #logger.info("Controlador de KEOSCluster iniciado con éxito.")
+
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error starting the KEOSCluster controller: {e}")
-        #logger.error("Error al iniciar el controlador de KEOSCluster.")
+
         raise e
 
 def update_default_volumes(keos_cluster):
+    '''Update the default volumes'''
     try:
         
         last_kc = keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"]
@@ -2024,20 +1898,18 @@ def update_default_volumes(keos_cluster):
         keoscluster_namespace = keos_cluster["metadata"]["namespace"]
         if '"cri_volume":{"enabled":false}' in last_kc:
             print("SKIP")
-            #logger.info("Los volúmenes CRI y etcd ya están deshabilitados.")
+
             return
         disabled_cri_vol = disable_cri_etcd_volume(last_kc)
         keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"] = disabled_cri_vol
-        # Convertir keoscluster a JSON
+
         keoscluster_json = json.dumps(keos_cluster)
-        #logger.info(f"Actualizando el keoscluster {keoscluster_name} en el namespace {keoscluster_namespace}...")
-        #logger.info(f"Nuevo keoscluster: {keoscluster_json}")
         
-        # Actualizar el comando kubectl patch
+
         command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
         output,err = run_command(command, allow_errors=True)
         if "Operation cannot be fulfilled" in err:
-            #logger.error("Error al actualizar el keoscluster.")
+
             keos_cluster, clusterconfig = get_keos_cluster_cluster_config()
             update_default_volumes(keos_cluster)
         command = (
@@ -2045,18 +1917,18 @@ def update_default_volumes(keos_cluster):
             + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
         )
         execute_command(command, False)
-        #logger.info(f"Output: {output}")
+
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the keoscluster: {e}")
-        #logger.error("Error al actualizar el keoscluster.")
+
         raise e
 
 def create_and_apply_azure_secret(name, namespace, tenantId, subscriptionId, cluster_name, location, userAssignIdentity):
+    '''Create and apply the Azure secret'''
     try:
         print(f"[INFO] Creating the Azure CSI disk secret '{name}' in the namespace '{namespace}':", end=" ", flush=True)
 
-        # Crear la estructura de configuración para el cloud-config
         cloud_config = {
             "cloud": "AzurePublicCloud",
             "tenantId": tenantId,
@@ -2078,13 +1950,10 @@ def create_and_apply_azure_secret(name, namespace, tenantId, subscriptionId, clu
             "userAssignedIdentityID": userAssignIdentity
         }
 
-        # Serializar el diccionario a JSON
         cloud_config_json = json.dumps(cloud_config)
 
-        # Codificar el JSON a Base64
         cloud_config_base64 = base64.b64encode(cloud_config_json.encode('utf-8')).decode('utf-8')
 
-        # Crear la estructura del secreto en YAML
         secret_yaml = f"""
 apiVersion: v1
 kind: Secret
@@ -2096,13 +1965,11 @@ data:
   cloud-config: {cloud_config_base64}
 """
 
-        # Crear el archivo temporal YAML para el secreto
         secret_file = "/tmp/azure_secret.yaml"
         with open(secret_file, "w") as f:
             f.write(secret_yaml)
 
-        # Aplicar el secreto usando kubectl
-        kubectl = "kubectl"  # Asegúrate de tener kubectl configurado correctamente
+        kubectl = "kubectl" 
         command = f"{kubectl} apply -f {secret_file}"
         run_command(command)
 
@@ -2113,26 +1980,15 @@ data:
         print(f"[ERROR] Error creating and applying the Azure secret '{name}: {e}")
         
 def patch_webhook_timeout(webhook_name, webhook_path, new_timeout):
-    """
-    Updates the timeoutSeconds field of a webhook in a ValidatingWebhookConfiguration.
-
-    Args:
-        webhook_name (str): Name of the ValidatingWebhookConfiguration.
-        webhook_path (str): Name of the webhook within the resource.
-        new_timeout (int): New value for timeoutSeconds.
-
-    Returns:
-        None
-    """
+    '''Patch the webhook timeout'''
     try:
         print(f"[INFO] Updating the timeoutSeconds of the webhook '{webhook_path}' in {webhook_name}:", end=" ", flush=True)
-        # 1. Obtener la configuración actual
+
         webhook_config_json = run_command(f"kubectl get validatingwebhookconfiguration {webhook_name} -o json")
         if isinstance(webhook_config_json, tuple):
             webhook_config_json = webhook_config_json[0]
         webhook_config = json.loads(webhook_config_json)
 
-        # 2. Verificar que existe el webhook especificado
         for webhook in webhook_config["webhooks"]:
             if webhook["name"] == webhook_path:
                 webhook["timeoutSeconds"] = new_timeout
@@ -2140,12 +1996,10 @@ def patch_webhook_timeout(webhook_name, webhook_path, new_timeout):
         else:
             raise Exception(f"[ERROR] Can not find webhook '{webhook_path}' in {webhook_name}.")
 
-        # 3. Guardar el nuevo contenido en un archivo temporal
         updated_config_file = "/tmp/updated_webhook_config.json"
         with open(updated_config_file, "w") as f:
             json.dump(webhook_config, f, indent=2)
 
-        # 4. Aplicar el parche
         run_command(f"kubectl apply -f {updated_config_file}")
         print("OK")
 
@@ -2154,69 +2008,41 @@ def patch_webhook_timeout(webhook_name, webhook_path, new_timeout):
         print(f"[ERROR] {e}")
 
 def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remove):
-    """
-    Recupera un ConfigMap, actualiza el valor YAML eliminando una key específica y guarda el cambio.
-
-    Args:
-        namespace (str): Namespace del ConfigMap.
-        configmap_name (str): Nombre del ConfigMap.
-        key_to_update (str): Key del ConfigMap donde está el contenido YAML.
-        yaml_key_to_remove (str): Key a eliminar dentro del YAML del valor.
-
-    Returns:
-        None
-    """
+    '''Update the ConfigMap'''
     try:
         print(f"[INFO] Updating the ConfigMap '{configmap_name}'. Removing {yaml_key_to_remove} from default values:", end=" ", flush=True)
         ryaml = YAML()
         ryaml.preserve_quotes = True  # Mantener las quotes y el formato original
         ryaml.default_flow_style = False
 
-        # 1. Obtener el ConfigMap
         command_get_cm = f"kubectl get configmap {configmap_name} -n {namespace} -o yaml"
         configmap_yaml = run_command(command_get_cm)
-        # print(f"configmap_yaml: {configmap_yaml}")
         if configmap_yaml is None:
             raise Exception(f"ConfigMap '{configmap_name}' does not exist in namespace '{namespace}'.")
 
-        # print(f"[DEBUG] Type of configmap_yaml: {type(configmap_yaml)}")
-        # print(f"[DEBUG] Content of configmap_yaml: {configmap_yaml}")
         if isinstance(configmap_yaml, tuple):
             configmap_yaml = configmap_yaml[0]
             
         configmap_dict = ryaml.load(configmap_yaml)
-        # print(f"configmap_dict: {configmap_dict}")
 
-        # 2. Validar la existencia de la key a actualizar
         if "data" not in configmap_dict or key_to_update not in configmap_dict["data"]:
             raise Exception(f"The key '{key_to_update}' does not exist in the ConfigMap '{configmap_name}'.")
-
         
-        # 3. Parsear el valor YAML existente
         data_yaml_content = configmap_dict["data"][key_to_update]
         data_dict = ryaml.load(data_yaml_content)
 
-        # print(f"data_dict: {data_dict}")
-        # 4. Eliminar la key en el YAML si existe
         if yaml_key_to_remove in data_dict:
             del data_dict[yaml_key_to_remove]
         else:
             print("SKIP")
             return
 
-        # 5. Convertir de nuevo el YAML con formato en bloque '|-' (sin salto al final)
         stream = StringIO()
         ryaml.dump(data_dict, stream)
-        # print(f"stream.getvalue(): {stream.getvalue()}")
-        formatted_yaml = stream.getvalue().rstrip('\n')  # Eliminar salto final para usar el formato '|-'
+        formatted_yaml = stream.getvalue().rstrip('\n') 
 
-        # print(f"formatted_yaml: {formatted_yaml}")
-        # 6. Actualizar el ConfigMap
-        # Reemplazar la cadena de saltos de línea adecuadamente en la cadena YAML
         updated_yaml_escaped = formatted_yaml.replace('\n', '\\n').replace('"', '\\"')
 
-        # print(f"updated_yaml_escaped: {updated_yaml_escaped}")
-        # El comando debe ser generado con la escapatoria correcta
         command_patch_cm = (
             f"kubectl patch configmap {configmap_name} -n {namespace} "
             f"--type merge -p '{{\"data\": {{\"{key_to_update}\": \"{updated_yaml_escaped}\"}}}}'"
@@ -2230,11 +2056,11 @@ def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remov
         print(f"[ERROR] Error updating the ConfigMap '{configmap_name}': {e}")
 
 def disable_cri_etcd_volume(last_kc):
-    # Compilar la expresión regular
+    '''Disable the CRI and etcd volumes'''
+    
     regex_cri = re.compile(r'"cri_volume":\{[^}]*\}')
     regex_etcd = re.compile(r'"etcd_volume":\{[^}]*\}')
     
-    # Reemplazar las coincidencias por "cri_volume":{"enabled":false}
     result = regex_cri.sub('"cri_volume":{"enabled":false}', last_kc)
     result = regex_etcd.sub('"etcd_volume":{"enabled":false}', result)
     
@@ -2417,14 +2243,11 @@ if __name__ == '__main__':
     install_cert_manager(provider)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
     
-    #update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
-
     # Restore capsule
     if not config["disable_prepare_capsule"]:
         restore_capsule(config["dry_run"])
     
     networks = keos_cluster["spec"].get("networks", {})
-    # Update kubernetes version to 1.27.X
     current_k8s_version = get_kubernetes_version()
     delete_stratio_genai_pdb()
     
@@ -2433,21 +2256,14 @@ if __name__ == '__main__':
         tigera_version = chart_versions["28"]["tigera-operator"]["chart_version"] 
         print(f"[INFO] Restarting Tigera Operator: ", end =" ", flush=True)
         restart_tigera_operator_manifest(provider,tigera_version=tigera_version)
-        #logger.info("Esperando a que helmrelease cluster-operator esté listo...")
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'=True --timeout=5m"
         run_command(command)
         print("[INFO] Upgrading Cluster Operator components...")
         print("[INFO] Stoping cluster-operator helmrelease:", end =" ", flush=True)
 
-        #logger.info("Deteniendo helmrelease cluster-operator...")
         command = kubectl + " patch helmrelease cluster-operator -n kube-system --type merge --patch '{\"spec\":{\"suspend\":true}}'"
         run_command(command)
-        # command = (
-        #     kubectl+" wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
-        #     + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
-        # )
-        # execute_command(command, False)
         print("OK")
         
         
@@ -2461,29 +2277,23 @@ if __name__ == '__main__':
         restore_keoscluster_webhooks()
         start_keoscluster_controller()
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
-        #logger.info("Iniciando helmrelease cluster-operator...")
         command = kubectl + " patch helmrelease cluster-operator -n kube-system --type merge --patch '{\"spec\":{\"suspend\":false}}'"
         run_command(command)
-        #logger.info("Esperando a que helmrelease cluster-operator esté listo...")
         command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
         run_command(command)
         
         cluster_name = keos_cluster["metadata"]["name"]
         
         
-        #run_command(command)
         command = (
             kubectl + " wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
             + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
         )
         execute_command(command, False)
         
-        keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-        #logger.info(f"KeosCluster: {json.dumps(keos_cluster)}")
-        
+        keos_cluster, cluster_config = get_keos_cluster_cluster_config()        
         
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-        #logger.info(f"KeosCluster: {keos_cluster}")
         command = "kubectl wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
         run_command(command)
         required_k8s_version=validate_k8s_version("first", False)
@@ -2542,11 +2352,6 @@ if __name__ == '__main__':
     if not managed:
         cp_global_network_policy("restore", networks, provider, backup_dir, False)
    
-    #     "kubectl wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
-    #     + cluster_name + " -n cluster-" + cluster_name + " --timeout 60m"
-    # )
-    # execute_command(command, False)
-    
     end_time = time.time()
     elapsed_time = end_time - start_time
     minutes, seconds = divmod(elapsed_time, 60)
