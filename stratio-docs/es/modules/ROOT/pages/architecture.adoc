@@ -102,7 +102,6 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * Máquinas virtuales para _workers_: configuradas según el descriptor del _cluster_ y el autoescalado.
 * 1 volumen persistente por máquina virtual.
 
-
 === GCP
 
 * 1 balanceador de carga tipo SSL/TCP para el _API Server_.
@@ -320,7 +319,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
-==== GCP / GKE
+==== GCP/GKE
 
 Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
@@ -618,4 +617,3 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
 
 NOTE: Recuerda verificar en la documentación de _keos-installer_ los repositorios que se soporten en la versión a utilizar.
-

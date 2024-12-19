@@ -47,9 +47,9 @@ Para los entornos en GCP no gestionado se deberá utilizar https://github.com/ku
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 +
 Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
-
++
 * Habilitar "Google Kubernetes Engine API" para GKE.
-* Bastion
+* Bastion.
 +
 El despliegue de _Stratio KEOS_ en GCP gestionado debe realizarse mediante un _bastion_ que facilite la comunicación con el _cluster_ de GKE. Para ello, es necesario crear un _bastion_ en la misma red que el _cluster_.
 
@@ -713,7 +713,6 @@ En este ejemplo se pueden ver las siguientes particularidades:
 ** En una zona fija.
 ** Con personalizaciones en el disco.
 
-
 [source,yaml]
 ----
 apiVersion: installer.stratio.com/v1beta1
@@ -795,7 +794,7 @@ spec:
       min_size: 6
       size: c2d-highcpu-8
       labels:
-        disktype: standard 
+        disktype: standard
       root_volume:
         size: 50
         type: pd-standard
