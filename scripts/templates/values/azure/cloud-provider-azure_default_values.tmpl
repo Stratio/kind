@@ -1,0 +1,11 @@
+---
+cloudControllerManager:
+    clusterCIDR: {{ pods_cidr if pods_cidr else '192.168.0.0/16' }}
+    # "false" for Azure CNI and "true" for other network plugins
+    configureCloudRoutes: true
+    imageRepository: {{ registry if private else 'mcr.microsoft.com' }}/oss/kubernetes
+    replicas: 2
+cloudNodeManager:
+    imageRepository: {{ registry if private else 'mcr.microsoft.com' }}/oss/kubernetes
+infra:
+    clusterName: {{ cluster_name }}
