@@ -1,2 +1,2 @@
 gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
-qa.int.stratio.com/stratio/cluster-operator:0.3.6
+stratio-releases.repo.stratio.com/stratio/cluster-operator:0.3.6
