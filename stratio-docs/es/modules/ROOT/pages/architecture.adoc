@@ -88,6 +88,20 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 balanceador de carga tipo _Classic_ para la exposición de _Services_ tipo _Load Balancer_.
 ** 1 _Listener_ por puerto para cada _Service_.
 
+=== GKE (_cluster_ privado)
+
+* 1 _cluster_ de Google Kubernetes Engine (GKE): configurado como VPC-nativa.
+* 1 VPC.
+* 1 subred por región.
+** Bloque CIDR principal para la subred (nodos).
+** Bloque CIDR secundario para la subred (_pods_ y servicios).
+* 1 ruta de _peering_: conexión mediante _VPC Network peering_.
+* 2 rutas: para los CIDR secundarios de _pods_ y servicios.
+* 1 red de VPC _peering_.
+* 5 reglas de _firewall_ de VPC: (gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all]).
+* Máquinas virtuales para _workers_: configuradas según el descriptor del _cluster_ y el autoescalado.
+* 1 volumen persistente por máquina virtual.
+
 === GCP
 
 * 1 balanceador de carga tipo SSL/TCP para el _API Server_.
@@ -167,6 +181,13 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|Calico
 ^|IpIp
 ^|BGP
+
+^|GKE
+^|Calico
+^|Calico
+^|Calico
+^|No
+^|VPC-nativa
 
 ^|GCP
 ^|Calico
@@ -277,6 +298,10 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
+==== GKE
+
+La red de _pods_ en GKE se configura automáticamente con el CIDR secundario para _pods_ y servicios, obtenido de la configuración de la red VPC al desplegar el _cluster_.
+
 == Seguridad
 
 === Autenticación
@@ -294,9 +319,9 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
-==== GCP
+==== GCP/GKE
 
-Al igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
+Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
 [source,bash]
 ----
@@ -340,6 +365,10 @@ Este _endpoint_ se publica a internet, y su acceso se restringe con una combinac
 ==== AWS no gestionado
 
 Para el acceso al _API Server_ se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_) y un _Target group_ con los nodos del _control-plane_ correspondiente.
+
+==== GKE
+
+En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se puede acceder desde la IP asignada al _endpoint_ privado del _cluster_. Esta IP pertenece al rango especificado en el descriptor del _cluster_.
 
 ==== GCP
 
