@@ -27,19 +27,30 @@ El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04
 +
 WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec:security:aws:create_iam` como _true_ (por defecto es _false_).
 
-=== GCP no gestionado
+=== GCP (GKE y no gestionado)
 
 * Permisos
 +
 Para los despliegues en Google Cloud Platform no gestionado se necesitarán principalmente permisos en _compute_ (instancias, discos, imágenes, _routers_, redes, etc.). Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
++
+En el caso de GKE, además de los permisos anteriores se necesitarán permisos adicionales para la creación de _clusters_.
+
+** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
 
 * Sistemas operativos certificados
 +
 Para los entornos en GCP no gestionado se deberá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_. Para mayor detalle en la construcción de las imágenes consulta la xref:operations-manual:image-builder/gcp-image-builder.adoc[guía para GCP].
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
++
+Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
++
+* Habilitar "Google Kubernetes Engine API" para GKE.
+* Bastion.
++
+El despliegue de _Stratio KEOS_ en GCP gestionado debe realizarse mediante un _bastion_ que facilite la comunicación con el _cluster_ de GKE. Para ello, es necesario crear un _bastion_ en la misma red que el _cluster_.
 
 === Azure no gestionado
 
@@ -646,6 +657,147 @@ spec:
       az: eu-west-1c
 ----
 
+==== GKE
+
+En este ejemplo se pueden ver las siguientes particularidades:
+
+* _Cluster_ en GCP con _control-plane_ gestionado.
+* Kubernetes versión 1.28.x.
+* Uso de un _Docker registry_ tipo gar.
+* Uso de un repositorio de Helm tipo gar.
+* _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
+* _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
+* Sin control de la zona DNS (habilitado por defecto).
+* Definición de una _StorageClass_ por defecto. Este apartado es opcional.
+* Características del _control-plane_: solo configurables en tiempo de creación del _cluster_.
+** _cluster++_++network_
+*** _private++_++cluster_.
+**** _enable++_++private++_++endpoint_.
+**** _enable++_++private++_++nodes_.
+**** _control++_++plane++_++cidr++_++block_.
+** ip++_++allocation++_++policy.
+*** cluster++_++ipv4++_++cidr++_++block
+*** services++_++ipv4++_++cidr++_++block
+*** cluster++_++secondary++_++range++_++name
+*** services++_++secondary++_++range++_++name
+** _monitoring++_++config_
+*** _enable++_++managed++_++prometheus_.
+** _master++_++authorized++_++networks++_++config_.
+*** _cidr++_++blocks_.
+*** _gcp++_++public++_++cidrs++_++access++_++enabled_.
+** _logging++_++config_.
+*** _system++_++components_.
+*** _workloads_.
+* Grupos de nodos _worker_ con múltiples casuísticas:
+** Diferentes tipos de instancia.
+** Sin imagen específica (se utilizará la imagen por defecto del proveedor _cloud_).
+** Con etiquetas de K8s.
+** Con rangos de autoescalado.
+** En una zona fija.
+** Con personalizaciones en el disco.
+
+[source,yaml]
+----
+apiVersion: installer.stratio.com/v1beta1
+kind: KeosCluster
+metadata:
+  name: gcp-prod
+spec:
+  infra_provider: gcp
+  credentials:
+    gcp:
+      private_key_id: "efdf19f5605a.."
+      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvw.."
+      client_email: keos@stratio.com
+      project_id: gcp-prod
+      region: europe-west4
+      client_id: "6767910929.."
+  security:
+    nodes_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
+    gcp:
+      scopes:
+        - "https://www.googleapis.com/auth/cloud-platform"
+        - "https://www.googleapis.com/auth/userinfo.email"
+  k8s_version: v1.28.15
+  region: europe-west4
+  docker_registries:
+      - url: europe-docker.pkg.dev/stratio-keos/keos
+        auth_required: false
+        type: gar
+        keos_registry: true
+  helm_repository:
+      auth_required: false
+      url: http://charts.stratio.com
+      type: gar
+  dns:
+    manage_zone: false
+  external_domain: domain.ext
+  networks:
+    vpc_id: gcp-prod-vpc
+    subnets:
+      - subnet_id: gcp-prod-subnet
+  storageclass:
+    parameters:
+      type: pd-standard
+      fsType: ext4
+      replication-type: none
+      labels: "owner=stratio"
+  keos:
+    flavour: production
+    version: 1.1.3
+  control_plane:
+    managed: true
+    gcp:
+      cluster_network:
+        private_cluster:
+          enable_private_endpoint: true
+          enable_private_nodes: true
+          control_plane_cidr_block: 172.16.16.0/28
+      ip_allocation_policy:
+        cluster_ipv4_cidr_block: 172.16.0.0/16
+        services_ipv4_cidr_block: 172.17.0.0/20
+        cluster_secondary_range_name: "gkepods-europ-west1"
+        services_secondary_range_name: "gkeservices-europe-west1"
+      monitoring_config:
+        enable_managed_prometheus: false
+      master_authorized_networks_config:
+        cidr_blocks:
+          - cidr_block: 192.168.100.0/24
+            display_name: Office Network
+          - cidr_block: 172.16.0.0/20
+            display_name: VPC Network
+        gcp_public_cidrs_access_enabled: false
+      logging_config:
+        system_components: false
+        workloads: false
+  worker_nodes:
+    - name: gcp-prod-xlarge
+      quantity: 6
+      max_size: 18
+      min_size: 6
+      size: c2d-highcpu-8
+      labels:
+        disktype: standard
+      root_volume:
+        size: 50
+        type: pd-standard
+        encrypted: true
+        encryption_key: projects/gcp-prod/locations/europe-west4/keyRings/keos-keyring/cryptoKeys/keos-key
+    - name: gcp-prod-medium-az
+      quantity: 3
+      size: c2d-highcpu-4
+      az: europe-west4-a
+---
+apiVersion: installer.stratio.com/v1beta1
+kind: ClusterConfig
+metadata:
+    name: gcp-prod-config
+spec:
+    private_registry: true
+    cluster_operator_version: 0.3.4
+    cluster_operator_image_version: 0.3.4
+----
+
 ==== GCP
 
 En este ejemplo se pueden ver las siguientes particularidades:
@@ -903,6 +1055,7 @@ Actualmente, este binario incluye las siguientes opciones:
 - `--avoid-creation`: no se crea el _cluster_ _worker_, sólo el _cluster_ local.
 - `--keep-mgmt`: crea el _cluster_ _worker_ pero deja su gestión en el _cluster_ local (sólo para entornos *no productivos*).
 - `--retain`: permite mantener el _cluster_ local aún sin gestión.
+- `--use-local-stratio-image`: no se construye la imagen _stratio-capi-image_ y usa la imagen local.
 
 Para crear un _cluster_, basta con un simple comando (consulta las particularidades de cada proveedor en sus guías de inicio rápido):
 

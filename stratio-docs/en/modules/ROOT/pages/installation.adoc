@@ -27,25 +27,36 @@ The currently recommended operating system for this provider is Ubuntu 22.04.
 +
 WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec:security:aws:create_iam` parameter to true (default is false).
 
-=== Unmanaged GCP
+=== GCP (GKE and unmanaged)
 
 * Permissions
 +
 For deployments on the Google Cloud Platform, you will require permissions on compute (instances, disks, images, routers, networks, etc.). Similarly to other supported providers, provisioning requires an account with all requested permissions.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Download permissions for GCP].
++
+In the case of GKE, in addition to the above permissions, additional permissions will be required to create clusters.
++
+** xref:attachment$stratio-gke-permissions.list[Download permissions for GKE]
 
 * Certified operating systems
 +
 For unmanaged GCP environments use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/gcp-image-builder.adoc[guide for GCP].
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
++
+For GKE, the default operating system is Container-Optimized OS (COS), and no specific image needs to be specified.
++
+* Enable “Google Kubernetes Engine API" for GKE.
+* Bastion.
++
+The deployment of _Stratio KEOS_ in managed GCP must be done using a bastion that facilitates communication with the cluster of GKE. For this, it is necessary to create a bastion on the same network as the cluster.
 
 === Azure unmanaged
 
 * Permissions
 +
-As with other supported providers, provisioning requires an account with all the requested permissions, but in this case in addition a role is required for the cluster _workers_ (indicated in the descriptor in "spec.security.nodes_identity") and another for the _control-plane_ (indicated in the descriptor in "spec.security.control_plane_identity").
+As with other supported providers, provisioning requires an account with all the requested permissions, but in this case in addition a role is required for the cluster _workers_ (indicated in the descriptor in spec.security.nodes_identity) and another for the _control-plane_ (indicated in the descriptor in spec.security.control_plane_identity).
 +
 ** xref:attachment$stratio-azure-role.json[Download permissions for Azure].
 ** xref:attachment$stratio-azure-nodes-role.json[Download permissions for Azure _workers_.]
@@ -61,7 +72,7 @@ The currently recommended operating system for this provider is Ubuntu 22.04, th
 
 * Permissions
 +
-This type of cluster should be deployed using one identity with the necessary roles for the creation of the resources in Azure as well as for the _workers_ of the cluster (indicated in the descriptor in "spec.security.nodes_identity") and another for the _control-plane_ (indicated in the descriptor in "spec.security.control_plane_identity").
+This type of cluster should be deployed using one identity with the necessary roles for the creation of the resources in Azure as well as for the _workers_ of the cluster (indicated in the descriptor in spec.security.nodes_identity) and another for the _control-plane_ (indicated in the descriptor in spec.security.control_plane_identity).
 +
 ** xref:attachment$stratio-aks-role.json[Download permissions for Azure].
 ** xref:attachment$stratio-aks-nodes-role.json[Download permissions for Azure _workers_]
@@ -429,7 +440,7 @@ The parameters for the _keos-installer_ phase will be indicated in this section.
 ^|Name ^|Description ^|Example ^|Optional
 
 |_flavour_
-|Installation flavor, which indicates cluster size and resiliency. The default is "production".
+|Installation flavor, which indicates cluster size and resiliency. The default is production.
 |development
 |Yes
 
@@ -499,8 +510,8 @@ spec:
     parameters:
       type: gp3
       fsType: ext4
-      encrypted: "true"
-      labels: "owner=stratio"
+      encrypted: true
+      labels: owner=stratio
   keos:
     flavour: production
     version: 1.0.4
@@ -601,8 +612,8 @@ spec:
     parameters:
       type: gp3
       fsType: ext4
-      encrypted: "true"
-      labels: "owner=stratio"
+      encrypted: true
+      labels: owner=stratio
   keos:
     flavour: production
     version: 1.0.4
@@ -646,6 +657,147 @@ spec:
       az: eu-west-1c
 ----
 
+==== GKE
+
+In this example you can see the following particularities:
+
+* Cluster on GCP with managed _control-plane_.
+* Kubernetes version 1.28.x.
+* Use of a _Docker registry_ type gar.
+* Use of a Helm repository type gar.
+* _nodes++_++identity_ (default service account for nodes) (only configurable at cluster creation time).
+* _scopes_ (list of scopes that will be available for this service account).
+* No DNS zone control (enabled by default).
+* Definition of a default _StorageClass_. This section is optional.
+* Control-plane_ characteristics: only configurable at cluster creation time.
+** _cluster++_++network_
+*** _private++_++cluster_.
+**** _enable++_++private++_++endpoint_.
+**** _enable++_++private++_++nodes_.
+**** _control++_++plane++_++cidr++_++block_.
+** ip++_++allocation++_++policy
+*** cluster++_++ipv4++_++cidr++_++block
+*** services++_++ipv4++_++cidr++_++block
+*** cluster++_++secondary++_++range++_++name
+*** services++_++secondary++_++range++_++name
+** _monitoring++_++config_
+*** _enable++_++managed++_++prometheus_.
+** _master++_++authorized++_++networks++_++config_
+*** _cidr++_++blocks_.
+*** _gcp++_++public++_++cidrs++_++access++_++enabled_.
+** _logging++_++config_
+*** _system++_++components_.
+*** _workloads_.
+* Groups of _worker_ nodes with multiple casuistry:
+** Different instance types.
+** Without a specific image (the default image of the cloud provider will be used).
+** With K8s labels.
+** With auto-scaling ranges.
+** In a fixed zone.
+** With customizations on disk.
+
+[source,yaml]
+----
+apiVersion: installer.stratio.com/v1beta1
+kind: KeosCluster
+metadata:
+  name: gcp-prod
+spec:
+  infra_provider: gcp
+  credentials:
+    gcp:
+      private_key_id: "efdf19f5605a.."
+      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvw.."
+      client_email: keos@stratio.com
+      project_id: gcp-prod
+      region: europe-west4
+      client_id: "6767910929.."
+  security:
+    nodes_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
+    gcp:
+      scopes:
+        - "https://www.googleapis.com/auth/cloud-platform"
+        - "https://www.googleapis.com/auth/userinfo.email"
+  k8s_version: v1.28.15
+  region: europe-west4
+  docker_registries:
+      - url: europe-docker.pkg.dev/stratio-keos/keos
+        auth_required: false
+        type: gar
+        keos_registry: true
+  helm_repository:
+      auth_required: false
+      url: http://charts.stratio.com
+      type: gar
+  dns:
+    manage_zone: false
+  external_domain: domain.ext
+  networks:
+    vpc_id: gcp-prod-vpc
+    subnets:
+      - subnet_id: gcp-prod-subnet
+  storageclass:
+    parameters:
+      type: pd-standard
+      fsType: ext4
+      replication-type: none
+      labels: "owner=stratio"
+  keos:
+    flavour: production
+    version: 1.1.3
+  control_plane:
+    managed: true
+    gcp:
+      cluster_network:
+        private_cluster:
+          enable_private_endpoint: true
+          enable_private_nodes: true
+          control_plane_cidr_block: 172.16.16.0/28
+      ip_allocation_policy:
+        cluster_ipv4_cidr_block: 172.16.0.0/16
+        services_ipv4_cidr_block: 172.17.0.0/20
+        cluster_secondary_range_name: "gkepods-europ-west1"
+        services_secondary_range_name: "gkeservices-europe-west1"
+      monitoring_config:
+        enable_managed_prometheus: false
+      master_authorized_networks_config:
+        cidr_blocks:
+          - cidr_block: 192.168.100.0/24
+            display_name: Office Network
+          - cidr_block: 172.16.0.0/20
+            display_name: VPC Network
+        gcp_public_cidrs_access_enabled: false
+      logging_config:
+        system_components: false
+        workloads: false
+  worker_nodes:
+    - name: gcp-prod-xlarge
+      quantity: 6
+      max_size: 18
+      min_size: 6
+      size: c2d-highcpu-8
+      labels:
+        disktype: standard
+      root_volume:
+        size: 50
+        type: pd-standard
+        encrypted: true
+        encryption_key: projects/gcp-prod/locations/europe-west4/keyRings/keos-keyring/cryptoKeys/keos-key
+    - name: gcp-prod-medium-az
+      quantity: 3
+      size: c2d-highcpu-4
+      az: europe-west4-a
+---
+apiVersion: installer.stratio.com/v1beta1
+kind: ClusterConfig
+metadata:
+    name: gcp-prod-config
+spec:
+    private_registry: true
+    cluster_operator_version: 0.3.4
+    cluster_operator_image_version: 0.3.4
+----
+
 ==== GCP
 
 In this example you can see the following particularities:
@@ -680,16 +832,16 @@ spec:
   infra_provider: gcp
   credentials:
     gcp:
-      private_key_id: "efdf19f5605a.."
-      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvw.."
+      private_key_id: efdf19f5605a..
+      private_key: -----BEGIN PRIVATE KEY-----\nMIIEvw..
       client_email: keos@stratio.com
       project_id: gcp-prod
       region: europe-west4
-      client_id: "6767910929.."
+      client_id: 6767910929..
     docker_registries:
       - url: keosregistry.stratio.com/keos
-        user: "myuser"
-        pass: "mypass"
+        user: myuser
+        pass: mypass
   k8s_version: v1.26.8
   region: europe-west4
   docker_registries:
@@ -708,7 +860,7 @@ spec:
       type: pd-standard
       fsType: ext4
       replication-type: none
-      labels: "owner=stratio"
+      labels: owner=stratio
   keos:
     flavour: production
     version: 1.0.4
@@ -803,12 +955,12 @@ spec:
     flavour: production
     version: 1.0.4
   security:
-    control_plane_identity: "/subscriptions/6e2a38cd-../stratio-control-plane"
-    nodes_identity: "/subscriptions/6e2a38cd-../stratio-nodes"
+    control_plane_identity: /subscriptions/6e2a38cd-../stratio-control-plane
+    nodes_identity: /subscriptions/6e2a38cd-../stratio-nodes
   control_plane:
     managed: false
     size: Standard_D8_v3
-    node_image: "/subscriptions/6e2a38cd-../images/capi-ubuntu-2204-1687262553"
+    node_image: /subscriptions/6e2a38cd-../images/capi-ubuntu-2204-1687262553
     root_volume:
       size: 100
       type: StandardSSD_LRS
@@ -818,7 +970,7 @@ spec:
       max_size: 18
       min_size: 3
       size: Standard_D8_v3
-      node_image: "/subscriptions/6e2a38cd-../images/capi-ubuntu-2204-1687262553"
+      node_image: /subscriptions/6e2a38cd-../images/capi-ubuntu-2204-1687262553
       labels:
         backup: "false"
       root_volume:
@@ -873,8 +1025,8 @@ spec:
     flavour: production
     version: 1.0.4
   security:
-    control_plane_identity: "/subscriptions/6e2a38cd-../stratio-control-plane"
-    nodes_identity: "/subscriptions/6e2a38cd-../stratio-nodes"
+    control_plane_identity: /subscriptions/6e2a38cd-../stratio-control-plane
+    nodes_identity: /subscriptions/6e2a38cd-../stratio-nodes
   control_plane:
     azure:
       tier: Paid
@@ -886,7 +1038,7 @@ spec:
       min_size: 3
       size: Standard_D8s_v3
       labels:
-        premium_sc: "true"
+        premium_sc: true
       root_volume:
         size: 50
         type: Managed
@@ -910,7 +1062,7 @@ To create a cluster, a simple command is enough (see the particularities of each
 -----
 sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-gcp.yaml
 Vault Password:
-Creating temporary cluster "stratio-pre" ...
+Creating temporary cluster stratio-pre ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
  ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
  ✓ Preparing nodes 📦
@@ -959,7 +1111,7 @@ To avoid this problem, the health check of the load balancer created must be mod
 
 In EKS clusters, it is possible to deploy a controller (aws-load-balancer-controller-manager) responsible for creating _Elastic Load Balancers_, used by objects such as _Ingress_ and _Service_ type _LoadBalancer_.
 
-Since this deployment is not enabled by default, it must be indicated with _spec.eks_lb_controller_: "true" in the ClusterConfig object of the cluster descriptor.
+Since this deployment is not enabled by default, it must be indicated with _spec.eks_lb_controller_: true in the ClusterConfig object of the cluster descriptor.
 
 To authorize the controller, we will use https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IAM roles for Service Accounts], which involves creating the corresponding IAM objects as indicated below:
 
@@ -972,8 +1124,8 @@ export AWS_REGION=<aws_region>
 export AWS_VPC_ID=<vpc_id>
 export AWS_EKS_CLUSTER_NAME=<aws_eks_cluster_name>
 export AWS_EKS_OIDC_ID=$(aws eks describe-cluster --region ${AWS_REGION} --name ${AWS_EKS_CLUSTER_NAME} --query 'cluster.identity.oidc.issuer' --output text | awk -F'/' '{print $NF}')
-export AWS_IAM_POLICY_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
-export AWS_IAM_ROLE_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
+export AWS_IAM_POLICY_NAME=${AWS_EKS_CLUSTER_NAME}-lb-controller-manager
+export AWS_IAM_ROLE_NAME=${AWS_EKS_CLUSTER_NAME}-lb-controller-manager
 ----
 
 * https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that will be used by the _service account_ of the _aws-load-balancer-controller-manager_ deployment with the following trust policy:
@@ -1012,7 +1164,7 @@ $ cat << EOF > policy.json
 	"Statement": [
 		{
 			"Action": [
-        			"ec2:DescribeAvailabilityZones",
+        "ec2:DescribeAvailabilityZones",
 				"ec2:DescribeInstances",
 				"ec2:DescribeSecurityGroups",
 				"ec2:DescribeSubnets",
