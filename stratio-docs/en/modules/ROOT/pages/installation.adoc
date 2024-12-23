@@ -1166,8 +1166,8 @@ export AWS_REGION=<aws_region>
 export AWS_VPC_ID=<vpc_id>
 export AWS_EKS_CLUSTER_NAME=<aws_eks_cluster_name>
 export AWS_EKS_OIDC_ID=$(aws eks describe-cluster --region ${AWS_REGION} --name ${AWS_EKS_CLUSTER_NAME} --query 'cluster.identity.oidc.issuer' --output text | awk -F'/' '{print $NF}')
-export AWS_IAM_POLICY_NAME=${AWS_EKS_CLUSTER_NAME}-lb-controller-manager
-export AWS_IAM_ROLE_NAME=${AWS_EKS_CLUSTER_NAME}-lb-controller-manager
+export AWS_IAM_POLICY_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
+export AWS_IAM_ROLE_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 ----
 
 * https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that will be used by the _service account_ of the _aws-load-balancer-controller-manager_ deployment with the following trust policy:
@@ -1176,18 +1176,18 @@ export AWS_IAM_ROLE_NAME=${AWS_EKS_CLUSTER_NAME}-lb-controller-manager
 ----
 $ cat << EOF > trustpolicy.json
 {
-    Version: 2012-10-17,
-    Statement: [
+    "Version": "2012-10-17",
+    "Statement": [
         {
-            Effect: Allow,
-            Principal: {
-                Federated: arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}"
             },
-            Action: sts:AssumeRoleWithWebIdentity,
-            Condition: {
-                StringEquals: {
-                    oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}:sub: system:serviceaccount:kube-system:aws-load-balancer-controller,
-                    oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}:aud: sts.amazonaws.com
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}:sub": "system:serviceaccount:kube-system:aws-load-balancer-controller",
+                    "oidc.eks.${AWS_REGION}.amazonaws.com/id/${AWS_EKS_OIDC_ID}:aud": "sts.amazonaws.com"
                 }
             }
         }
@@ -1203,62 +1203,62 @@ $ aws iam create-role --role-name ${AWS_IAM_ROLE_NAME} --assume-role-policy-docu
 ----
 $ cat << EOF > policy.json
 {
-	Statement: [
+	"Statement": [
 		{
-			Action: [
-        			ec2:DescribeAvailabilityZones,
-				ec2:DescribeInstances,
-				ec2:DescribeSecurityGroups,
-				ec2:DescribeSubnets,
-				elasticloadbalancing:DescribeListeners,
-				elasticloadbalancing:DescribeLoadBalancers,
-				elasticloadbalancing:DescribeLoadBalancerAttributes,
-				elasticloadbalancing:DescribeRules,
-				elasticloadbalancing:DescribeTags,
-				elasticloadbalancing:DescribeTargetGroups,
-				elasticloadbalancing:DescribeTargetGroupAttributes,
-				elasticloadbalancing:DescribeTargetHealth
+			"Action": [
+        			"ec2:DescribeAvailabilityZones",
+				"ec2:DescribeInstances",
+				"ec2:DescribeSecurityGroups",
+				"ec2:DescribeSubnets",
+				"elasticloadbalancing:DescribeListeners",
+				"elasticloadbalancing:DescribeLoadBalancers",
+				"elasticloadbalancing:DescribeLoadBalancerAttributes",
+				"elasticloadbalancing:DescribeRules",
+				"elasticloadbalancing:DescribeTags",
+				"elasticloadbalancing:DescribeTargetGroups",
+				"elasticloadbalancing:DescribeTargetGroupAttributes",
+				"elasticloadbalancing:DescribeTargetHealth"
 			],
-			Effect: Allow,
-			Resource: *
+			"Effect": "Allow",
+			"Resource": "*"
 		},
 		{
-			Action: [
-				ec2:AuthorizeSecurityGroupIngress,
-				ec2:CreateSecurityGroup,
-        			ec2:CreateTags,
-				ec2:DeleteSecurityGroup,
-				ec2:RevokeSecurityGroupIngress
+			"Action": [
+				"ec2:AuthorizeSecurityGroupIngress",
+				"ec2:CreateSecurityGroup",
+        			"ec2:CreateTags",
+				"ec2:DeleteSecurityGroup",
+				"ec2:RevokeSecurityGroupIngress"
 			],
-			Effect: Allow,
-			Resource: [
-				arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID},
-				arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:security-group/*
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}",
+				"arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:security-group/*"
 			]
 		},
 		{
-			Action: [
-				elasticloadbalancing:AddTags,
-				elasticloadbalancing:CreateListener,
-				elasticloadbalancing:CreateLoadBalancer,
-				elasticloadbalancing:CreateTargetGroup,
-				elasticloadbalancing:DeleteLoadBalancer,
-				elasticloadbalancing:DeleteTargetGroup,
-				elasticloadbalancing:DeregisterTargets,
-				elasticloadbalancing:ModifyLoadBalancerAttributes,
-				elasticloadbalancing:ModifyTargetGroup,
-				elasticloadbalancing:RegisterTargets
+			"Action": [
+				"elasticloadbalancing:AddTags",
+				"elasticloadbalancing:CreateListener",
+				"elasticloadbalancing:CreateLoadBalancer",
+				"elasticloadbalancing:CreateTargetGroup",
+				"elasticloadbalancing:DeleteLoadBalancer",
+				"elasticloadbalancing:DeleteTargetGroup",
+				"elasticloadbalancing:DeregisterTargets",
+				"elasticloadbalancing:ModifyLoadBalancerAttributes",
+				"elasticloadbalancing:ModifyTargetGroup",
+				"elasticloadbalancing:RegisterTargets"
 			],
-			Effect: Allow,
-			Resource: *,
-			Condition: {
-				StringEquals: {
-					aws:ResourceTag/elbv2.k8s.aws/cluster: ${AWS_EKS_CLUSTER_NAME}
+			"Effect": "Allow",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:ResourceTag/elbv2.k8s.aws/cluster": "${AWS_EKS_CLUSTER_NAME}"
 				}
 			}
 		}
 	],
-	Version: 2012-10-17
+	"Version": "2012-10-17"
 }
 EOF
 $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document file://policy.json
