@@ -30,6 +30,15 @@ ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
 ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.1/"
 
+# Update the package list and install necessary packages
+RUN apt-get update && apt-get install -y \
+  curl=7.81.0-1ubuntu1.20 \
+  libcurl4=7.81.0-1ubuntu1.20 \
+  libcurl3-gnutls=7.81.0-1ubuntu1.20 \
+  libcurl3-nss=7.81.0-1ubuntu1.20 \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 # Install vim
 RUN apt-get update && apt-get install -y \
   vim python3-pip git \
