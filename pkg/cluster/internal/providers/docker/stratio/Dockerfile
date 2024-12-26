@@ -30,16 +30,14 @@ ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
 ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.1/"
 
-# Update the package list and install necessary packages (CVE-2023-38545)
-RUN apt-get update && apt-get install -y \
-  curl \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
-
-# Install vim
-RUN apt-get update && apt-get install -y \
-  vim python3-pip git \
-  && rm -rf /var/lib/apt/lists/*
+# Install and update dependencies
+RUN apt-get update \
+    && apt-get install -y curl \
+                       git \
+                       python3-pip \
+                       vim \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
