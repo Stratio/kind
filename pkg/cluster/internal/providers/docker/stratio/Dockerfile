@@ -32,10 +32,7 @@ ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/
 
 # Update the package list and install necessary packages (CVE-2023-38545)
 RUN apt-get update && apt-get install -y \
-  curl=7.81.0-1ubuntu1.20 \
-  libcurl4=7.81.0-1ubuntu1.20 \
-  libcurl3-gnutls=7.81.0-1ubuntu1.20 \
-  libcurl3-nss=7.81.0-1ubuntu1.20 \
+  curl \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
