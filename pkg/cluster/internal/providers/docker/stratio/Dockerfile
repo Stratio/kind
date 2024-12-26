@@ -1,6 +1,5 @@
-ARG DOCKER_REG=docker.io
 ARG IMAGE_VERSION=v1.27.0
-FROM ${DOCKER_REG}/kindest/node:${IMAGE_VERSION}
+FROM kindest/node:${IMAGE_VERSION}
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
