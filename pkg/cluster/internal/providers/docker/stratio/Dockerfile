@@ -33,9 +33,9 @@ ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/
 # Install and update dependencies
 RUN apt-get update \
     && apt-get install -y curl \
-                       git \
-                       python3-pip \
-                       vim \
+                          git \
+                          python3-pip \
+                          vim \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
