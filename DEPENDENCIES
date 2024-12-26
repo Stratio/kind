@@ -29,6 +29,7 @@ core:
     kind:
       kindnetd: v20221004-44d545d1
       node: v1.27.0
+      stratio-capi-image: v1.27.0
     tigera:
       operator: v1.30.5
     pause: v3.9
