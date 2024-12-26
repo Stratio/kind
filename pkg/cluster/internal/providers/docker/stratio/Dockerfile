@@ -30,7 +30,7 @@ ENV CAPG=v1.6.1
 ENV CAPZ=v1.11.4
 ENV CAPG_FORK_URL="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/1.6.1-0.2.1/"
 
-# Update the package list and install necessary packages
+# Update the package list and install necessary packages (CVE-2023-38545)
 RUN apt-get update && apt-get install -y \
   curl=7.81.0-1ubuntu1.20 \
   libcurl4=7.81.0-1ubuntu1.20 \
