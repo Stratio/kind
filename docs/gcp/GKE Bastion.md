@@ -124,11 +124,11 @@ sudo gsutil cp gs://gke-vm-base-bastion/resources/autoscaler-trigger-deployment.
 gcloud auth configure-docker europe-docker.pkg.dev
 
 # Pull images
-sudo docker pull stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.5.8
+sudo docker pull stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.6.1
 
 
 # Tag image to stratio-capi-image:v1.27.0
-sudo docker tag stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.5.8 stratio-capi-image:v1.27.0
+sudo docker tag stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.6.1 stratio-capi-image:v1.27.0
 
 # Add CLOUDSDK_PYTHON_SITEPACKAGES=1 to .bashrc and .profile (avoid numpy issues)
 echo 'export CLOUDSDK_PYTHON_SITEPACKAGES=1' >> ~/.bashrc
