@@ -1,4 +1,3 @@
-ARG DOCKER_REG=docker.io
 ARG IMAGE_VERSION=v1.27.0
 FROM ${DOCKER_REG}/kindest/node:${IMAGE_VERSION}
 
@@ -7,15 +6,15 @@ ENV CLUSTER_TOPOLOGY=true
 ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
 # Tools versions
-ARG CLUSTERCTL
+ARG CLUSTERCTL="v1.7.4"
 ENV CLUSTERAWSADM=v2.5.2
 ENV HELM=v3.13.1
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
-ARG CAPA
-ARG CAPG
-ARG CAPZ
+ARG CAPA="v2.5.2"
+ARG CAPG="1.6.1-0.2.0"
+ARG CAPZ="v1.12.4"
 ENV CAPG_FORK_URL_GKE="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/"
 
 # Install vim
