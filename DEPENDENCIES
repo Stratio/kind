@@ -1,51 +1,51 @@
 core:
   binaries:
-    clusterctl: v1.5.3
-    helm: v3.13.1
+    clusterctl: v1.7.4
+    helm: v3.16.3
   images:
     calico:
-      cni: v3.26.1
-      csi: v3.26.1
-      ctl: v3.26.1
-      kube-controllers: v3.26.1
-      node-driver-registrar: v3.26.1
-      node: v3.26.1
-      pod2daemon-flexvol: v3.26.1
-      typha: v3.26.1
+      cni: v3.28.2
+      csi: v3.28.2
+      ctl: v3.28.2
+      kube-controllers: v3.28.2
+      node-driver-registrar: v3.28.2
+      node: v3.28.2
+      pod2daemon-flexvol: v3.28.2
+      typha: v3.28.2
     capi:
-      kubeadm-bootstrap-controller: v1.5.3
-      kubeadm-control-plane-controller: v1.5.3
-      cluster-api-controller: v1.5.3
+      kubeadm-bootstrap-controller: v1.7.4
+      kubeadm-control-plane-controller: v1.7.4
+      cluster-api-controller: v1.7.4
     cert-manager:
-      cert-manager-acmesolver: v1.12.3
-      cert-manager-cainjector: v1.12.3
-      cert-manager-controller: v1.12.3
-      cert-manager-ctl: v1.12.3
-      cert-manager-webhook: v1.12.3
-    cluster-autoscaler: v1.27.2
+      cert-manager-acmesolver: v1.14.5
+      cert-manager-cainjector: v1.14.5
+      cert-manager-controller: v1.14.5
+      cert-manager-ctl: v1.14.5
+      cert-manager-webhook: v1.14.5
+    cluster-autoscaler: v1.30.0
     cluster-operator:
-      cluster-operator: 0.3.6
+      cluster-operator: 0.4.0
       kube-rbac-proxy: v0.15.0
     kind:
       kindnetd: v20221004-44d545d1
       node: v1.27.0
       stratio-capi-image: v1.27.0
     tigera:
-      operator: v1.30.5
+      operator: v1.34.5
     pause: v3.9
   charts:
-    cert-manager: v1.12.3
-    cluster-autoscaler: v9.29.1
-    cluster-operator: 0.3.6
+    cert-manager: v1.14.5
+    cluster-autoscaler: v9.37.0
+    cluster-operator: 0.4.0
 aws:
   capa:
     binaries:
-      clusterawsadm: v2.2.1
+      clusterawsadm: v2.5.2
     images:
-      cluster-api-aws-controller: v2.2.1
+      cluster-api-aws-controller: v2.5.2
     manifests:
-      metadata.yaml: v2.2.1
-      infrastructure-components.yaml: v2.2.1
+      metadata.yaml: v2.5.2
+      infrastructure-components.yaml: v2.5.2
   managed:
     addons:
       aws-ebs-csi-driver: v1.29.1-eksbuild.1
@@ -73,12 +73,12 @@ azure:
   capz:
     images:
       azureserviceoperator: v2.3.0
-      cluster-api-azure-controller: v1.11.4
+      cluster-api-azure-controller: v1.12.4
       kube-rbac-proxy: v0.13.1
       nmi: v1.8.14
     manifests:
-      metadata.yaml: v1.11.4
-      infrastructure-components.yaml: v1.11.4
+      metadata.yaml: v1.12.4
+      infrastructure-components.yaml: v1.12.4
   unmanaged:
     charts:
       azuredisk-csi-driver: v1.28.7
