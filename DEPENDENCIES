@@ -21,11 +21,16 @@ core:
       cert-manager-cainjector: v1.14.5
       cert-manager-controller: v1.14.5
       cert-manager-ctl: v1.14.5
+      cert-manager-startupapicheck: v1.14.5
       cert-manager-webhook: v1.14.5
     cluster-autoscaler: v1.30.0
     cluster-operator:
       cluster-operator: 0.4.0
       kube-rbac-proxy: v0.15.0
+    flux:
+      flux-cli: v2.2.2
+      helm-controller: v0.37.2
+      source-controller: v1.2.3
     kind:
       kindnetd: v20221004-44d545d1
       node: v1.27.0
@@ -37,6 +42,7 @@ core:
     cert-manager: v1.14.5
     cluster-autoscaler: v9.37.0
     cluster-operator: 0.4.0
+    flux: 2.12.2
 aws:
   capa:
     binaries:
@@ -66,6 +72,7 @@ aws:
       external-attacher: v4.5.1-eks-1-30-4
       external-provisioner: v4.0.1-eks-1-30-4
       external-resizer: v1.10.1-eks-1-30-4
+      kubekins-e2e:v20240311-b09cdeb92c-master
       livenessprobe: v2.12.0-eks-1-30-4
       node-driver-registrar: v2.10.1-eks-1-30-4
       volume-modifier-for-k8s: v0.3.0
