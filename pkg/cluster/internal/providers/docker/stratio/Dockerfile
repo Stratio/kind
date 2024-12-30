@@ -50,7 +50,7 @@ RUN curl -L https://get.helm.sh/helm-${HELM}-linux-amd64.tar.gz -o /root/helm.ta
   && rm -rf /root/linux-amd64 /root/helm.tar.gz \
   && chmod +x /usr/local/bin/helm \
   && helm plugin install https://github.com/hypnoglow/helm-s3.git
- 
+
 # Create helm charts directory
 RUN mkdir -p /stratio/helm 
 
@@ -76,4 +76,3 @@ RUN curl -L  https://github.com/kubernetes-sigs/cluster-api/releases/download/${
     && curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/metadata.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/metadata.yaml
-
