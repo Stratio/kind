@@ -1,4 +1,4 @@
-FROM ${DOCKER_REG}/kindest/node:v1.27.16
+FROM kindest/node:v1.27.16
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
