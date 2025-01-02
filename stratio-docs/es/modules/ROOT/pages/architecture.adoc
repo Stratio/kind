@@ -70,24 +70,6 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 Balanceador de carga tipo _Network_ para la exposición de _Services_ tipo Load Balancer.
 ** 1 _Listener_ por puerto para cada _Service_.
 
-=== AWS no gestionado
-
-* [silver]#1 VPC.#
-* [silver]#6 _subnets_ con sus respectivas tablas de rutas.#
-** [silver]#3 _subnets_ públicas (una por AZ).#
-** [silver]#3 _subnets_ privadas (también una por AZ).#
-* [silver]#1 _NAT gateway_ por cada _subnet_ pública.#
-* [silver]#1 _Internet gateway_ para la VPC.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los _NAT gateways_.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del _Internet Gateway_.#
-* 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* 2 _Security Groups_ para los _workers_ y 3 para el _control-plane_.
-* Máquinas virtuales para _Workers_ (según descriptor del _cluster_ y autoescalado).
-** 1 volumen EBS para cada volumen persistente.
-* 1 balanceador de carga tipo _Classic_ para la exposición de _Services_ tipo _Load Balancer_.
-** 1 _Listener_ por puerto para cada _Service_.
-
 === GKE (_cluster_ privado)
 
 * 1 _cluster_ de Google Kubernetes Engine (GKE): configurado como VPC-nativa.
@@ -101,22 +83,6 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 5 reglas de _firewall_ de VPC: (gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all]).
 * Máquinas virtuales para _workers_: configuradas según el descriptor del _cluster_ y el autoescalado.
 * 1 volumen persistente por máquina virtual.
-
-=== GCP
-
-* 1 balanceador de carga tipo SSL/TCP para el _API Server_.
-* 1 _health check_ para el _Unmanage Instance Group_.
-* 1 _CloudNat_ Asociando VPC.
-* 1 _Cloud Router_.
-* Reglas de _firewall_.
-* 1 _Unmanage Instance Group_ para el _control-plane_.
-* 1/3 máquinas virtuales para el _control-plane_ (según descriptor del _cluster_).
-** 1 disco persistente por máquina virtual.
-* Máquinas virtuales para _workers_ (según el descriptor del _cluster_ y autoescalado).
-** 1 disco persistente por máquina virtual.
-* 1 balanceador de carga L4 para la exposición de _Services_ tipo Load Balancer.
-** 1 _Listener_ por puerto para cada _Service_.
-* Disco persistente para cada volumen persistente.
 
 === Azure no gestionado
 
@@ -135,22 +101,6 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 ** 1 interfaz de red por máquina virtual.
 * 1 balanceador de carga para la exposición de _Services_ de tipo Load Balancer.
 ** 1 dirección de IP pública para cada _service_.
-** 1 _Frontend IP config_ para cada _service_.
-** 1 _Health probe_ para cada _service_.
-** 1 regla de balanceador de carga para cada _service_.
-* Disco de bloque para cada volumen persistente.
-
-=== AKS
-
-* 1 _cluster_ de Azure Kubernetes Service (AKS).
-* 2 grupos de recursos (para AKS y _workers_).
-* 2 redes virtuales (para AKS y _workers_).
-* 1 dirección IP pública (para la salida de _workers_).
-* 1 grupo de seguridad de red para _workers_.
-* 1 Managed Identity.
-* Máquina virtual _Scale Sets_ para _workers_ (según el descriptor del _cluster_).
-* 1 balanceador de carga para la exposición de _Services_ de tipo Load Balancer.
-** 1 dirección IP pública para cada _service_.
 ** 1 _Frontend IP config_ para cada _service_.
 ** 1 _Health probe_ para cada _service_.
 ** 1 regla de balanceador de carga para cada _service_.
@@ -175,26 +125,12 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|No
 ^|VPC-native
 
-^|AWS
-^|Calico
-^|Calico
-^|Calico
-^|IpIp
-^|BGP
-
 ^|GKE
 ^|Calico
 ^|Calico
 ^|Calico
 ^|No
 ^|VPC-nativa
-
-^|GCP
-^|Calico
-^|Calico
-^|Calico
-^|IpIp
-^|BGP
 
 ^|Azure
 ^|Calico
@@ -203,12 +139,6 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|VxLAN
 ^|Calico
 
-^|AKS
-^|Calico
-^|Azure
-^|Azure
-^|No
-^|VPC-native
 |===
 
 === Infraestructura propia
@@ -232,7 +162,6 @@ spec:
 
 === Red de _pods_
 
-CAUTION: En los despliegues con *AKS* actualmente no está soportada la configuración del CIDR de los _pods_ dado que se utiliza el IPAM del proveedor _cloud_.
 
 En la mayoría de proveedores/_flavours_ se permite indicar un CIDR específico para _pods_, con ciertas particularidades descritas a continuación.
 
@@ -287,9 +216,9 @@ NOTE: El CIDR secundario asignado al VPC para los _pods_ debe indicarse en el pa
 
 El CIDR de cada subnet (obtenido del CIDR secundario del VPC), deberá ser el mismo que el descrito más arriba (con máscara de 18 bits), y las 3 _subnets_ para _pods_ deberán tener el siguiente tag: _sigs.k8s.io/cluster-api-provider-aws/association=secondary_.
 
-==== GCP y AWS/Azure no gestionado
+==== Azure no gestionado
 
-En estos proveedores/_flavours_ se utiliza Calico como IPAM del CNI, esto permite poder especificar un CIDR arbitrario para los _pods_:
+En este proveedor/_flavour_ se utiliza Calico como IPAM del CNI, esto permite poder especificar un CIDR arbitrario para los _pods_:
 
 [source,bash]
 ----
@@ -310,7 +239,7 @@ Actualmente, para la comunicación con los proveedores _cloud_, los _controllers
 
 Estas credenciales se pueden ver con los siguientes comandos:
 
-==== AWS
+==== EKS
 
 Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Namespace_ del _controller_ con el formato del fichero `~/.aws/credentials`:
 
@@ -319,7 +248,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
-==== GCP/GKE
+==== GKE
 
 Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
@@ -328,7 +257,7 @@ Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secre
 $ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r '.data["credentials.json"]' | base64 -d | jq .
 ----
 
-==== Azure
+==== Azure 
 
 Para el caso de Azure, el _client++_++id_ se almacena en el objeto _AzureIdentity_ dentro del _Namespace_ del _controller_, que también tiene la referencia al _Secret_ donde se almacena el _client++_++secret_:
 
@@ -362,29 +291,15 @@ Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el _API Se
 
 Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas del _Identity and Access Management_ (IAM) de Amazon y el _Role Based Access Control_ (RBAC) nativo de Kubernetes.
 
-==== AWS no gestionado
-
-Para el acceso al _API Server_ se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_) y un _Target group_ con los nodos del _control-plane_ correspondiente.
-
 ==== GKE
 
 En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se puede acceder desde la IP asignada al _endpoint_ privado del _cluster_. Esta IP pertenece al rango especificado en el descriptor del _cluster_.
-
-==== GCP
-
-Para la exposición del _API Server_ se crea un balanceador de carga con nombre `<cluster_id>-apiserver` y puerto 443 accesible por red pública (la IP pública asignada es la misma que se configura en el _Kubeconfig_), y un _instance groups_ por AZ (1 o 3, según configuración de HA) con el nodo de _control-plane_ correspondiente.
-
-El _health check_ del servicio se hace por SSL, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
 
 ==== Azure no gestionado
 
 Para la exposición del _API Server_, se crea un balanceador de carga con nombre `<cluster_id>-public-lb` y puerto 6443 accesible por red pública (la IP pública asignada es la misma que resuelve la URL del _Kubeconfig_) y un _Backend pool_ con los nodos del _control-plane_.
 
 El _health check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
-
-==== AKS
-
-En este caso, el _API Server_ se expone públicamente y con la URL indicada en el _kubeconfig_.
 
 == Almacenamiento
 
@@ -576,20 +491,16 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
 
 ^|EKS
 ^|ecr, generic
 
-^|GCP
-^|generic
+^|GKE
+^|gar
 
 ^|Azure
 ^|acr, generic
 
-^|AKS
-^|acr
 |===
 
 == Repositorio de Helm
@@ -598,20 +509,16 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
 
 ^|EKS
 ^|ecr, generic
 
-^|GCP
-^|gar, gcr, generic
+^|GKE
+^|gar
 
 ^|Azure
 ^|acr, generic
 
-^|AKS
-^|acr, generic
 |===
 
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.

@@ -18,8 +18,17 @@ Para comunicarse con el API Server del _cluster_ creado es necesario el fichero 
 ----
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
+ 
+* Para GKE, se obtendrá de la forma indicada por GCP:
++
+[source,bash]
+----
+gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
+----
 
-* Para GCP, Azure no gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+Este comando generará el fichero con el kubeconfig donde indique la variable de entorno KUBECONFIG. Por defecto será en $HOME/.kube/config.
+
+* Para Azure no gestionado, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
 [source,bash]
 ----
@@ -89,7 +98,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Los proveedores no gestionados tendrán un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, AKS) sólo tendrán el segundo.
+NOTE: En Azure no gestionado existirá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, GKE) sólo tendrán el segundo.
 
 ==== Prueba de tolerancia a fallos en un nodo
 
@@ -140,33 +149,6 @@ Verifica el cambio consultando el estado del objeto _KeosCluster_:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-===== AKS
-
-En el caso de este proveedor, si están definidos los parámetros `min_size` y `max_size` en el objeto _KeosCluster_ no se realiza ninguna acción.
-
-NOTE: Los grupos de nodos del objeto _KeosCluster_ se corresponden en Azure a _Node pools_ dentro de AKS y sus correspondientes _VM Scale Sets_.
-
-El escalado manual de un grupo de nodos en AKS con el autoescalado configurado se deberá hacer desde el portal de Azure en:
-
-'VM Scale set' -> '<scale_set_name>' -> 'Scalling' -> '<instance_number>'
-
-o bien desde:
-
-'Kubernetes services' -> '<aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Manual' -> '<node_count>'
-
-Las nuevas instancias se pueden ver en 'VM Scale set' -> 'Instances'. Este cambio no se reflejará en el parámetro `quantity` del grupo de nodos del objeto _KeosCluster_.
-
-Los tiempos estimados de este proceso son los siguientes:
-
-[source,bash]
-----
-Scale VM Scale set: 0s
-New K8s node is NotReady: 1m
-New K8s node is Ready: 1m 13s
-The MachinePool Scaling: 1m 29s
-The MachinePool is updated: 1m 33s
-----
-
 ==== Crear un nuevo grupo de _workers_
 
 Para crear un nuevo grupo de nodos basta con crear un nuevo elemento al _array_ _worker++_++nodes_ del objeto _KeosCluster_:
@@ -200,8 +182,6 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Escalado vertical
 
-CAUTION: *AKS no soporta escalado vertical* de los grupos de nodos. Para este proveedor, se deberá crear un grupo nuevo y eliminar el anterior como lo indica la https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[documentación oficial] ^[English]^.
-
 El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el objeto _KeosCluster_ correspondiente al grupo.
 
 [source,yaml]
@@ -234,16 +214,6 @@ spec:
       max_size: 21
       ...
 ----
-
-===== AKS
-
-En este proveedor el autoescalado se gestiona desde los _VM Scale sets_ de Azure y no con el _cluster-autoscaler_.
-
-Durante el aprovisionamiento, en el momento de crear los grupos de nodos se instanciarán los _Node pools_ en AKS y sus respectivos _VM Scale Sets_. Si los grupos de nodos definidos tienen un rango de autoescalado, estos se trasladarán a los _Node pools_ creados.
-
-Para verlos en el portal de Azure, se deberá consultar:
-
-'Kubernetes services' -> 'aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Autoscale'.
 
 ==== Prueba
 
@@ -307,29 +277,14 @@ CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clu
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-* AWS VMs
-+
-[source,bash]
-----
-aws ec2 describe-images --filters "Name=name,Values=capa-ami-ubuntu-18.04-*" --query 'Images[*].{ID:ImageId,Name:Name}' --output table
-----
-
-* AKS
-+
-[source,bash]
-----
-az aks get-versions --location <region> --output table
-----
-
-* Azure VMs
+** Azure no gestionado
 +
 [source,bash]
 ----
 az vm image list --publisher cncf-upstream --offer "capi" --sku ubuntu-2204  --all -o table
 ----
 
-* GCP VMs. No aplica ya que es obligatorio especificar una imagen _custom_.
-* En entornos productivos y especialmente en proveedores no gestionados, deberá extremarse la precaución. En particular, antes de actualizar, se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura y de los servicios considerados críticos.
+* En entornos productivos y especialmente en azure no gestionado, deberá extremarse la precaución. En particular, antes de actualizar, se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura y de los servicios considerados críticos.
 
 ==== Ejecución
 
