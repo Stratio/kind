@@ -113,15 +113,65 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AWS no gesti
 | registry.k8s.io/autoscaling/cluster-autoscaler
 | v1.27.2
 
-| *cluster-operator*
-| ***
+| *aws-ebs-csi-driver*
+| *v2.20.0*
 |
 |
 
 |
 |
+| public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver
+| v2.20.0
+
+|
+|
+| public.ecr.aws/ebs-csi-driver/volume-modifier-for-k8s
+| v0.1.0
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-attacher
+| v4.3.0-eks-1-27-3
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-provisioner
+| v3.5.0-eks-1-27-3
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-resizer
+| v1.8.0-eks-1-27-3
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter
+| v6.2.1-eks-1-27-3
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/livenessprobe
+| v2.10.0-eks-1-27-3
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/node-driver-registrar
+| v2.8.0-eks-1-27-3
+
+| *cluster-operator*
+| *0.3.6*
+|
+|
+
+|
+|
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.3.6
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
