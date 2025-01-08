@@ -38,6 +38,26 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im�
 |===
 | _Chart_ | Versión | Imagen pública | Versión
 
+| *flux*
+| *2.12.2*
+|
+|
+
+|
+|
+| ghcr.io/fluxcd/flux-cli
+| v2.2.2
+
+|
+|
+| ghcr.io/fluxcd/helm-controller
+| v0.37.2
+
+|
+|
+| ghcr.io/fluxcd/source-controller
+| v1.2.3
+
 | *cert-manager*
 | *v1.14.5*
 |

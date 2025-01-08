@@ -23,6 +23,26 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 |===
 | Chart | Version | Public image | Version
 
+| *flux*
+| *2.12.2*
+|
+|
+
+|
+|
+| ghcr.io/fluxcd/flux-cli
+| v2.2.2
+
+|
+|
+| ghcr.io/fluxcd/helm-controller
+| v0.37.2
+
+|
+|
+| ghcr.io/fluxcd/source-controller
+| v1.2.3
+
 | *tigera-operator*
 | *3.28.2*
 |

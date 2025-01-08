@@ -155,6 +155,26 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en Azure no ges
 |===
 | _Chart_ | Versión | Imagen pública | Versión
 
+| *flux*
+| *2.12.2*
+|
+|
+
+|
+|
+| ghcr.io/fluxcd/flux-cli
+| v2.2.2
+
+|
+|
+| ghcr.io/fluxcd/helm-controller
+| v0.37.2
+
+|
+|
+| ghcr.io/fluxcd/source-controller
+| v1.2.3
+
 | *tigera-operator*
 | *3.28.2*
 |
