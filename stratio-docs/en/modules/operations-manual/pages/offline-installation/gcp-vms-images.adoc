@@ -1,4 +1,4 @@
-= Unmanaged GCP images
+= GKE images
 
 == Own images
 
@@ -6,14 +6,14 @@
 | Installation | Version | Public Image | Version
 
 | *Installed by Cluster API - CAPG*
-| *v1.4.0*
+| *1.6.1-0.2.1*
 |
 |
 
 |
 |
-| registry.k8s.io/cluster-api-gcp/cluster-api-gcp-controller
-| v1.4.0
+| stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller
+| 1.6.1-0.2.1
 
 | *Installed through templates - CSI*
 | ***
@@ -149,14 +149,19 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | v1.30.0
 
 | *cluster-operator*
-| ***
+| *0.4.0*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.4.0
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Installed by Cluster API - CAPI Component*
 | *v1.7.4*
