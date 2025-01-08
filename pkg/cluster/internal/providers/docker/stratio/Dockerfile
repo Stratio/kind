@@ -1,4 +1,4 @@
-FROM kindest/node:v1.27.16
+FROM kindest/node:v1.27.0
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
