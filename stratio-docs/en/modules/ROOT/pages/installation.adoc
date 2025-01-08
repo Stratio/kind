@@ -176,7 +176,6 @@ The _spec_ of the _KeosCluster_ is composed of the following fields:
 |_region_
 |Cloud provider region used for provisioning.
 |eu-west-1
-|-
 |No
 
 |_external++_++domain_
