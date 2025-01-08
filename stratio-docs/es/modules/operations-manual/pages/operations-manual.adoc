@@ -26,7 +26,7 @@ aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig 
 gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
 ----
 
-Este comando generará el fichero con el kubeconfig donde indique la variable de entorno KUBECONFIG. Por defecto será en $HOME/.kube/config.
+Este comando generará el fichero con el _kubeconfig_ donde indique la variable de entorno `KUBECONFIG`. Por defecto, será en `$HOME/.kube/config`.
 
 * Para Azure no gestionado, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
