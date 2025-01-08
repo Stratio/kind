@@ -257,7 +257,7 @@ Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secre
 $ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r '.data["credentials.json"]' | base64 -d | jq .
 ----
 
-==== Azure 
+==== Azure
 
 Para el caso de Azure, el _client++_++id_ se almacena en el objeto _AzureIdentity_ dentro del _Namespace_ del _controller_, que también tiene la referencia al _Secret_ donde se almacena el _client++_++secret_:
 
