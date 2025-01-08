@@ -18,7 +18,7 @@
 |
 |
 | mcr.microsoft.com/k8s/azureserviceoperator
-| v2.3.0
+| v2.4.0
 
 |
 |
@@ -60,7 +60,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im√
 
 |
 |
-| quay.io/jetstack/cert-manager-acmesolver 
+| quay.io/jetstack/cert-manager-acmesolver
 | v1.14.5
 
 |
@@ -69,14 +69,19 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im√
 | v1.14.5
 
 | *cluster-operator*
-| ***
+| *0.4.0*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.4.0
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Instalado por Cluster API - CAPI Component*
 | *v1.7.4*
@@ -97,14 +102,3 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im√
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
 | v1.7.4
-
-| *cluster-operator*
-| ***
-|
-|
-
-|
-|
-| gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
-|===

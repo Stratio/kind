@@ -18,7 +18,7 @@
 |
 |
 | mcr.microsoft.com/k8s/azureserviceoperator
-| v2.3.0
+| v2.4.0
 
 |
 |
@@ -31,7 +31,7 @@
 | v1.8.14
 |===
 
-== Common images needed in unmanaged AKS
+== Common images needed in AKS
 
 Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the required images are:
 
@@ -69,14 +69,19 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the
 | v1.14.5
 
 | *cluster-operator*
-| ***
+| *0.4.0*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.4.0
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Installed by Cluster API - CAPI Component*
 | *v1.7.4*
@@ -97,14 +102,3 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
 | v1.7.4
-
-| *cluster-operator*
-| ***
-|
-|
-
-|
-|
-| gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
-|===
