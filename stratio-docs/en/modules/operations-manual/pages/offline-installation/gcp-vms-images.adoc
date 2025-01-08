@@ -139,14 +139,14 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | v1.14.5
 
 | *cluster-autoscaler*
-| *9.29.1*
+| *9.37.0*
 |
 |
 
 |
 |
 | registry.k8s.io/autoscaling/cluster-autoscaler
-| v1.27.2
+| v1.30.0
 
 | *cluster-operator*
 | ***

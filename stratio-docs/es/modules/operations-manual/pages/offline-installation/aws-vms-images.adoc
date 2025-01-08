@@ -6,14 +6,14 @@
 | _Chart_ | Versión | Imagen pública | Versión
 
 | *Instalado por Cluster API - CAPA*
-| *v2.2.1*
+| *v2.5.2*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api-aws/cluster-api-aws-controller
-| v2.2.1
+| v2.5.2
 |===
 
 == Imágenes comunes necesarias en AWS no gestionado
@@ -104,24 +104,74 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AWS no gesti
 | v1.14.5
 
 | *cluster-autoscaler*
-| *9.29.1*
+| *9.37.0*
 |
 |
 
 |
 |
 | registry.k8s.io/autoscaling/cluster-autoscaler
-| v1.27.2
+| v1.30.0
+
+| *aws-ebs-csi-driver*
+| *2.31.0*
+|
+|
+
+|
+|
+| public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver
+| v1.31.0
+
+|
+|
+| public.ecr.aws/ebs-csi-driver/volume-modifier-for-k8s
+| v0.3.0
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-attacher
+| v4.5.1-eks-1-30-4
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-provisioner
+| v4.0.1-eks-1-30-4
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-resizer
+| v1.10.1-eks-1-30-4
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter
+| v7.0.2-eks-1-30-4
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/livenessprobe
+| v2.12.0-eks-1-30-4
+
+|
+|
+| public.ecr.aws/eks-distro/kubernetes-csi/node-driver-registrar
+| v2.10.1-eks-1-30-4
 
 | *cluster-operator*
-| ***
+| *0.4.0*
 |
 |
+
+|
+|
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.4.0
 
 |
 |
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Instalado por Cluster API - CAPI Component*
 | *v1.7.4*
