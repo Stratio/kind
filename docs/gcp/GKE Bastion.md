@@ -218,3 +218,27 @@ gcloud compute scp Descargas/cloud-provisioner-0.17.0-0.6.0-5c007c2.tar.gz gke-v
 ```bash
 ls -lrth /resources/
 ```
+=======
+```
+
+## Common operations
+
+### Upload stratio-capi-image to the VM
+```bash
+# First save the image to a file
+docker save -o stratio-capi-image-06.tar stratio-capi-image:1.27.0
+
+# Then upload the file to the VM
+gcloud compute scp stratio-capi-image-06.tar gke-vm-janr:/resources/
+
+# Finally load the image in the VM
+docker load -i /resources/stratio-capi-image-06.tar
+```
+
+### Upload cloud-provisioner binaries to the VM
+```bash
+# Upload the cloud-provisioner binaries to the VM
+gcloud compute scp /usr/local/bin/cloud-provisioner gke-vm-janr:~/cloud-provisioner06
+
+# Move the binaries to the correct folder
+sudo mv ~/cloud-provisioner06 /usr/local/bin/cloud-provisioner
