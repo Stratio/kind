@@ -11,6 +11,7 @@ core:
       node-driver-registrar: v3.26.1
       node: v3.26.1
       pod2daemon-flexvol: v3.26.1
+      tigera-operator: v1.30.5
       typha: v3.26.1
     capi:
       kubeadm-bootstrap-controller: v1.5.3
@@ -30,13 +31,12 @@ core:
       kindnetd: v20221004-44d545d1
       node: v1.27.0
       stratio-capi-image: v1.27.0
-    tigera:
-      operator: v1.30.5
     pause: v3.9
   charts:
     cert-manager: v1.12.3
-    cluster-autoscaler: v9.29.1
+    cluster-autoscaler: 9.29.1
     cluster-operator: 0.3.6
+    tigera-operator: v3.26.1
 aws:
   capa:
     binaries:
