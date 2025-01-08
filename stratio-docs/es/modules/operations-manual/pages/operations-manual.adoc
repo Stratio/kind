@@ -284,7 +284,7 @@ aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compati
 az vm image list --publisher cncf-upstream --offer "capi" --sku ubuntu-2204  --all -o table
 ----
 
-* En entornos productivos y especialmente en azure no gestionado, deberá extremarse la precaución. En particular, antes de actualizar, se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura y de los servicios considerados críticos.
+* En entornos productivos, especialmente en Azure no gestionado, es fundamental tener precaución. Antes de realizar una actualización, se recomienda crear una copia de seguridad de los objetos que gestionan la infraestructura y de los servicios críticos.
 
 ==== Ejecución
 
