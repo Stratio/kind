@@ -28,7 +28,7 @@ gcloud container clusters get-credentials <cluster_name> --region <region> --pro
 
 Este comando generará el fichero con el _kubeconfig_ donde indique la variable de entorno `KUBECONFIG`. Por defecto, será en `$HOME/.kube/config`.
 
-* Para Azure no gestionado, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+* Para Azure no gestionado, al finalizar del aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
 [source,bash]
 ----
