@@ -69,14 +69,19 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im√
 | v1.12.3
 
 | *cluster-operator*
-| ***
+| *0.3.6*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.3.6
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
@@ -97,14 +102,3 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las im√
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
 | v1.5.3
-
-| *cluster-operator*
-| ***
-|
-|
-
-|
-|
-| gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
-|===
