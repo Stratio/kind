@@ -29,7 +29,7 @@ WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmen
 
 * Permisos
 +
-En GKE, la service account con la que se aprovisionan los _clusters_ debe contar con los siguientes conjuntos de permisos.
+En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe contar con los siguientes conjuntos de permisos.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 +
