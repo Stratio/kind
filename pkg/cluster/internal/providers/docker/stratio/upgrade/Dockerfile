@@ -4,6 +4,7 @@ FROM golang:1.22
 ARG UPGRADE_DIR=CTS/resources/scripts
 
 
+
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
 ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
@@ -25,8 +26,8 @@ ENV CAPG_FORK_URL_GKE="https://github.com/Stratio/cluster-api-provider-gcp/relea
 
 # Actualizar paquetes e instalar herramientas esenciales
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3=${PYTHON_VERSION}* \
-    python3-pip=${PYTHON_VERSION}* \
+    python3 \
+    python3-pip \
     curl \
     jq vim python3-pip git \
     ca-certificates \
@@ -117,7 +118,7 @@ COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
 # Instalar dependencias de Python
-RUN pip3 install -r requirements.txt
+RUN pip3 install --break-system-packages -r requirements.txt
 
 # Especificar el comando por defecto
 CMD ["/bin/bash"]
