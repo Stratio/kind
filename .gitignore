@@ -30,3 +30,5 @@ deploy-recorder.lst
 deploy-recorder.lst
 /scripts/backup
 /scripts/secrets.yml
+
+.codegpt
