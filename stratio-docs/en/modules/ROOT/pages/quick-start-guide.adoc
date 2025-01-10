@@ -41,7 +41,7 @@ For this provider, the _control-plane_ will be deployed in VMs, therefore, the f
 ** _type_: disk type (default: gp3).
 ** _encrypted_: disk encryption (default: _false_).
 
-==== _worker_ nodes
+==== _Worker_ nodes
 
 In the cluster descriptor, groups of _worker_ nodes can be indicated with the following options:
 
@@ -302,7 +302,7 @@ For this provider, the _control-plane_ will be deployed in VMs, therefore, the f
 ** _size_: size in GB (default: 30GB).
 ** _type_: disk type (default: pd-standard).
 
-==== _worker_ nodes
+==== _Worker_ nodes
 
 In the cluster descriptor, groups of _worker_ nodes can be indicated with the following options:
 
@@ -399,6 +399,172 @@ kubectl --kubeconfig .kube/config get nodes
 
 Next, proceed to deploy _Stratio KEOS_ *using _keos-installer_*.
 
+== GKE
+
+=== Prerequisites
+
+* Enable the Kubernetes Engine API in GCP.
+* A user with the necessary privileges in GCP:
+** Create an _IAM Service Account_ with permissions defined in:
+*** xref:attachment$stratio-gcp-permissions.list[stratio-gcp-permissions.list].
+*** xref:attachment$stratio-gke-permissions.list[stratio-gke-permissions.list].
+** Create a private key for the _IAM Service Account_ of type JSON and download it in a `<project_name>-<id>.json` file. This data will be used for the credentials requested in the cluster descriptor.
+* Private and public DNS zones created in GCP (optional).
+* Custom infrastructure created in GCP (optional).
+* Composing the cluster descriptor file.
+** User credentials (_private++_++key++_++id_, _private++_++key_, and _client++_++email_) and account data (refion and _project++_++id_), which will be encrypted on first run.
+** GitHub token for template download (optional).
+** Data of the infrastructure already created (optional).
+** Management of DNS zones created (optional).
+** _Docker registry_ data (URL, credentials).
+** External domain of the cluster.
+** _Control-plane_.
+** Node groups.
+** Information required for _Stratio KEOS_ installation.
+
+NOTE: The installation *does not require* a custom image.
+
+TIP: It is recommended to create a bastion to proceed with the installation.
+
+==== Bastion requirements
+
+- Have Docker installed (version 27.0.3 or higher).
+- Have a local image: _stratio-capi-image:v1.27.0_.
+
+==== _control-plane_
+
+As for the _control-plane_, in the cluster descriptor you can indicate that it is a *managed _control-plane_* and the following specifications must be included::
+
+* _cluster++_++network_ (mandatory): defines the cluster network.
+** _private++_++cluster_ (mandatory): defines the _spec_ of the private cluster.
+*** _enable++_++private++_++endpoint_ (required: true; default: true): indicates whether the internal IP address of the _master_ is used as the endpoint of the cluster.
+*** _enable++_++private++_++nodes_ (required: true; default: true): indicates if the nodes of the cluster have internal IP addresses only.
+*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (required): is the IP range in CIDR notation to be used for the _master_ network. This range must not overlap with any other range in use within the cluster network. Applies when _enabled++_++private++_++nodes_ is "true" and must be a /28 subnet.
+* ip++_++allocation++_++policy: represents the configuration options for the cluster GKE's IP allocation (if not specified, the GKE defaults will be used).
+** cluster++_++ipv4++_++cidr++_++block: represents the range of IP addresses for the IPs of the pods of the cluster GKE (if not specified, the range with the default size will be chosen).
+** services++_++ipv4++_++cidr++_++block: represents the range of IP addresses for the GKE cluster services IPs (if not specified, the range with the default size will be chosen).
+** cluster++_++secondary++_++range++_++name: represents the name of the secondary range to be used for the CIDR block of the cluster GKE. The range will be used for the pods IP addresses and must be an existing secondary range associated with the cluster subnet.
+** services++_++secondary++_++range++_++name: represents the name of the secondary range to be used for the services CIDR block. The range will be used for the services IPs and must be an existing secondary range associated with the cluster subnet.
+
+NOTE: If IP ranges are already created, the specified names (services++_++secondary++_++range++_++name and cluster++_++secondary++_++range++_++name) must be used. If they do not exist, CIDR notation (services++_++ipv4++_++cidr++_++block and cluster++_++ipv4++_++cidr++_++block) must be used to create them, but both methods cannot be used simultaneously.
+
+* _master++_++authorized++_++networks++_++config_: represents the cluster authorized networks configuration.
+
+NOTE: Enabling the authorized networking configuration will prevent all external traffic from accessing the Kubernetes master over HTTPS except for traffic from the specified CIDR blocks, Google Compute Engine public IPs, and Google Cloud services IPs.
+
+** _cidr++_++blocks_ (optional, since gcp++_++public++_++cidrs++_++access++_++enabled is always "true"): list of CIDR blocks that are allowed to access the master.
+*** _cidr++_++block_ (mandatory in case _cidr++_++blocks_ is present): IP range in CIDR notation that will be allowed to access the master.
+*** _display++_++name_ (optional): name of the authorized network.
+** _gcp++_++public++_++cidrs++_++access++_++enabled_ (mandatory: "false", if _enable++_++private++_++endpoint is "true") (default: false): indicates whether access to Google Compute Engine public IP addresses is allowed.
+* _monitoring++_++config_: defines the monitoring of the cluster.
+** _enable++_++managed++_++prometheus_ (mandatory) (default: false): enables managed monitoring of the cluster with Prometheus.
+* _logging++_++config_: defines the logging configuration of the cluster.
+** _system++_++components_ (mandatory) (default: false): enables the _system_ component of logging.
+** _workloads_ (mandatory) (default: false): enables the _workloads_ component of logging.
+
+NOTE: Any modification of the above parameters will have no effect, they are only applied at cluster creation time.
+
+==== _Worker_ nodes
+
+In the cluster descriptor, _worker_ node groups can be indicated with the following options:
+
+* _name_: group name, cannot be repeated.
+* _size_: instance type.
+* _quantity_: number of _workers_ in the group.
+* _min++_++size_: minimum number of nodes for autoscaling (optional).
+* _max++_++size_: maximum number of nodes for autoscaling (optional).
+* _labels_: node labels in Kubernetes (optional).
+* _taints_: _taints_ of the nodes in Kubernetes (optional).
+* _root++_++volume_: disk specifics (optional).
+** _size_: size in GB (default: 30GB).
+** _type_: disk type (default: Managed).
+* _zone++_++distribution_: indicates whether the number of nodes should be balanced in the zones or not (default: _balanced_).
+* _az_: zone of the _workers_ group (optional). If specified, only this one will be used for the whole group. This parameter overrides what is specified in _zone++_++distribution_.
+
+NOTE: By default, the distribution of nodes will be done in zones a, b, and c of the indicated region in a balanced way, therefore, the rest of the division by three of the number of nodes will be discarded. Example: if 'quantity=7' is specified, only 2 nodes will be deployed in each of the zones.
+
+==== _keos-installer_
+
+To facilitate the installation of _Stratio KEOS_, in the provisioning process a functional _keos.yaml_ file is generated and ready to launch the installation. For this purpose, the version and flavor (_production_, _development_, or _minimal_) can be indicated in the cluster descriptor.
+
+[source,yaml]
+----
+  keos:
+    version: 1.1.2
+    flavour: development
+----
+
+For any extra customization, the file must be modified before running the _keos-installer_.
+
+==== Considerations
+
+* In case of using a custom infrastructure, the VPC and subnet of the region must be specified.
++
+[source,yaml]
+----
+  networks:
+    vpc_id: "vpc-name"
+    subnets:
+      - subnet_id: "subnet-name"
+----
+
+* Kubernetes version must be (1.28) and supported by GKE.
+* _worker++_++nodes_ group names cannot be repeated.
+
+TIP: For more details, see the xref:ROOT:installation.adoc[installation guide].
+
+=== Installation
+
+This phase (provisioning and installation of Kubernetes) should be run from the bastion machine.
+
+Once the `.tgz` file of the _cloud-provisioner_ is downloaded, proceed to unzip it and run it with the creation parameters:
+
+[source,console]
+----
+$ tar xvzf cloud-provisioner-*tar.gz
+$ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --use-local-stratio-image --descriptor cluster.yaml
+Vault Password:
+Creating temporary cluster "example-gke" ...
+ ✓ Using local Stratio image (stratio-capi-image:v1.27.0) 🖼
+ ✓ Preparing nodes 📦
+ ✓ Writing configuration 📜
+ ✓ Starting control-plane 🕹️
+ ✓ Installing StorageClass 💾
+ ✓ Installing Private CNI 🎖️
+ ✓ Deleting local storage plugin 🎖️
+ ✓ Installing CAPx 🎖️
+ ✓ Generating secrets file 📝🗝️
+ ✓ Installing keos cluster operator 💻
+ ✓ Creating the workload cluster 💥
+ ✓ Saving the workload cluster kubeconfig 📝
+ ✓ Preparing nodes in workload cluster 📦
+ ✓ Enabling CoreDNS as DNS server 📡
+ ✓ Installing CAPx in workload cluster 🎖️
+ ✓ Installing StorageClass in workload cluster 💾
+ ✓ Enabling workload cluster's self-healing 🏥
+ ✓ Configuring Network Policy Engine in workload cluster 🚧
+ ✓ Installing keos cluster operator in workload cluster 💻
+ ✓ Creating cloud-provisioner Objects backup 🗄️
+ ✓ Moving the management role 🗝️
+ ✓ Executing post-install steps 🎖️
+ ✓ Generating the KEOS descriptor 📝
+ ✓ Rotating and generating override_vars structure ⚒️
+The cluster has been installed successfully. Please refer to the documents below on how to proceed:
+1. Post-installation Stratio cloud-provisioner documentation.
+2. Stratio KEOS documentation.
+----
+
+=== Next steps
+
+At this point, there will be a Kubernetes cluster with the features indicated in the descriptor, and the _API Server_ can be accessed with the _kubeconfig_ generated in the current directory (_.kube/config_):
+
+[source,console]
+----
+kubectl --kubeconfig .kube/config get nodes
+----
+
+Next, proceed to deploy _Stratio KEOS_ *using _keos-installer_*.
+
 == Azure unmanaged
 
 === Prerequisites
@@ -433,11 +599,11 @@ For this provider, the _control-plane_ will be deployed in VMs, therefore, the f
 ** _size_: size in GB (default: 30GB).
 ** _type_: disk type (default: Standard_LRS).
 
-==== _worker_ nodes
+==== _Worker_ nodes
 
 In the cluster descriptor, groups of _worker_ nodes can be indicated with the following options:
 
-* _name_: group name, cannot be repeated. It must start with "<cluster++_++name++_++>-".
+* _name_: group name, cannot be repeated.
 * _size_: instance type.
 * _quantity_: number of _workers_ in the group.
 * _min++_++size_: minimum number of nodes for autoscaling (optional).
@@ -488,28 +654,28 @@ $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor c
 Vault Password:
 Creating temporary cluster "example-azure" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸 
- ✓ Preparing nodes 📦  
- ✓ Writing configuration 📜 
- ✓ Starting control-plane 🕹️ 
- ✓ Installing CNI 🔌 
- ✓ Installing StorageClass 💾 
- ✓ Installing CAPx 🎖️ 
- ✓ Generating secrets file 📝🗝️ 
- ✓ Installing keos cluster operator 💻 
- ✓ Creating the workload cluster 💥 
- ✓ Saving the workload cluster kubeconfig 📝 
- ✓ Installing cloud-provider in workload cluster ☁️ 
- ✓ Installing Calico in workload cluster 🔌 
- ✓ Installing CSI in workload cluster 💾 
- ✓ Preparing nodes in workload cluster 📦 
- ✓ Installing StorageClass in workload cluster 💾 
- ✓ Enabling workload clusters self-healing 🏥 
- ✓ Installing CAPx in workload cluster 🎖️ 
- ✓ Installing cluster-autoscaler in workload cluster 🗚 
- ✓ Installing keos cluster operator in workload cluster 💻 
- ✓ Creating cloud-provisioner Objects backup 🗄️ 
- ✓ Moving the management role 🗝️ 
+ ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Preparing nodes 📦
+ ✓ Writing configuration 📜
+ ✓ Starting control-plane 🕹️
+ ✓ Installing CNI 🔌
+ ✓ Installing StorageClass 💾
+ ✓ Installing CAPx 🎖️
+ ✓ Generating secrets file 📝🗝️
+ ✓ Installing keos cluster operator 💻
+ ✓ Creating the workload cluster 💥
+ ✓ Saving the workload cluster kubeconfig 📝
+ ✓ Installing cloud-provider in workload cluster ☁️
+ ✓ Installing Calico in workload cluster 🔌
+ ✓ Installing CSI in workload cluster 💾
+ ✓ Preparing nodes in workload cluster 📦
+ ✓ Installing StorageClass in workload cluster 💾
+ ✓ Enabling workload clusters self-healing 🏥
+ ✓ Installing CAPx in workload cluster 🎖️
+ ✓ Installing cluster-autoscaler in workload cluster 🗚
+ ✓ Installing keos cluster operator in workload cluster 💻
+ ✓ Creating cloud-provisioner Objects backup 🗄️
+ ✓ Moving the management role 🗝️
  ✓ Executing post-install steps 🎖️ 
  ✓ Generating the KEOS descriptor 📝
 
