@@ -18,7 +18,7 @@ hose {
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
         doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'mkdir -p CTS/resources; tar zxvf bin/cloud-provisioner.tar.gz -C CTS/resources/; chmod -R 0700 CTS/resources/bin/cloud-provisioner'], stageName: "Extract binary")
-        doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'mkdir -p CTS/resources/scripts; cp -r scripts CTS/resources/scripts'], stageName: "prepare upgrade script files")
+        doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'cp -r scripts CTS/resources'], stageName: "prepare upgrade script files")
         doDocker(conf:config, skipOnPR: false, dockerfile:"pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile", image:"stratio-cloud-provisioner-upgrade-image",
             buildargs: [
                 "CLUSTERCTL=v1.7.4",
