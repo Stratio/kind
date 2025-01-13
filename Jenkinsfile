@@ -21,7 +21,7 @@ hose {
         doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'mkdir -p CTS/resources/scripts; cp -r scripts CTS/resources/scripts'], stageName: "prepare upgrade script files")
         doDocker(conf:config, skipOnPR: false, dockerfile:"pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile", image:"stratio-cloud-provisioner-upgrade-image",
             buildargs: [
-                "CLUSTERCTL=1.7.4",
+                "CLUSTERCTL=v1.7.4",
                 "PYTHON_VERSION=3.12",
                 "KUBECTL_VERSION=1.30.1",
                 "HELM_VERSION=3.15.2",

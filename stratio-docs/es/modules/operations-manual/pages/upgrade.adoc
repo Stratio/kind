@@ -1,0 +1,146 @@
+# Upgrade Provisioner Script
+
+## Descripción
+
+El script `upgrade-provisioner.py` automatiza el proceso de actualización de clusters en Kubernetes gestionados en los siguientes entornos:
+- **EKS** en AWS
+- **Azure VMs**
+- **GKE** en GCP
+
+Este script está diseñado para actualizar la versión del clúster Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la versión proporcionada por `cloud-provisioner 0.6.x`.
+
+Con el objetivo de garantizar un entorno de ejecución reproducible y gestionar las dependencias y prerrequisitos, se ha desarrollado una imagen Docker denominada `stratio-cloud-provisioner-upgrade-image`, que incluye el script de actualización.
+
+## Requisitos
+
+### Requisitos generales
+
+- Archivos necesarios
+  - Archivo **kubeconfig** con acceso al cluster de kubernetes. 
+  - Archivo **secrets.yml**, utilizado durante la creación del clúster.
+
+- Herramientas requeridas:
+  - **Docker**: necesario para ejecutar el contenedor de actualización.
+
+### Requisitos/consideraciones específicas para EKS
+
+El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliza un token con un tiempo de vida limitado, lo que puede interrumpir el proceso de actualización. Se recomienda generar un kubeconfig actualizado utilizando el siguiente comando:
+
+  ```bash
+  aws eks update-kubeconfig --region <region> --name <cluster_name>
+  ```
+  
+ Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta **aws cli**, es decir, el directorio local **~/.aws**.
+
+## Uso
+
+### Sintaxis
+
+```bash
+python3 upgrade-provisioner.py [OPTIONS]
+```
+
+Flags disponibles:
+
+| Flag                         | Descripción                                                                      | Valor predeterminado         | Obligatoria       |
+|------------------------------|----------------------------------------------------------------------------------|------------------------------|-------------------|
+| -y, --yes                     | No requiere confirmación entre tareas (modo automático).                         | False                        | No                |
+| -k, --kubeconfig              | Especifica el archivo de configuración de kubectl a utilizar.                    | ~/.kube/config               | No                |
+| -p, --vault-password          | Archivo con la contraseña del vault necesaria para descifrar secretos.           | None                         | Sí                |
+| -s, --secrets                 | Archivo de secretos cifrados que debe descifrarse.                               | secrets.yml                  | No                |
+| -i, --user-assign-identity    | Identidad asignada por el usuario necesaria en el caso de Azure.                 | None                         | Sí (Azure)        |
+| --enable-lb-controller        | Instala el controlador de balanceador de carga en clústeres de EKS (desactivado por defecto). | False                  | No                |
+| --disable-backup              | Deshabilita el respaldo de archivos antes de la actualización (habilitado por defecto). | False                      | No                |
+| --disable-prepare-capsule     | Deshabilita la preparación del entorno para el proceso de actualización.         | False                        | No                |
+
+### Ejecución básica
+
+#### Construcción de contenedor de upgrade
+
+Es necesario ejecutar el contenedor Docker utilizando la imagen de upgrade:
+
+```bash
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
+```
+
+**Parámetros adicionales EKS**
+
+Para la ejecución en clústeres EKS, es necesario proporcionar los archivos de configuración de AWS:
+```bash
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
+```
+
+
+#### Configuración de clusterctl
+
+Los archivos de configuración de clusterctl están listos para realizar la actualización en cualquiera de los entornos. Sin embargo, debe realizarse un ajuste manual en el archivo `/root/.cluster-api/clusterctl.yaml`:
+
+```yaml
+providers:
+  - name: aws
+    url: /root/.cluster-api/local-repository/infrastructure-aws/v2.5.2/infrastructure-components.yaml
+    type: InfrastructureProvider
+  - name: gcp
+    url: /root/.cluster-api/local-repository/infrastructure-gcp/1.6.1-0.2.1/infrastructure-components.yaml
+    type: InfrastructureProvider
+  - name: azure
+    url: /root/.cluster-api/local-repository/infrastructure-azure/v1.12.4/infrastructure-components.yaml
+    type: InfrastructureProvider
+  - name: kubeadm
+    url: /root/.cluster-api/local-repository/bootstrap-kubeadm/v1.7.4/bootstrap-components.yaml
+    type: BootstrapProvider
+  - name: kubeadm
+    url: /root/.cluster-api/local-repository/control-plane-kubeadm/v1.7.4/control-plane-components.yaml
+    type: ControlPlaneProvider
+  - name: cluster-api
+    url: /root/.cluster-api/local-repository/cluster-api/v1.7.4/core-components.yaml
+    type: CoreProvider
+images:
+  infrastructure-gcp:
+    repository: ${KEOS_REGISTRY_URL}/cluster-api-gcp
+    tag: 1.6.1-0.2.1
+  cert-manager:
+    repository: ${KEOS_REGISTRY_URL}/cert-manager
+```
+
+- En el caso de GKE, sustituya `${KEOS_REGISTRY_URL}` por el registro de Docker correspondiente.
+
+- Para otros entornos, elimine la sección `images`.
+
+
+
+**Para EKS en AWS:**
+
+```bash
+python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
+```
+
+**Para Azure sobre máquinas virtuales:**
+
+```bash
+python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-id> --kubeconfig /ruta/kubeconfig
+```
+
+## Directorios necesarios
+
+El directorio de trabajo debe contener:
+
+- `upgrade-provisioner.py` (el script principal)
+- `templates/` (directorio con plantillas Jinja2 requeridas)
+- `files/` (archivos adicionales, como configuraciones para Helm)
+- `requirements.txt` (archivo con las dependencias necesarias)
+- `secrets.yml` (archivo con las credenciales del cluster)
+- `.aws/` (solo en EKS. Directorio con los archivos de configuración de aws)
+- `.kube/`  (directorio con el kubeconfig)
+
+
+## Limitaciones
+
+- Solo soporta clústeres de Kubernetes en:
+  - Amazon EKS
+  - Azure sobre máquinas virtuales
+  - Google GKE
+
+## Licencia
+
+Este script es mantenido por Stratio Clouds. Para soporte, contacta con clouds-integration@stratio.com.
