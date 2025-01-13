@@ -98,8 +98,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	// Check if the cluster name already exists
 	if err := alreadyExists(p, opts.Config.Name); err != nil {
 		if opts.ForceDelete {
-			// Delete current cluster container
-			_ = delete.Cluster(nil, p, opts.Config.Name, "")
+			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
 		} else {
 			return errors.Errorf("A cluster with the name %q already exists \n"+
 				"Please use a different cluster name or delete the current container with --delete-previous flag", opts.Config.Name)

@@ -40,9 +40,19 @@ var GCPNodeImageFormat = "projects/[PROJECT_ID]/global/images/[IMAGE_NAME]"
 
 // Regex for private CIDR Control Plane and Master Authorized Networks
 var GCPCPPrivatePattern = `^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}\/28)$|^(172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}\/28)$|^(192\.168\.\d{1,3}\.\d{1,3}\/28)$`
-var GCPMANPrivatePattern = `^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}\/[0-9]{1,2})$|^(172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}\/[0-9]{1,2})$|^(192\.168\.\d{1,3}\.\d{1,3}\/[0-9]{1,2})$`
+var GCPPrivatePattern = `^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}\/(3[0-2]|[12]\d|[0-9]))$|^(172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}\/(3[0-2]|[12]\d|[0-9]))$|^(192\.168\.\d{1,3}\.\d{1,3}\/(3[0-2]|[12]\d|[0-9]))$`
+var GCPMANPattern = `^(25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3}\/(3[0-2]|[12]\d|[0-9])$`
 var GCPControlPlaneCidrBlock = regexp.MustCompile(GCPCPPrivatePattern).MatchString
-var GCPMANCIDRBlock = regexp.MustCompile(GCPMANPrivatePattern).MatchString
+var GCPPrivateCIDRBlock = regexp.MustCompile(GCPPrivatePattern).MatchString
+var GCPMANCIDRBlock = regexp.MustCompile(GCPMANPattern).MatchString
+
+// Regex for security scopes
+var GCPScopesPattern = `^https:\/\/www\.googleapis\.com\/auth\/.*$`
+var GCPScopes = regexp.MustCompile(GCPScopesPattern).MatchString
+
+func GCPPublicCIDRBlock(cidr string) bool {
+	return !GCPPrivateCIDRBlock(cidr) && GCPMANCIDRBlock(cidr)
+}
 
 func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error {
 	var err error
@@ -123,37 +133,121 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 	}
 
 	if spec.ControlPlane.Managed {
-		// First - If enablePrivateEndpoint is true, then ControlPlaneCidrBlock is required
+		// Security scopes validation
+
+		// IF security.gcp is provided and security.gcp.scopes is nil, then return error
+		if spec.Security.GCP.Scopes == nil {
+			return errors.New("spec.security.gcp: 'If security.gcp is provided, you must set correct values'")
+		}
+
+		// Check scopes regex
+		for _, scope := range spec.Security.GCP.Scopes {
+			if !GCPScopes(scope) {
+				return errors.New("spec.security.gcp.scopes: 'Invalid scope: " + scope + " must begin with " + GCPScopesPattern)
+			}
+		}
+
+		// Cluster Network validation
 		if spec.ControlPlane.Gcp.ClusterNetwork != nil {
-			privateCluster := spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster
-			if privateCluster != nil {
-				if privateCluster.EnablePrivateEndpoint != nil && *privateCluster.EnablePrivateEndpoint && privateCluster.ControlPlaneCidrBlock == "" {
+			if spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster != nil {
+				// If enablePrivateEndpoint is true, then ControlPlaneCidrBlock is required
+				if spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.EnablePrivateEndpoint != nil && *spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.EnablePrivateEndpoint && spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.ControlPlaneCidrBlock == "" {
 					return errors.New("ControlPlaneCidrBlock is required when EnablePrivateEndpoint is true")
 				}
+			} else {
+				// If privateCluster is enabled, then privateCluster is required
+				return errors.New("spec.control_plane.gcp.cluster_network.private_cluster: is required")
 			}
-			if privateCluster.ControlPlaneCidrBlock != "" {
-				// Verifica el formato con regex
-				if !GCPControlPlaneCidrBlock(privateCluster.ControlPlaneCidrBlock) {
+			if spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.ControlPlaneCidrBlock != "" {
+				// Validate the format with regex
+				if !GCPControlPlaneCidrBlock(spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.ControlPlaneCidrBlock) {
 					return errors.New("ControlPlaneCidrBlock invalid format.\nIt must be a Private CIDR with format: " + GCPCPPrivatePattern)
 				}
 			}
-		}
-		// Check if cluster network is nil
-		if spec.ControlPlane.Gcp.ClusterNetwork == nil {
-			return errors.New("spec.control_plane.gcp.cluster_network: is required")
-		}
-		// Check if privateCluster is nil
-		if spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster == nil {
-			// Since defaults are set elsewhere, treat EnablePrivateEndpoint as nil (default true)
-			// ControlPlaneCidrBlock is empty (since privateCluster is nil)
+			// Check if GCPPublicCIDRsAccessEnabled is enabled when private endpoint is enabled
+			if *spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.EnablePrivateEndpoint && *spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.GCPPublicCIDRsAccessEnabled {
+				return errors.New("Invalid value for 'master_authorized_networks_config': 'master_authorized_networks_config.gcp_public_cidrs_access_enabled' cannot be enabled if private endpoint is enabled")
+			}
+		} else {
+			// if clusterNetwork is enabled, then clusterNetwork is required
 			return errors.New("spec.control_plane.gcp.cluster_network: is required")
 		}
 
-		// Validación para MasterAuthorizedNetworksConfig
+		// MasterAuthorizedNetworksConfig validation
+		if spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig == nil || spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.GCPPublicCIDRsAccessEnabled == nil {
+			return errors.New("GCPPublicCIDRsAccessEnabled is required")
+		}
+
 		if spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig != nil && spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.CIDRBlocks != nil {
 			for _, block := range spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.CIDRBlocks {
-				if !GCPMANCIDRBlock(block.CIDRBlock) {
-					return errors.New("CIDRBlock invalid format.\nIt must be a Private CIDR with format " + GCPMANPrivatePattern)
+				//Validate block.CIDRBlock is not empty or nil
+				if block.CIDRBlock == "" {
+					return errors.New("CIDRBlock is required")
+				}
+				// Validate the format with regex
+				if !GCPMANCIDRBlock(block.CIDRBlock) && !GCPPrivateCIDRBlock(block.CIDRBlock) {
+					return errors.New("CIDRBlock invalid format.\nIt must be a CIDR with format " + GCPMANPattern + " or " + GCPPrivatePattern)
+				}
+				// Check if GCPPublicCIDRsAccessEnabled is false and public endpoint is disabled (EnablePrivateEndpoint is true) and CIDR block is public
+				if !*spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.GCPPublicCIDRsAccessEnabled && *spec.ControlPlane.Gcp.ClusterNetwork.PrivateCluster.EnablePrivateEndpoint {
+					if GCPPublicCIDRBlock(block.CIDRBlock) {
+						return errors.New("Invalid master authorized networks: network " + block.CIDRBlock + " is not a reserved network, which is required for private endpoints.\nCheck if enable_private_endpoint is true (default) and gcp_public_cidrs_access_enabled is false (that could be the reason)")
+					}
+				}
+			}
+		}
+
+		// Monitoring Config validation
+		// If monitoringConfig is enabled, then monitoringConfig is required
+		if spec.ControlPlane.Gcp.MonitoringConfig == nil {
+			// Errror Provide monitoring config enable_managed_prometheus or do not include monitoring_config so we can set default value
+			return errors.New("spec.control_plane.gcp.monitoring_config: 'If monitoring_config is provided, enable_managed_prometheus must be set'")
+		}
+
+		// Logging Config validation
+		// If loggingConfig is enabled, then loggingConfig is required
+		if spec.ControlPlane.Gcp.LoggingConfig == nil {
+			// Errror Provide logging config enable_managed_logging or do not include logging_config so we can set default value
+			return errors.New("spec.control_plane.gcp.logging_config: 'If logging_config is provided, at least system_components or workloads must be set'")
+		} else {
+			if spec.ControlPlane.Gcp.LoggingConfig.SystemComponents == nil {
+				// Error system_components is required
+				return errors.New("spec.control_plane.gcp.logging_config.system_components: 'if system_components is provided, it must be set'")
+			}
+			if spec.ControlPlane.Gcp.LoggingConfig.Workloads == nil {
+				// Error workloads is required
+				return errors.New("spec.control_plane.gcp.logging_config.workloads: 'if workloads is provided, it must be set'")
+			}
+		}
+
+		// ipAllocationPolicy validation
+		if spec.ControlPlane.Gcp.IPAllocationPolicy == (commons.IPAllocationPolicy{}) {
+			// Error ipAllocationPolicy is required
+			return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if ip_allocation_policy is provided, it must be set'")
+		} else {
+			if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterSecondaryRangeName != "" && spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesSecondaryRangeName != "" {
+				if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterIpv4CidrBlock != "" || spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesIpv4CidrBlock != "" {
+					return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_secondary_range_name and services_secondary_range_name are provided, cluster_ipv4_cidr_block and services_ipv4_cidr_block must not be set'")
+				}
+			} else if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterIpv4CidrBlock != "" && spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesIpv4CidrBlock != "" {
+				if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterSecondaryRangeName != "" || spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesSecondaryRangeName != "" {
+					return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_ipv4_cidr_block and services_ipv4_cidr_block are provided, cluster_secondary_range_name and services_secondary_range_name must not be set'")
+				}
+			} else {
+				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'either cluster_secondary_range_name and services_secondary_range_name or cluster_ipv4_cidr_block and services_ipv4_cidr_block must be set'")
+			}
+		}
+
+		// CMEK Config validation
+		// Validate encryptionKey for managed clusters root volume
+		isKeyValid := regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`).MatchString
+		for _, wn := range spec.WorkerNodes {
+			if wn.RootVolume.Encrypted {
+				if wn.RootVolume.EncryptionKey == "" {
+					return errors.New("spec.control_plane.root_volume: \"encryption_key\": is required when \"encrypted\" is set to true")
+				}
+				if !isKeyValid(wn.RootVolume.EncryptionKey) {
+					return errors.New("spec.control_plane.root_volume: \"encryption_key\": it must have the format projects/[PROJECT_ID]/locations/[REGION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]")
 				}
 			}
 		}
