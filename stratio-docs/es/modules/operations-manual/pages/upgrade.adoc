@@ -1,44 +1,46 @@
-# Upgrade Provisioner Script
+= Upgrade Provisioner Script
 
-## Descripción
+== Descripción
 
 El script `upgrade-provisioner.py` automatiza el proceso de actualización de clusters en Kubernetes gestionados en los siguientes entornos:
-- **EKS** en AWS
-- **Azure VMs**
-- **GKE** en GCP
+- *EKS* en AWS
+- *Azure VMs*
+- *GKE* en GCP
 
 Este script está diseñado para actualizar la versión del clúster Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la versión proporcionada por `cloud-provisioner 0.6.x`.
 
 Con el objetivo de garantizar un entorno de ejecución reproducible y gestionar las dependencias y prerrequisitos, se ha desarrollado una imagen Docker denominada `stratio-cloud-provisioner-upgrade-image`, que incluye el script de actualización.
 
-## Requisitos
+== Requisitos
 
-### Requisitos generales
+=== Requisitos generales
 
 - Archivos necesarios
-  - Archivo **kubeconfig** con acceso al cluster de kubernetes. 
-  - Archivo **secrets.yml**, utilizado durante la creación del clúster.
+  - Archivo *kubeconfig* con acceso al cluster de kubernetes. 
+  - Archivo *secrets.yml*, utilizado durante la creación del clúster.
 
 - Herramientas requeridas:
-  - **Docker**: necesario para ejecutar el contenedor de actualización.
+  - *Docker*: necesario para ejecutar el contenedor de actualización.
 
-### Requisitos/consideraciones específicas para EKS
+=== Requisitos/consideraciones específicas para EKS
 
 El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliza un token con un tiempo de vida limitado, lo que puede interrumpir el proceso de actualización. Se recomienda generar un kubeconfig actualizado utilizando el siguiente comando:
 
-  ```bash
+  [source,bash]
+----
   aws eks update-kubeconfig --region <region> --name <cluster_name>
-  ```
+----
   
- Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta **aws cli**, es decir, el directorio local **~/.aws**.
+ Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta *aws cli*, es decir, el directorio local *~/.aws*.
 
-## Uso
+== Uso
 
-### Sintaxis
+=== Sintaxis
 
-```bash
+[source,bash]
+----
 python3 upgrade-provisioner.py [OPTIONS]
-```
+----
 
 Flags disponibles:
 
@@ -48,34 +50,37 @@ Flags disponibles:
 | -k, --kubeconfig              | Especifica el archivo de configuración de kubectl a utilizar.                    | ~/.kube/config               | No                |
 | -p, --vault-password          | Archivo con la contraseña del vault necesaria para descifrar secretos.           | None                         | Sí                |
 | -s, --secrets                 | Archivo de secretos cifrados que debe descifrarse.                               | secrets.yml                  | No                |
-| -i, --user-assign-identity    | Identidad asignada por el usuario necesaria en el caso de Azure.                 | None                         | Sí (Azure)        |
+| -i, --user-assign-identity    | User Assign Identity necesaria en el caso de Azure. Se corresponde con el clientID del nodes_identity.               | None                         | Sí (Azure)        |
 | --enable-lb-controller        | Instala el controlador de balanceador de carga en clústeres de EKS (desactivado por defecto). | False                  | No                |
 | --disable-backup              | Deshabilita el respaldo de archivos antes de la actualización (habilitado por defecto). | False                      | No                |
 | --disable-prepare-capsule     | Deshabilita la preparación del entorno para el proceso de actualización.         | False                        | No                |
 
-### Ejecución básica
+=== Ejecución básica
 
-#### Construcción de contenedor de upgrade
+==== Construcción de contenedor de upgrade
 
 Es necesario ejecutar el contenedor Docker utilizando la imagen de upgrade:
 
-```bash
+[source,bash]
+----
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
-```
+----
 
-**Parámetros adicionales EKS**
+*Parámetros adicionales EKS*
 
 Para la ejecución en clústeres EKS, es necesario proporcionar los archivos de configuración de AWS:
-```bash
+[source,bash]
+----
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
-```
+----
 
 
-#### Configuración de clusterctl
+==== Configuración de clusterctl
 
 Los archivos de configuración de clusterctl están listos para realizar la actualización en cualquiera de los entornos. Sin embargo, debe realizarse un ajuste manual en el archivo `/root/.cluster-api/clusterctl.yaml`:
 
-```yaml
+[source,yaml]
+----
 providers:
   - name: aws
     url: /root/.cluster-api/local-repository/infrastructure-aws/v2.5.2/infrastructure-components.yaml
@@ -101,7 +106,7 @@ images:
     tag: 1.6.1-0.2.1
   cert-manager:
     repository: ${KEOS_REGISTRY_URL}/cert-manager
-```
+----
 
 - En el caso de GKE, sustituya `${KEOS_REGISTRY_URL}` por el registro de Docker correspondiente.
 
@@ -109,19 +114,32 @@ images:
 
 
 
-**Para EKS en AWS:**
+*Para EKS en AWS:*
 
-```bash
+[source,bash]
+----
 python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
-```
+----
 
-**Para Azure sobre máquinas virtuales:**
+*Para Azure sobre máquinas virtuales:*
 
-```bash
-python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-id> --kubeconfig /ruta/kubeconfig
-```
+[NOTE]
+.Obtener User Assign Identity
+====
+Para obtener el user assign identity que se debe indicar es posible recurrir al cli de azure:
+[source,bash]
+----
+az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
+----
+====
 
-## Directorios necesarios
+[source,bash]
+----
+python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
+----
+
+
+== Directorios necesarios
 
 El directorio de trabajo debe contener:
 
@@ -134,13 +152,13 @@ El directorio de trabajo debe contener:
 - `.kube/`  (directorio con el kubeconfig)
 
 
-## Limitaciones
+== Limitaciones
 
 - Solo soporta clústeres de Kubernetes en:
   - Amazon EKS
   - Azure sobre máquinas virtuales
   - Google GKE
 
-## Licencia
+== Licencia
 
 Este script es mantenido por Stratio Clouds. Para soporte, contacta con clouds-integration@stratio.com.
