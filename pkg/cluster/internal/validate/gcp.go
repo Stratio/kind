@@ -229,9 +229,6 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 			// ip policy fields are empty return nil
 			return nil
 		} else {
-			if !ipPolicy.UseIPAliases {
-				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if ip_allocation_policy is provided, fill in the fields'")
-			}
 			if (ipPolicy.ClusterSecondaryRangeName != "" && ipPolicy.ServicesSecondaryRangeName != "") &&
 				(ipPolicy.ClusterIpv4CidrBlock != "" || ipPolicy.ServicesIpv4CidrBlock != "") {
 				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_secondary_range_name and services_secondary_range_name are provided, cluster_ipv4_cidr_block and services_ipv4_cidr_block must not be set'")
