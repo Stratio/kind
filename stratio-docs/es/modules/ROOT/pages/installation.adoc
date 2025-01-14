@@ -32,9 +32,8 @@ WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmen
 En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe contar con los siguientes conjuntos de permisos.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
-+
-+
 ** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
++
 
 * Sistemas operativos certificados
 +
@@ -60,7 +59,6 @@ Al igual que con otros proveedores soportados, el aprovisionamiento requiere una
 Para los entornos en Azure se podrá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_. Para mayor detalle en la construcción de las imágenes ver la xref:operations-manual:image-builder/azure-image-builder.adoc[guía para Azure].
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
-
 
 === Consideraciones para imágenes
 
