@@ -50,6 +50,9 @@ var GCPMANCIDRBlock = regexp.MustCompile(GCPMANPattern).MatchString
 var GCPScopesPattern = `^https:\/\/www\.googleapis\.com\/auth\/.*$`
 var GCPScopes = regexp.MustCompile(GCPScopesPattern).MatchString
 
+// Regex for GCP encryption key
+var isKeyValid = regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`).MatchString
+
 func GCPPublicCIDRBlock(cidr string) bool {
 	return !GCPPrivateCIDRBlock(cidr) && GCPMANCIDRBlock(cidr)
 }
@@ -240,7 +243,6 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 
 		// CMEK Config validation
 		// Validate encryptionKey for managed clusters root volume
-		isKeyValid := regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`).MatchString
 		for _, wn := range spec.WorkerNodes {
 			if wn.RootVolume.Encrypted {
 				if wn.RootVolume.EncryptionKey == "" {
@@ -315,7 +317,6 @@ func validateGCPInstanceType(instanceType string, credentialsJson string, region
 
 func validateGCPStorageClass(spec commons.KeosSpec) error {
 	var err error
-	var isKeyValid = regexp.MustCompile(`^projects/[a-zA-Z0-9-]+/locations/[a-zA-Z0-9-]+/keyRings/[a-zA-Z0-9-]+/cryptoKeys/[a-zA-Z0-9-]+$`).MatchString
 	var sc = spec.StorageClass
 	var GCPFSTypes = []string{"xfs", "ext3", "ext4", "ext2"}
 	var GCPSCFields = []string{"Type", "FsType", "Labels", "DiskEncryptionKmsKey", "ProvisionedIopsOnCreate", "ProvisionedThroughputOnCreate", "ReplicationType"}
