@@ -48,11 +48,11 @@ docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig pa
 *Parámetros adicionales EKS*
 
 Para la ejecución en clústeres EKS, es necesario proporcionar los archivos de configuración de AWS:
+
 [source,bash]
 ----
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
-
 
 === Configuración de clusterctl
 
@@ -115,7 +115,6 @@ Flags disponibles:
 | --disable-prepare-capsule    | Deshabilita la preparación del entorno para el proceso de actualización.          | False                        | No                
 |===
 
-
 *Para EKS en AWS:*
 
 [source,bash]
@@ -134,6 +133,7 @@ python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <i
 .Obtener User Assign Identity
 ====
 Para obtener el user assign identity que se debe indicar es posible recurrir al cli de azure:
+
 [source,bash]
 ----
 az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
