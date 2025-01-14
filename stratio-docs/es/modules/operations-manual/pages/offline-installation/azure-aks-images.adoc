@@ -1,11 +1,11 @@
-= AKS images
+= Imágenes AKS
 
-== AKS own images
+== Imágenes propias de AKS
 
 |===
-| Chart | Version | Public image | Version
+| _Chart_ | Versión | Imagen pública | Versión
 
-| *Installed by Cluster API - CAPZ*
+| *Instalado por Cluster API - CAPZ*
 | *v1.11.4*
 |
 |
@@ -31,12 +31,12 @@
 | v1.8.14
 |===
 
-== Common images needed in AKS
+== Imágenes comunes necesarias en AKS
 
-Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the required images are:
+Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AKS, las imágenes necesarias son:
 
 |===
-| Chart | Version | Public image | Version
+| _Chart_ | Versión | Imagen pública | Versión
 
 | *cert-manager*
 | *v1.12.3*
@@ -60,7 +60,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the
 
 |
 |
-| quay.io/jetstack/cert-manager-acmesolver
+| quay.io/jetstack/cert-manager-acmesolver 
 | v1.12.3
 
 |
@@ -83,7 +83,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on AKS, the
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
 
-| *Installed by Cluster API - CAPI Component*
+| *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
 |
 |

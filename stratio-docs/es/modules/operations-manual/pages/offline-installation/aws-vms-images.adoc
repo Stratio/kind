@@ -1,11 +1,11 @@
-= Unmanaged AWS images
+= Imágenes AWS no gestionado
 
-== Own unmanaged AWS images
+== Imágenes propias de AWS no gestionado
 
 |===
-| Chart | Version | Public image | Version
+| _Chart_ | Versión | Imagen pública | Versión
 
-| *Installed by Cluster API - CAPA*
+| *Instalado por Cluster API - CAPA*
 | *v2.2.1*
 |
 |
@@ -16,12 +16,12 @@
 | v2.2.1
 |===
 
-== Common images needed in unmanaged AWS
+== Imágenes comunes necesarias en AWS no gestionado
 
-Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanaged AWS, the required images are:
+Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en AWS no gestionado, las imágenes necesarias son:
 
 |===
-| Chart | Version | Public image | Version
+| _Chart_ | Versión | Imagen pública | Versión
 
 | *tigera-operator*
 | *v3.26.1*
@@ -173,7 +173,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
 
-| *Installed by Cluster API - CAPI Component*
+| *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
 |
 |

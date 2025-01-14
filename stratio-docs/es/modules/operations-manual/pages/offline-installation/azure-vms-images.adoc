@@ -31,7 +31,7 @@
 | v1.8.14
 
 | *azuredisk-csi-driver*
-| *v1.28.3*
+| *v1.28.7*
 |
 |
 
@@ -47,8 +47,13 @@
 
 |
 |
+| mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar
+| v2.8.0
+
+|
+|
 | mcr.microsoft.com/oss/kubernetes-csi/csi-snapshotter
-| v6.2.2
+| v6.2.1
 
 |
 |
@@ -63,10 +68,10 @@
 |
 |
 | mcr.microsoft.com/oss/kubernetes-csi/azuredisk-csi
-| v1.28.3
+| v1.28.7
 
 | *azurefile-csi-driver*
-| *v1.28.3*
+| *v1.28.7*
 |
 |
 
@@ -79,6 +84,11 @@
 |
 | mcr.microsoft.com/oss/kubernetes-csi/csi-attacher
 | v4.3.0
+
+|
+|
+| mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar
+| v2.8.0
 
 |
 |
@@ -98,22 +108,22 @@
 |
 |
 | mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi
-| v1.28.3
+| v1.28.7
 
 | *cloud-provider-azure*
-| *v1.26.7*
+| *v1.28.5*
 |
 |
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-controller-manager
-| v1.26.7
+| v1.28.1
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager
-| v1.26.7
+| v1.28.1
 |===
 
 En este caso, existe como requisito adicional que las siguientes imágenes instaladas por CAPZ:
@@ -226,14 +236,19 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en Azure no ges
 | v1.27.2
 
 | *cluster-operator*
-| ***
+| *0.3.6*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.3.6
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
@@ -254,14 +269,3 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en Azure no ges
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
 | v1.5.3
-
-| *cluster-operator*
-| ***
-|
-|
-
-|
-|
-| gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
-|===

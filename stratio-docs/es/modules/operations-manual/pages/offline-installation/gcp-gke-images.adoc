@@ -1,27 +1,62 @@
-= Unmanaged AWS images
+= Imágenes GKE
 
-== Own unmanaged AWS images
-
-|===
-| Chart | Version | Public image | Version
-
-| *Installed by Cluster API - CAPA*
-| *v2.2.1*
-|
-|
-
-|
-|
-| registry.k8s.io/cluster-api-aws/cluster-api-aws-controller
-| v2.2.1
-|===
-
-== Common images needed in unmanaged AWS
-
-Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanaged AWS, the required images are:
+== Imágenes propias
 
 |===
-| Chart | Version | Public image | Version
+| Instalación | Versión | Imagen pública | Versión
+
+| *Instalado por Cluster API - CAPG*
+| *1.6.1-0.2.1*
+|
+|
+
+|
+|
+| stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller
+| 1.6.1-0.2.1
+
+| *Instalado mediante templates - CSI*
+| ***
+|
+|
+
+|
+|
+| registry.k8s.io/sig-storage/csi-node-driver-registrar
+| v2.7.0
+
+|
+|
+| registry.k8s.io/cloud-provider-gcp/gcp-compute-persistent-disk-csi-driver
+| v1.10.1
+
+|
+|
+| registry.k8s.io/sig-storage/csi-provisioner
+| v3.4.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-attacher
+| v4.2.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-resizer
+| v1.7.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-snapshotter
+| v6.1.0
+|===
+
+== Imágenes comunes necesarias en GCP no gestionado
+
+Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en GCP no gestionado, las imágenes necesarias son:
+
+|===
+| _Chart_ | Versión | Imagen pública | Versión
 
 | *tigera-operator*
 | *v3.26.1*
@@ -113,51 +148,6 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | registry.k8s.io/autoscaling/cluster-autoscaler
 | v1.27.2
 
-| *aws-ebs-csi-driver*
-| *v2.20.0*
-|
-|
-
-|
-|
-| public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver
-| v2.20.0
-
-|
-|
-| public.ecr.aws/ebs-csi-driver/volume-modifier-for-k8s
-| v0.1.0
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/external-attacher
-| v4.3.0-eks-1-27-3
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/external-provisioner
-| v3.5.0-eks-1-27-3
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/external-resizer
-| v1.8.0-eks-1-27-3
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter
-| v6.2.1-eks-1-27-3
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/livenessprobe
-| v2.10.0-eks-1-27-3
-
-|
-|
-| public.ecr.aws/eks-distro/kubernetes-csi/node-driver-registrar
-| v2.8.0-eks-1-27-3
-
 | *cluster-operator*
 | *0.3.6*
 |
@@ -173,7 +163,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
 
-| *Installed by Cluster API - CAPI Component*
+| *Instalado por Cluster API - CAPI Component*
 | *v1.5.3*
 |
 |
