@@ -6,24 +6,24 @@
 | Chart | Version | Public image | Version
 
 | *Installed by Cluster API - CAPA*
-| *v2.2.1*
+| *v2.5.2*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api-aws/cluster-api-aws-controller
-| v2.2.1
+| v2.5.2
 
 | *aws-load-balancer-controller*
-| *v1.6.2*
+| *v1.8.1*
 |
 |
 
 |
 |
 | public.ecr.aws/eks/aws-load-balancer-controller
-| v2.6.2
+| v2.8.1
 |===
 
 == Common images needed in EKS
@@ -32,6 +32,26 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in EKS, the
 
 |===
 | Chart | Version | Public image | Version
+
+| *flux*
+| *2.12.2*
+|
+|
+
+|
+|
+| ghcr.io/fluxcd/flux-cli
+| v2.2.2
+
+|
+|
+| ghcr.io/fluxcd/helm-controller
+| v0.37.2
+
+|
+|
+| ghcr.io/fluxcd/source-controller
+| v1.2.3
 
 | *tigera-operator*
 | *3.28.2*
@@ -81,77 +101,82 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in EKS, the
 |
 |
 | quay.io/tigera/operator
-| v1.30.5
+| v1.34.5
 
 | *cert-manager*
-| *v1.12.3*
+| *v1.14.5*
 |
 |
 
 |
 |
 | quay.io/jetstack/cert-manager-controller
-| v1.12.3
+| v1.14.5
 
 |
 |
 | quay.io/jetstack/cert-manager-cainjector
-| v1.12.3
+| v1.14.5
 
 |
 |
 | quay.io/jetstack/cert-manager-webhook
-| v1.12.3
+| v1.14.5
 
 |
 |
 | quay.io/jetstack/cert-manager-acmesolver
-| v1.12.3
+| v1.14.5
 
 |
 |
 | quay.io/jetstack/cert-manager-ctl
-| v1.12.3
+| v1.14.5
 
 | *cluster-autoscaler*
-| *9.29.1*
+| *9.37.0*
 |
 |
 
 |
 |
 | registry.k8s.io/autoscaling/cluster-autoscaler
-| v1.27.2
+| v1.30.0
 
 | *cluster-operator*
-| ***
+| *0.4.0*
 |
 |
+
+|
+|
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.4.0
 
 |
 |
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Installed by Cluster API - CAPI Component*
-| *v1.5.3*
+| *v1.7.4*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api/kubeadm-bootstrap-controller
-| v1.5.3
+| v1.7.4
 
 |
 |
 | registry.k8s.io/cluster-api/kubeadm-control-plane-controller
-| v1.5.3
+| v1.7.4
 
 |
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
-| v1.5.3
+| v1.7.4
 |===
 
 == Images installed as EKS add-ons

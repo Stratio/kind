@@ -13,7 +13,7 @@ To perform a successful offline installation, it is necessary to specify:
 * _KeosCluster_:
 ** `spec.docker_registries`: in the 'docker_registries' section, the _keos registry_ from which the images will be downloaded for offline deployment must be indicated. This registry must have the necessary images for each installation.
 
-NOTE: The images must be accessible in the repository indicated as _keos registry_ but the path of the image name must be respected. For example, the image `registry.k8s.io/cluster-api/cluster-api-controller:v1.5.3` should be retrieved from `<keos_registry_url>/cluster-api/cluster-api-controller:v1.5.3`.
+NOTE: The images must be accessible in the repository indicated as _keos registry_ but the path of the image name must be respected. For example, the image `registry.k8s.io/cluster-api/cluster-api-controller:v1.7.4` should be retrieved from `<keos_registry_url>/cluster-api/cluster-api-controller:v1.7.4`.
 
 == Images
 
@@ -28,7 +28,7 @@ The images required for an offline installation are composed of two types: image
 | xref:operations-manual:offline-installation:aws-eks-images.adoc[EKS]
 | xref:operations-manual:offline-installation:azure-vms-images.adoc[unmanaged AZURE]
 | xref:operations-manual:offline-installation:azure-aks-images.adoc[AKS]
-| xref:operations-manual:offline-installation:gcp-vms-images.adoc[GCP unmanaged]
+| xref:operations-manual:offline-installation:gcp-gke-images.adoc[GKE]
 |===
 
 NOTE: The Kubernetes core images are contained in the node images themselves. This is why they are not listed in any of the references to the required images, as they will be available in all images built according to the image building guide referenced in the xref:operations-manual:operations-manual.adoc#_generation_of_custom_images[operations manual].

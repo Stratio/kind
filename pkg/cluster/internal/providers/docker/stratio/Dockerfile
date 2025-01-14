@@ -1,27 +1,31 @@
-ARG DOCKER_REG=docker.io
-ARG IMAGE_VERSION=v1.27.0
-FROM ${DOCKER_REG}/kindest/node:${IMAGE_VERSION}
+FROM kindest/node:v1.27.0
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
 ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
 # Tools versions
-ARG CLUSTERCTL
+ARG CLUSTERCTL=v1.7.4
 ENV CLUSTERAWSADM=v2.5.2
 ENV HELM=v3.13.1
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
-ARG CAPA
-ARG CAPG
-ARG CAPZ
+ARG CAPA=v2.5.2
+ARG CAPG=1.6.1-0.2.1
+ARG CAPZ=v1.12.4
 ENV CAPG_FORK_URL_GKE="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/"
 
-# Install vim
-RUN apt-get update && apt-get install -y \
-  vim python3-pip git \
-  && rm -rf /var/lib/apt/lists/*
+# Install and update dependencies
+RUN apt-get update \
+    && apt-get install -y curl \
+                          git \
+                          libc-bin \
+                          libnghttp2-14 \
+                          python3-pip \
+                          vim \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
@@ -46,7 +50,7 @@ RUN curl -L https://get.helm.sh/helm-${HELM}-linux-amd64.tar.gz -o /root/helm.ta
   && rm -rf /root/linux-amd64 /root/helm.tar.gz \
   && chmod +x /usr/local/bin/helm \
   && helm plugin install https://github.com/hypnoglow/helm-s3.git
- 
+
 # Create helm charts directory
 RUN mkdir -p /stratio/helm 
 
@@ -72,4 +76,3 @@ RUN curl -L  https://github.com/kubernetes-sigs/cluster-api/releases/download/${
     && curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/metadata.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/metadata.yaml \
     && cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/metadata.yaml
-
