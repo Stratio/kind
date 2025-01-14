@@ -32,7 +32,7 @@ El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliz
   aws eks update-kubeconfig --region <region> --name <cluster_name>
 ----
   
- Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta *aws cli*, es decir, el directorio local *~/.aws*.
+Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta *aws cli*, es decir, el directorio local *~/.aws*.
 
 == Uso
 
@@ -153,14 +153,3 @@ El directorio de trabajo debe contener:
 - `.aws/` (solo en EKS. Directorio con los archivos de configuración de aws)
 - `.kube/`  (directorio con el kubeconfig)
 
-
-== Limitaciones
-
-- Solo soporta clústeres de Kubernetes en:
-  - Amazon EKS
-  - Azure sobre máquinas virtuales
-  - Google GKE
-
-== Licencia
-
-Este script es mantenido por Stratio Clouds. Para soporte, contacta con clouds-integration@stratio.com.
