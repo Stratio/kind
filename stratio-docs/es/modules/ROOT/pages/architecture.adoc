@@ -162,7 +162,6 @@ spec:
 
 === Red de _pods_
 
-
 En la mayoría de proveedores/_flavours_ se permite indicar un CIDR específico para _pods_, con ciertas particularidades descritas a continuación.
 
 NOTE: El CIDR para _pods_ no deberá superponerse con la red de los nodos o cualquier otra red destino a la que éstos deban acceder.
