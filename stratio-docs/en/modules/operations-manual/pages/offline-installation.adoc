@@ -24,11 +24,9 @@ The images required for an offline installation are composed of two types: image
 
 | v1.26.x
 | xref:operations-manual:offline-installation:common-images.adoc[common images]
-| xref:operations-manual:offline-installation:aws-vms-images.adoc[Unmanaged AWS]
 | xref:operations-manual:offline-installation:aws-eks-images.adoc[EKS]
 | xref:operations-manual:offline-installation:azure-vms-images.adoc[unmanaged AZURE]
-| xref:operations-manual:offline-installation:azure-aks-images.adoc[AKS]
-| xref:operations-manual:offline-installation:gcp-vms-images.adoc[GCP unmanaged]
+| xref:operations-manual:offline-installation:gcp-gke-images.adoc[GKE]
 |===
 
 NOTE: The Kubernetes core images are contained in the node images themselves. This is why they are not listed in any of the references to the required images, as they will be available in all images built according to the image building guide referenced in the xref:operations-manual:operations-manual.adoc#_generation_of_custom_images[operations manual].

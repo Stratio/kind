@@ -6,15 +6,15 @@
 | Image | Version
 
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.2.0
+| 0.3.6
 
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 |===
 
-NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1` image of the _cluster-operator_ does not follow the same nomenclature as the other images as it must follow the `<keosregistry url>/stratio/kube-rbac-proxy:v0.13.1` pattern.
+NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy:` image of the _cluster-operator_ does not follow the same nomenclature as the other images as it must follow the `<keosregistry url>/stratio/kube-rbac-proxy:` pattern.
 
-NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1` image may be referenced from other operators installed using _Stratio Cloud Provisioner_. In that case, this image should be accessible from 2 different tags, the one mentioned above and the one complying with the general nomenclature, i.e. `<keosregistry url>/kubebuilder/kube-rbac-proxy:v0.13.1`.
+NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy:` image may be referenced from other operators installed using _Stratio Cloud Provisioner_. In that case, this image should be accessible from 2 different tags, the one mentioned above and the one complying with the general nomenclature, i.e. `<keosregistry url>/kubebuilder/kube-rbac-proxy:`.
 
 == Other images
 
@@ -25,5 +25,5 @@ NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1` image may be referenced f
 | v1.27.0
 
 | docker.io/kindest/kindnetd
-| v20230330-48f316cd
+| v20221004-44d545d1
 |===

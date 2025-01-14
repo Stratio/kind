@@ -1,24 +1,59 @@
-= Unmanaged AWS images
+= GKE images
 
-== Own unmanaged AWS images
+== Own images
 
 |===
-| Chart | Version | Public image | Version
+| Installation | Version | Public Image | Version
 
-| *Installed by Cluster API - CAPA*
-| *v2.2.1*
+| *Installed by Cluster API - CAPG*
+| *1.6.1-0.2.1*
 |
 |
 
 |
 |
-| registry.k8s.io/cluster-api-aws/cluster-api-aws-controller
-| v2.2.1
+| stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller
+| 1.6.1-0.2.1
+
+| *Installed through templates - CSI*
+| ***
+|
+|
+
+|
+|
+| registry.k8s.io/sig-storage/csi-node-driver-registrar
+| v2.7.0
+
+|
+|
+| registry.k8s.io/cloud-provider-gcp/gcp-compute-persistent-disk-csi-driver
+| v1.10.1
+
+|
+|
+| registry.k8s.io/sig-storage/csi-provisioner
+| v3.4.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-attacher
+| v4.2.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-resizer
+| v1.7.0
+
+|
+|
+| registry.k8s.io/sig-storage/csi-snapshotter
+| v6.1.0
 |===
 
-== Common images needed in unmanaged AWS
+== Common images needed in unmanaged GCP
 
-Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanaged AWS, the required images are:
+Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanaged GCP, the required images are:
 
 |===
 | Chart | Version | Public image | Version
@@ -114,14 +149,19 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | v1.27.2
 
 | *cluster-operator*
-| ***
+| *0.3.6*
 |
 |
 
 |
 |
+| stratio-releases.repo.stratio.com/stratio/cluster-operator
+| 0.3.6
+
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.13.1
+| v0.15.0
 
 | *Installed by Cluster API - CAPI Component*
 | *v1.5.3*
