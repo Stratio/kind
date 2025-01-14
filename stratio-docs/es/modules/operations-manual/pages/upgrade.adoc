@@ -3,6 +3,7 @@
 == Descripción
 
 El script `upgrade-provisioner.py` automatiza el proceso de actualización de clusters en Kubernetes gestionados en los siguientes entornos:
+
 - *EKS* en AWS
 - *Azure VMs*
 - *GKE* en GCP
@@ -26,7 +27,7 @@ Con el objetivo de garantizar un entorno de ejecución reproducible y gestionar 
 
 El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliza un token con un tiempo de vida limitado, lo que puede interrumpir el proceso de actualización. Se recomienda generar un kubeconfig actualizado utilizando el siguiente comando:
 
-  [source,bash]
+[source,bash]
 ----
   aws eks update-kubeconfig --region <region> --name <cluster_name>
 ----
@@ -44,16 +45,18 @@ python3 upgrade-provisioner.py [OPTIONS]
 
 Flags disponibles:
 
-| Flag                         | Descripción                                                                      | Valor predeterminado         | Obligatoria       |
-|------------------------------|----------------------------------------------------------------------------------|------------------------------|-------------------|
-| -y, --yes                     | No requiere confirmación entre tareas (modo automático).                         | False                        | No                |
-| -k, --kubeconfig              | Especifica el archivo de configuración de kubectl a utilizar.                    | ~/.kube/config               | No                |
-| -p, --vault-password          | Archivo con la contraseña del vault necesaria para descifrar secretos.           | None                         | Sí                |
-| -s, --secrets                 | Archivo de secretos cifrados que debe descifrarse.                               | secrets.yml                  | No                |
-| -i, --user-assign-identity    | User Assign Identity necesaria en el caso de Azure. Se corresponde con el clientID del nodes_identity.               | None                         | Sí (Azure)        |
-| --enable-lb-controller        | Instala el controlador de balanceador de carga en clústeres de EKS (desactivado por defecto). | False                  | No                |
-| --disable-backup              | Deshabilita el respaldo de archivos antes de la actualización (habilitado por defecto). | False                      | No                |
-| --disable-prepare-capsule     | Deshabilita la preparación del entorno para el proceso de actualización.         | False                        | No                |
+|=== 
+| Flag                         | Descripción                                                                      | Valor predeterminado         | Obligatoria       
+
+| -y, --yes                    | No requiere confirmación entre tareas (modo automático).                         | False                        | No                
+| -k, --kubeconfig             | Especifica el archivo de configuración de kubectl a utilizar.                    | ~/.kube/config               | No                
+| -p, --vault-password         | Archivo con la contraseña del vault necesaria para descifrar secretos.           | None                         | Sí                
+| -s, --secrets                | Archivo de secretos cifrados que debe descifrarse.                               | secrets.yml                  | No                
+| -i, --user-assign-identity   | User Assign Identity necesaria en el caso de Azure. Se corresponde con el clientID del nodes_identity. | None | Sí (Azure)        
+| --enable-lb-controller       | Instala el controlador de balanceador de carga en clústeres de EKS (desactivado por defecto). | False                        | No                
+| --disable-backup             | Deshabilita el respaldo de archivos antes de la actualización (habilitado por defecto). | False                        | No                
+| --disable-prepare-capsule    | Deshabilita la preparación del entorno para el proceso de actualización.          | False                        | No                
+|===
 
 === Ejecución básica
 
@@ -123,8 +126,13 @@ python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeco
 
 *Para Azure sobre máquinas virtuales:*
 
+[source,bash]
+----
+python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
+----
+
 [NOTE]
-.Obtener User Assign Identity
+*.Obtener User Assign Identity*
 ====
 Para obtener el user assign identity que se debe indicar es posible recurrir al cli de azure:
 [source,bash]
@@ -132,12 +140,6 @@ Para obtener el user assign identity que se debe indicar es posible recurrir al 
 az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
 ----
 ====
-
-[source,bash]
-----
-python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
-----
-
 
 == Directorios necesarios
 
