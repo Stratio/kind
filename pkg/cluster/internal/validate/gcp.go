@@ -224,19 +224,24 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 		}
 
 		// ipAllocationPolicy validation
-		if spec.ControlPlane.Gcp.IPAllocationPolicy == (commons.IPAllocationPolicy{}) {
-			// Error ipAllocationPolicy is required
-			return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if ip_allocation_policy is provided, it must be set'")
+		ipPolicy := spec.ControlPlane.Gcp.IPAllocationPolicy
+		if ipPolicy == (commons.IPAllocationPolicy{}) {
+			// ip policy fields are empty return nil
+			return nil
 		} else {
-			if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterSecondaryRangeName != "" && spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesSecondaryRangeName != "" {
-				if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterIpv4CidrBlock != "" || spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesIpv4CidrBlock != "" {
-					return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_secondary_range_name and services_secondary_range_name are provided, cluster_ipv4_cidr_block and services_ipv4_cidr_block must not be set'")
-				}
-			} else if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterIpv4CidrBlock != "" && spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesIpv4CidrBlock != "" {
-				if spec.ControlPlane.Gcp.IPAllocationPolicy.ClusterSecondaryRangeName != "" || spec.ControlPlane.Gcp.IPAllocationPolicy.ServicesSecondaryRangeName != "" {
-					return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_ipv4_cidr_block and services_ipv4_cidr_block are provided, cluster_secondary_range_name and services_secondary_range_name must not be set'")
-				}
-			} else {
+			if !ipPolicy.UseIPAliases {
+				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if ip_allocation_policy is provided, fill in the fields'")
+			}
+			if (ipPolicy.ClusterSecondaryRangeName != "" && ipPolicy.ServicesSecondaryRangeName != "") &&
+				(ipPolicy.ClusterIpv4CidrBlock != "" || ipPolicy.ServicesIpv4CidrBlock != "") {
+				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_secondary_range_name and services_secondary_range_name are provided, cluster_ipv4_cidr_block and services_ipv4_cidr_block must not be set'")
+			}
+			if (ipPolicy.ClusterIpv4CidrBlock != "" && ipPolicy.ServicesIpv4CidrBlock != "") &&
+				(ipPolicy.ClusterSecondaryRangeName != "" || ipPolicy.ServicesSecondaryRangeName != "") {
+				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'if cluster_ipv4_cidr_block and services_ipv4_cidr_block are provided, cluster_secondary_range_name and services_secondary_range_name must not be set'")
+			}
+			if (ipPolicy.ClusterSecondaryRangeName == "" || ipPolicy.ServicesSecondaryRangeName == "") &&
+				(ipPolicy.ClusterIpv4CidrBlock == "" || ipPolicy.ServicesIpv4CidrBlock == "") {
 				return errors.New("spec.control_plane.gcp.ip_allocation_policy: 'either cluster_secondary_range_name and services_secondary_range_name or cluster_ipv4_cidr_block and services_ipv4_cidr_block must be set'")
 			}
 		}
