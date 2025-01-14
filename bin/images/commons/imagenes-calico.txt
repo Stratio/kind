@@ -1,8 +1,8 @@
-docker.io/calico/kube-controllers:3.28.2
-docker.io/calico/typha:3.28.2
-docker.io/calico/node:3.28.2
-docker.io/calico/csi:3.28.2
-docker.io/calico/node-driver-registrar:3.28.2
-docker.io/calico/ctl:3.28.2
-docker.io/calico/cni:3.28.2
-docker.io/calico/pod2daemon-flexvol:3.28.2
+quay.io/calico/cni:v3.28.2
+quay.io/calico/csi:v3.28.2
+quay.io/calico/ctl:v3.28.2
+quay.io/calico/kube-controllers:v3.28.2
+quay.io/calico/node-driver-registrar:v3.28.2
+quay.io/calico/node:v3.28.2
+quay.io/calico/pod2daemon-flexvol:v3.28.2
+quay.io/calico/typha:v3.28.2
