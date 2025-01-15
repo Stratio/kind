@@ -7,7 +7,7 @@
 * Roles y políticas
 +
 Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en varios servicios como EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Aunque el uso de estas acciones puede variar según el tipo de instalación, el proveedor verifica que el usuario indicado tenga los permisos requeridos para garantizar el correcto funcionamiento.
-+
+
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
 ** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
 +
@@ -33,7 +33,6 @@ En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe con
 +
 ** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
 ** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
-+
 
 * Sistemas operativos certificados
 +

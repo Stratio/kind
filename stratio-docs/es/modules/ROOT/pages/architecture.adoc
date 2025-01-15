@@ -138,7 +138,6 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|Calico
 ^|VxLAN
 ^|Calico
-
 |===
 
 === Infraestructura propia
@@ -282,7 +281,7 @@ Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente inte
 
 A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de IAM para _Service Accounts_, asegurando el uso de políticas IAM con mínimos privilegios.
 
-=== Acceso al _endpoint_ del API Server
+=== Acceso al _endpoint_ del _API Server_
 
 ==== EKS
 
@@ -490,7 +489,6 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 
 [.center,cols="2,1",width=40%]
 |===
-
 ^|EKS
 ^|ecr, generic
 
@@ -499,7 +497,6 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 
 ^|Azure
 ^|acr, generic
-
 |===
 
 == Repositorio de Helm
@@ -508,7 +505,6 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 
 [.center,cols="2,1",width=40%]
 |===
-
 ^|EKS
 ^|ecr, generic
 
@@ -517,7 +513,6 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 
 ^|Azure
 ^|acr, generic
-
 |===
 
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
