@@ -6,7 +6,7 @@
 
 * For a user with the required privileges in AWS:
 ** Create a user for installation.
-** Create a policy according to xref:attachment$stratio-aws-unmanaged-policy.json[_stratio-aws-unmanaged-policy.json_].
+** Create a policy according to xref:attachment$stratio-eks-policy.json[_stratio-eks-policy.json_].
 ** Create a policy according to xref:attachment$stratio-aws-temp-policy.json[_stratio-temp-policy.json_] (only for provisioning).
 ** Attach policies to the user.
 ** Create an access key.
