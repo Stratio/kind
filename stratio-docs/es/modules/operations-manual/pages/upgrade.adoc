@@ -51,7 +51,7 @@ docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig pa
 
 === Configuración de `clusterctl`
 
-Los archivos de configuración de clusterctl están listos para realizar la actualización en cualquiera de los entornos. Sin embargo, debe realizarse un ajuste manual en el archivo `/root/.cluster-api/clusterctl.yaml`:
+Edita manualmente el archivo `/root/.cluster-api/clusterctl.yaml` para ajustar el proveedor según el entorno:
 
 [source,yaml]
 ----
