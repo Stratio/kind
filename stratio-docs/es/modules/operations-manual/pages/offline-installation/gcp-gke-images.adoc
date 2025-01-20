@@ -66,17 +66,17 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en GCP no gesti
 |
 |
 | ghcr.io/fluxcd/flux-cli
-| v2.2.2
+| v2.4.0
 
 |
 |
 | ghcr.io/fluxcd/helm-controller
-| v0.37.2
+| v1.1.0
 
 |
 |
 | ghcr.io/fluxcd/source-controller
-| v1.2.3
+| v1.4.1
 
 | *tigera-operator*
 | *3.28.2*
