@@ -59,7 +59,7 @@ Al igual que con otros proveedores soportados, el aprovisionamiento requiere una
 
 * Sistemas operativos certificados
 +
-Para los entornos en Azure se deberán utilizar las imagenes gestionadas por Stratio, las cuales podrán ser consultadas en nuestra documentación _Stratio Generative AI Data Fabric_ en la sección _Artefactos de Stratio Generative AI Data Fabric_.
+En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
 
