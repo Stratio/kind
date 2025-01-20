@@ -98,7 +98,7 @@ python3 upgrade-provisioner.py [OPTIONS]
 Opciones principales:
 
 |=== 
-| Flag                         | Descripción                                                                      | Valor predeterminado         | Obligatoria       
+| _Flag_ | Descripción | Valor predeterminado | Obligatoria
 
 | -y, --yes                    | No requiere confirmación entre tareas (modo automático).                         | False                        | No                
 | -k, --kubeconfig             | Especifica el archivo de configuración de kubectl a utilizar.                    | ~/.kube/config               | No                
