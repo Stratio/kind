@@ -16,11 +16,7 @@ For EKS deployment, you must manually create the AWSServiceRoleForAmazonEKS role
 
 * Certified operating systems
 +
-To ensure the functionalities supported by the EKS-managed _control-plane_, you should use any AMI provided by AWS specifically for this purpose.
-+
-The https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMIs optimized for Amazon EKS] are built on the Amazon Linux 2 operating system.
-+
-For deployments on unmanaged AWS, you should use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool that allows you to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/aws-image-builder.adoc[guide for AWS].
+Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
@@ -42,9 +38,7 @@ In the case of GKE, in addition to the above permissions, additional permissions
 
 * Certified operating systems
 +
-For unmanaged GCP environments use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/gcp-image-builder.adoc[guide for GCP].
-+
-The currently recommended operating system for this provider is Ubuntu 22.04.
+En los entornos de GCP no gestionados, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 For GKE, the default operating system is Container-Optimized OS (COS), and no specific image needs to be specified.
 +
@@ -65,7 +59,7 @@ As with other supported providers, provisioning requires an account with all the
 
 * Certified operating systems
 +
-For environments in Azure, it will be possible to use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool that allows to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/azure-image-builder.adoc[guide for Azure].
+En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 The currently recommended operating system for this provider is Ubuntu 22.04, the one that creates by default the controller of this cloud provider.
 
@@ -96,27 +90,6 @@ When creating the image for the cluster, the Operating System needs for the appl
 ==== Elasticsearch
 
 To support Elasticsearch deployments, the OS must have the `max_map_count = 262144` parameter of the sysctl as indicated by its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
-
-For images created with image-builder (*AWS unmanaged, Azure unmanaged and GCP unmanaged*), you have to add the following item in the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
-
-[source,yaml]
-----
-- { param: vm.max_map_count, val: 262144 }
-----
-
-Amazon Linux 2 images *used by EKS* already have this parameter/value.
-
-For the *AKS case* and since images cannot be built with image-builder, the following setting is added in the _AzureManagedMachinePool_ object:
-
-[source,yaml]
-----
-spec:
-  linuxOSConfig:
-  sysctls:
-    vmMaxMapCount: 262144
-----
-
-Therefore, all nodes in the cluster already have this parameter/value.
 
 == Descriptor of the cluster
 
