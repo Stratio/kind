@@ -12,6 +12,7 @@
 * [Core] Added the default creation of volumes for containerd, etcd and root, if not indicated in the keoscluster
 * [Core] Support k8s v1.30
 * [Core] Deprecated Kubernetes versions prior to 1.28
+* [PLT-817] Bump Tigera Operator version to v3.28.2
 * [PLT-965] Disable managed Monitoring and Logging
 * [PLT-806] Support for private clusters on GKE
 * [PLT-920] Added use-local-stratio-image flag to reuse local image
