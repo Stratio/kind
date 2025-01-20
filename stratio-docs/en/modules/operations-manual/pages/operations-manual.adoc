@@ -270,41 +270,6 @@ The logs of the _cluster-autoscaler_ can be viewed from its deployment:
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
 ----
 
-=== _Stratio Cloud Provisioner_ upgrade
-
-==== Prerequisites
-
-The following binaries must be available on the bastion machine:
-
-- python3
-- ansible-vault (pip)
-- clusterctl
-- helm
-- kubectl
-- jq
-
-The necessary permissions must be secured on the backup directory of the bastion machine so that the user running the script can write to it (the directory _./backup/upgrade/_ is created).
-
-==== Execution
-
-To upgrade the _Stratio Cloud Provisioner_ version from 0.3 to 0.4 you must run the script _upgrade-provisioner++_++.py_ from the workspace with which the cluster was installed.
-
-You can refer to the script help with the following command:
-
-[source,bash]
-----
-python3 upgrade-provisioner.py -h
-----
-
-Example:
-
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault_pass>
-----
-
-The _cluster.yaml_ and _secrets.yml_ descriptors must be present in the workspace. If the _cluster.yaml_ descriptor has another name or is in another path, it can be specified with the `-d` parameter.
-
 === Kubernetes upgrade
 
 The upgrade of the cluster to a higher version of Kubernetes will be performed in two parts within the same atomic process: first the _control-plane_ and, once this is on the new version, the _worker_ nodes, iterating through each group and upgrading them one by one.
