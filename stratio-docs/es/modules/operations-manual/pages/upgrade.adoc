@@ -20,7 +20,7 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 
 === Específicos para EKS
 
-El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliza un token con un tiempo de vida limitado, lo que puede interrumpir el proceso de actualización. Se recomienda generar un kubeconfig actualizado utilizando el siguiente comando:
+El `kubeconfig` generado por defecto en EKS tiene un _token_ con tiempo de vida limitado. Para evitar interrupciones, genera un `kubeconfig` actualizado con:
 
 [source,bash]
 ----
