@@ -27,7 +27,7 @@ El `kubeconfig` generado por defecto en EKS tiene un _token_ con tiempo de vida 
   aws eks update-kubeconfig --region <region> --name <cluster_name>
 ----
   
-Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta *aws cli*, es decir, el directorio local *~/.aws*.
+Este comando habilita la renovación automática del _token_ mediante AWS CLI. Además, debe proporcionarse el directorio local `~/.aws` al contenedor de actualización.
 
 == Ejecución del _script_
 
