@@ -144,7 +144,7 @@ El directorio de trabajo debe contener:
 - `upgrade-provisioner.py` (el script principal)
 - `templates/` (directorio con plantillas Jinja2 requeridas)
 * `files/`: archivos adicionales (configuraciones, Helm, etc.).
-- `requirements.txt` (archivo con las dependencias necesarias)
+* `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
 * `.aws/`: archivos de configuración de AWS (solo para EKS).
 * `.kube/`: directorio con el archivo _kubeconfig_.
