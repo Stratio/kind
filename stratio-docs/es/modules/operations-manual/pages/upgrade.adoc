@@ -29,7 +29,7 @@ El archivo kubeconfig generado tras la instalación de un clúster en EKS utiliz
   
 Este comando crea un kubeconfig que delega la gestión del token en la CLI de AWS, renovándolo de manera automática. Además de los requisitos generales, debe proporcionarse al contenedor de actualización los archivos de configuración de AWS utilizados por la herramienta *aws cli*, es decir, el directorio local *~/.aws*.
 
-== Ejecución básica
+== Ejecución del _script_
 
 === Construcción de contenedor de upgrade
 
