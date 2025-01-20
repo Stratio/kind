@@ -95,7 +95,7 @@ Para otros entornos, elimina la sección 'images'.
 python3 upgrade-provisioner.py [OPTIONS]
 ----
 
-Flags disponibles:
+Opciones principales:
 
 |=== 
 | Flag                         | Descripción                                                                      | Valor predeterminado         | Obligatoria       
