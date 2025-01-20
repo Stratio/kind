@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.7.0 (upcoming)
 
-* Pending changelog
+* [PLT-1394] Bump Flux chart version to 2.14.1
 
 ## Previous development
 

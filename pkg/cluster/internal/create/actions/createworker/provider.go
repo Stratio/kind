@@ -212,31 +212,31 @@ var commonsCharts = ChartsDictionary{
 		"28": {
 			"managed": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 		"29": {
 			"managed": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 		"30": {
 			"managed": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.12.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 	},
