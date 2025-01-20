@@ -34,7 +34,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en EKS, las im�
 | _Chart_ | Versión | Imagen pública | Versión
 
 | *flux*
-| *2.12.2*
+| *2.14.1*
 |
 |
 

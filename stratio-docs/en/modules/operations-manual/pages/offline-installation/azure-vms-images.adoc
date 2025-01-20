@@ -156,7 +156,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | Chart | Version | Public image | Version
 
 | *flux*
-| *2.12.2*
+| *2.14.1*
 |
 |
 
