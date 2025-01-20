@@ -59,49 +59,49 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs on unmanage
 | Chart | Version | Public image | Version
 
 | *tigera-operator*
-| *3.28.2*
+| *3.29.1*
 |
 |
 
 |
 |
 | docker.io/calico/kube-controllers
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/typha
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/node
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/csi
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/node-driver-registrar
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/ctl
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/cni
-| 3.28.2
+| 3.29.1
 
 |
 |
 | docker.io/calico/pod2daemon-flexvol
-| 3.28.2
+| 3.29.1
 
 |
 |

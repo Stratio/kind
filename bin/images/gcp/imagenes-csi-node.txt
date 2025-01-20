@@ -1,2 +1,2 @@
-docker.io/calico/csi:3.28.2
-docker.io/calico/node-driver-registrar:3.28.2
+docker.io/calico/csi:3.29.1
+docker.io/calico/node-driver-registrar:3.29.1

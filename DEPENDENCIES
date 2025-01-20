@@ -9,8 +9,8 @@ core:
     cluster-operator: v0.2.0-SNAPSHOT
     kube-rbac-proxy: v0.15.0
   calico:
-    calicoctl: v3.28.2
-    tigera-operator: v1.34.5
+    calicoctl: v3.29.1
+    tigera-operator: v1.36.2
   cluster-autoscaler-chart: v9.29.1
   cluster-autoscaler: v1.27.2
   pause: v3.9

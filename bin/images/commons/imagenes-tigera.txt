@@ -1,1 +1,1 @@
-quay.io/tigera/operator:v1.30.5
+quay.io/tigera/operator:v1.36.2
