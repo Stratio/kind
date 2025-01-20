@@ -2,7 +2,7 @@
 
 == Descripción
 
-El script `upgrade-provisioner.py` automatiza el proceso de actualización de clusters en Kubernetes gestionados en los siguientes entornos:
+El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ Kubernetes en los siguientes entornos:
 
 - *EKS* en AWS
 - *Azure VMs*
