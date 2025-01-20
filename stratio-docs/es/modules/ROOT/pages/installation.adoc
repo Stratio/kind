@@ -16,7 +16,7 @@ Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRol
 
 * Sistemas operativos certificados
 +
-Para asegurar las funcionalidades soportadas por el _control-plane_ gestionado de EKS, se deberán utilizar las imagenes gestionadas por Stratio, las cuales podrán ser consultadas en nuestra documentación _Stratio Generative AI Data Fabric_ en la sección _Artefactos de Stratio Generative AI Data Fabric_.
+Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
@@ -38,7 +38,7 @@ En el caso de GKE, además de los permisos anteriores se necesitarán permisos a
 
 * Sistemas operativos certificados
 +
-Para los entornos en GCP no gestionado se deberán utilizar las imagenes gestionadas por Stratio, las cuales podrán ser consultadas en nuestra documentación _Stratio Generative AI Data Fabric_ en la sección _Artefactos de Stratio Generative AI Data Fabric_.
+En los entornos de GCP no gestionados, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
 +
@@ -59,7 +59,7 @@ Al igual que con otros proveedores soportados, el aprovisionamiento requiere una
 
 * Sistemas operativos certificados
 +
-Para los entornos en Azure se deberán utilizar las imagenes gestionadas por Stratio, las cuales podrán ser consultadas en nuestra documentación _Stratio Generative AI Data Fabric_ en la sección _Artefactos de Stratio Generative AI Data Fabric_.
+En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
 
