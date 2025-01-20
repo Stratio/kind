@@ -84,7 +84,7 @@ images:
 
 Para GKE, reemplaza `${KEOS_REGISTRY_URL}` con el registro de Docker correspondiente.
 
-- Para otros entornos, elimine la sección `images`.
+Para otros entornos, elimina la sección 'images'.
 
 === Script de Upgrade
 
