@@ -4,9 +4,9 @@
 
 El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ Kubernetes en los siguientes entornos:
 
-- *EKS* en AWS
-- *Azure VMs*
-- *GKE* en GCP
+- *EKS* en AWS.
+- *Azure VMs*.
+- *GKE* en GCP.
 
 Este script está diseñado para actualizar la versión del clúster Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la versión proporcionada por `cloud-provisioner 0.6.x`.
 
