@@ -42,7 +42,7 @@ docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig pa
 
 *Parámetros adicionales para EKS*
 
-Para la ejecución en clústeres EKS, es necesario proporcionar los archivos de configuración de AWS:
+Incluye el directorio de configuración de AWS:
 
 [source,bash]
 ----
