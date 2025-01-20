@@ -82,7 +82,7 @@ images:
     repository: ${KEOS_REGISTRY_URL}/cert-manager
 ----
 
-- En el caso de GKE, sustituya `${KEOS_REGISTRY_URL}` por el registro de Docker correspondiente.
+Para GKE, reemplaza `${KEOS_REGISTRY_URL}` con el registro de Docker correspondiente.
 
 - Para otros entornos, elimine la sección `images`.
 
