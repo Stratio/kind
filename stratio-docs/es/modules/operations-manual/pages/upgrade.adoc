@@ -16,9 +16,7 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 
 * Archivo `kubeconfig` con acceso al _cluster_. 
 * Archivo `secrets.yml` usado durante la creación del _cluster_.
-
-- Herramientas requeridas:
-  - *Docker*: necesario para ejecutar el contenedor de actualización.
+* Herramienta Docker, necesaria para ejecutar el contenedor.
 
 === Requisitos/consideraciones específicas para EKS
 
