@@ -28,6 +28,16 @@ import (
 // explicitKubeconfigPath is --kubeconfig, following the rules from
 // https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands
 func Cluster(logger log.Logger, p providers.Provider, name, explicitKubeconfigPath string) error {
+	if logger == nil {
+		return errors.New("logger is nil")
+	}
+	if p == nil {
+		return errors.New("provider is nil")
+	}
+	if name == "" {
+		return errors.New("name is empty")
+	}
+
 	n, err := p.ListNodes(name)
 	if err != nil {
 		return errors.Wrap(err, "error listing nodes")
@@ -42,8 +52,6 @@ func Cluster(logger log.Logger, p providers.Provider, name, explicitKubeconfigPa
 	if err != nil {
 		return err
 	}
-	if kerr != nil {
-		return err
-	}
+
 	return nil
 }
