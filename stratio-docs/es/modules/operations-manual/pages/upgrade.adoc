@@ -117,8 +117,8 @@ Flags disponibles:
 python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
 ----
 
-*Para Azure sobre máquinas virtuales:*
-
+* Azure VMs:
++
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
