@@ -1,7 +1,7 @@
 core:
   binaries:
     clusterctl: v1.7.4
-    helm: v3.16.3
+    helm: v3.13.1
   images:
     calico:
       cni: v3.28.2
