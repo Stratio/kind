@@ -31,7 +31,7 @@ Este comando habilita la renovación automática del _token_ mediante AWS CLI. A
 
 == Ejecución del _script_
 
-=== Construcción de contenedor de upgrade
+=== Construcción del contenedor
 
 Es necesario ejecutar el contenedor Docker utilizando la imagen de upgrade. En él dispondremos del script y del resto de archivos necesarios para ejecutar el proceso:
 
