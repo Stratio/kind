@@ -146,6 +146,6 @@ El directorio de trabajo debe contener:
 * `files/`: archivos adicionales (configuraciones, Helm, etc.).
 - `requirements.txt` (archivo con las dependencias necesarias)
 - `secrets.yml` (archivo con las credenciales del cluster)
-- `.aws/` (solo en EKS. Directorio con los archivos de configuración de aws)
+* `.aws/`: archivos de configuración de AWS (solo para EKS).
 * `.kube/`: directorio con el archivo _kubeconfig_.
 
