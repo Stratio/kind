@@ -6,21 +6,22 @@
 
 * Roles and policies
 +
-For automated provisioning in EKS, it is necessary to execute actions on various services such as EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Although the use of these actions may vary according to the type of installation, the provider verifies that the indicated user has the required permissions to guarantee correct operation.
+For automated provisioning in EKS, actions must be executed on various services such as EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Although the use of these actions may vary according to the type of installation, the provider verifies that the indicated user has the required permissions to guarantee correct operation.
 
 ** xref:attachment$stratio-eks-policy.json[Download permanent permissions for EKS].
 ** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS].
 +
-For EKS deployment, you must manually create the AWSServiceRoleForAmazonEKS role and associate to it the AmazonEKSServiceRolePolicy policy (created by default in AWS).
+For EKS deployment, you must manually create the _AWSServiceRoleForAmazonEKS_ role and associate it with the _AmazonEKSServiceRolePolicy_ policy (which is created by default in AWS).
 
 * Certified operating systems
++
 To ensure the functionality of the EKS managed _control-plane_, it is necessary to use the images provided by Stratio. These can be found in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[_Stratio Generative AI Data Fabric_ artifacts] section of the documentation.
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
 * CloudFormation
 +
-WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
+WARNING: Suppose you have not previously created the CloudFormation stack or manually created the IAM requirements in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
 
 === GKE
 
