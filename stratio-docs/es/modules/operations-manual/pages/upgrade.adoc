@@ -127,7 +127,7 @@ python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <i
 ----
 
 [NOTE]
-.Obtener User Assign Identity
+.Obtener `user-assign-identity` en Azure
 ====
 Para obtener el user assign identity que se debe indicar es posible recurrir al cli de azure:
 
