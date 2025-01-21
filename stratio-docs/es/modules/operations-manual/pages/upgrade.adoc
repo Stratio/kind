@@ -143,7 +143,7 @@ az identity list --resource-group <resource-group>  --query "[?name=='<user-assi
 Asegúrate de que el directorio de trabajo incluya:
 
 * `upgrade-provisioner.py`: _script_ principal.
-- `templates/` (directorio con plantillas Jinja2 requeridas)
+* `templates/`: plantillas Jinja2.
 * `files/`: archivos adicionales (configuraciones, Helm, etc.).
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
