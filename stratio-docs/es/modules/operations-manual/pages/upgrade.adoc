@@ -135,6 +135,7 @@ Para obtener el `user-assign-identity` es posible recurrir al CLI de Azure:
 ----
 az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
 ----
+
 ====
 
 == Directorios necesarios
