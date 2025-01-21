@@ -19,7 +19,16 @@ To communicate with the API Server of the created cluster, the _kubeconfig_ file
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* For GCP, unmanaged Azure and AKS, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
+* For GKE, the credentials will be obtained as specified by GCP:
++
+[source,bash]
+----
+gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
+----
+
+This command will generate the file containing the _kubeconfig_ in the location specified by the `KUBECONFIG` environment variable. By default, it will be `$HOME/.kube/config`.
+
+* For unmanaged Azure, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
 
 [source,bash]
 ----
@@ -89,7 +98,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Unmanaged providers will have one _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, AKS) will only have the second one.
+NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, GKE) will only have the second one.
 
 ==== Failover test on a node
 
@@ -140,33 +149,6 @@ Verify the change by querying the state of the _KeosCluster_ object:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-===== AKS
-
-In the case of this provider, if `min_size` and `max_size` parameters are defined in the _KeosCluster_ object, no action is performed.
-
-NOTE: The node groups of the _KeosCluster_ object correspond in Azure to _Node pools_ within AKS and their corresponding _VM Scale Sets_.
-
-Manual scaling of a node pool in AKS with autoscaling configured should be done from the Azure portal under:
-
-'VM Scale set' -> '<scale_set_name>' -> 'Scalling' -> '<instance_number>'
-
-or from:
-
-'Kubernetes services' -> '<aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Manual' -> '<node_count>'
-
-The new instances can be seen in 'VM Scale set' -> 'Instances'. This change will not be reflected in the `quantity` parameter of the node pool of the _KeosCluster_ object.
-
-The estimated times for this process are as follows:
-
-[source,bash]
-----
-Scale VM Scale set: 0s
-New K8s node is NotReady: 1m
-New K8s node is Ready: 1m 13s
-The MachinePool Scaling: 1m 29s
-The MachinePool is updated: 1m 33s
-----
-
 ==== Create a new workers group
 
 To create a new group of nodes just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
@@ -200,8 +182,6 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Vertical scaling
 
-CAUTION: *AKS does not support vertical scaling* of node groups. For this provider, you must create a new group and delete the previous one as indicated in the https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[official documentation].
-
 The vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ object corresponding to the group.
 
 [source,yaml]
@@ -234,16 +214,6 @@ spec:
       max_size: 21
       ...
 ----
-
-===== AKS
-
-In this provider the autoscaling is managed from the _VM Scale sets_ of Azure and not with the _cluster-autoscaler_.
-
-During provisioning, at the time of creating the node pools, the _Node pools_ will be instantiated in AKS and their respective _VM Scale Sets_. If the defined node pools have an auto-scaling range, these will be moved to the created _Node pools_.
-
-To view them in the Azure portal, you should refer to:
-
-'Kubernetes services' -> 'aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Autoscale'.
 
 ==== Test
 
@@ -307,29 +277,14 @@ CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image h
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-* AWS VMs
-+
-[source,bash]
-----
-aws ec2 describe-images --filters "Name=name,Values=capa-ami-ubuntu-18.04-*" --query 'Images[*].{ID:ImageId,Name:Name}' --output table
-----
-
-* AKS
-+
-[source,bash]
-----
-az aks get-versions --location <region> --output table
-----
-
-* Azure VMs
+** Azure unmanaged
 +
 [source,bash]
 ----
 az vm image list --publisher cncf-upstream --offer "capi" --sku ubuntu-2204 --all -o table
 ----
 
-* GCP VMs. It is not applicable as it is mandatory to specify a custom image.
-* Extreme caution should be exercised in production environments, especially on unmanaged providers. In particular, before upgrading, it is recommended to make a backup of the objects that manage the infrastructure and services considered critical.
+* It is crucial to exercise caution in production environments, especially in unmanaged Azure. Before performing an upgrade, it is recommended to create a backup of the objects managing the infrastructure and critical services.
 
 ==== Execution
 
@@ -355,7 +310,7 @@ Example output of the execution:
 ----
 [INFO] Using kubeconfig: /tmp/kubeconfig
 [INFO] Cluster name: esierra-dev-vms
-Press ENTER to continue upgrading the cluster or any other key to abort: 
+Press ENTER to continue upgrading the cluster or any other key to abort:
 [INFO] Verifying upgrade process
 [INFO] Backing up files into directory ./backup/upgrade/20240611-132257
 [INFO] Backing up CAPX files: OK
@@ -372,7 +327,7 @@ Are you sure you want to upgrade to version 1.27.11? (yes/no): y
 [INFO] Scaling down cluster autoscaler replicas: OK
 [INFO] Applying temporal allow control plane GlobalNetworkPolicy: OK
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for control-plane: ami-09d1a38098ccd9d16
-Are you sure you want to use node image: ami-09d1a38098ccd9d16 for control-plane? (yes/no): y 
+Are you sure you want to use node image: ami-09d1a38098ccd9d16 for control-plane? (yes/no): y
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for worker node: worker1: ami-09d1a38098ccd9d16
 Are you sure you want to use node image: ami-09d1a38098ccd9d16 for worker node: worker1? (yes/no): y
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for worker node: minmax0: ami-09d1a38098ccd9d16
