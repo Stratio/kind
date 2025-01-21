@@ -138,7 +138,7 @@ az identity list --resource-group <resource-group>  --query "[?name=='<user-assi
 
 ====
 
-== Directorios necesarios
+== Estructura necesaria
 
 Asegúrate de que el directorio de trabajo incluya:
 
