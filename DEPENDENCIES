@@ -63,19 +63,6 @@ aws:
       aws-load-balancer-controller: 1.8.1
     images:
       aws-load-balancer-controller: v2.8.1
-  unmanaged:
-    charts:
-      aws-ebs-csi-driver: 2.31.0
-    images:
-      aws-ebs-csi-driver: v1.31.0
-      csi-snapshotter: v7.0.2-eks-1-30-4
-      external-attacher: v4.5.1-eks-1-30-4
-      external-provisioner: v4.0.1-eks-1-30-4
-      external-resizer: v1.10.1-eks-1-30-4
-      kubekins-e2e:v20240311-b09cdeb92c-master
-      livenessprobe: v2.12.0-eks-1-30-4
-      node-driver-registrar: v2.10.1-eks-1-30-4
-      volume-modifier-for-k8s: v0.3.0
 azure:
   capz:
     images:
