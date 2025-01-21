@@ -34,7 +34,7 @@ En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe con
 
 * Sistemas operativos certificados
 +
-En los entornos de GCP no gestionados, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
+En los entornos de GCP gestionados, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
 +
 Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
 +
