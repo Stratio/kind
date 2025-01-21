@@ -113,7 +113,7 @@ Opciones principales:
 *Ejemplos:*
 
 * EKS en AWS:
-
++
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
