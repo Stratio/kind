@@ -24,10 +24,8 @@ Las imágenes necesarias para una instalación _offline_ se componen de dos tipo
 
 | v1.26.x
 | xref:operations-manual:offline-installation/common-images.adoc[Imágenes comunes]
-| xref:operations-manual:offline-installation/aws-vms-images.adoc[AWS no gestionado]
 | xref:operations-manual:offline-installation/aws-eks-images.adoc[EKS]
 | xref:operations-manual:offline-installation/azure-vms-images.adoc[AZURE no gestionado]
-| xref:operations-manual:offline-installation/azure-aks-images.adoc[AKS]
 | xref:operations-manual:offline-installation/gcp-gke-images.adoc[GKE]
 |===
 
