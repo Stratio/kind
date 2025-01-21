@@ -139,7 +139,7 @@ az identity list --resource-group <resource-group>  --query "[?name=='<user-assi
 
 == Directorios necesarios
 
-El directorio de trabajo debe contener:
+Asegúrate de que el directorio de trabajo incluya:
 
 - `upgrade-provisioner.py` (el script principal)
 - `templates/` (directorio con plantillas Jinja2 requeridas)
