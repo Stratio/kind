@@ -110,7 +110,9 @@ Opciones principales:
 | --disable-prepare-capsule    | Deshabilita la preparación del entorno para el proceso de actualización.          | False                        | No                
 |===
 
-*Para EKS en AWS:*
+*Ejemplos:*
+
+* EKS en AWS:
 
 [source,bash]
 ----
