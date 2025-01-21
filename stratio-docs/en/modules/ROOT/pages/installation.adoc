@@ -33,8 +33,6 @@ In GKE, the service account under which _clusters_ are provisioned must have the
 
 * Certified operating systems
 +
-In managed GCP environments, you must use the images provided by Stratio. You can find them in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[_Stratio Generative AI Data Fabric_ artifacts] section of the documentation.
-+
 For GKE, the default operating system is Container-Optimized OS (COS), and no specific image needs to be specified.
 +
 * Enable “Google Kubernetes Engine API" for GKE.
