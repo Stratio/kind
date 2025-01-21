@@ -105,7 +105,7 @@ Opciones principales:
 | -p, --vault-password | Archivo con la contraseña del Vault necesaria para descifrar secretos. | | Sí
 | -s, --secrets | Archivo de secretos cifrados. | secrets.yml | No
 | -i, --user-assign-identity   | User Assign Identity necesaria en el caso de Azure. Se corresponde con el clientID del nodes_identity. |  | Sí (Azure)        
-| --enable-lb-controller       | Instala el controlador de balanceador de carga en clústeres de EKS (desactivado por defecto). | False                        | No                
+| --enable-lb-controller | Activa el controlador de balanceador de carga en EKS (desactivado por defecto). | False | No
 | --disable-backup             | Deshabilita el respaldo de archivos antes de la actualización (habilitado por defecto). | False                        | No                
 | --disable-prepare-capsule    | Deshabilita la preparación del entorno para el proceso de actualización.          | False                        | No                
 |===
