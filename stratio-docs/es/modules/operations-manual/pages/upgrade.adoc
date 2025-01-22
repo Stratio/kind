@@ -1,4 +1,4 @@
-= Upgrade Provisioner Script
+= _Script_ de actualización de versión
 
 == Descripción
 
@@ -32,7 +32,7 @@ Este comando habilita la renovación automática del _token_ mediante AWS CLI. A
 
 === Construcción del contenedor
 
-Es necesario ejecutar el contenedor Docker utilizando la imagen de upgrade. En él dispondremos del script y del resto de archivos necesarios para ejecutar el proceso:
+Ejecuta el contenedor Docker con la imagen de actualización de versión, montando los archivos necesarios:
 
 [source,bash]
 ----
@@ -48,7 +48,7 @@ Incluye el directorio de configuración de AWS:
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
 
-=== Script de Upgrade
+=== Uso del _script_ de actualización de versión
 
 ==== Sintaxis
 
