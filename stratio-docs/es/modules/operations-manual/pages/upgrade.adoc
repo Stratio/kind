@@ -65,7 +65,7 @@ Opciones principales:
 | `-y`, `--yes` | No requiere confirmación entre tareas (modo automático). | False | No 
 | `-k`, `--kubeconfig` | Especifica el archivo de configuración de Kubectl a utilizar. | ~/.kube/config | No
 | `-p`, `--vault-password` | Archivo con la contraseña del Vault necesaria para descifrar secretos. | | Sí
-| -s, --secrets | Archivo de secretos cifrados. | secrets.yml | No
+| `-s`, `--secrets` | Archivo de secretos cifrados. | secrets.yml | No
 | -i, --user-assign-identity | ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). |  | Sí (Azure)
 | --enable-lb-controller | Activa el controlador de balanceador de carga en EKS (desactivado por defecto). | False | No
 | --disable-backup | Desactiva el respaldo antes de actualizar (habilitado por defecto). | False | No
