@@ -69,7 +69,7 @@ Opciones principales:
 | -i, --user-assign-identity | ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). |  | Sí (Azure)
 | --enable-lb-controller | Activa el controlador de balanceador de carga en EKS (desactivado por defecto). | False | No
 | --disable-backup | Desactiva el respaldo antes de actualizar (habilitado por defecto). | False | No
-| --disable-prepare-capsule | Desactiva la preparación del entorno para el proceso de actualización. | False  | No
+| `--disable-prepare-capsule` | Desactiva la preparación del entorno para el proceso de actualización. | False  | No
 |===
 
 *Ejemplos:*
