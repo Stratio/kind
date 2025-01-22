@@ -63,7 +63,7 @@ Opciones principales:
 | _Flag_ | Descripción | Valor predeterminado | Obligatoria
 
 | `-y`, `--yes` | No requiere confirmación entre tareas (modo automático). | False | No 
-| -k, --kubeconfig | Especifica el archivo de configuración de Kubectl a utilizar. | ~/.kube/config | No
+| `-k`, `--kubeconfig` | Especifica el archivo de configuración de Kubectl a utilizar. | ~/.kube/config | No
 | -p, --vault-password | Archivo con la contraseña del Vault necesaria para descifrar secretos. | | Sí
 | -s, --secrets | Archivo de secretos cifrados. | secrets.yml | No
 | -i, --user-assign-identity | ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). |  | Sí (Azure)
