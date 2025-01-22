@@ -6,7 +6,6 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 
 - *EKS* en AWS.
 - *Azure VMs*.
-- *GKE* en GCP.
 
 Permite actualizar la versión del _cluster_ Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la proporcionada por `cloud-provisioner 0.6.x`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `stratio-cloud-provisioner-upgrade-image`, que incluye el _script_ de actualización y las dependencias necesarias.
 
@@ -48,43 +47,6 @@ Incluye el directorio de configuración de AWS:
 ----
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
-
-=== Configuración de `clusterctl`
-
-Edita manualmente el archivo `/root/.cluster-api/clusterctl.yaml` para ajustar el proveedor según el entorno:
-
-[source,yaml]
-----
-providers:
-  - name: aws
-    url: /root/.cluster-api/local-repository/infrastructure-aws/v2.5.2/infrastructure-components.yaml
-    type: InfrastructureProvider
-  - name: gcp
-    url: /root/.cluster-api/local-repository/infrastructure-gcp/1.6.1-0.2.1/infrastructure-components.yaml
-    type: InfrastructureProvider
-  - name: azure
-    url: /root/.cluster-api/local-repository/infrastructure-azure/v1.12.4/infrastructure-components.yaml
-    type: InfrastructureProvider
-  - name: kubeadm
-    url: /root/.cluster-api/local-repository/bootstrap-kubeadm/v1.7.4/bootstrap-components.yaml
-    type: BootstrapProvider
-  - name: kubeadm
-    url: /root/.cluster-api/local-repository/control-plane-kubeadm/v1.7.4/control-plane-components.yaml
-    type: ControlPlaneProvider
-  - name: cluster-api
-    url: /root/.cluster-api/local-repository/cluster-api/v1.7.4/core-components.yaml
-    type: CoreProvider
-images:
-  infrastructure-gcp:
-    repository: ${KEOS_REGISTRY_URL}/cluster-api-gcp
-    tag: 1.6.1-0.2.1
-  cert-manager:
-    repository: ${KEOS_REGISTRY_URL}/cert-manager
-----
-
-Para GKE, reemplaza `${KEOS_REGISTRY_URL}` con el registro de Docker correspondiente.
-
-Para otros entornos, elimina la sección 'images'.
 
 === Script de Upgrade
 

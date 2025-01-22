@@ -71,13 +71,7 @@ RUN mkdir -p ${CAPI_REPO}/infrastructure-aws/${CAPA} ${CAPI_REPO}/infrastructure
   && echo "  - name: azure\n    url: ${CAPI_REPO}/infrastructure-azure/${CAPZ}/infrastructure-components.yaml\n    type: InfrastructureProvider" >> /root/.cluster-api/clusterctl.yaml \
   && echo "  - name: kubeadm\n    url: ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/bootstrap-components.yaml\n    type: BootstrapProvider" >> /root/.cluster-api/clusterctl.yaml \
   && echo "  - name: kubeadm\n    url: ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/control-plane-components.yaml\n    type: ControlPlaneProvider" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "  - name: cluster-api\n    url: ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/core-components.yaml\n    type: CoreProvider" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "images:" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "  infrastructure-gcp:" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "    repository: \${KEOS_REGISTRY_URL}/cluster-api-gcp" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "    tag: ${CAPG}" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "  cert-manager:" >> /root/.cluster-api/clusterctl.yaml \
-  && echo "    repository: \${KEOS_REGISTRY_URL}/cert-manager" >> /root/.cluster-api/clusterctl.yaml 
+  && echo "  - name: cluster-api\n    url: ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/core-components.yaml\n    type: CoreProvider" >> /root/.cluster-api/clusterctl.yaml 
   
 
 # Download cluster-api artifacts
