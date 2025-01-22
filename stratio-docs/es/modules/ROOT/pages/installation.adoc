@@ -15,7 +15,7 @@ Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRol
 
 * Sistemas operativos certificados
 +
-Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
+Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
@@ -45,15 +45,15 @@ El despliegue de _Stratio KEOS_ en GKE debe realizarse mediante un _bastion_ que
 
 * Permisos
 +
-Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados, pero en este caso además se requiere un rol para los _workers_ del _cluster_ (indicado en el descriptor en "spec.security.nodes_identity") y otro para el _control-plane_ (indicado en el descriptor en "spec.security.control_plane_identity").
+Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados, pero en este caso además se requiere un rol para los _workers_ del _cluster_ (indicado en el descriptor en `spec.security.nodes_identity`) y otro para el _control-plane_ (indicado en el descriptor en `spec.security.control_plane_identity`).
 +
-** xref:attachment$stratio-azure-role.json[Descargar permisos para Azure]
-** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para _workers_ de Azure]
-** xref:attachment$stratio-azure-cp-role.json[Descargar permisos para _control-plane_ de Azure]
+** xref:attachment$stratio-azure-role.json[Descargar permisos para Azure].
+** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para _workers_ de Azure].
+** xref:attachment$stratio-azure-cp-role.json[Descargar permisos para _control-plane_ de Azure].
 
 * Sistemas operativos certificados
 +
-En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de _Stratio Generative AI Data Fabric_] de la documentación.
+En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
 
@@ -110,7 +110,7 @@ El _spec_ del _KeosCluster_ está compuesto por los siguientes campos:
 
 |<<credentials, _credentials_>>
 |Set de credenciales del proveedor _cloud_ usadas en el aprovisionamiento.
-|Ver el <<ejemplo_de_descriptor,Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor,ejemplo de descriptor>>
 |No en 1ª ejecución.
 
 |_k8s++_++version_
@@ -140,27 +140,27 @@ El _spec_ del _KeosCluster_ está compuesto por los siguientes campos:
 
 |<<keos, _keos_>>
 |Sección de configuraciones para la instalación de _Stratio KEOS_.
-|ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 
 |_storageclass_
 |Configuración de la _StorageClass_ que se creará por defecto en el _cluster_.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí
 
 |<<networks, _networks_>>
 |Identificadores de la infraestructura creada previamente.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí
 
 |<<control_plane, _control++_++plane_>>
 |Especificaciones para el _control-plane_ de Kubernetes.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 
 |<<worker_nodes, _worker++_++nodes_>>
 |Especificaciones de los grupos de nodos _worker_.
-|ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 |===
 
@@ -178,17 +178,17 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 |aws
 |Credenciales para acceso a AWS.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=aws_.
 
 |azure
 |Credenciales para acceso a Azure.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=azure_.
 
 |gcp
 |Credenciales para el acceso a GCP.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=gcp_.
 
 |_github++_++token_
@@ -198,12 +198,12 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 |_docker++_++registries_
 |_Registries_ de Docker accesibles por los nodos. Para EKS no hace falta autenticación, ya que se hace automáticamente con las credenciales del usuario.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí, para _registries_ no autenticados.
 
 |_helm++_++repository_
 |Repositorio de Helm para la instalación de los _charts_ de Stratio.
-|Ver el <<ejemplo_de_descriptor, Ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí, para repositorios no autenticados.
 |===
 
@@ -515,31 +515,31 @@ En este ejemplo se pueden ver las siguientes particularidades:
 
 * _Cluster_ en GCP con _control-plane_ gestionado.
 * Kubernetes versión 1.28.x.
-* Uso de un _Docker registry_ tipo gar.
-* Uso de un repositorio de Helm tipo gar.
+* Uso de un _Docker registry_ tipo _gar_.
+* Uso de un repositorio de Helm tipo _gar_.
 * _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
 * _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
 * Sin control de la zona DNS (habilitado por defecto).
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Características del _control-plane_: solo configurables en tiempo de creación del _cluster_.
 ** _cluster++_++network_
-*** _private++_++cluster_.
-**** _enable++_++private++_++endpoint_.
-**** _enable++_++private++_++nodes_.
-**** _control++_++plane++_++cidr++_++block_.
-** ip++_++allocation++_++policy.
+*** _private++_++cluster_
+**** _enable++_++private++_++endpoint_
+**** _enable++_++private++_++nodes_
+**** _control++_++plane++_++cidr++_++block_
+** ip++_++allocation++_++policy
 *** cluster++_++ipv4++_++cidr++_++block
 *** services++_++ipv4++_++cidr++_++block
 *** cluster++_++secondary++_++range++_++name
 *** services++_++secondary++_++range++_++name
 ** _monitoring++_++config_
-*** _enable++_++managed++_++prometheus_.
-** _master++_++authorized++_++networks++_++config_.
-*** _cidr++_++blocks_.
-*** _gcp++_++public++_++cidrs++_++access++_++enabled_.
-** _logging++_++config_.
-*** _system++_++components_.
-*** _workloads_.
+*** _enable++_++managed++_++prometheus_
+** _master++_++authorized++_++networks++_++config_
+*** _cidr++_++blocks_
+*** _gcp++_++public++_++cidrs++_++access++_++enabled_
+** _logging++_++config_
+*** _system++_++components_
+*** _workloads_
 * Grupos de nodos _worker_ con múltiples casuísticas:
 ** Diferentes tipos de instancia.
 ** Sin imagen específica (se utilizará la imagen por defecto del proveedor _cloud_).
@@ -664,7 +664,9 @@ En este ejemplo se pueden ver las siguientes particularidades:
 ** Sin imagen específica (opcional para este proveedor _cloud_).
 ** Con personalizaciones en el disco.
 * Grupo de nodos _worker_:
-** Con imagen específica (opcional para este proveedor _cloud_). Nota: las versiones de los componentes de la imagen deberán estar alineadas con la versión de Kubernetes indicada.
+** Con imagen específica (opcional para este proveedor _cloud_).
++
+NOTE: Las versiones de los componentes de la imagen deberán estar alineadas con la versión de Kubernetes indicada.
 ** Con etiquetas de K8s.
 ** Con rangos de autoescalado.
 ** Con personalizaciones en el disco.
@@ -784,8 +786,8 @@ Creating temporary cluster "stratio-pre" ...
  ✓ Generating the KEOS descriptor 📝
 
 The cluster has been installed successfully. Please refer to the documents below on how to proceed:
-1. Post-installation Stratio cloud-provisioner documentation
-2. Stratio KEOS documentation
+1. Post-installation _Stratio Cloud Provisioner_ documentation.
+2. _Stratio KEOS_ documentation.
 -----
 
 Una vez finalizado el proceso, tendrás los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
@@ -806,7 +808,7 @@ En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-con
 
 Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_: "true" en el objeto _ClusterConfig_ del descriptor del _cluster_.
 
-Para autorizar el controlador se utilizarán https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[Roles de IAM para cuentas de servicio], lo que implica crear los correspondientes objetos de IAM como se indica a continuación:
+Para autorizar el controlador se utilizarán https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[roles de IAM para cuentas de servicio], lo que implica crear los correspondientes objetos de IAM como se indica a continuación:
 
 * Definir las siguientes variables de entorno:
 +
