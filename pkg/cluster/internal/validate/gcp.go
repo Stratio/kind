@@ -136,13 +136,6 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 	}
 
 	if spec.ControlPlane.Managed {
-		// Security scopes validation
-
-		// IF security.gcp is provided and security.gcp.scopes is nil, then return error
-		if spec.Security.GCP.Scopes == nil {
-			return errors.New("spec.security.gcp: 'If security.gcp is provided, you must set correct values'")
-		}
-
 		// Check scopes regex
 		for _, scope := range spec.Security.GCP.Scopes {
 			if !GCPScopes(scope) {
@@ -178,7 +171,7 @@ func validateGCP(spec commons.KeosSpec, providerSecrets map[string]string) error
 
 		// MasterAuthorizedNetworksConfig validation
 		if spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig == nil || spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.GCPPublicCIDRsAccessEnabled == nil {
-			return errors.New("GCPPublicCIDRsAccessEnabled is required")
+			return errors.New("If master_authorized_networks_config is provided, configuration must be set")
 		}
 
 		if spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig != nil && spec.ControlPlane.Gcp.MasterAuthorizedNetworksConfig.CIDRBlocks != nil {
