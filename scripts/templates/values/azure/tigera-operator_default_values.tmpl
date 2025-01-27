@@ -1,0 +1,78 @@
+---
+apiServer:
+  enabled: false
+defaultFelixConfiguration:
+  enabled: false
+calicoctl:
+  image: {{ registry if private else 'docker.io' }}/calico/ctl
+  tag: 3.28.2
+certs:
+  node:
+    cert:
+    commonName:
+    key:
+  typha:
+    caBundle:
+    cert:
+    commonName:
+    key:
+imagePullSecrets: {}
+installation:
+  calicoNetwork:
+    bgp: {{ 'Disabled' if managed_cluster or provider == 'azure' else 'Enabled' }}
+    {%- if not managed_cluster %}
+      {%- if provider == 'azure' %}
+    mtu: 1350
+      {%- endif %}
+    ipPools:
+      - cidr: {{ pods_cidr if pods_cidr else '192.168.0.0/16' }}
+        encapsulation: {{ 'VXLAN' if provider == 'azure' else 'IPIP' }}
+    {%- endif %}
+  cni:
+    {%- if managed_cluster and provider == 'aws' %}
+    ipam:
+      type: AmazonVPC
+    type: AmazonVPC
+    {%- elif managed_cluster and provider == 'gcp' and is_netpol_engine %}
+    ipam:
+      type: HostLocal
+    type: GKE
+    {%- else %}
+    type: Calico
+    ipam:
+      type: Calico
+    {%- endif %}
+  enabled: true
+  kubernetesProvider: {{ 'EKS' if managed_cluster and provider == 'aws' else 'GKE' if managed_cluster and provider == 'gcp' else '' }}
+  nodeMetricsPort: 9191
+  registry: {{ registry if private else 'docker.io' }}
+  typhaMetricsPort: 9093
+# NodeSelector for the tigera/operator pod.
+nodeSelector:
+  kubernetes.io/os: linux
+# Affinity for the tigera/operator pod.
+affinity: {}
+# PriorityClassName for the tigera/operator pod.
+priorityClassName: ""
+# Custom annotations for the tigera/operator pod.
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: var-lib-calico
+# Custom labels for the tigera/operator pod.
+podLabels: {}
+# Resource requests and limits for the tigera/operator pod.
+resources: {}
+# Image and registry configuration for the tigera/operator pod.
+tigeraOperator:
+  registry: {{ registry if private else 'quay.io' }}
+  image: tigera/operator
+  version: v1.34.5
+# Tolerations for the tigera/operator pod.
+tolerations:
+  - effect: NoExecute
+    operator: Exists
+  - effect: NoSchedule
+    operator: Exists
+# Optionally configure the host and port used to access the Kubernetes API server.
+kubernetesServiceEndpoint:
+  host: ""
+  port: "6443"
