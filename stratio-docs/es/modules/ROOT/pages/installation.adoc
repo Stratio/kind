@@ -16,15 +16,7 @@ Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRol
 
 * Sistemas operativos certificados
 +
-<<<<<<< HEAD
-Para asegurar las funcionalidades soportadas por el _control-plane_ gestionado de EKS, se deberá utilizar cualquier AMI provista por AWS específicamente para este fin.
-+
-Las https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMI optimizadas para Amazon EKS] se crean sobre el sistema operativo Amazon Linux 2.
-+
-En el caso de los despliegues en AWS no gestionado, se deberá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_. Para mayor detalle en la construcción de las imágenes consulta la xref:operations-manual:image-builder/aws-image-builder.adoc[guía para AWS].
-=======
 Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
->>>>>>> 857c9aae (some fixes (#665))
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
@@ -69,11 +61,7 @@ Al igual que con otros proveedores soportados, el aprovisionamiento requiere una
 
 * Sistemas operativos certificados
 +
-<<<<<<< HEAD
-Para los entornos en Azure se podrá utilizar https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[_image builder_], una herramienta oficial que permite crear y disponibilizar imágenes para _Stratio KEOS_. Para mayor detalle en la construcción de las imágenes ver la xref:operations-manual:image-builder/azure-image-builder.adoc[guía para Azure].
-=======
 En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
->>>>>>> 857c9aae (some fixes (#665))
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
 
