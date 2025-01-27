@@ -26,7 +26,6 @@ Las imágenes necesarias para una instalación _offline_ se componen de dos tipo
 | xref:operations-manual:offline-installation/common-images.adoc[Imágenes comunes]
 | xref:operations-manual:offline-installation/aws-eks-images.adoc[EKS]
 | xref:operations-manual:offline-installation/azure-vms-images.adoc[AZURE no gestionado]
-| xref:operations-manual:offline-installation/gcp-gke-images.adoc[GKE]
 |===
 
 NOTE: Las imágenes _core_ de Kubernetes están contenidas en las propias imágenes de los nodos. Es por ello que no se indican en ninguna de las referencias a las imágenes necesarias, ya que estarán disponibles en todas las imágenes construidas según la guía de construcción de imágenes a la que se hace referencia en el xref:operations-manual:operations-manual.adoc#_generación_de_imágenes_personalizadas[manual de operaciones].
