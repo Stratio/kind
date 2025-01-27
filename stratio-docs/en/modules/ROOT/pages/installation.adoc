@@ -2,29 +2,20 @@
 
 == Prerequisites
 
-=== AWS (EKS and unmanaged)
+=== EKS
 
 * Roles and policies
 +
-For automated provisioning in AWS/EKS, it is necessary to execute actions on various AWS services such as EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. While the use or lack of use of these actions will depend on the type of installation, the provider validates that the indicated user has these permissions to run normally.
+For automated provisioning in EKS, it is necessary to execute actions on various services such as EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Although the use of these actions may vary according to the type of installation, the provider verifies that the indicated user has the required permissions to guarantee correct operation.
 +
-** xref:attachment$stratio-aws-unmanaged-policy.json[Download permanent permissions for AWS unmanaged].
 ** xref:attachment$stratio-eks-policy.json[Download permanent permissions for EKS].
 ** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS and AWS unmanaged].
 +
-For EKS deployment, you must manually create the "AWSServiceRoleForAmazonEKS" role and associate to it the "AmazonEKSServiceRolePolicy" policy (created by default in AWS).
+For EKS deployment, you must manually create the AWSServiceRoleForAmazonEKS role and associate to it the AmazonEKSServiceRolePolicy policy (created by default in AWS).
 
 * Certified operating systems
 +
-<<<<<<< HEAD
-To ensure the functionalities supported by the EKS-managed _control-plane_, you should use any AMI provided by AWS specifically for this purpose.
-+
-The https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[AMIs optimized for Amazon EKS] are built on the Amazon Linux 2 operating system.
-+
-For deployments on unmanaged AWS, you should use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool that allows you to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/aws-image-builder.adoc[guide for AWS].
-=======
 To ensure the functionality of the EKS managed _control-plane_, it is necessary to use the images provided by Stratio. These can be found in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
->>>>>>> 857c9aae (some fixes (#665))
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
@@ -69,11 +60,7 @@ As with other supported providers, provisioning requires an account with all the
 
 * Certified operating systems
 +
-<<<<<<< HEAD
-For environments in Azure, it will be possible to use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool that allows to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/azure-image-builder.adoc[guide for Azure].
-=======
 In Azure environments, you must use the images provided by Stratio. You can find them in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
->>>>>>> 857c9aae (some fixes (#665))
 +
 The currently recommended operating system for this provider is Ubuntu 22.04, the one that creates by default the controller of this cloud provider.
 
