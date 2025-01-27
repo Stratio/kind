@@ -2,6 +2,5 @@
 
 _Stratio KEOS_ can be deployed on various cloud providers. Currently, it natively supports:
 
-* xref:ROOT:architecture.adoc#_gcp[Google Cloud Platform (GCP)] in managed mode.
 * Amazon Web Services (AWS) in managed mode with xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
 * Azure in xref:ROOT:architecture.adoc#_azure[unmanaged mode].

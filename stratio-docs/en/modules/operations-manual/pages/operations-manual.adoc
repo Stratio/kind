@@ -6,7 +6,6 @@ For the generation of custom images in the different cloud providers, some refer
 
 * xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
 * xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtaining the _kubeconfig_
 
@@ -18,15 +17,6 @@ To communicate with the API Server of the created cluster, the _kubeconfig_ file
 ----
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
-
-* For GKE, the credentials will be obtained as specified by GCP:
-+
-[source,bash]
-----
-gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
-----
-
-This command will generate the file containing the _kubeconfig_ in the location specified by the `KUBECONFIG` environment variable. By default, it will be `$HOME/.kube/config`.
 
 * For unmanaged Azure, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
 
@@ -98,7 +88,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, GKE) will only have the second one.
+NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS) will only have the second one.
 
 ==== Failover test on a node
 

@@ -6,7 +6,6 @@ Para la generación de imágenes personalizadas en los diferentes proveedores _c
 
 * xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
 * xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtención del _kubeconfig_
 
@@ -18,15 +17,6 @@ Para comunicarse con el API Server del _cluster_ creado es necesario el fichero 
 ----
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
- 
-* Para GKE, se obtendrá de la forma indicada por GCP:
-+
-[source,bash]
-----
-gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
-----
-
-Este comando generará el fichero con el _kubeconfig_ donde indique la variable de entorno `KUBECONFIG`. Por defecto, será en `$HOME/.kube/config`.
 
 * Para Azure no gestionado, al finalizar del aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
@@ -98,7 +88,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: En Azure no gestionado existirá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, GKE) sólo tendrán el segundo.
+NOTE: En Azure no gestionado existirá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS) sólo tendrán el segundo.
 
 ==== Prueba de tolerancia a fallos en un nodo
 
@@ -310,7 +300,7 @@ Ejemplo de salida de la ejecución:
 ----
 [INFO] Using kubeconfig: /tmp/kubeconfig
 [INFO] Cluster name: esierra-dev-vms
-Press ENTER to continue upgrading the cluster or any other key to abort: 
+Press ENTER to continue upgrading the cluster or any other key to abort:
 [INFO] Verifying upgrade process
 [INFO] Backing up files into directory ./backup/upgrade/20240611-132257
 [INFO] Backing up CAPX files: OK
@@ -327,7 +317,7 @@ Are you sure you want to upgrade to version 1.27.11? (yes/no): y
 [INFO] Scaling down cluster autoscaler replicas: OK
 [INFO] Applying temporal allow control plane GlobalNetworkPolicy: OK
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for control-plane: ami-09d1a38098ccd9d16
-Are you sure you want to use node image: ami-09d1a38098ccd9d16 for control-plane? (yes/no): y 
+Are you sure you want to use node image: ami-09d1a38098ccd9d16 for control-plane? (yes/no): y
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for worker node: worker1: ami-09d1a38098ccd9d16
 Are you sure you want to use node image: ami-09d1a38098ccd9d16 for worker node: worker1? (yes/no): y
 Please provide the image ID associated with the Kubernetes version: 1.27.11 for worker node: minmax0: ami-09d1a38098ccd9d16

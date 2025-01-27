@@ -70,20 +70,6 @@ In a *default deployment*, the following objects are created in each cloud provi
 * 1 network type load balancer for the exposure of load balancer type _Services_.
 ** 1 listener per port for each service.
 
-=== GKE (private cluster)
-
-* 1 Google Kubernetes Engine (GKE) cluster: configured as VPC-native.
-* 1 VPC.
-* 1 subnet per region.
-** Primary CIDR block for the subnet (nodes).
-** Secondary CIDR block for the sub-network (pods and services).
-* 1 peering route: connection via _VPC Network peering_.
-* 2 routes: for secondary CIDRs for pods and services.
-* 1 VPC network peering.
-* 5 VPC firewall rules: (gke-<cluster-name>-<id>-[master, vms, exkubelet, inkubelet, all]).
-* Virtual machines for _workers_: configured according to cluster descriptor and autoscaling.
-* 1 persistent volume per virtual machine.
-
 === Azure unmanaged
 
 * [silver]#1 resource group.
@@ -124,13 +110,6 @@ The internal networking layer of the cluster is based on Calico, with the follow
 ^|AWS
 ^|No
 ^|VPC-native
-
-^|GKE
-^|Calico
-^|Calico
-^|Calico
-^|No
-^|VPC-nativa
 
 ^|Azure
 ^|Calico
@@ -225,10 +204,6 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
-==== GKE
-
-The pods network in GKE is automatically configured with the secondary CIDR for pods and services, obtained from the VPC network configuration when the cluster is deployed.
-
 == Security
 
 === Authentication
@@ -244,15 +219,6 @@ For this provider, the credentials are stored in a _Secret_ inside the Namespace
 [source,bash]
 ----
 k -n layer-system get secret layer-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
-----
-
-==== GKE
-
-The GCP controller gets the credentials from a _Secret_ within the corresponding namespace, as for EKS.
-
-[source,bash]
-----
-$ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r '.data["credentials.json"]' | base64 -d | jq .
 ----
 
 ==== Azure
@@ -275,7 +241,7 @@ CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .item
 $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
 ----
 
-=== IMDS access (for EKS and GCP)
+=== IMDS access (for EKS)
 
 Since pods can impersonate the node where they run by simply interacting with IMDS, a global network policy (Calico's _GlobalNetworkPolicy_) is used to prevent access to all pods in the cluster that are not part of _Stratio KEOS_.
 
@@ -288,10 +254,6 @@ In turn, the EKS OIDC provider is enabled to allow the use of IAM roles for _Ser
 During the creation of the EKS cluster, an endpoint is created for the API Server to be used for accessing the cluster from the installer and lifecycle operations.
 
 This endpoint is published to the internet, and its access is restricted with a combination of Amazon's Identity and Access Management (IAM) rules, and Kubernetes' native Role Based Access Control (RBAC).
-
-==== GKE
-
-In this case, the _API Server_ is exposed only privately, so it can only be accessed from the IP assigned to the cluster's private endpoint. This IP belongs to the range specified in the cluster descriptor.
 
 ==== Azure unmanaged
 
@@ -346,10 +308,6 @@ The `class` parameter can be _premium_ or _standard_, this will depend on the cl
 ^|gp3
 ^|io2 (64k IOPS)
 
-^|GCP
-^|pd-standard
-^|pd-ssd
-
 ^|Azure
 ^|StandardSSD_LRS
 ^|Premium_LRS
@@ -382,7 +340,7 @@ a|
      fsType
 ----
 
-^|AWS, GCP
+^|AWS
 a|
 
 ----
@@ -402,15 +360,6 @@ a|
      encrypted
      blockExpress
      blockSize
-----
-
-^|GCP
-a|
-
-----
-     provisioned-iops-on-create
-     replication-type
-     disk-encryption-kms-key
 ----
 
 ^|Azure
@@ -492,9 +441,6 @@ The following table shows the supported registries by provider/flavor:
 ^|EKS
 ^|ecr, generic
 
-^|GKE
-^|gar
-
 ^|Azure
 ^|acr, generic
 |===
@@ -507,9 +453,6 @@ As a prerequisite of the installation, a Helm repository must be specified from 
 |===
 ^|EKS
 ^|ecr, generic
-
-^|GKE
-^|gar
 
 ^|Azure
 ^|acr, generic

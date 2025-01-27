@@ -23,24 +23,6 @@ El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04
 +
 WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
 
-=== GKE
-
-* Permisos
-+
-En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe contar con los siguientes conjuntos de permisos.
-+
-** xref:attachment$stratio-gcp-permissions.list[Descargar permisos para GCP]
-** xref:attachment$stratio-gke-permissions.list[Descargar permisos para GKE]
-
-* Sistemas operativos certificados
-+
-Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
-+
-* Habilitar "Google Kubernetes Engine API" para GKE.
-* Bastion.
-+
-El despliegue de _Stratio KEOS_ en GKE debe realizarse mediante un _bastion_ que facilite la comunicación con el _cluster_. Para ello, es necesario crear un _bastion_ en la misma red que el _cluster_.
-
 === Azure no gestionado
 
 * Permisos
@@ -59,7 +41,7 @@ El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04
 
 === Consideraciones para imágenes
 
-Refiriéndose al _control-plane_, en EKS y GKE no se podrá indicar una imagen, pero Azure no gestionado sí.
+Refiriéndose al _control-plane_, en EKS no se podrá indicar una imagen, pero Azure no gestionado sí.
 
 Para los nodos _worker_, en Azure no gestionado es opcional indicar la imagen (al no indicarla, el _controller_ asigna una disponibilizada por el proveedor _cloud_).
 
@@ -104,7 +86,7 @@ El _spec_ del _KeosCluster_ está compuesto por los siguientes campos:
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_infra++_++provider_
-|Nombre del proveedor _cloud_ (AWS, GCP o Azure).
+|Nombre del proveedor _cloud_ (AWS o Azure).
 |aws
 |No
 
@@ -185,11 +167,6 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 |Credenciales para acceso a Azure.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=azure_.
-
-|gcp
-|Credenciales para el acceso a GCP.
-|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
-|No cuando _infra++_++provider=gcp_.
 
 |_github++_++token_
 |_Token_ de GitHub. Se puede utilizar un _Fine-grained token_ o un _token_ tipo _classic_ y no necesita ningún permiso. Para generarlo, ve a: 'Settings' → 'Developer settings' → 'Personal access tokens'.
@@ -306,8 +283,6 @@ tier: Paid
 === Nodos _worker_
 
 En este apartado se especifican los grupos de nodos _worker_ y sus características.
-
-Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://docs.aws.amazon.com/es_es/eks/latest/userguide/eks-optimized-ami.html[creación de AMI personalizada para EKS] ^[English]^.
 
 [cols="1,4,2,1"]
 |===
@@ -509,147 +484,6 @@ spec:
     cluster_operator_image_version: 0.3.0
 ----
 
-==== GKE
-
-En este ejemplo se pueden ver las siguientes particularidades:
-
-* _Cluster_ en GCP con _control-plane_ gestionado.
-* Kubernetes versión 1.28.x.
-* Uso de un _Docker registry_ tipo _gar_.
-* Uso de un repositorio de Helm tipo _gar_.
-* _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
-* _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
-* Sin control de la zona DNS (habilitado por defecto).
-* Definición de una _StorageClass_ por defecto. Este apartado es opcional.
-* Características del _control-plane_: solo configurables en tiempo de creación del _cluster_.
-** _cluster++_++network_
-*** _private++_++cluster_
-**** _enable++_++private++_++endpoint_
-**** _enable++_++private++_++nodes_
-**** _control++_++plane++_++cidr++_++block_
-** ip++_++allocation++_++policy
-*** cluster++_++ipv4++_++cidr++_++block
-*** services++_++ipv4++_++cidr++_++block
-*** cluster++_++secondary++_++range++_++name
-*** services++_++secondary++_++range++_++name
-** _monitoring++_++config_
-*** _enable++_++managed++_++prometheus_
-** _master++_++authorized++_++networks++_++config_
-*** _cidr++_++blocks_
-*** _gcp++_++public++_++cidrs++_++access++_++enabled_
-** _logging++_++config_
-*** _system++_++components_
-*** _workloads_
-* Grupos de nodos _worker_ con múltiples casuísticas:
-** Diferentes tipos de instancia.
-** Sin imagen específica (se utilizará la imagen por defecto del proveedor _cloud_).
-** Con etiquetas de K8s.
-** Con rangos de autoescalado.
-** En una zona fija.
-** Con personalizaciones en el disco.
-
-[source,yaml]
-----
-apiVersion: installer.stratio.com/v1beta1
-kind: KeosCluster
-metadata:
-  name: gcp-prod
-spec:
-  infra_provider: gcp
-  credentials:
-    gcp:
-      private_key_id: "efdf19f5605a.."
-      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvw.."
-      client_email: keos@stratio.com
-      project_id: gcp-prod
-      region: europe-west4
-      client_id: "6767910929.."
-  security:
-    nodes_identity: "gke-node-sa@my-project-id.iam.gserviceaccount.com"
-    gcp:
-      scopes:
-        - "https://www.googleapis.com/auth/cloud-platform"
-        - "https://www.googleapis.com/auth/userinfo.email"
-  k8s_version: v1.28.15
-  region: europe-west4
-  docker_registries:
-      - url: europe-docker.pkg.dev/stratio-keos/keos
-        auth_required: false
-        type: gar
-        keos_registry: true
-  helm_repository:
-      auth_required: false
-      url: http://charts.stratio.com
-      type: gar
-  dns:
-    manage_zone: false
-  external_domain: domain.ext
-  networks:
-    vpc_id: gcp-prod-vpc
-    subnets:
-      - subnet_id: gcp-prod-subnet
-  storageclass:
-    parameters:
-      type: pd-standard
-      fsType: ext4
-      replication-type: none
-      labels: "owner=stratio"
-  keos:
-    flavour: production
-    version: 1.1.3
-  control_plane:
-    managed: true
-    gcp:
-      cluster_network:
-        private_cluster:
-          enable_private_endpoint: true
-          enable_private_nodes: true
-          control_plane_cidr_block: 172.16.16.0/28
-      ip_allocation_policy:
-        cluster_ipv4_cidr_block: 172.16.0.0/16
-        services_ipv4_cidr_block: 172.17.0.0/20
-        cluster_secondary_range_name: "gkepods-europ-west1"
-        services_secondary_range_name: "gkeservices-europe-west1"
-      monitoring_config:
-        enable_managed_prometheus: false
-      master_authorized_networks_config:
-        cidr_blocks:
-          - cidr_block: 192.168.100.0/24
-            display_name: Office Network
-          - cidr_block: 172.16.0.0/20
-            display_name: VPC Network
-        gcp_public_cidrs_access_enabled: false
-      logging_config:
-        system_components: false
-        workloads: false
-  worker_nodes:
-    - name: gcp-prod-xlarge
-      quantity: 6
-      max_size: 18
-      min_size: 6
-      size: c2d-highcpu-8
-      labels:
-        disktype: standard
-      root_volume:
-        size: 50
-        type: pd-standard
-        encrypted: true
-        encryption_key: projects/gcp-prod/locations/europe-west4/keyRings/keos-keyring/cryptoKeys/keos-key
-    - name: gcp-prod-medium-az
-      quantity: 3
-      size: c2d-highcpu-4
-      az: europe-west4-a
----
-apiVersion: installer.stratio.com/v1beta1
-kind: ClusterConfig
-metadata:
-    name: gcp-prod-config
-spec:
-    private_registry: true
-    cluster_operator_version: 0.3.4
-    cluster_operator_image_version: 0.3.4
-----
-
 ==== Azure no gestionado
 
 En este ejemplo se pueden ver las siguientes particularidades:
@@ -667,6 +501,7 @@ En este ejemplo se pueden ver las siguientes particularidades:
 ** Con imagen específica (opcional para este proveedor _cloud_).
 +
 NOTE: Las versiones de los componentes de la imagen deberán estar alineadas con la versión de Kubernetes indicada.
+
 ** Con etiquetas de K8s.
 ** Con rangos de autoescalado.
 ** Con personalizaciones en el disco.
@@ -796,11 +631,11 @@ NOTE: Dado que el fichero descriptor para la instalación (_keos.yaml_) se regen
 
 === Balanceador de carga
 
-Debido a un error en los distintos _controllers_ (solucionado en ramas master pero aún sin _release_), el balanceador de carga creado en los proveedores _cloud_ de GCP y Azure para el _API Server_ de los _clusters_ con _control-planes_ no gestionados se genera con un _health check_ basado en TCP.
+Debido a un error en los distintos _controllers_ (solucionado en ramas master pero aún sin _release_), el balanceador de carga creado en los proveedores _cloud_ de Azure para el _API Server_ de los _clusters_ con _control-planes_ no gestionados se genera con un _health check_ basado en TCP.
 
 Eventualmente, esto podría generar problemas en las peticiones en caso de fallo de alguno de los nodos del _control-plane_, dado que el balanceador de carga enviará peticiones a los nodos del _control-plane_ cuyo puerto responda pero no pueda atender peticiones.
 
-Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
+Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para Azure el 6443.
 
 == Despliegue de _aws-load-balancer-controller-manager_ (sólo EKS)
 

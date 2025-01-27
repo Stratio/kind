@@ -70,20 +70,6 @@ En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor
 * 1 Balanceador de carga tipo _Network_ para la exposición de _Services_ tipo Load Balancer.
 ** 1 _Listener_ por puerto para cada _Service_.
 
-=== GKE (_cluster_ privado)
-
-* 1 _cluster_ de Google Kubernetes Engine (GKE): configurado como VPC-nativa.
-* 1 VPC.
-* 1 subred por región.
-** Bloque CIDR principal para la subred (nodos).
-** Bloque CIDR secundario para la subred (_pods_ y servicios).
-* 1 ruta de _peering_: conexión mediante _VPC Network peering_.
-* 2 rutas: para los CIDR secundarios de _pods_ y servicios.
-* 1 red de VPC _peering_.
-* 5 reglas de _firewall_ de VPC: (gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all]).
-* Máquinas virtuales para _workers_: configuradas según el descriptor del _cluster_ y el autoescalado.
-* 1 volumen persistente por máquina virtual.
-
 === Azure no gestionado
 
 * [silver]#1 resource group.#
@@ -124,13 +110,6 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 ^|AWS
 ^|No
 ^|VPC-native
-
-^|GKE
-^|Calico
-^|Calico
-^|Calico
-^|No
-^|VPC-nativa
 
 ^|Azure
 ^|Calico
@@ -225,10 +204,6 @@ spec:
 	  pods_cidr: 172.16.0.0/20
 ----
 
-==== GKE
-
-La red de _pods_ en GKE se configura automáticamente con el CIDR secundario para _pods_ y servicios, obtenido de la configuración de la red VPC al desplegar el _cluster_.
-
 == Seguridad
 
 === Autenticación
@@ -244,15 +219,6 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 [source,bash]
 ----
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
-----
-
-==== GKE
-
-Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
-
-[source,bash]
-----
-$ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r '.data["credentials.json"]' | base64 -d | jq .
 ----
 
 ==== Azure
@@ -275,7 +241,7 @@ $ CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .it
 $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
 ----
 
-=== Acceso a IMDS (para EKS y GCP)
+=== Acceso a IMDS (para EKS)
 
 Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedir el acceso a todos los _pods_ del _cluster_ que no sean parte de _Stratio KEOS_.
 
@@ -288,10 +254,6 @@ A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de 
 Durante la creación del _cluster_ de EKS, se crea un _endpoint_ para el _API Server_ que se utilizará para el acceso al _cluster_ desde el instalador y operaciones del ciclo de vida.
 
 Este _endpoint_ se publica a internet, y su acceso se restringe con una combinación de reglas del _Identity and Access Management_ (IAM) de Amazon y el _Role Based Access Control_ (RBAC) nativo de Kubernetes.
-
-==== GKE
-
-En este caso, el _API Server_ se expone únicamente de forma privada, por lo que solo se puede acceder desde la IP asignada al _endpoint_ privado del _cluster_. Esta IP pertenece al rango especificado en el descriptor del _cluster_.
 
 ==== Azure no gestionado
 
@@ -346,10 +308,6 @@ El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del prov
 ^|gp3
 ^|io2 (64k IOPS)
 
-^|GCP
-^|pd-standard
-^|pd-ssd
-
 ^|Azure
 ^|StandardSSD_LRS
 ^|Premium_LRS
@@ -382,7 +340,7 @@ a|
      fsType
 ----
 
-^|AWS, GCP
+^|AWS
 a|
 
 ----
@@ -402,15 +360,6 @@ a|
      encrypted
      blockExpress
      blockSize
-----
-
-^|GCP
-a|
-
-----
-     provisioned-iops-on-create
-     replication-type
-     disk-encryption-kms-key
 ----
 
 ^|Azure
@@ -492,9 +441,6 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 ^|EKS
 ^|ecr, generic
 
-^|GKE
-^|gar
-
 ^|Azure
 ^|acr, generic
 |===
@@ -507,9 +453,6 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 |===
 ^|EKS
 ^|ecr, generic
-
-^|GKE
-^|gar
 
 ^|Azure
 ^|acr, generic
