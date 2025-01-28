@@ -590,7 +590,7 @@ To create a cluster, a simple command is enough (see the particularities of each
 
 [source,bash]
 -----
-sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-gcp.yaml
+sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster stratio-pre ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼

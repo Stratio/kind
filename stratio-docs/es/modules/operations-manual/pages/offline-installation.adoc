@@ -20,7 +20,7 @@ NOTE: Las imágenes deberán estar accesibles en el repositorio indicado como _k
 Las imágenes necesarias para una instalación _offline_ se componen de dos tipos: imágenes comunes a todos los proveedores _cloud_ e imágenes específicas de cada uno. Por ello, se indican a continuación las referencias a las imágenes necesarias según el proveedor _cloud_ elegido para el _cluster_.
 
 |===
-|Versión | Comunes | AWS no gestionado | EKS | AZURE no gestionado | AKS | GCP no gestionado
+|Versión | Comunes | AWS no gestionado | EKS | AZURE no gestionado | AKS
 
 | v1.26.x
 | xref:operations-manual:offline-installation/common-images.adoc[Imágenes comunes]

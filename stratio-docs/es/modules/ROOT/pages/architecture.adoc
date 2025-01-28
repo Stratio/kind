@@ -318,12 +318,12 @@ El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del prov
 [source,bash]
 ----
 spec:
-  infra_provider: gcp
+  infra_provider: aws
   storageclass:
     parameters:
       type: pd-extreme
       provisioned-iops-on-create: 5000
-      disk-encryption-kms-key: <key_name>
+      disk-encryption-kms-key: <nombre_clave>
       labels: "key1=value1,key2=value2"
 ----
 
