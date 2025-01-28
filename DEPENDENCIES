@@ -99,10 +99,10 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.2.1
+      cluster-api-gcp-controller: 1.6.1-0.3.0
     manifests:
-      metadata.yaml: 1.6.1-0.2.1
-      infrastructure-components.yaml: 1.6.1-0.2.1
+      metadata.yaml: 1.6.1-0.3.0
+      infrastructure-components.yaml: 1.6.1-0.3.0
   managed:
     images:
       csi-attacher: v4.2.0

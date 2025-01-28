@@ -17,7 +17,7 @@ ARG HELM_VERSION=3.15.2
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 ARG CAPA=v2.5.2
-ARG CAPG=1.6.1-0.2.1
+ARG CAPG=1.6.1-0.3.0
 ARG CAPZ=v1.12.4
 ENV CAPG_FORK_URL_GKE="https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/"
 ENV AWS_CONFIG_FILE=/upgrade/.aws/config

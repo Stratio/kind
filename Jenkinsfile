@@ -38,7 +38,7 @@ hose {
                         "KUBECTL_VERSION=1.30.1",
                         "HELM_VERSION=3.15.2",
                         "CAPA=v2.5.2",
-                        "CAPG=1.6.1-0.2.1",
+                        "CAPG=1.6.1-0.3.0",
                         "CAPZ=v1.12.4",
                         "UPGRADE_DIR=CTS/resources/scripts",
                     ]
