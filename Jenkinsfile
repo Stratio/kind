@@ -19,19 +19,32 @@ hose {
         doDeploy(conf: config)
         doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'mkdir -p CTS/resources; tar zxvf bin/cloud-provisioner.tar.gz -C CTS/resources/; chmod -R 0700 CTS/resources/bin/cloud-provisioner'], stageName: "Extract binary")
         doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'cp -r scripts CTS/resources'], stageName: "prepare upgrade script files")
-        doDocker(conf:config, skipOnPR: false, dockerfile:"pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile", image:"stratio-cloud-provisioner-upgrade-image",
-            buildargs: [
-                "CLUSTERCTL=v1.7.4",
-                "PYTHON_VERSION=3.12",
-                "KUBECTL_VERSION=1.30.1",
-                "HELM_VERSION=3.15.2",
-                "CAPA=v2.5.2",
-                "CAPG=1.6.1-0.2.1",
-                "CAPZ=v1.12.4",
-                "UPGRADE_DIR=CTS/resources/scripts",
+        doDockers(
+            conf: config,
+            dockerImages: [
+                [
+                    conf: config,
+                    dockerfile: "pkg/cluster/internal/providers/docker/stratio/Dockerfile",
+                    image:"stratio-capi-image"
+                ],
+                [
+                    conf: config,
+                    dockerfile: "pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile",
+                    image:"stratio-cloud-provisioner-upgrade-image",
+                    skipOnPR: false,
+                    buildargs: [
+                        "CLUSTERCTL=v1.7.4",
+                        "PYTHON_VERSION=3.12",
+                        "KUBECTL_VERSION=1.30.1",
+                        "HELM_VERSION=3.15.2",
+                        "CAPA=v2.5.2",
+                        "CAPG=1.6.1-0.2.1",
+                        "CAPZ=v1.12.4",
+                        "UPGRADE_DIR=CTS/resources/scripts",
+                    ]
+                ]
             ]
         )
-        doDocker(conf: config, image:"stratio-capi-image", dockerfile: "pkg/cluster/internal/providers/docker/stratio/Dockerfile")
         doGrypeScan(conf: config, artifactsList: [[path: 'CTS/resources/bin/cloud-provisioner', name: 'cloud-provisioner']])
         doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE': 'stratio/cloud-testing-suite:0.1.0-SNAPSHOT', 'BUILDTOOL_PRIVILEGED': true, 'BUILDTOOL_RUNASUSER': "0"],  configFiles: [[fileId: "clouds-credentials.yaml", variable: "credentials"]], runOnPR: true)
     }
