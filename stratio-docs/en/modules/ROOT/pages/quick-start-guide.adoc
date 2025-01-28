@@ -267,138 +267,6 @@ Here, the permissions of _clusterawsadm.json_ can be removed.
 
 Next, proceed to deploy _Stratio KEOS_ *using _keos-installer_*.
 
-== GCP
-
-=== Prerequisites
-
-* Users with the necessary privileges in GCP:
-** Create an _IAM Service Account_ with the permissions defined in xref:attachment$stratio-gcp-permissions.list[stratio-gcp-permissions.list].
-** Create a private key for the _IAM Service Account_ of type JSON and download it in a `<project_name>-<id>.json` file. This data will be used for the credentials requested in the cluster descriptor.
-* Deploy a "Cloud NAT" in the region (requires a "Cloud Router", but can be created in the wizard itself).
-* Private and public zones in "Cloud DNS" created in GCP (optional).
-* Customized infrastructure created in GCP (optional).
-* Compose the cluster descriptor file.
-** User credentials (_private++_++key++_++id_, _private++_++key_ and _client++_++email_) and account data (region and _project++_++id_), which will be encrypted on first run.
-** GitHub token for template download (optional).
-** Data of the already created infrastructure (optional).
-** Management of DNS zones created (optional).
-** Docker registry data (URL, credentials).
-** External domain of the cluster.
-** _control-plane_.
-** Node groups.
-** Information required for the _Stratio KEOS_ installation.
-
-NOTE: The installation requires a custom image with parameters needed for Elasticsearch.
-
-==== _control-plane_ nodes
-
-For this provider, the _control-plane_ will be deployed in VMs, therefore, the following options can be configured:
-
-* _highly++_++available_: defines whether the _control-plane_ will have high availability (default: _true_).
-* _managed_: indicates that it is a _control-plane_ in VMs.
-* _size_: instance type.
-* _node++_++image_: image of the nodes of the _control-plane_. The indicated image must exist in the referenced project.
-* _root++_++volume_: disk particularities (optional).
-** _size_: size in GB (default: 30GB).
-** _type_: disk type (default: pd-standard).
-
-==== _worker_ nodes
-
-In the cluster descriptor, groups of _worker_ nodes can be indicated with the following options:
-
-* _name_: group name, cannot be repeated. It must start with "<cluster++_++name++_++>-".
-* _size_: instance type.
-* _quantity_: number of workers in the group.
-* _min++_++size_: minimum number of nodes for autoscaling (optional).
-* _max++_++size_: maximum number of nodes for autoscaling (optional).
-* _labels_: node labels in Kubernetes (optional).
-* _root++_++volume_: disk specifics (optional).
-** _size_: size in GB (default: 30GB).
-** _type_: disk type (default: pd-standard).
-* _ssh++_++key_: SSH key for node access (optional). Must exist in the provider.
-* _spot_: indicates if the instance is of type _spot_ (optional).
-* _node++_++image_: the image of the worker nodes. The indicated image must exist and be compatible with EKS.
-* _zone++_++distribution_: indicates whether the number of nodes must be balanced in the zones or not (default: _balanced_).
-* _az_: zone of the worker's group (optional). If specified, only this one will be used for the whole group. This parameter overrides what is specified in _zone++_++distribution_.
-
-NOTE: By default, the distribution of nodes will be done in zones a, b and c of the indicated region in a balanced way, therefore, the rest of the division by three of the number of nodes will be discarded. Example: if 'quantity=7' is specified, only 2 nodes will be deployed in each of the zones.
-
-==== _keos-installer_
-
-In order to facilitate the installation of _Stratio KEOS_, in the provisioning process a functional _keos.yaml_ file is generated and ready to launch the installation. For this purpose, the version and flavour (_production_, _development_ or _minimal_) can be indicated in the cluster descriptor.
-
-[source,yaml]
-----
-  keos:
-    version: 1.0.2
-    flavour: development
-----
-
-For any extra customization, the file must be modified before running the _keos-installer_.
-
-==== Considerations
-
-* If you use custom infrastructure, you must indicate the VPC and 3 subnets, one per region zone (a, b and c).
-* The configured Kubernetes version must be the one supported in the indicated images.
-* The names of the _worker++_++nodes_ groups cannot be repeated.
-
-TIP: For more details, see the xref:ROOT:installation.adoc[installation guide].
-
-=== Installation
-
-You should run the provisioning and installation of the Kubernetes phase from a Linux machine with internet access and a Docker installed.
-
-Once you have downloaded the `.tgz` file of the _cloud-provisioner_, proceed to unzip it and run it with the creation parameters:
-
-[source,console]
-----
-$ tar xvzf cloud-provisioner-*tar.gz
-$ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor cluster.yaml
-Vault Password:
-Creating temporary cluster "example-gcp" ...
- ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
- ✓ Preparing nodes 📦
- ✓ Writing configuration 📜
- ✓ Starting control-plane 🕹️
- ✓ Installing CNI 🔌
- ✓ Installing StorageClass 💾
- ✓ Installing CAPx 🎖️
- ✓ Generating secrets file 📝🗝️
- ✓ Installing keos cluster operator 💻
- ✓ Creating the workload cluster 💥
- ✓ Saving the workload cluster kubeconfig 📝
- ✓ Installing Calico in workload cluster 🔌
- ✓ Installing CSI in workload cluster 💾
- ✓ Creating Kubernetes RBAC for internal loadbalancing 🔐
- ✓ Preparing nodes in workload cluster 📦
- ✓ Installing StorageClass in workload cluster 💾
- ✓ Enabling workload clusters self-healing 🏥
- ✓ Installing CAPx in workload cluster 🎖️
- ✓ Configuring Network Policy Engine in workload cluster 🚧
- ✓ Installing cluster-autoscaler in workload cluster 🗚
- ✓ Installing keos cluster operator in workload cluster 💻
- ✓ Creating cloud-provisioner Objects backup 🗄️
- ✓ Moving the management role 🗝️
- ✓ Executing post-install steps 🎖️
- ✓ Generating the KEOS descriptor 📝
-
-The cluster has been installed successfully. Please refer to the documents below on how to proceed:
-1. Post-installation Stratio cloud-provisioner documentation
-2. Stratio KEOS documentation
-----
-
-=== Next steps
-
-At this point, you will have a Kubernetes cluster with the features indicated in the descriptor and you will be able to access the API Server with the _kubeconfig_ generated in the current directory (_.kube/config_):
-
-[source,console]
-----
-kubectl --kubeconfig .kube/config get nodes
-----
-
-Next, proceed to deploy _Stratio KEOS_ *using _keos-installer_*.
-
 == Azure unmanaged
 
 === Prerequisites
@@ -488,29 +356,29 @@ $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor c
 Vault Password:
 Creating temporary cluster "example-azure" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸 
- ✓ Preparing nodes 📦  
- ✓ Writing configuration 📜 
- ✓ Starting control-plane 🕹️ 
- ✓ Installing CNI 🔌 
- ✓ Installing StorageClass 💾 
- ✓ Installing CAPx 🎖️ 
- ✓ Generating secrets file 📝🗝️ 
- ✓ Installing keos cluster operator 💻 
- ✓ Creating the workload cluster 💥 
- ✓ Saving the workload cluster kubeconfig 📝 
- ✓ Installing cloud-provider in workload cluster ☁️ 
- ✓ Installing Calico in workload cluster 🔌 
- ✓ Installing CSI in workload cluster 💾 
- ✓ Preparing nodes in workload cluster 📦 
- ✓ Installing StorageClass in workload cluster 💾 
- ✓ Enabling workload clusters self-healing 🏥 
- ✓ Installing CAPx in workload cluster 🎖️ 
- ✓ Installing cluster-autoscaler in workload cluster 🗚 
- ✓ Installing keos cluster operator in workload cluster 💻 
- ✓ Creating cloud-provisioner Objects backup 🗄️ 
- ✓ Moving the management role 🗝️ 
- ✓ Executing post-install steps 🎖️ 
+ ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Preparing nodes 📦
+ ✓ Writing configuration 📜
+ ✓ Starting control-plane 🕹️
+ ✓ Installing CNI 🔌
+ ✓ Installing StorageClass 💾
+ ✓ Installing CAPx 🎖️
+ ✓ Generating secrets file 📝🗝️
+ ✓ Installing keos cluster operator 💻
+ ✓ Creating the workload cluster 💥
+ ✓ Saving the workload cluster kubeconfig 📝
+ ✓ Installing cloud-provider in workload cluster ☁️
+ ✓ Installing Calico in workload cluster 🔌
+ ✓ Installing CSI in workload cluster 💾
+ ✓ Preparing nodes in workload cluster 📦
+ ✓ Installing StorageClass in workload cluster 💾
+ ✓ Enabling workload clusters self-healing 🏥
+ ✓ Installing CAPx in workload cluster 🎖️
+ ✓ Installing cluster-autoscaler in workload cluster 🗚
+ ✓ Installing keos cluster operator in workload cluster 💻
+ ✓ Creating cloud-provisioner Objects backup 🗄️
+ ✓ Moving the management role 🗝️
+ ✓ Executing post-install steps 🎖️
  ✓ Generating the KEOS descriptor 📝
 
 The cluster has been installed successfully. Please refer to the documents below on how to proceed:

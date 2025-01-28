@@ -28,20 +28,6 @@ The currently recommended operating system for this provider is Ubuntu 22.04.
 +
 WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec:security:aws:create_iam` parameter to true (default is false).
 
-=== Unmanaged GCP
-
-* Permissions
-+
-For deployments on the Google Cloud Platform, you will require permissions on compute (instances, disks, images, routers, networks, etc.). Similarly to other supported providers, provisioning requires an account with all requested permissions.
-+
-** xref:attachment$stratio-gcp-permissions.list[Download permissions for GCP].
-
-* Certified operating systems
-+
-For unmanaged GCP environments use https://github.com/kubernetes-sigs/image-builder/tree/master/images/capi[image builder], an official tool to create and make images available for _Stratio KEOS_. For more details on image building see the xref:operations-manual:image-builder/gcp-image-builder.adoc[guide for GCP].
-+
-The currently recommended operating system for this provider is Ubuntu 22.04.
-
 === Azure unmanaged
 
 * Permissions
@@ -74,9 +60,9 @@ This flavor does not allow the specification of any custom image and deploys by 
 
 === Considerations for images
 
-Referring to the _control-plane_, in EKS and AKS you will not be able to indicate an image, but in unmanaged AWS, Azure, and GCP, you will be able to.
+Referring to the _control-plane_, in EKS and AKS you will not be able to indicate an image, but in unmanaged AWS and Azure you will.
 
-For both _control-plane_ and _worker_ nodes it is mandatory to indicate images in unmanaged GCP for all versions and in unmanaged AWS for Kubernetes versions ≥ 1.27 in the case of using ECR as a registry.
+For both _control-plane_ and _worker_ nodes it is mandatory to indicate images in unmanaged AWS for Kubernetes versions ≥ 1.27 in the case of using ECR as a registry.
 
 For _worker_ nodes, it is optional on all cloud providers except in the cases described above (when not specified, the controller assigns one made available by the cloud provider).
 
@@ -86,7 +72,7 @@ When creating the image for the cluster, the Operating System needs for the appl
 
 To support Elasticsearch deployments, the OS must have the `max_map_count = 262144` parameter of the sysctl as indicated by its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
 
-For images created with image-builder (*AWS unmanaged, Azure unmanaged and GCP unmanaged*), you have to add the following item in the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
+For images created with image-builder (*AWS unmanaged and Azure unmanaged*), you have to add the following item in the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
 
 [source,yaml]
 ----
@@ -142,7 +128,7 @@ The _spec_ of the _KeosCluster_ is composed of the following fields:
 ^|Name ^|Description ^|Example ^|Optional
 
 |_infra++_++provider_
-|Name of the cloud provider (AWS, GCP or Azure).
+|Name of the cloud provider (AWS or Azure).
 |aws
 |No
 
@@ -223,11 +209,6 @@ The following fields are considered provisioning secrets:
 |Credentials for Azure access.
 |See the <<descriptor_example, Descriptor example>>.
 |Not when _infra++_++provider=azure_.
-
-|_gcp_
-|Credentials for GCP access.
-|See the <<descriptor_example, Descriptor example>>.
-|Not when _infra++_++provider=gcp_.
 
 |_github++_++token_
 |GitHub token. You can use a _fine-grained_ or a _classic_ type token, and you don't need any permissions. To generate it, go to: 'Settings' → 'Developer settings' → 'Personal access tokens'.
@@ -344,8 +325,6 @@ tier: Paid
 === _worker_ nodes
 
 This section specifies the _worker_ node groups and their characteristics.
-
-The images used must be supported by EKS. See the https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[Custom Linux AMI for Amazon EKS].
 
 [cols="1,4,2,1"]
 |===
@@ -647,108 +626,6 @@ spec:
       az: eu-west-1c
 ----
 
-==== GCP
-
-In this example you can see the following particularities:
-
-* Cluster on GCP with unmanaged _control-plane_.
-* Use of a Docker registry with generic authentication (with the corresponding credentials).
-* No DNS zone control (enabled by default).
-* Definition of a default _StorageClass_. This section is optional.
-* VM characteristics for the _control-plane_:
-** With high availability (3 instances are deployed).
-** With specific instance type.
-** With specific image (mandatory for this cloud provider). Note: the versions of the components in the image must match the Kubernetes version indicated.
-** With customizations on disk.
-* Groups of _worker_ nodes with multiple scenarios:
-** Different instance types.
-** With specific image (mandatory for this cloud provider). Note: the versions of the image components must match the Kubernetes version indicated.
-** With SSH key.
-** With K8s labels.
-** With auto-scaling ranges.
-** In a fixed zone.
-** With customizations on disk.
-** With spot-type instances.
-** Distribution cases in AZs: balanced and unbalanced.
-
-[source,yaml]
-----
-apiVersion: installer.stratio.com/v1beta1
-kind: KeosCluster
-metadata:
-  name: gcp-prod
-spec:
-  infra_provider: gcp
-  credentials:
-    gcp:
-      private_key_id: "efdf19f5605a.."
-      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvw.."
-      client_email: keos@stratio.com
-      project_id: gcp-prod
-      region: europe-west4
-      client_id: "6767910929.."
-    docker_registries:
-      - url: keosregistry.stratio.com/keos
-        user: "myuser"
-        pass: "mypass"
-  k8s_version: v1.26.8
-  region: europe-west4
-  docker_registries:
-      - url: eosregistry.azurecr.io/keos
-        auth_required: true
-        type: generic
-        keos_registry: true
-  helm_repository:
-      auth_required: false
-      url: http://charts.stratio.com
-  dns:
-    manage_zone: false
-  external_domain: domain.ext
-  storageclass:
-    parameters:
-      type: pd-standard
-      fsType: ext4
-      replication-type: none
-      labels: "owner=stratio"
-  keos:
-    flavour: production
-    version: 1.0.4
-  control_plane:
-    managed: false
-    highly_available: true
-    size: c2d-highcpu-4
-    node_image: projects/gcp-prod/global/images/ubuntu-2204-v1-26-8-1679997686
-    root_volume:
-      size: 50
-      type: pd-ssd
-  worker_nodes:
-    - name: gcp-prod-xlarge
-      quantity: 6
-      max_size: 18
-      min_size: 6
-      size: c2d-highcpu-4
-      node_image: projects/gcp-prod/global/images/ubuntu-2204-v1-26-8-1679997686
-      labels:
-        disktype: standard
-      root_volume:
-        size: 50
-        type: pd-standard
-      ssh_key: stg-key
-    - name: gcp-prod-medium-spot
-      quantity: 4
-      zone_distribution: unbalanced
-      size: c2d-highcpu-4
-      node_image: projects/gcp-prod/global/images/ubuntu-2204-v1-26-8-1679997686
-      spot: true
-      labels:
-        disktype: standard
-    - name: gcp-prod-medium-az
-      quantity: 3
-      size: c2d-highcpu-4
-      az: europe-west4-a
-      node_image: projects/gcp-prod/global/images/ubuntu-2204-v1-26-8-1679997686
-----
-
 ==== Azure unmanaged
 
 In this example you can see the following particularities:
@@ -762,8 +639,11 @@ In this example you can see the following particularities:
 ** With specific instance type.
 ** Without specific image (optional for this cloud provider).
 ** With customizations on disk.
-* Groups of _worker_ nodes:
-** With specific image (optional for this cloud provider). Note: the versions of the components in the image must match the Kubernetes version indicated.
+* Group of _worker_ nodes:
+** With specific image (optional for this cloud provider).
++
+NOTE: The versions of the components in the image must match the Kubernetes version indicated.
+
 ** With K8s labels.
 ** With auto-scaling ranges.
 ** With customizations on disk.
@@ -909,7 +789,7 @@ To create a cluster, a simple command is enough (see the particularities of each
 
 [source,bash]
 -----
-sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-gcp.yaml
+sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster "stratio-pre" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
@@ -950,11 +830,11 @@ NOTE: Since the descriptor file for the installation (_keos.yaml_) is regenerate
 
 === Load balancer
 
-Due to a bug in the various _controllers_ (fixed in master branches but not yet released), the load balancer created in the cloud providers of GCP and Azure for the API Server of clusters with unmanaged _control-planes_ is generated with a TCP-based health check.
+Due to a bug in the various _controllers_ (fixed in master branches but not yet released), the load balancer created in the cloud providers of Azure for the API Server of clusters with unmanaged _control-planes_ is generated with a TCP-based health check.
 
 Eventually, this could generate request problems in case of failure of any of the _control-plane_ nodes, since the load balancer will send requests to _control-plane_ nodes whose port is responsive but cannot handle requests.
 
-To avoid this problem, the health check of the load balancer created must be modified, using the HTTPS protocol and the _/readyz_ path. The port should be maintained, being 443 for GCP and 6443 for Azure.
+To avoid this problem, the health check of the load balancer created must be modified, using the HTTPS protocol and the _/readyz_ path. The port should be maintained, being 6443 for Azure.
 
 == Deployment of _aws-load-balancer-controller-manager_ (EKS only)
 

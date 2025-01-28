@@ -6,7 +6,6 @@ For the generation of custom images in the different cloud providers, some refer
 
 * xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
 * xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtaining the _kubeconfig_
 
@@ -19,7 +18,7 @@ To communicate with the API Server of the created cluster, the _kubeconfig_ file
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* For GCP, unmanaged Azure and AKS, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
+* For unmanaged Azure and AKS, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
 
 [source,bash]
 ----
@@ -335,7 +334,7 @@ Prior to upgrading EKS you must make sure that the desired version is supported.
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-===== GCP and unmanaged Azure
+===== Unmanaged Azure
 
 The _GlobalNetworkPolicy_ created for the _control-plane_ in the _Stratio KEOS_ installation phase should be modified so that it *permits all node networking momentarily* while the version upgrade is running.
 

@@ -6,7 +6,6 @@ Para la generación de imágenes personalizadas en los diferentes proveedores _c
 
 * xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
 * xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
 
 == Obtención del _kubeconfig_
 
@@ -335,7 +334,7 @@ Previo a la actualización de EKS debes asegurarte de que la versión deseada es
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-===== GCP y Azure no gestionado
+===== Azure no gestionado
 
 La _GlobalNetworkPolicy_ creada para el _control-plane_ en la fase de instalación de _Stratio KEOS_ se deberá modificar de modo que *permita toda la red de los nodos momentáneamente* mientras se ejecuta la actualización de versión.
 
