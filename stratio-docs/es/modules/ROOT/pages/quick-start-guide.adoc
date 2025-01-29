@@ -182,7 +182,7 @@ NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especific
 NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo el tráfico externo acceda al _master_ de Kubernetes a través de HTTPS excepto el tráfico de los bloques de CIDR especificados, las IP públicas de Google Compute Engine y las IP de los servicios de Google Cloud.
 
 * _monitoring++_++config_ (opcional/immutable): define la monitorización del _cluster_.
-** _enable++_++managed++_++prometheus_ (default: false): habilita la monitorización gestionada del _cluster_ con Prometheus.
+** _enable++_++managed++_++prometheus_ (por defecto: false): habilita la monitorización gestionada del _cluster_ con Prometheus.
 * _logging++_++config_ (opcional/immutable): define la configuración de _logging_ del _cluster_.
 ** _system++_++components_ (default: false): habilita el componente _system_ de _logging_.
 ** _workloads_ (default: false): habilita el componente _workloads_ de _logging_.
