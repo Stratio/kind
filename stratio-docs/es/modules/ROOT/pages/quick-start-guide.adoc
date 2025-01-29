@@ -185,7 +185,7 @@ NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo
 ** _enable++_++managed++_++prometheus_ (por defecto: false): habilita la monitorización gestionada del _cluster_ con Prometheus.
 * _logging++_++config_ (opcional/immutable): define la configuración de _logging_ del _cluster_.
 ** _system++_++components_ (por defecto: false): habilita el componente _system_ de _logging_.
-** _workloads_ (default: false): habilita el componente _workloads_ de _logging_.
+** _workloads_ (por defecto: false): habilita el componente _workloads_ de _logging_.
 
 NOTE: Cualquier modificación de los parámetros anteriormente mencionados no tendrá efecto, sólo se aplican en tiempo de creación del _cluster_. 
 
