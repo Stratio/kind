@@ -319,7 +319,7 @@ monitoring_config:
 ----
 logging_config:
 ----
-|Consultar la guía de inicio rápido para más información.
+|Consultar _quick_start_guide_ para más información.
 
 |_azure_
 |Valores específicos para el _control-plane_ de AKS (_Free, Paid_).
