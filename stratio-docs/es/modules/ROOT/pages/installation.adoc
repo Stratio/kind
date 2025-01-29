@@ -185,17 +185,17 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
-|aws
+|_aws_
 |Credenciales para acceso a AWS.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=aws_.
 
-|azure
+|_azure_
 |Credenciales para acceso a Azure.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=azure_.
 
-|gke
+|_gke_
 |Credenciales para el acceso a GKE.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=gcp_.

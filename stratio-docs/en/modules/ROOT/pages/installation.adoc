@@ -192,7 +192,7 @@ The following fields are considered provisioning secrets:
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=azure_.
 
-|_gcp_
+|_gke_
 |Credentials for GCP access.
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=gcp_.
@@ -276,7 +276,7 @@ a|
 
 In this section, you will find the specifics for the Kubernetes _control-plane_.
 
-[cols="1,4,2,1"]
+[cols="^1,4,2,^1"]
 |===
 ^|Name ^|Description ^|Example ^|Optional
 
@@ -302,6 +302,32 @@ tier: Paid
 ----
 
 |Yes
+
+|_gcp_
+|Valores específicos para el _control-plane_ de GKE (_private++_++cluster_, _master++_++authorized++_++networks++_++config_, _ip++_++allocation++_++policy_, _monitoring++_++config_ y _logging++_++config_).
+a|
+[source,yaml]
+----
+cluster_network:
+  private_cluster:
+----
+[source,yaml]
+----
+master_authorized_networks_config:
+----
+[source,yaml]
+----
+ip_allocation_policy:
+----
+[source,yaml]
+----
+monitoring_config:
+----
+[source,yaml]
+----
+logging_config:
+----
+|Consultar _quick_start_guide_ para más información.
 
 |_managed_
 |Indicates whether or not the _control-plane_ is managed in the cloud provider.

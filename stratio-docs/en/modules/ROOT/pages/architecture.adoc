@@ -291,7 +291,7 @@ CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .item
 $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
 ----
 
-=== IMDS access (for EKS and GCP)
+=== IMDS access (for EKS)
 
 Since pods can impersonate the node where they run by simply interacting with IMDS, a global network policy (Calico's _GlobalNetworkPolicy_) is used to prevent access to all pods in the cluster that are not part of _Stratio KEOS_.
 
@@ -362,7 +362,7 @@ The `class` parameter can be _premium_ or _standard_, this will depend on the cl
 ^|gp3
 ^|io2 (64k IOPS)
 
-^|GCP
+^|GKE
 ^|pd-standard
 ^|pd-ssd
 
@@ -398,7 +398,7 @@ a|
      fsType
 ----
 
-^|AWS, GCP
+^|AWS, GKE
 a|
 
 ----
@@ -420,7 +420,7 @@ a|
      blockSize
 ----
 
-^|GCP
+^|GKE
 a|
 
 ----
@@ -510,6 +510,9 @@ The following table shows the supported registries by provider/flavor:
 
 ^|Azure
 ^|acr, generic
+
+^|GKE
+^|gar
 |===
 
 == Helm repository
@@ -523,6 +526,9 @@ As a prerequisite of the installation, a Helm repository must be specified from 
 
 ^|Azure
 ^|acr, generic
+
+^|GKE
+^|gar
 |===
 
 NOTE: URLs for OCI repositories are prefixed with *oci://*. For example, oci://stratioregistry.azurecr.io/helm-repository-example.
