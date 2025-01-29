@@ -174,7 +174,7 @@ En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar qu
 NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (_services++_++secondary++_++range++_++name_ y _cluster++_++secondary++_++range++_++name_). Si no existen, se debe usar la notación CIDR (_services++_++ipv4++_++cidr++_++block_ y _cluster++_++ipv4++_++cidr++_++block_) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
 
 * _master++_++authorized++_++networks++_++config_ (opcional/immutable): representa la configuración de redes autorizadas del _cluster_.
-** _cidr++_++blocks_ (opcional, ya que gcp++_++public++_++cidrs++_++access++_++enabled es siempre "true"): lista de bloques CIDR que se permiten acceder al _master_.
+** _cidr++_++blocks_ (opcional, ya que _gcp++_++public++_++cidrs++_++access++_++enabled_ es siempre "true"): lista de bloques CIDR que se permiten acceder al _master_.
 *** _cidr++_++block_: rango de IP en notación CIDR que se permitirá acceder al _master_.
 *** _display++_++name_: nombre de la red autorizada.
 ** _gcp++_++public++_++cidrs++_++access++_++enabled_ (por defecto: "false"), si _enable++_++private++_++endpoint es "true") (por defecto: false): indica si se permite el acceso a las direcciones IP públicas de Google Compute Engine.
