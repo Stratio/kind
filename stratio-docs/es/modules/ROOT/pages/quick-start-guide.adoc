@@ -171,7 +171,7 @@ En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar qu
 ** _cluster++_++secondary++_++range++_++name_: representa el nombre del rango secundario que se utilizará para el bloque CIDR del _cluster_ GKE. El rango se utilizará para las direcciones IP de los _pods_ y debe ser un rango secundario existente asociado con la subred del _cluster_.
 ** _services++_++secondary++_++range++_++name_: representa el nombre del rango secundario que se utilizará para el bloque CIDR de los servicios. El rango se utilizará para las IP de los servicios y debe ser un rango secundario existente asociado con la subred del _cluster_.
 
-NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (services++_++secondary++_++range++_++name y cluster++_++secondary++_++range++_++name). Si no existen, se debe usar la notación CIDR (services++_++ipv4++_++cidr++_++block y cluster++_++ipv4++_++cidr++_++block) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
+NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especificados (_services++_++secondary++_++range++_++name_ y _cluster++_++secondary++_++range++_++name_). Si no existen, se debe usar la notación CIDR (_services++_++ipv4++_++cidr++_++block_ y _cluster++_++ipv4++_++cidr++_++block_) para crearlos, pero no se pueden usar ambos métodos simultáneamente.
 
 * _master++_++authorized++_++networks++_++config_ (opcional/immutable): representa la configuración de redes autorizadas del _cluster_.
 ** _cidr++_++blocks_ (opcional, ya que gcp++_++public++_++cidrs++_++access++_++enabled es siempre "true"): lista de bloques CIDR que se permiten acceder al _master_.
