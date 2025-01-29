@@ -177,7 +177,7 @@ NOTE: Si los rangos de IP ya están creados, se deben usar los nombres especific
 ** _cidr++_++blocks_ (opcional, ya que gcp++_++public++_++cidrs++_++access++_++enabled es siempre "true"): lista de bloques CIDR que se permiten acceder al _master_.
 *** _cidr++_++block_: rango de IP en notación CIDR que se permitirá acceder al _master_.
 *** _display++_++name_: nombre de la red autorizada.
-** _gcp++_++public++_++cidrs++_++access++_++enabled_ (default: false), si _enable++_++private++_++endpoint es "true") (default: false): indica si se permite el acceso a las direcciones IP públicas de Google Compute Engine.
+** _gcp++_++public++_++cidrs++_++access++_++enabled_ (por defecto: "false"), si _enable++_++private++_++endpoint es "true") (por defecto: false): indica si se permite el acceso a las direcciones IP públicas de Google Compute Engine.
 
 NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo el tráfico externo acceda al _master_ de Kubernetes a través de HTTPS excepto el tráfico de los bloques de CIDR especificados, las IP públicas de Google Compute Engine y las IP de los servicios de Google Cloud.
 
