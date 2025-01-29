@@ -189,7 +189,6 @@ NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo
 
 NOTE: Cualquier modificación de los parámetros anteriormente mencionados no tendrá efecto, sólo se aplican en tiempo de creación del _cluster_. 
 
-
 ==== Nodos _worker_
 
 En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con las siguientes opciones:
