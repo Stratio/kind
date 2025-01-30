@@ -346,7 +346,7 @@ El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del prov
 ^|gp3
 ^|io2 (64k IOPS)
 
-^|GCP
+^|GKE
 ^|pd-standard
 ^|pd-ssd
 
@@ -382,7 +382,7 @@ a|
      fsType
 ----
 
-^|AWS, GCP
+^|AWS, GKE
 a|
 
 ----
@@ -404,7 +404,7 @@ a|
      blockSize
 ----
 
-^|GCP
+^|GKE
 a|
 
 ----
@@ -518,4 +518,3 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
 
 NOTE: Recuerda verificar en la documentación de _keos-installer_ los repositorios que se soporten en la versión a utilizar.
-
