@@ -243,7 +243,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 
 [source,bash]
 ----
-k -n layer-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
+k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
 ==== GKE
