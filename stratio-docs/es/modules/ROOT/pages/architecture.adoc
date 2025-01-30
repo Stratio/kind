@@ -576,25 +576,14 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
-
 ^|EKS
 ^|ecr, generic
-
-^|GCP
-^|generic
 
 ^|Azure
 ^|acr, generic
 
-<<<<<<< HEAD
-^|AKS
-^|acr
-=======
 ^|GKE
 ^|gar
->>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 == Repositorio de Helm
@@ -603,25 +592,14 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
-
 ^|EKS
 ^|ecr, generic
-
-^|GCP
-^|gar, gcr, generic
 
 ^|Azure
 ^|acr, generic
 
-<<<<<<< HEAD
-^|AKS
-^|acr, generic
-=======
 ^|GKE
 ^|gar
->>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
