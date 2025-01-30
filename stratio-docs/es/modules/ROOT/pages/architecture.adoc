@@ -319,7 +319,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
-==== GCP/GKE
+==== GKE
 
 Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
 
@@ -348,7 +348,7 @@ $ CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .it
 $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
 ----
 
-=== Acceso a IMDS (para EKS y GCP)
+=== Acceso a IMDS (para EKS)
 
 Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedir el acceso a todos los _pods_ del _cluster_ que no sean parte de _Stratio KEOS_.
 
@@ -433,7 +433,7 @@ El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del prov
 ^|gp3
 ^|io2 (64k IOPS)
 
-^|GCP
+^|GKE
 ^|pd-standard
 ^|pd-ssd
 
@@ -469,7 +469,7 @@ a|
      fsType
 ----
 
-^|AWS, GCP
+^|AWS, GKE
 a|
 
 ----
@@ -491,7 +491,7 @@ a|
      blockSize
 ----
 
-^|GCP
+^|GKE
 a|
 
 ----
@@ -588,8 +588,13 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 ^|Azure
 ^|acr, generic
 
+<<<<<<< HEAD
 ^|AKS
 ^|acr
+=======
+^|GKE
+^|gar
+>>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 == Repositorio de Helm
@@ -610,11 +615,15 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 ^|Azure
 ^|acr, generic
 
+<<<<<<< HEAD
 ^|AKS
 ^|acr, generic
+=======
+^|GKE
+^|gar
+>>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
 
 NOTE: Recuerda verificar en la documentación de _keos-installer_ los repositorios que se soporten en la versión a utilizar.
-

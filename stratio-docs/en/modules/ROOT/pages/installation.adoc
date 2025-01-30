@@ -30,10 +30,14 @@ WARNING: Suppose you have not created the CloudFormation stack or manually creat
 For deployments on the Google Cloud Platform, you will require permissions on compute (instances, disks, images, routers, networks, etc.). Similarly to other supported providers, provisioning requires an account with all requested permissions.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Download permissions for GCP].
+<<<<<<< HEAD
 +
 In the case of GKE, in addition to the above permissions, additional permissions will be required to create clusters.
 +
 ** xref:attachment$stratio-gke-permissions.list[Download permissions for GKE]
+=======
+** xref:attachment$stratio-gke-permissions.list[Download permissions for GKE].
+>>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 
 * Certified operating systems
 +
@@ -92,7 +96,11 @@ When creating the image for the cluster, the Operating System needs for the appl
 
 To support Elasticsearch deployments, the OS must have the `max_map_count = 262144` parameter of the sysctl as indicated by its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
 
+<<<<<<< HEAD
 For images created with image-builder (*AWS unmanaged, Azure unmanaged and GCP unmanaged*), you have to add the following item in the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
+=======
+For images created with image-builder (*unmanaged Azure*), the following element must be added to the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
+>>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 
 [source,yaml]
 ----
@@ -230,8 +238,8 @@ The following fields are considered provisioning secrets:
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=azure_.
 
-|_gcp_
-|Credentials for GCP access.
+|_gke_
+|Credentials for GKE access.
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=gcp_.
 
@@ -314,7 +322,7 @@ a|
 
 In this section, you will find the specifics for the Kubernetes _control-plane_.
 
-[cols="1,4,2,1"]
+[cols="^1,4,3,^1"]
 |===
 ^|Name ^|Description ^|Example ^|Optional
 
@@ -329,6 +337,38 @@ logging:
 ----
 
 |Yes
+
+|_gcp_
+|Specific values for the GKE _control-plane_ (_private++_++cluster_, _master++_++authorized++_++networks++_++config_, _ip++_++allocation++_++policy_, _monitoring++_++config_, and _logging++_++config_).
+a|
+
+[source,yaml]
+----
+cluster_network:
+  private_cluster:
+----
++
+[source,yaml]
+----
+master_authorized_networks_config:
+----
++
+[source,yaml]
+----
+ip_allocation_policy:
+----
++
+[source,yaml]
+----
+monitoring_config:
+----
++
+[source,yaml]
+----
+logging_config:
+----
+
+|Refer to the Quick start guide for more information.
 
 |_azure_
 |Specific values for the AKS _control-plane_ (_Free, Paid_).

@@ -437,30 +437,29 @@ As for the _control-plane_, in the cluster descriptor you can indicate that it i
 
 * _cluster++_++network_ (mandatory): defines the cluster network.
 ** _private++_++cluster_ (mandatory): defines the _spec_ of the private cluster.
-*** _enable++_++private++_++endpoint_ (required: true; default: true): indicates whether the internal IP address of the _master_ is used as the endpoint of the cluster.
-*** _enable++_++private++_++nodes_ (required: true; default: true): indicates if the nodes of the cluster have internal IP addresses only.
-*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (required): is the IP range in CIDR notation to be used for the _master_ network. This range must not overlap with any other range in use within the cluster network. Applies when _enabled++_++private++_++nodes_ is "true" and must be a /28 subnet.
-* ip++_++allocation++_++policy: represents the configuration options for the cluster GKE's IP allocation (if not specified, the GKE defaults will be used).
-** cluster++_++ipv4++_++cidr++_++block: represents the range of IP addresses for the IPs of the pods of the cluster GKE (if not specified, the range with the default size will be chosen).
-** services++_++ipv4++_++cidr++_++block: represents the range of IP addresses for the GKE cluster services IPs (if not specified, the range with the default size will be chosen).
-** cluster++_++secondary++_++range++_++name: represents the name of the secondary range to be used for the CIDR block of the cluster GKE. The range will be used for the pods IP addresses and must be an existing secondary range associated with the cluster subnet.
-** services++_++secondary++_++range++_++name: represents the name of the secondary range to be used for the services CIDR block. The range will be used for the services IPs and must be an existing secondary range associated with the cluster subnet.
+*** _enable++_++private++_++endpoint_ (mandatory/immutable; default: "true"): indicates whether the internal IP address of the _master_ is used as the endpoint of the cluster.
+*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (optional): is the IP range in CIDR notation to be used for the _master_ network. This range must not overlap with any other range in use within the cluster network. Applies when _enabled++_++private++_++nodes_ is "true" (default value) and must be a /28 subnet.
+* _ip++_++allocation++_++policy_ (optional/immutable): represents the configuration options for the cluster GKE's IP allocation (if not specified, the GKE defaults will be used).
+** _cluster++_++ipv4++_++cidr++_++block_: represents the range of IP addresses for the IPs of the pods of the cluster GKE (if not specified, the range with the default size will be chosen).
+** _services++_++ipv4++_++cidr++_++block_: represents the range of IP addresses for the GKE cluster services IPs (if not specified, the range with the default size will be chosen).
+** _cluster++_++secondary++_++range++_++name_: represents the name of the secondary range to be used for the CIDR block of the cluster GKE. The range will be used for the pods IP addresses and must be an existing secondary range associated with the cluster subnet.
+** _services++_++secondary++_++range++_++name_: represents the name of the secondary range to be used for the services CIDR block. The range will be used for the services IPs and must be an existing secondary range associated with the cluster subnet.
 
 NOTE: If IP ranges are already created, the specified names (services++_++secondary++_++range++_++name and cluster++_++secondary++_++range++_++name) must be used. If they do not exist, CIDR notation (services++_++ipv4++_++cidr++_++block and cluster++_++ipv4++_++cidr++_++block) must be used to create them, but both methods cannot be used simultaneously.
 
-* _master++_++authorized++_++networks++_++config_: represents the cluster authorized networks configuration.
+* _master++_++authorized++_++networks++_++config_ (optional/immutable): represents the cluster authorized networks configuration.
+** _cidr++_++blocks_ (optional, since _gcp++_++public++_++cidrs++_++access++_++enabled_ is always "true"): list of CIDR blocks that are allowed to access the master.
+*** _cidr++_++block_ (mandatory in case _cidr++_++blocks_ is present): IP range in CIDR notation that will be allowed to access the master.
+*** _display++_++name_ (optional): name of the authorized network.
+** _gcp++_++public++_++cidrs++_++access++_++enabled_ (default: "false", if _enable++_++private++_++endpoint_ is "true"): indicates whether access to Google Compute Engine public IP addresses is allowed.
 
 NOTE: Enabling the authorized networking configuration will prevent all external traffic from accessing the Kubernetes master over HTTPS except for traffic from the specified CIDR blocks, Google Compute Engine public IPs, and Google Cloud services IPs.
 
-** _cidr++_++blocks_ (optional, since gcp++_++public++_++cidrs++_++access++_++enabled is always "true"): list of CIDR blocks that are allowed to access the master.
-*** _cidr++_++block_ (mandatory in case _cidr++_++blocks_ is present): IP range in CIDR notation that will be allowed to access the master.
-*** _display++_++name_ (optional): name of the authorized network.
-** _gcp++_++public++_++cidrs++_++access++_++enabled_ (mandatory: "false", if _enable++_++private++_++endpoint is "true") (default: false): indicates whether access to Google Compute Engine public IP addresses is allowed.
-* _monitoring++_++config_: defines the monitoring of the cluster.
-** _enable++_++managed++_++prometheus_ (mandatory) (default: false): enables managed monitoring of the cluster with Prometheus.
-* _logging++_++config_: defines the logging configuration of the cluster.
-** _system++_++components_ (mandatory) (default: false): enables the _system_ component of logging.
-** _workloads_ (mandatory) (default: false): enables the _workloads_ component of logging.
+* _monitoring++_++config_ (optional/immutable): defines the monitoring of the cluster.
+** _enable++_++managed++_++prometheus_ (default: "false"): enables managed monitoring of the cluster with Prometheus.
+* _logging++_++config_ (optional/immutable): defines the logging configuration of the cluster.
+** _system++_++components_ (default: "false"): enables the _system_ component of logging.
+** _workloads_ (default: "false"): enables the _workloads_ component of logging.
 
 NOTE: Any modification of the above parameters will have no effect, they are only applied at cluster creation time.
 
