@@ -564,25 +564,14 @@ The following table shows the supported registries by provider/flavor:
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
-
 ^|EKS
 ^|ecr, generic
-
-^|GCP
-^|generic
 
 ^|Azure
 ^|acr, generic
 
-<<<<<<< HEAD
-^|AKS
-^|acr
-=======
 ^|GKE
 ^|gar
->>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 == Helm repository
@@ -591,25 +580,14 @@ As a prerequisite of the installation, a Helm repository must be specified from 
 
 [.center,cols="2,1",width=40%]
 |===
-^|AWS
-^|ecr, generic
-
 ^|EKS
 ^|ecr, generic
-
-^|GCP
-^|gar, gcr, generic
 
 ^|Azure
 ^|acr, generic
 
-<<<<<<< HEAD
-^|AKS
-^|acr, generic
-=======
 ^|GKE
 ^|gar
->>>>>>> e983ed62 ([PLT-1165] Documentar GKE 0.6.x (#672))
 |===
 
 NOTE: URLs for OCI repositories are prefixed with *oci://*. For example, oci://stratioregistry.azurecr.io/helm-repository-example.
