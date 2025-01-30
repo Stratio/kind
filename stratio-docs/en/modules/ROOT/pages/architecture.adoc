@@ -106,22 +106,6 @@ In a *default deployment*, the following objects are created in each cloud provi
 ** 1 load balancer rule for each service.
 * 1 block disk for each persistent volume.
 
-=== AKS
-
-* 1 Azure Kubernetes Service (AKS) cluster.
-* 2 resource pools (for AKS and _workers_).
-* 2 virtual networks (for AKS and _workers_).
-* 1 public IP address (for _workers_ output).
-* 1 network security group for _workers_.
-* 1 Managed Identity.
-* 1 _Scale Sets_ virtual machine for _workers_ (according to the descriptor of the cluster).
-* 1 load balancer for the exposure of load balancer type _Services_.
-** 1 public IP address for each service.
-** 1 frontend IP config for each service.
-** 1 health probe for each service.
-** 1 load balancer rule for each service.
-* Block disk for each persistent volume.
-
 == Networking
 
 Reference architecture
@@ -253,7 +237,7 @@ Currently, for communication with cloud providers, the controllers store in the 
 
 These credentials can be viewed with the following commands:
 
-==== AWS
+==== EKS
 
 For this provider, the credentials are stored in a _Secret_ inside the Namespace of the controller with the format of the file `~/.aws/credentials`:
 

@@ -243,7 +243,7 @@ Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Na
 
 [source,bash]
 ----
-k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
+k -n layer-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
 ----
 
 ==== GKE
@@ -497,7 +497,6 @@ La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour
 
 ^|GKE
 ^|gar
-
 |===
 
 == Repositorio de Helm
@@ -519,4 +518,3 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
 
 NOTE: Recuerda verificar en la documentación de _keos-installer_ los repositorios que se soporten en la versión a utilizar.
-
