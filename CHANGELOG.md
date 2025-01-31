@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.7.0 (upcoming)
 
-* Pending changelog
+* [PLT-1393] Bump Tigera Operator version to v3.29.1
 
 ## Previous development
 
