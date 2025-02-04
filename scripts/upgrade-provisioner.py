@@ -47,21 +47,21 @@ CAPZ = "v1.12.4"
 eks_chart_versions = {
     "28": {
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
@@ -75,7 +75,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.28.5", "app_version": "v1.28.7"},
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
@@ -84,7 +84,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.29.0", "app_version": "v1.29.0"},
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
@@ -93,7 +93,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.30.4", "app_version": "v1.30.4"},
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
@@ -408,12 +408,13 @@ def validate_k8s_version(validation, dry_run):
         minor = "30"
         dry_run_version = "1.30.X"
     if not dry_run:
-        supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
-        desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
+        desired_k8s_version = upgrade_k8s_version_desired_version(minor, 0)
+        # supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
+        # desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
         
-        if not re.match(supported_k8s_versions, desired_k8s_version):
-            print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
-            sys.exit(1)
+        # if not re.match(supported_k8s_versions, desired_k8s_version):
+        #     print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
+        #     sys.exit(1)
 
         while True:
             response = input(f"Are you sure you want to upgrade to version {desired_k8s_version}? (yes/no): ").strip().lower()
@@ -427,6 +428,18 @@ def validate_k8s_version(validation, dry_run):
     else:
         return dry_run_version
     
+def upgrade_k8s_version_desired_version(minor, tries):
+    supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
+    desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
+    if not re.match(supported_k8s_versions, desired_k8s_version):
+        if tries > 0:
+            print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
+            sys.exit(1)
+        else:
+            print("[ERROR] Unsupported downgrade of Kubernetes Version. The only supported Kubernetes versions are: 1."+ minor +".X")
+            upgrade_k8s_version_desired_version(minor, tries + 1)
+    return desired_k8s_version
+
 def get_kubernetes_version():
     '''Get the Kubernetes version'''
     
@@ -590,17 +603,22 @@ spec:
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     '''Upgrade Kubernetes version'''
+    
     aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
-
+    print(f"[INFO] Current minor version: {current_minor_version}, Desired minor version: {desired_minor_version}", flush=True)
     if dry_run:
         print(f"[INFO] Updating kubernetes to version {desired_k8s_version}: DRY-RUN", flush=True)
         return
-
+    #Print current version
+    print(f"[INFO] Current Kubernetes version: {current_k8s_version}", flush=True)
+    #print splitlines of current version
+    print(f"[INFO] Current Kubernetes version splitlines: {current_k8s_version.splitlines()}", flush=True)
     if len(current_k8s_version.splitlines()) == 1:
         if current_minor_version < desired_minor_version:
+            
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
 
             if not aks_enabled:
@@ -662,6 +680,8 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
+        # If upgrade had failed previously, the cluster may have two different versions of Kubernetes
+        
         lower_k8s_version = get_k8s_lower_version(current_k8s_version)
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
@@ -769,13 +789,20 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
                     print("OK")
                 return output
             else:
-                if "Unable to connect to the server: net/http: TLS handshake timeout" in output:
-                    retries += 1
+                retries += 1
+                if retries < max_retries:
                     time.sleep(retry_delay)
                 else:
-                    print("FAILED")
+                    print("FALLÓ")
                     print("[ERROR] " + output)
                     sys.exit(1)
+                # if "Unable to connect to the server: net/http: TLS handshake timeout" in output:
+                #     retries += 1
+                #     time.sleep(retry_delay)
+                # else:
+                #     print("FAILED")
+                #     print("[ERROR] " + output)
+                #     sys.exit(1)
 
 def get_chart_version(chart, namespace):
     '''Get the version of a Helm chart'''
@@ -1011,7 +1038,7 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
             command += ( " --bootstrap capi-kubeadm-bootstrap-system/kubeadm:" + CAPI +
                 " --control-plane capi-kubeadm-control-plane-system/kubeadm:" + CAPI )
                     
-        execute_command(command, False)
+        execute_command(command, False, True, 5, 60)
         if provider == "azure":
             command =  f"{kubectl} -n " + namespace + " rollout status ds capz-nmi --timeout 120s"
             execute_command(command, False, False)
@@ -1310,7 +1337,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
             "provider": keos_cluster["spec"]["infra_provider"],
             "managed_cluster": keos_cluster["spec"]["control_plane"]["managed"],
             "pods_cidr": get_pods_cidr(keos_cluster),
-            "cluster_operator_version" : "0.4.0-aa18b1f",
+            "cluster_operator_version" : "0.4.0",
             "credentials": credentials
         }
         
@@ -1320,7 +1347,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
     except Exception as e:
         raise e
     
-def prepare_calico_kube_controller(n):
+def prepare_calico_kube_controller():
     '''Prepare the Calico kube-controllers'''
     
     netpol = """
@@ -1351,7 +1378,7 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         output, err = run_command(command, allow_errors=True)
         if output == tigera_version:
             check_and_delete_releases("tigera-operator")
-            prepare_calico_kube_controller(1)
+            prepare_calico_kube_controller()
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
             print("SKIP")
@@ -1375,12 +1402,12 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
             
         command = "helm get manifest tigera-operator -n tigera-operator | kubectl apply -f -"
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
+        time.sleep(120)
         if provider == "azure" and "installation.operator.tigera.io/default configured" in output:
-            time.sleep(120)
             restart_tigera_operator_manifest(provider, tigera_version)
-        prepare_calico_kube_controller(1)
+        prepare_calico_kube_controller()
         if provider == "aws":
-            prepare_calico_kube_controller(1)
+            prepare_calico_kube_controller()
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
         command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
@@ -2281,9 +2308,11 @@ if __name__ == '__main__':
         run_command(command)
         command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
         run_command(command)
+        print("OK")
         
         cluster_name = keos_cluster["metadata"]["name"]
         
+        print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
         
         command = (
             kubectl + " wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
