@@ -185,18 +185,18 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
-|aws
+|_aws_
 |Credenciales para acceso a AWS.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=aws_.
 
-|azure
+|_azure_
 |Credenciales para acceso a Azure.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=azure_.
 
-|gcp
-|Credenciales para el acceso a GCP.
+|_gke_
+|Credenciales para el acceso a GKE.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No cuando _infra++_++provider=gcp_.
 
@@ -279,7 +279,7 @@ a|
 
 En este apartado se indican las particularidades para el _control-plane_ de Kubernetes.
 
-[cols="1,4,2,1"]
+[cols="^1,4,3,^1"]
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
@@ -294,6 +294,38 @@ logging:
 ----
 
 |Sí
+
+|_gcp_
+|Valores específicos para el _control-plane_ de GKE (_private++_++cluster_, _master++_++authorized++_++networks++_++config_, _ip++_++allocation++_++policy_, _monitoring++_++config_ y _logging++_++config_).
+a|
+
+[source,yaml]
+----
+cluster_network:
+  private_cluster:
+----
++
+[source,yaml]
+----
+master_authorized_networks_config:
+----
++
+[source,yaml]
+----
+ip_allocation_policy:
+----
++
+[source,yaml]
+----
+monitoring_config:
+----
++
+[source,yaml]
+----
+logging_config:
+----
+
+|Consulta la guía de inicio rápido para más información.
 
 |_azure_
 |Valores específicos para el _control-plane_ de AKS (_Free, Paid_).
