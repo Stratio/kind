@@ -409,12 +409,6 @@ def validate_k8s_version(validation, dry_run):
         dry_run_version = "1.30.X"
     if not dry_run:
         desired_k8s_version = upgrade_k8s_version_desired_version(minor, 0)
-        # supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
-        # desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
-        
-        # if not re.match(supported_k8s_versions, desired_k8s_version):
-        #     print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
-        #     sys.exit(1)
 
         while True:
             response = input(f"Are you sure you want to upgrade to version {desired_k8s_version}? (yes/no): ").strip().lower()
@@ -603,19 +597,14 @@ spec:
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     '''Upgrade Kubernetes version'''
-    
     aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
-    print(f"[INFO] Current minor version: {current_minor_version}, Desired minor version: {desired_minor_version}", flush=True)
     if dry_run:
         print(f"[INFO] Updating kubernetes to version {desired_k8s_version}: DRY-RUN", flush=True)
         return
-    #Print current version
-    print(f"[INFO] Current Kubernetes version: {current_k8s_version}", flush=True)
-    #print splitlines of current version
-    print(f"[INFO] Current Kubernetes version splitlines: {current_k8s_version.splitlines()}", flush=True)
+    
     if len(current_k8s_version.splitlines()) == 1:
         if current_minor_version < desired_minor_version:
             
@@ -793,7 +782,7 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
                 if retries < max_retries:
                     time.sleep(retry_delay)
                 else:
-                    print("FALLÓ")
+                    print("FAILED")
                     print("[ERROR] " + output)
                     sys.exit(1)
                 # if "Unable to connect to the server: net/http: TLS handshake timeout" in output:
