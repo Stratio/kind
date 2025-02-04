@@ -785,13 +785,6 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
                     print("FAILED")
                     print("[ERROR] " + output)
                     sys.exit(1)
-                # if "Unable to connect to the server: net/http: TLS handshake timeout" in output:
-                #     retries += 1
-                #     time.sleep(retry_delay)
-                # else:
-                #     print("FAILED")
-                #     print("[ERROR] " + output)
-                #     sys.exit(1)
 
 def get_chart_version(chart, namespace):
     '''Get the version of a Helm chart'''
