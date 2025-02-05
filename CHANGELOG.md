@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.0-0.6.1 (upcoming)
+
+* [Core] Fix upgrade process
 
 ## 0.17.0-0.6.1 (2025-01-28)
 
