@@ -18,7 +18,7 @@ Para comunicarse con el _API Server_ del _cluster_ creado es necesario el ficher
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* Para GCP, Azure no gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+* Para Azure no gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
 [source,bash]
 ----
