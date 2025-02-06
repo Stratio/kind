@@ -7,7 +7,7 @@ app:
                 repository: stratio/cluster-operator
                 tag: {{ cluster_operator_version }}
         kubeRbacProxy:
-            image: {{ registry if private else 'gcr.io/kubebuilder' }}/kube-rbac-proxy:v0.13.1
+            image: {{ registry if private else 'gcr.io/kubebuilder' }}/kube-rbac-proxy:v0.15.0
 provider: {{ provider }}
 {%- if provider == 'aws' %}
 secrets:

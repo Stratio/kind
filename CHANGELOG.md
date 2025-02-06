@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.17.0-0.6.2 (upcoming)
+## 0.17.0-0.6.2 (2025-02-05)
 
 * [PLT-1628] Fix coredns image registry and repository references
+* [Core] Fix upgrade process
 
 ## 0.17.0-0.6.1 (2025-01-28)
 
