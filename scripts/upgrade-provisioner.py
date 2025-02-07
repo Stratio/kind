@@ -558,11 +558,15 @@ def cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name,
         if dry_run:
             print("DRY-RUN")
         else:
-            command = (helm + " -n kube-system upgrade cluster-operator cluster-operator" +
-                " --wait --version " + CLUSTER_OPERATOR + " --values ./clusteroperator.values" +
+            command = (helm + " -n kube-system upgrade cluster-operator" +
+                " --wait --version " + CLUSTER_OPERATOR +
+                " --values ./clusteroperator.values" +
                 " --set provider=" + provider +
-                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR +
-                " --repo " + helm_repo["url"])
+                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
+            if helm_repo["type"] == "generic":
+                command += " cluster-operator --repo " + helm_repo["url"]
+            else:
+                command += helm_repo["url"] + "/cluster-operator"
             if "user" in helm_repo:
                 command += " --username=" + helm_repo["user"]
                 command += " --password=" + helm_repo["pass"]
@@ -774,6 +778,7 @@ if __name__ == '__main__':
 
     # Set helm repository
     helm_repo["url"] = keos_cluster["spec"]["helm_repository"]["url"]
+    helm_repo["type"] = keos_cluster["spec"]["helm_repository"]["type"]
     if "auth_required" in keos_cluster["spec"]["helm_repository"]:
         if keos_cluster["spec"]["helm_repository"]["auth_required"]:
             if "user" in data["secrets"]["helm_repository"] and "pass" in data["secrets"]["helm_repository"]:
