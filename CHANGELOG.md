@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.0-0.5.8 (upcoming)
+
+* [PLT-1654] Fix AWS ClusterRole patch during cloud-provisioner upgrade
 
 ## 0.17.0-0.5.7 (2024-12-09)
 

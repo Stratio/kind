@@ -217,52 +217,27 @@ def install_lb_controller(cluster_name, account_id, dry_run):
         print("DRY-RUN")
 
 def patch_clusterrole_aws_node(dry_run):
-    aws_node_clusterrole = """
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: aws-node
-rules:
-  - apiGroups:
-      - crd.k8s.amazonaws.com
-    resources:
-      - eniconfigs
-    verbs: ["list", "watch", "get"]
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["list", "watch", "get"]
-  - apiGroups: [""]
-    resources:
-      - pods
-    verbs: ["list", "watch", "get", "patch"]
-  - apiGroups: [""]
-    resources:
-      - nodes
-    verbs: ["list", "watch", "get"]
-  - apiGroups: ["", "events.k8s.io"]
-    resources:
-      - events
-    verbs: ["create", "patch", "list"]
-  - apiGroups: ["networking.k8s.aws"]
-    resources:
-      - policyendpoints
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["networking.k8s.aws"]
-    resources:
-      - policyendpoints/status
-    verbs: ["get"]
-  - apiGroups:
-      - vpcresources.k8s.aws
-    resources:
-      - cninodes
-    verbs: ["get", "list", "watch", "patch"]
-"""
+    aws_node_clusterrole_name = "aws-node"
     print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
     if not dry_run:
-        command = "cat <<EOF | " + kubectl + " apply -f -" + aws_node_clusterrole + "EOF"
-        execute_command(command, False)
+        get_clusterrole_command = kubectl + " get clusterrole -o json " + aws_node_clusterrole_name + " | jq -r '.rules'"
+        cluster_role_rule = json.loads(execute_command(get_clusterrole_command, False))
+        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rule) if 'pods' in rule.get('resources', [])), None)
+        if rule_pods_index is not None:
+            verbs = cluster_role_rule[rule_pods_index].get('verbs', [])
+            if 'patch' not in verbs:
+                patch = [
+                    {
+                        "op": "add",
+                        "path": f"/rules/{rule_pods_index}/verbs/-",
+                        "value": "patch"
+                    }
+                ]
+                patch_clusterrole_command = kubectl + " patch clusterrole " + aws_node_clusterrole_name + " --type=json -p='" + json.dumps(patch) + "'"
+                execute_command(patch_clusterrole_command, False, False)
+        else:
+            print("[ERROR] Pods resource not found in the ClusterRole " + aws_node_clusterrole_name)
+            sys.exit(1)
     else:
         print("DRY-RUN")
 
