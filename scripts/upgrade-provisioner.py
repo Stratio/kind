@@ -610,9 +610,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
 
-            # if not aks_enabled:
-            #     scale_cluster_autoscaler(0, dry_run)
-
             if not managed:
                 cp_global_network_policy("patch", networks, provider, backup_dir, dry_run)
 
@@ -662,9 +659,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-            # if not aks_enabled:
-            #     scale_cluster_autoscaler(2, dry_run)
-
         elif current_minor_version == desired_minor_version:
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
@@ -688,8 +682,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-        # if not aks_enabled:
-        #     scale_cluster_autoscaler(2, dry_run)
 
     else:
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
