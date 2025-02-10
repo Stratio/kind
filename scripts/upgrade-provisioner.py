@@ -10,7 +10,7 @@
 #   - Azure VMs & AKS                                        #
 ##############################################################
 
-__version__ = "0.5.3"
+__version__ = "0.5.8"
 
 import argparse
 import os
@@ -26,10 +26,10 @@ from datetime import datetime
 from ansible_vault import Vault
 from jinja2 import Template
 
-CLOUD_PROVISIONER = "0.17.0-0.5.3"
-CLUSTER_OPERATOR = "0.3.2" 
+CLOUD_PROVISIONER = "0.17.0-0.5"
+CLUSTER_OPERATOR = "0.3.6"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.2.0"
-CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.4.0"
+CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.4"
 
 AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.6.2"
 
@@ -42,7 +42,7 @@ CAPZ = "v1.11.4"
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='''This script upgrades cloud-provisioner from 0.17.0-0.4.0 to ''' + CLOUD_PROVISIONER +
+        description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + ''' to ''' + CLOUD_PROVISIONER +
                     ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR + ''' .
                         It requires kubectl, helm and jq binaries in $PATH.
                         A component (or all) must be selected for upgrading.
