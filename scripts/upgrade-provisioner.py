@@ -566,7 +566,7 @@ def cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name,
             if helm_repo["type"] == "generic":
                 command += " cluster-operator --repo " + helm_repo["url"]
             else:
-                command += helm_repo["url"] + "/cluster-operator"
+                command += " " + helm_repo["url"] + "/cluster-operator"
             if "user" in helm_repo:
                 command += " --username=" + helm_repo["user"]
                 command += " --password=" + helm_repo["pass"]
