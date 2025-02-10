@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.6.2 (2025-02-05)
+## 0.17.0-0.6.2 (2025-02-10)
 
 * [PLT-1628] Fix coredns image registry and repository references
 * [PLT-1628] Fix cluster-api-gcp image registry and repository references
