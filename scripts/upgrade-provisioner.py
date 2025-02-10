@@ -610,8 +610,8 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
 
-            if not aks_enabled:
-                scale_cluster_autoscaler(0, dry_run)
+            # if not aks_enabled:
+            #     scale_cluster_autoscaler(0, dry_run)
 
             if not managed:
                 cp_global_network_policy("patch", networks, provider, backup_dir, dry_run)
@@ -662,8 +662,8 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-            if not aks_enabled:
-                scale_cluster_autoscaler(2, dry_run)
+            # if not aks_enabled:
+            #     scale_cluster_autoscaler(2, dry_run)
 
         elif current_minor_version == desired_minor_version:
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
@@ -688,8 +688,8 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-        if not aks_enabled:
-            scale_cluster_autoscaler(2, dry_run)
+        # if not aks_enabled:
+        #     scale_cluster_autoscaler(2, dry_run)
 
     else:
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
@@ -1247,8 +1247,9 @@ def adopt_helm_chart(chart, credentials):
 
     # Apply the manifests to the cluster
     try:
-        command = f"{kubectl} apply -f {repository_file} "
-        run_command(command)
+        if repo_name != "keos":
+            command = f"{kubectl} apply -f {repository_file} "
+            run_command(command)
         
         command = f"{kubectl} apply -f {release_file} -n {chart['namespace']}"
         run_command(command)
@@ -2162,8 +2163,15 @@ if __name__ == '__main__':
     new_docker_registry = input(f"The current docker registry is: {docker_registry}. Do you want to indicate a new docker registry? Press enter or specify new docker registry: ")
     if new_docker_registry != "" and new_docker_registry != docker_registry:
         update_docker_registry(cluster_name, new_docker_registry, config["dry_run"])
+    
+    #Update the clusterconfig and keoscluster
+    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     provider = keos_cluster["spec"]["infra_provider"]
     managed = keos_cluster["spec"]["control_plane"]["managed"]
+    aks_enabled = provider == "azure" and managed
+    
+    if not aks_enabled:
+        scale_cluster_autoscaler(0, config["dry_run"])
     
     if provider == "aws":
         namespace = "capa-system"
@@ -2260,6 +2268,7 @@ if __name__ == '__main__':
     current_k8s_version = get_kubernetes_version()
     delete_stratio_genai_pdb()
     
+    
     if "1.28" in current_k8s_version:
         
         tigera_version = chart_versions["28"]["tigera-operator"]["chart_version"] 
@@ -2338,30 +2347,42 @@ if __name__ == '__main__':
         
     print("[INFO] Updating default volumes:", end =" ", flush=True)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    update_default_volumes(keos_cluster)
-    time.sleep(30)
-        
-    print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
-    command = (
-        f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-        f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
-    )
-    execute_command(command, False)
-    
-    print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
     if provider == "azure":
         command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
     if provider == "aws":
         command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
-
-    i = 1
-    while i !=0:
-        output = execute_command(command, False, False)
-        i = len(output.splitlines())
+    output = execute_command(command, False, False)
+    i = len(output.splitlines())
+    if i != 0:
+        update_default_volumes(keos_cluster)
         time.sleep(30)
-    print("OK")
+        
+        print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
+        command = (
+            f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
+            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+        )
+        execute_command(command, False)
+        
+        print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
+        if provider == "azure":
+            command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
+        if provider == "aws":
+            command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
+
+        i = 1
+        while i !=0:
+            output = execute_command(command, False, False)
+            i = len(output.splitlines())
+            time.sleep(30)
+        print("OK")
+    else: 
+        print("SKIP")
     if not managed:
         cp_global_network_policy("restore", networks, provider, backup_dir, False)
+        
+    if not aks_enabled:
+        scale_cluster_autoscaler(2, config["dry_run"])
    
     end_time = time.time()
     elapsed_time = end_time - start_time
