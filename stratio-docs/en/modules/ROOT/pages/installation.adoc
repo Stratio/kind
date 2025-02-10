@@ -10,7 +10,6 @@ For automated provisioning in AWS/EKS, it is necessary to execute actions on var
 +
 ** xref:attachment$stratio-eks-policy.json[Download permanent permissions for EKS].
 ** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS].
-
 +
 For EKS deployment, you must manually create the "AWSServiceRoleForAmazonEKS" role and associate to it the "AmazonEKSServiceRolePolicy" policy (created by default in AWS).
 

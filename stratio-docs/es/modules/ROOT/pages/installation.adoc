@@ -10,7 +10,6 @@ Para el aprovisionamiento automatizado en EKS, se necesita ejecutar acciones sob
 +
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
 ** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
-
 +
 Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 
