@@ -3,6 +3,7 @@
 ## 0.17.0-0.5.8 (upcoming)
 
 * [PLT-1654] Fix AWS ClusterRole patch during cloud-provisioner upgrade
+* [PLT-1656] Fix cluster-operator upgrade cloud-provisioner upgrade when using an OCI helm repository
 
 ## 0.17.0-0.5.7 (2024-12-09)
 

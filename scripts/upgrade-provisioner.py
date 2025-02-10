@@ -10,7 +10,7 @@
 #   - Azure VMs & AKS                                        #
 ##############################################################
 
-__version__ = "0.5.3"
+__version__ = "0.5.8"
 
 import argparse
 import os
@@ -26,10 +26,10 @@ from datetime import datetime
 from ansible_vault import Vault
 from jinja2 import Template
 
-CLOUD_PROVISIONER = "0.17.0-0.5.3"
-CLUSTER_OPERATOR = "0.3.2" 
+CLOUD_PROVISIONER = "0.17.0-0.5"
+CLUSTER_OPERATOR = "0.3.6"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.2.0"
-CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.4.0"
+CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.4"
 
 AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.6.2"
 
@@ -42,7 +42,7 @@ CAPZ = "v1.11.4"
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='''This script upgrades cloud-provisioner from 0.17.0-0.4.0 to ''' + CLOUD_PROVISIONER +
+        description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + ''' to ''' + CLOUD_PROVISIONER +
                     ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR + ''' .
                         It requires kubectl, helm and jq binaries in $PATH.
                         A component (or all) must be selected for upgrading.
@@ -533,11 +533,15 @@ def cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name,
         if dry_run:
             print("DRY-RUN")
         else:
-            command = (helm + " -n kube-system upgrade cluster-operator cluster-operator" +
-                " --wait --version " + CLUSTER_OPERATOR + " --values ./clusteroperator.values" +
+            command = (helm + " -n kube-system upgrade cluster-operator" +
+                " --wait --version " + CLUSTER_OPERATOR +
+                " --values ./clusteroperator.values" +
                 " --set provider=" + provider +
-                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR +
-                " --repo " + helm_repo["url"])
+                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
+            if helm_repo["type"] == "generic":
+                command += " cluster-operator --repo " + helm_repo["url"]
+            else:
+                command += " " + helm_repo["url"] + "/cluster-operator"
             if "user" in helm_repo:
                 command += " --username=" + helm_repo["user"]
                 command += " --password=" + helm_repo["pass"]
@@ -749,6 +753,7 @@ if __name__ == '__main__':
 
     # Set helm repository
     helm_repo["url"] = keos_cluster["spec"]["helm_repository"]["url"]
+    helm_repo["type"] = keos_cluster["spec"]["helm_repository"]["type"]
     if "auth_required" in keos_cluster["spec"]["helm_repository"]:
         if keos_cluster["spec"]["helm_repository"]["auth_required"]:
             if "user" in data["secrets"]["helm_repository"] and "pass" in data["secrets"]["helm_repository"]:
