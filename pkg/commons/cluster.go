@@ -537,6 +537,7 @@ func (s KeosSpec) Init() KeosSpec {
 	s.ControlPlane.AWS.Logging.Scheduler = false
 
 	// GKE
+	s.ControlPlane.Gcp.ReleaseChannel = "extended"
 	if s.ControlPlane.Gcp.ClusterNetwork == nil {
 		s.ControlPlane.Gcp.ClusterNetwork = &ClusterNetwork{}
 	}
