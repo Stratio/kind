@@ -3,4 +3,4 @@
 _Stratio KEOS_ puede desplegarse en diferentes proveedores de _cloud_. Actualmente, de forma nativa, es compatible con:
 
 * Amazon Web Services (AWS) en modo gestionado con xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
-* Azure en ambos modos: xref:ROOT:architecture.adoc#_azure[no gestionado] y xref:ROOT:architecture.adoc#_aks[Azure Kubernetes Service (AKS)].
+* Azure en modo xref:ROOT:architecture.adoc#_azure[no gestionado].

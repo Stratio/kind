@@ -1,12 +1,5 @@
 = Operations manual
 
-== Generation of custom images
-
-For the generation of custom images in the different cloud providers, some reference documentation has been created for each of them and can be found at the following links:
-
-* xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
-* xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-
 == Obtaining the _kubeconfig_
 
 To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which will be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
@@ -18,7 +11,7 @@ To communicate with the API Server of the created cluster, the _kubeconfig_ file
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* For unmanaged Azure and AKS, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
+* For unmanaged Azure, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
 
 [source,bash]
 ----
@@ -88,7 +81,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Unmanaged providers will have one _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, AKS) will only have the second one.
+NOTE: Managed providers (EKS) will only have a _MachineHealthCheck_ for the _worker_ nodes, while unmanaged ones (Azure) will have one for both the _control-plane_ and the _worker_ nodes.
 
 ==== Failover test on a node
 
@@ -139,33 +132,6 @@ Verify the change by querying the state of the _KeosCluster_ object:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-===== AKS
-
-In the case of this provider, if `min_size` and `max_size` parameters are defined in the _KeosCluster_ object, no action is performed.
-
-NOTE: The node groups of the _KeosCluster_ object correspond in Azure to _Node pools_ within AKS and their corresponding _VM Scale Sets_.
-
-Manual scaling of a node pool in AKS with autoscaling configured should be done from the Azure portal under:
-
-'VM Scale set' -> '<scale_set_name>' -> 'Scalling' -> '<instance_number>'
-
-or from:
-
-'Kubernetes services' -> '<aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Manual' -> '<node_count>'
-
-The new instances can be seen in 'VM Scale set' -> 'Instances'. This change will not be reflected in the `quantity` parameter of the node pool of the _KeosCluster_ object.
-
-The estimated times for this process are as follows:
-
-[source,bash]
-----
-Scale VM Scale set: 0s
-New K8s node is NotReady: 1m
-New K8s node is Ready: 1m 13s
-The MachinePool Scaling: 1m 29s
-The MachinePool is updated: 1m 33s
-----
-
 ==== Create a new workers group
 
 To create a new group of nodes just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
@@ -199,8 +165,6 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Vertical scaling
 
-CAUTION: *AKS does not support vertical scaling* of node groups. For this provider, you must create a new group and delete the previous one as indicated in the https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[official documentation].
-
 The vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ object corresponding to the group.
 
 [source,yaml]
@@ -233,16 +197,6 @@ spec:
       max_size: 21
       ...
 ----
-
-===== AKS
-
-In this provider the autoscaling is managed from the _VM Scale sets_ of Azure and not with the _cluster-autoscaler_.
-
-During provisioning, at the time of creating the node pools, the _Node pools_ will be instantiated in AKS and their respective _VM Scale Sets_. If the defined node pools have an auto-scaling range, these will be moved to the created _Node pools_.
-
-To view them in the Azure portal, you should refer to:
-
-'Kubernetes services' -> 'aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Autoscale'.
 
 ==== Test
 
@@ -349,15 +303,6 @@ kubectl get nodes -l node-role.kubernetes.io/control-plane= -ojson | jq -r '.ite
 ----
 IPAMHANDLERS=$(kw get ipamhandles -oname | grep control-plane)
 for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | keys[]' | sed 's/\/.*/\/32/'; done
-----
-
-===== AKS
-
-As for other managed flavours, before launching the AKS upgrade you should see the supported versions in the used region. To do this you can use its CLI:
-
-[source,bash]
-----
-az aks get-versions --location <region> --output table
 ----
 
 ==== Initiate the upgrade
