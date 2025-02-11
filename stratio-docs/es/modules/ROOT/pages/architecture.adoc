@@ -451,9 +451,6 @@ Como prerrequisito de la instalación, se debe indicar un repositorio de Helm de
 
 ^|Azure
 ^|acr, generic
-
-^|AKS
-^|acr, generic
 |===
 
 NOTE: Las URL de los repositorios de tipo OCI llevan el prefijo *oci://*. Por ejemplo: oci://stratioregistry.azurecr.io/helm-repository-example.
