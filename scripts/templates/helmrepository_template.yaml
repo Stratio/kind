@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: {{ repository_name }}
+  namespace: kube-system
+spec:
+  url: {{ repository_url }}
+  interval: {{ interval }}
+  type: {{ schema }}
+  provider: {{ provider }}

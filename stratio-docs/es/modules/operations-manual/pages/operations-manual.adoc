@@ -19,7 +19,16 @@ Para comunicarse con el _API Server_ del _cluster_ creado es necesario el ficher
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* Para GCP, Azure no gestionado y AKS, al finalizar del aprovisionamiento, el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+* Para GKE, se obtendrá de la forma indicada por GCP:
++
+[source,bash]
+----
+gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
+----
+
+Este comando generará el fichero con el _kubeconfig_ donde indique la variable de entorno `KUBECONFIG`. Por defecto, será en `$HOME/.kube/config`.
+
+* Para Azure no gestionado, al finalizar del aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
 [source,bash]
 ----
@@ -89,7 +98,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Los proveedores no gestionados tendrán un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, AKS) sólo tendrán el segundo.
+NOTE: En Azure no gestionado existirá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, GKE) sólo tendrán el segundo.
 
 ==== Prueba de tolerancia a fallos en un nodo
 
@@ -140,33 +149,6 @@ Verifica el cambio consultando el estado del objeto _KeosCluster_:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-===== AKS
-
-En el caso de este proveedor, si están definidos los parámetros `min_size` y `max_size` en el objeto _KeosCluster_ no se realiza ninguna acción.
-
-NOTE: Los grupos de nodos del objeto _KeosCluster_ se corresponden en Azure a _Node pools_ dentro de AKS y sus correspondientes _VM Scale Sets_.
-
-El escalado manual de un grupo de nodos en AKS con el autoescalado configurado se deberá hacer desde el portal de Azure en:
-
-'VM Scale set' -> '<scale_set_name>' -> 'Scalling' -> '<instance_number>'
-
-o bien desde:
-
-'Kubernetes services' -> '<aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Manual' -> '<node_count>'
-
-Las nuevas instancias se pueden ver en 'VM Scale set' -> 'Instances'. Este cambio no se reflejará en el parámetro `quantity` del grupo de nodos del objeto _KeosCluster_.
-
-Los tiempos estimados de este proceso son los siguientes:
-
-[source,bash]
-----
-Scale VM Scale set: 0s
-New K8s node is NotReady: 1m
-New K8s node is Ready: 1m 13s
-The MachinePool Scaling: 1m 29s
-The MachinePool is updated: 1m 33s
-----
-
 ==== Crear un nuevo grupo de _workers_
 
 Para crear un nuevo grupo de nodos basta con crear un nuevo elemento al _array_ _worker++_++nodes_ del objeto _KeosCluster_:
@@ -199,8 +181,6 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 ----
 
 ==== Escalado vertical
-
-CAUTION: *AKS no soporta escalado vertical* de los grupos de nodos. Para este proveedor, se deberá crear un grupo nuevo y eliminar el anterior como lo indica la https://learn.microsoft.com/en-us/azure/aks/resize-node-pool[documentación oficial] ^[English]^.
 
 El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el objeto _KeosCluster_ correspondiente al grupo.
 
@@ -235,16 +215,6 @@ spec:
       ...
 ----
 
-===== AKS
-
-En este proveedor el autoescalado se gestiona desde los _VM Scale sets_ de Azure y no con el _cluster-autoscaler_.
-
-Durante el aprovisionamiento, en el momento de crear los grupos de nodos se instanciarán los _Node pools_ en AKS y sus respectivos _VM Scale Sets_. Si los grupos de nodos definidos tienen un rango de autoescalado, estos se trasladarán a los _Node pools_ creados.
-
-Para verlos en el portal de Azure, se deberá consultar:
-
-'Kubernetes services' -> 'aks_name>' -> 'Node pools' -> '<nodepool_name>' -> 'Scale node pool' -> 'Autoscale'.
-
 ==== Prueba
 
 Para probar el autoescalado, se puede crear un _Deployment_ con suficientes réplicas de modo que no se puedan ejecutar en los nodos actuales:
@@ -269,41 +239,6 @@ Los _logs_ del _cluster-autoscaler_ se pueden ver desde su _Deployment_:
 ----
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
 ----
-
-=== Actualización de versión de _Stratio Cloud Provisioner_
-
-==== Prerrequisitos
-
-Los siguientes binarios deberán estar disponibles en la máquina bastión:
-
-- python3
-- ansible-vault (pip)
-- clusterctl
-- helm
-- kubectl
-- jq
-
-Se deberán asegurar los permisos necesarios en el directorio _backup_ de la máquina bastión para que el usuario que ejecuta el _script_ pueda escribir en él (se crea el directorio _./backup/upgrade/_).
-
-==== Ejecución
-
-Para actualizar la versión de _Stratio Cloud Provisioner_ de 0.3 a 0.4 se debe ejecutar el _script_ _upgrade-provisioner++_++.py_ desde el _workspace_ con el que se instaló el _cluster_.
-
-Puedes consultar la ayuda del _script_ con el siguiente comando:
-
-[source,bash]
-----
-python3 upgrade-provisioner.py -h
-----
-
-Ejemplo:
-
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault_pass>
-----
-
-Los descriptores _cluster.yaml_ y _secrets.yml_ deben estar presentes en el _workspace_. Si el descriptor _cluster.yaml_ tiene otro nombre o está en otra ruta, se puede especificar con el parámetro `-d`.
 
 === Actualización de Kubernetes
 
@@ -335,7 +270,7 @@ Previo a la actualización de EKS debes asegurarte de que la versión deseada es
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-===== GCP y Azure no gestionado
+===== Azure no gestionado
 
 La _GlobalNetworkPolicy_ creada para el _control-plane_ en la fase de instalación de _Stratio KEOS_ se deberá modificar de modo que *permita toda la red de los nodos momentáneamente* mientras se ejecuta la actualización de versión.
 
@@ -350,15 +285,6 @@ kubectl get nodes -l node-role.kubernetes.io/control-plane= -ojson | jq -r '.ite
 ----
 IPAMHANDLERS=$(kw get ipamhandles -oname | grep control-plane)
 for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | keys[]' | sed 's/\/.*/\/32/'; done
-----
-
-===== AKS
-
-Al igual que para otros _flavours_ gestionados, antes de lanzar la actualización de AKS se deben ver las versiones soportadas en la región utilizada. Para ello puedes usar su CLI:
-
-[source,bash]
-----
-az aks get-versions --location <region> --output table
 ----
 
 ==== Iniciar la actualización

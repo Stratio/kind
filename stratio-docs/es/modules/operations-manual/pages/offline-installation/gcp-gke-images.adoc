@@ -6,14 +6,14 @@
 | Instalación | Versión | Imagen pública | Versión
 
 | *Instalado por Cluster API - CAPG*
-| *1.6.1-0.2.1*
+| *1.6.1-0.3.0*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller
-| 1.6.1-0.2.1
+| 1.6.1-0.3.0
 
 | *Instalado mediante templates - CSI*
 | ***

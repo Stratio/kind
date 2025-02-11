@@ -22,6 +22,7 @@
 * [PLT-923] Remove path /stratio from container image reference for kube-rbac-proxy image
 * [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig 
 * [PLT-988] Uncouple CAPX from Dockerfile
+* [PLT-964] Add GKE Private Cluster Validations
 
 
 

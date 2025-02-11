@@ -324,7 +324,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPA_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/stratio/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
@@ -344,7 +344,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	} else if gcpGKEEnabled {
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/stratio/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml "
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
@@ -741,50 +741,53 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to apply cert-manager's NetworkPolicy")
 		}
 
-		// Set the deny-all-traffic-to-imds and allow-selected-namespace-to-imds as the default global network policy
-		// Create the allow and deny (global) network policy file in the container
-		denyallEgressIMDSGNetPolPath := "/kind/deny-all-egress-imds_gnetpol.yaml"
-		allowCAPXEgressIMDSGNetPolPath := "/kind/allow-egress-imds_gnetpol.yaml"
-
 		// Allow egress in kube-system Namespace
 		c = "kubectl --kubeconfig " + kubeconfigPath + " -n kube-system apply -f " + allowCommonEgressNetPolPath
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to apply kube-system egress NetworkPolicy")
 		}
-		denyEgressIMDSGNetPol, err := provider.getDenyAllEgressIMDSGNetPol()
-		if err != nil {
-			return err
-		}
 
-		c = "echo \"" + denyEgressIMDSGNetPol + "\" > " + denyallEgressIMDSGNetPolPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to write the deny-all-traffic-to-aws-imds global network policy")
-		}
-		allowEgressIMDSGNetPol, err := provider.getAllowCAPXEgressIMDSGNetPol()
-		if err != nil {
-			return err
-		}
+		if a.keosCluster.Spec.InfraProvider != "azure" {
+			// Set the deny-all-traffic-to-imds and allow-selected-namespace-to-imds as the default global network policy
+			// Create the allow and deny (global) network policy file in the container
+			denyallEgressIMDSGNetPolPath := "/kind/deny-all-egress-imds_gnetpol.yaml"
+			allowCAPXEgressIMDSGNetPolPath := "/kind/allow-egress-imds_gnetpol.yaml"
 
-		c = "echo \"" + allowEgressIMDSGNetPol + "\" > " + allowCAPXEgressIMDSGNetPolPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to write the allow-traffic-to-aws-imds-capa global network policy")
-		}
+			denyEgressIMDSGNetPol, err := provider.getDenyAllEgressIMDSGNetPol()
+			if err != nil {
+				return err
+			}
 
-		// Deny CAPA egress to AWS IMDS
-		c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + denyallEgressIMDSGNetPolPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to apply deny IMDS traffic GlobalNetworkPolicy")
-		}
+			c = "echo \"" + denyEgressIMDSGNetPol + "\" > " + denyallEgressIMDSGNetPolPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to write the deny-all-traffic-to-" + a.keosCluster.Spec.InfraProvider + "-imds global network policy")
+			}
+			allowEgressIMDSGNetPol, err := provider.getAllowCAPXEgressIMDSGNetPol()
+			if err != nil {
+				return err
+			}
 
-		// Allow CAPA egress to AWS IMDS
-		c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + allowCAPXEgressIMDSGNetPolPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to apply allow CAPX as egress GlobalNetworkPolicy")
+			c = "echo \"" + allowEgressIMDSGNetPol + "\" > " + allowCAPXEgressIMDSGNetPolPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to write the allow-traffic-to-" + a.keosCluster.Spec.InfraProvider + "-imds-capa global network policy")
+			}
+
+			// Deny CAPX egress to AWS IMDS
+			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + denyallEgressIMDSGNetPolPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply deny IMDS traffic GlobalNetworkPolicy")
+			}
+
+			// Allow CAPX egress to AWS IMDS
+			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + allowCAPXEgressIMDSGNetPolPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply allow CAPX as egress GlobalNetworkPolicy")
+			}
 		}
 
 		ctx.Status.End(true) // End Configuring Network Policy Engine in workload cluster
