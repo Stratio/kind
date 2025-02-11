@@ -66,7 +66,7 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: Unmanaged providers will have one _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS) will only have the second one.
+NOTE: EKS will have a _MachineHealthCheck_ for the _worker_ nodes.
 
 ==== Failover test on a node
 
