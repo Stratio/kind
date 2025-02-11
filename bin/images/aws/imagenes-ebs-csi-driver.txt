@@ -1,9 +1,0 @@
-gcr.io/k8s-staging-test-infra/kubekins-e2e:v20240311-b09cdeb92c-master
-public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.31.0
-public.ecr.aws/ebs-csi-driver/volume-modifier-for-k8s:v0.3.0
-public.ecr.aws/eks-distro/kubernetes-csi/external-attacher:v4.5.1-eks-1-30-4
-public.ecr.aws/eks-distro/kubernetes-csi/external-provisioner:v4.0.1-eks-1-30-4
-public.ecr.aws/eks-distro/kubernetes-csi/external-resizer:v1.10.1-eks-1-30-4
-public.ecr.aws/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter:v7.0.2-eks-1-30-4
-public.ecr.aws/eks-distro/kubernetes-csi/livenessprobe:v2.12.0-eks-1-30-4
-public.ecr.aws/eks-distro/kubernetes-csi/node-driver-registrar:v2.10.1-eks-1-30-4

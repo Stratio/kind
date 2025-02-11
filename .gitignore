@@ -28,4 +28,7 @@ deploy-recorder.lst
 /hack/pkg
 /hack/*.tar.gz
 deploy-recorder.lst
+/scripts/backup
+/scripts/secrets.yml
+
 .codegpt

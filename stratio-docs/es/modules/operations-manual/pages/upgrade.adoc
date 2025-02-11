@@ -1,0 +1,144 @@
+= _Script_ de actualización de versión
+
+== Descripción
+
+El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ Kubernetes en los siguientes entornos:
+
+- *EKS* en AWS.
+- *Azure VMs*.
+
+Permite actualizar la versión del _cluster_ Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la proporcionada por `cloud-provisioner 0.6.x`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `stratio-cloud-provisioner-upgrade-image`, que incluye el _script_ de actualización y las dependencias necesarias.
+
+== Requisitos
+
+=== Generales
+
+* Archivo `kubeconfig` con acceso al _cluster_. 
+* Archivo `secrets.yml` usado durante la creación del _cluster_.
+* Herramienta Docker, necesaria para ejecutar el contenedor.
+
+=== Específicos para EKS
+
+El `kubeconfig` generado por defecto en EKS tiene un _token_ con tiempo de vida limitado. Para evitar interrupciones, puedes generar un `kubeconfig` actualizado con:
+
+[source,bash]
+----
+  aws eks update-kubeconfig --region <region> --name <cluster_name>
+----
+  
+Este comando habilita la renovación automática del _token_ mediante AWS CLI. Además, debe proporcionarse el directorio local `~/.aws` al contenedor de actualización.
+
+== Ejecución del _script_
+
+=== Construcción del contenedor
+
+Ejecuta el contenedor Docker con la imagen de actualización de versión, montando los archivos necesarios:
+
+[source,bash]
+----
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
+----
+
+*Parámetros adicionales para EKS*
+
+Incluye el directorio de configuración de AWS:
+
+[source,bash]
+----
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
+----
+
+=== Uso del _script_ de actualización de versión
+
+==== Sintaxis
+
+[source,bash]
+----
+python3 upgrade-provisioner.py [OPTIONS]
+----
+
+Opciones principales:
+
+|=== 
+| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+
+| `-y`, `--yes` 
+| No requiere confirmación entre tareas (modo automático). 
+| False
+| No
+
+| `-k`, `--kubeconfig` 
+| Especifica el archivo de configuración de Kubectl a utilizar. 
+| ~/.kube/config
+| No
+
+| `-p`, `--vault-password` 
+| Archivo con la contraseña del Vault necesaria para descifrar secretos. 
+| 
+| Sí
+
+| `-s`, `--secrets` 
+| Archivo de secretos cifrados. 
+| secrets.yml
+| No
+
+| `-i`, `--user-assign-identity` 
+| ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). 
+|
+| Sí (Azure)
+
+| `--enable-lb-controller` 
+| Activa el controlador de balanceador de carga en EKS (desactivado por defecto). 
+| False
+| No
+
+| `--disable-backup` 
+| Desactiva el respaldo antes de actualizar (habilitado por defecto). 
+| False
+| No
+
+| `--disable-prepare-capsule` 
+| Desactiva la preparación del entorno para el proceso de actualización. 
+| False
+| No
+|===
+
+*Ejemplos:*
+
+* EKS en AWS:
++
+[source,bash]
+----
+python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
+----
+
+* Azure VMs:
++
+[source,bash]
+----
+python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
+----
+
+[NOTE]
+.Obtener `user-assign-identity` en Azure
+====
+Para obtener el `user-assign-identity` es posible recurrir al CLI de Azure:
+
+[source,bash]
+----
+az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
+----
+
+====
+
+== Estructura necesaria
+
+Asegúrate de que el directorio de trabajo incluya:
+
+* `upgrade-provisioner.py`: _script_ principal.
+* `templates/`: plantillas Jinja2.
+* `files/`: archivos adicionales (configuraciones, Helm, etc.).
+* `requirements.txt`: dependencias necesarias.
+* `secrets.yml`: credenciales del _cluster_.
+* `.aws/`: archivos de configuración de AWS (solo para EKS).
+* `.kube/`: directorio con el archivo _kubeconfig_.
