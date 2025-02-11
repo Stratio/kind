@@ -235,13 +235,13 @@ The latter also depend on the cloud provider:
 ^|Provider ^|Parameter
 
 ^|All
-a|
+a| [source,bash]
 ----
      fsType
 ----
 
 ^|AWS
-a|
+a| [source,bash]
 ----
      type
      labels
