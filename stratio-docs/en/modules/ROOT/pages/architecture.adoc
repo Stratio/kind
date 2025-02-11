@@ -451,9 +451,6 @@ As a prerequisite of the installation, a Helm repository must be specified from 
 
 ^|Azure
 ^|acr, generic
-
-^|AKS
-^|acr, generic
 |===
 
 NOTE: URLs for OCI repositories are prefixed with *oci://*. For example, oci://stratioregistry.azurecr.io/helm-repository-example.
