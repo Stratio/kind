@@ -268,7 +268,7 @@ Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://
 |_node++_++image_
 |Imagen de instancia utilizada para los nodos _worker_.
 |ami-0de933c15c9b49fb5
-|No para _infra++_++provider_: gcp.
+|Sí
 
 |_labels_
 |Etiquetas de Kubernetes para los nodos _worker_.

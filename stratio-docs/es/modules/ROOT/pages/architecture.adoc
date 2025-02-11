@@ -219,7 +219,7 @@ El parámetro `class` puede ser _premium_ o _standard_, esto dependerá del prov
 [source,bash]
 ----
 spec:
-  infra_provider: gcp
+  infra_provider: aws
   storageclass:
     parameters:
       type: pd-extreme
@@ -232,7 +232,7 @@ Estos últimos también dependen del proveedor _cloud_:
 
 [.center,cols="1,2",width=80%]
 |===
-^|Proveedor ^|Parámetro
+^|Provider ^|Parameter
 
 ^|All
 a|
@@ -245,11 +245,6 @@ a|
 ----
      type
      labels
-----
-
-^|AWS
-a|
-----
      iopsPerGB
      kmsKeyId
      allowAutoIOPSPerGBIncrease

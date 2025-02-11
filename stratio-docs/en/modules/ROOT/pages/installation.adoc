@@ -268,7 +268,7 @@ The images used must be supported by EKS. See the https://docs.aws.amazon.com/ek
 |_node++_++image_
 |Instance image used for the _worker_ nodes.
 |ami-0de933c15c9b49fb5
-|Not for _infra++_++provider_: gcp.
+|Yes
 
 |_labels_
 |Kubernetes labels for _worker_ nodes.

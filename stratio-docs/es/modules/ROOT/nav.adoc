@@ -2,5 +2,4 @@
 * xref:ROOT:architecture.adoc[]
 * xref:ROOT:installation.adoc[]
 * xref:ROOT:quick-start-guide.adoc[]
-* xref:operations-manual:operations-manual.adoc[]
-** xref:operations-manual:image-builder/aws-image-builder.adoc
+* xref:ROOT:operations-manual.adoc[]

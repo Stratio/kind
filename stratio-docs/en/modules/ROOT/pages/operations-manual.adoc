@@ -1,9 +1,5 @@
 = Operations manual
 
-== Generation of custom images
-
-For the generation of custom images in AWS manages, the next xref:operations-manual:image-builder/aws-image-builder.adoc[reference documentation] has been created.
-
 == Obtaining the _kubeconfig_
 
 To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which will be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
