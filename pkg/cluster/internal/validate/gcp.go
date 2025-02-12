@@ -45,7 +45,7 @@ var GCPMANPattern = `^(25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?
 var GCPControlPlaneCidrBlock = regexp.MustCompile(GCPCPPrivatePattern).MatchString
 var GCPPrivateCIDRBlock = regexp.MustCompile(GCPPrivatePattern).MatchString
 var GCPMANCIDRBlock = regexp.MustCompile(GCPMANPattern).MatchString
-var GCPReleaseChannels = []string{"rapid", "regular", "stable", "extended"}
+var GCPReleaseChannels = []string{"unspecified", "extended"}
 
 // Regex for security scopes
 var GCPScopesPattern = `^https:\/\/www\.googleapis\.com\/auth\/.*$`
