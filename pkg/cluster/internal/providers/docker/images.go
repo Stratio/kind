@@ -52,11 +52,6 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 		if useLocalStratioImage {
 			status.Start(fmt.Sprintf("Using local Stratio image (%s) 🖼", "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1]))
 		} else {
-			status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
-			if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
-				status.End(false)
-				return err
-			}
 			// build the stratio image
 			status.Start(fmt.Sprintf("Building Stratio image (%s) 📸", "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1]))
 
