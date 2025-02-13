@@ -105,6 +105,7 @@ gcp:
       infrastructure-components.yaml: 1.6.1-0.3.0
   managed:
     images:
+      coredns: v1.9.4
       csi-attacher: v4.2.0
       csi-node-driver-registrar: v2.7.0
       csi-provisioner: v3.4.0

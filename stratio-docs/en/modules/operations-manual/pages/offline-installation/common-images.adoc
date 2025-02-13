@@ -12,9 +12,7 @@
 | v0.15.0
 |===
 
-NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy` image of the _cluster-operator_ does not follow the same nomenclature as the other images as it must follow the `<keosregistry url>/stratio/kube-rbac-proxy` pattern.
-
-NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy` image may be referenced from other operators installed using _Stratio Cloud Provisioner_. In that case, this image should be accessible from 2 different tags, the one mentioned above and the one complying with the general nomenclature, i.e. `<keosregistry url>/kubebuilder/kube-rbac-proxy`.
+NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy` image may be referenced from other operators installed using _Stratio Cloud Provisioner_. In that case, this image should be accessible from 2 different tags.
 
 == Other images
 

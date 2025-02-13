@@ -30,6 +30,7 @@ WARNING: Suppose you have not created the CloudFormation stack or manually creat
 In GKE, the service account under which _clusters_ are provisioned must have the following permissions.
 +
 ** xref:attachment$stratio-gcp-permissions.list[Download permissions for GCP].
+** xref:attachment$stratio-gke-permissions.list[Download permissions for GKE].
 
 * Certified operating systems
 +
@@ -67,6 +68,8 @@ When creating the image for the cluster, the Operating System needs for the appl
 ==== Elasticsearch
 
 To support Elasticsearch deployments, the OS must have the `max_map_count = 262144` parameter of the sysctl as indicated by its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
+
+For images created with image-builder (*unmanaged Azure*), the following element must be added to the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
 
 [source,yaml]
 ----
@@ -192,8 +195,8 @@ The following fields are considered provisioning secrets:
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=azure_.
 
-|_gcp_
-|Credentials for GCP access.
+|_gke_
+|Credentials for GKE access.
 |See the <<descriptor_example, descriptor example>>.
 |Not when _infra++_++provider=gcp_.
 
@@ -276,7 +279,7 @@ a|
 
 In this section, you will find the specifics for the Kubernetes _control-plane_.
 
-[cols="1,4,2,1"]
+[cols="^1,4,3,^1"]
 |===
 ^|Name ^|Description ^|Example ^|Optional
 
@@ -291,6 +294,38 @@ logging:
 ----
 
 |Yes
+
+|_gcp_
+|Specific values for the GKE _control-plane_ (_private++_++cluster_, _master++_++authorized++_++networks++_++config_, _ip++_++allocation++_++policy_, _monitoring++_++config_, and _logging++_++config_).
+a|
+
+[source,yaml]
+----
+cluster_network:
+  private_cluster:
+----
++
+[source,yaml]
+----
+master_authorized_networks_config:
+----
++
+[source,yaml]
+----
+ip_allocation_policy:
+----
++
+[source,yaml]
+----
+monitoring_config:
+----
++
+[source,yaml]
+----
+logging_config:
+----
+
+|Refer to the Quick start guide for more information.
 
 |_azure_
 |Specific values for the AKS _control-plane_ (_Free, Paid_).

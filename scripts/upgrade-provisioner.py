@@ -29,10 +29,10 @@ from jinja2 import Template, Environment, FileSystemLoader
 from ruamel.yaml import YAML
 from io import StringIO
 
-CLOUD_PROVISIONER = "0.17.0-0.6.0"
+CLOUD_PROVISIONER = "0.17.0-0.6"
 CLUSTER_OPERATOR = "0.4.0" 
-CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.2.0"
-CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.5.0"
+CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.3.X"
+CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.5"
 
 AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.8.1"
 
@@ -47,21 +47,21 @@ CAPZ = "v1.12.4"
 eks_chart_versions = {
     "28": {
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
@@ -75,7 +75,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.28.5", "app_version": "v1.28.7"},
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
@@ -84,7 +84,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.29.0", "app_version": "v1.29.0"},
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
@@ -93,7 +93,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.30.4", "app_version": "v1.30.4"},
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0-aa18b1f", "app_version": "0.4.0-aa18b1f"},
+        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
@@ -143,7 +143,7 @@ helmrelease_template = env.get_template('helmrelease_template.yaml')
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='''This script upgrades cloud-provisioner from 0.17.0-0.4.0 to ''' + CLOUD_PROVISIONER +
+        description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + ''' to ''' + CLOUD_PROVISIONER +
                     ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR + ''' .
                         It requires kubectl, helm and jq binaries in $PATH.
                         A component (or all) must be selected for upgrading.
@@ -153,6 +153,7 @@ def parse_args():
     parser.add_argument("-k", "--kubeconfig", help="Set the kubeconfig file for kubectl commands, It can also be set using $KUBECONFIG variable", default="~/.kube/config")
     parser.add_argument("-p", "--vault-password", help="Set the vault password file for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
+    parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR)
     parser.add_argument("-i", "--user-assign-identity", help="Set the secrets file for decrypting secrets")
     parser.add_argument("--enable-lb-controller", action="store_true", help="Install AWS Load Balancer Controller for EKS clusters (disabled by default)")
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
@@ -408,12 +409,7 @@ def validate_k8s_version(validation, dry_run):
         minor = "30"
         dry_run_version = "1.30.X"
     if not dry_run:
-        supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
-        desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
-        
-        if not re.match(supported_k8s_versions, desired_k8s_version):
-            print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
-            sys.exit(1)
+        desired_k8s_version = upgrade_k8s_version_desired_version(minor, 0)
 
         while True:
             response = input(f"Are you sure you want to upgrade to version {desired_k8s_version}? (yes/no): ").strip().lower()
@@ -427,6 +423,18 @@ def validate_k8s_version(validation, dry_run):
     else:
         return dry_run_version
     
+def upgrade_k8s_version_desired_version(minor, tries):
+    supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
+    desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
+    if not re.match(supported_k8s_versions, desired_k8s_version):
+        if tries > 0:
+            print("[ERROR] The only supported Kubernetes versions are: 1."+ minor +".X")
+            sys.exit(1)
+        else:
+            print("[ERROR] Unsupported downgrade of Kubernetes Version. The only supported Kubernetes versions are: 1."+ minor +".X")
+            upgrade_k8s_version_desired_version(minor, tries + 1)
+    return desired_k8s_version
+
 def get_kubernetes_version():
     '''Get the Kubernetes version'''
     
@@ -594,17 +602,14 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
-
     if dry_run:
         print(f"[INFO] Updating kubernetes to version {desired_k8s_version}: DRY-RUN", flush=True)
         return
-
+    
     if len(current_k8s_version.splitlines()) == 1:
         if current_minor_version < desired_minor_version:
+            
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
-
-            if not aks_enabled:
-                scale_cluster_autoscaler(0, dry_run)
 
             if not managed:
                 cp_global_network_policy("patch", networks, provider, backup_dir, dry_run)
@@ -655,13 +660,12 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-            if not aks_enabled:
-                scale_cluster_autoscaler(2, dry_run)
-
         elif current_minor_version == desired_minor_version:
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
+        # If upgrade had failed previously, the cluster may have two different versions of Kubernetes
+        
         lower_k8s_version = get_k8s_lower_version(current_k8s_version)
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
@@ -679,8 +683,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-        if not aks_enabled:
-            scale_cluster_autoscaler(2, dry_run)
 
     else:
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
@@ -769,8 +771,8 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
                     print("OK")
                 return output
             else:
-                if "Unable to connect to the server: net/http: TLS handshake timeout" in output:
-                    retries += 1
+                retries += 1
+                if retries < max_retries:
                     time.sleep(retry_delay)
                 else:
                     print("FAILED")
@@ -1011,7 +1013,7 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
             command += ( " --bootstrap capi-kubeadm-bootstrap-system/kubeadm:" + CAPI +
                 " --control-plane capi-kubeadm-control-plane-system/kubeadm:" + CAPI )
                     
-        execute_command(command, False)
+        execute_command(command, False, True, 5, 60)
         if provider == "azure":
             command =  f"{kubectl} -n " + namespace + " rollout status ds capz-nmi --timeout 120s"
             execute_command(command, False, False)
@@ -1238,8 +1240,9 @@ def adopt_helm_chart(chart, credentials):
 
     # Apply the manifests to the cluster
     try:
-        command = f"{kubectl} apply -f {repository_file} "
-        run_command(command)
+        if repo_name != "keos":
+            command = f"{kubectl} apply -f {repository_file} "
+            run_command(command)
         
         command = f"{kubectl} apply -f {release_file} -n {chart['namespace']}"
         run_command(command)
@@ -1299,7 +1302,7 @@ def get_pods_cidr(keos_cluster):
         return ""
 
 
-def render_values_template(values_file, keos_cluster, cluster_config, credentials):
+def render_values_template(values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
     '''Render the values template'''
     
     try:
@@ -1310,7 +1313,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
             "provider": keos_cluster["spec"]["infra_provider"],
             "managed_cluster": keos_cluster["spec"]["control_plane"]["managed"],
             "pods_cidr": get_pods_cidr(keos_cluster),
-            "cluster_operator_version" : "0.4.0-aa18b1f",
+            "cluster_operator_version" : cluster_operator_version,
             "credentials": credentials
         }
         
@@ -1320,7 +1323,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
     except Exception as e:
         raise e
     
-def prepare_calico_kube_controller(n):
+def prepare_calico_kube_controller():
     '''Prepare the Calico kube-controllers'''
     
     netpol = """
@@ -1351,7 +1354,7 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         output, err = run_command(command, allow_errors=True)
         if output == tigera_version:
             check_and_delete_releases("tigera-operator")
-            prepare_calico_kube_controller(1)
+            prepare_calico_kube_controller()
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
             print("SKIP")
@@ -1375,12 +1378,12 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
             
         command = "helm get manifest tigera-operator -n tigera-operator | kubectl apply -f -"
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
+        time.sleep(120)
         if provider == "azure" and "installation.operator.tigera.io/default configured" in output:
-            time.sleep(120)
             restart_tigera_operator_manifest(provider, tigera_version)
-        prepare_calico_kube_controller(1)
+        prepare_calico_kube_controller()
         if provider == "aws":
-            prepare_calico_kube_controller(1)
+            prepare_calico_kube_controller()
             command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
             output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
         command = f"{kubectl} wait --for=condition=Ready installation.operator.tigera.io/default  -n tigera-operator --timeout=300s"
@@ -1404,7 +1407,7 @@ def export_release_values(chart_name, namespace, release_values_file, provider, 
         elif chart_name == "cluster-operator":
             values, err = run_command(f"{helm} get values {name} -n {namespace} --output yaml > {release_values_file}", allow_errors=allow_errors)
         else:
-            values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials)
+            values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
             run_command(f"echo '{values}' > {release_values_file}")
         return values
     except Exception as e:
@@ -1521,7 +1524,7 @@ def install_cert_manager(provider):
         print(f"[ERROR] {e}")
         raise e
     
-def update_chart_versions(keos_cluster, cluster_config, charts, crendentials):
+def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cluster_operator_version):
     '''Update the chart versions'''
     
     try:
@@ -1547,7 +1550,7 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials):
                 file_type = "default"
                 if chart_name == "cluster-operator":
                     file_type = "override" 
-                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials)
+                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
             
         return charts_updated
     except Exception as e:
@@ -1582,12 +1585,12 @@ def update_helmrelease_version(chart_name, namespace, version):
             print(f"[ERROR] Error updating the version of the chart {chart_name}: {e}")
             raise e
 
-def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials):
+def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
     '''Update the values of a HelmRelease'''
     try:
         print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
         
-        values = render_values_template(values_file, keos_cluster, cluster_config, credentials)
+        values = render_values_template(values_file, keos_cluster, cluster_config, credentials, cluster_operator_version)
         values_json = json.dumps({"data": {"values.yaml": values}})
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
@@ -1776,14 +1779,14 @@ def backup_keoscluster_webhooks():
         print(f"[ERROR] Error backing up KEOSCluster webhooks: {e}")
         raise e
 
-def update_clusterconfig(cluster_config, charts, provider):
+def update_clusterconfig(cluster_config, charts, provider, cluster_operator_version):
     '''Update the clusterconfig'''
     try:
         print("[INFO] Updating clusterconfig:", end =" ", flush=True)
         clusterconfig_name = cluster_config["metadata"]["name"]
         clusterconfig_namespace = cluster_config["metadata"]["namespace"]
         
-        cluster_config["spec"]["cluster_operator_version"] = "0.4.0"
+        cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
         cluster_config["spec"]["capx"] = {}
         cluster_config["spec"]["capx"]["capi_version"] = "v1.7.4"
         if provider == "aws":
@@ -2153,8 +2156,29 @@ if __name__ == '__main__':
     new_docker_registry = input(f"The current docker registry is: {docker_registry}. Do you want to indicate a new docker registry? Press enter or specify new docker registry: ")
     if new_docker_registry != "" and new_docker_registry != docker_registry:
         update_docker_registry(cluster_name, new_docker_registry, config["dry_run"])
+    
+    #Update the clusterconfig and keoscluster
+    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     provider = keos_cluster["spec"]["infra_provider"]
     managed = keos_cluster["spec"]["control_plane"]["managed"]
+    cluster_operator_version = config["cluster_operator"]
+    if provider == "aws":
+        chart_versions = eks_chart_versions
+    elif provider == "azure":
+        chart_versions = azure_vm_chart_versions
+    if cluster_operator_version != "0.4.0":
+        if provider == "aws":
+            for version_key, charts in chart_versions.items():
+                if "cluster-operator" in charts.keys():
+                    charts["cluster-operator"]["chart_version"] = cluster_operator_version
+        elif provider == "azure":
+            for version_key, charts in chart_versions.items():
+                if "cluster-operator" in charts.keys():
+                    charts["cluster-operator"]["chart_version"] = cluster_operator_version
+    aks_enabled = provider == "azure" and managed
+    
+    if not aks_enabled:
+        scale_cluster_autoscaler(0, config["dry_run"])
     
     if provider == "aws":
         namespace = "capa-system"
@@ -2235,13 +2259,9 @@ if __name__ == '__main__':
         install_flux(provider)
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    if provider == "aws":
-        chart_versions = eks_chart_versions
-    elif provider == "azure":
-        chart_versions = azure_vm_chart_versions
     adopt_all_helm_charts(keos_cluster, credentials, chart_versions)
     install_cert_manager(provider)
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -2250,6 +2270,7 @@ if __name__ == '__main__':
     networks = keos_cluster["spec"].get("networks", {})
     current_k8s_version = get_kubernetes_version()
     delete_stratio_genai_pdb()
+    
     
     if "1.28" in current_k8s_version:
         
@@ -2270,7 +2291,7 @@ if __name__ == '__main__':
         stop_keoscluster_controller()
         patch_webhook_timeout("keoscluster-validating-webhook-configuration", "vkeoscluster.kb.io", 30)
         disable_keoscluster_webhooks()
-        update_clusterconfig(cluster_config, charts, provider)
+        update_clusterconfig(cluster_config, charts, provider, cluster_operator_version)
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         provider = keos_cluster["spec"]["infra_provider"]
         update_keoscluster(keos_cluster, provider)
@@ -2281,9 +2302,11 @@ if __name__ == '__main__':
         run_command(command)
         command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
         run_command(command)
+        print("OK")
         
         cluster_name = keos_cluster["metadata"]["name"]
         
+        print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
         
         command = (
             kubectl + " wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
@@ -2300,7 +2323,7 @@ if __name__ == '__main__':
         #required_k8s_version="1.29.7"
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
     current_k8s_version = get_kubernetes_version()
     
     if "1.29" in current_k8s_version:
@@ -2319,7 +2342,7 @@ if __name__ == '__main__':
     if provider == "azure":
         patch_kubeadm_controlplane("cluster-" + cluster_name)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
     
     
     if not managed:
@@ -2327,30 +2350,42 @@ if __name__ == '__main__':
         
     print("[INFO] Updating default volumes:", end =" ", flush=True)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    update_default_volumes(keos_cluster)
-    time.sleep(30)
-        
-    print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
-    command = (
-        f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-        f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
-    )
-    execute_command(command, False)
-    
-    print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
     if provider == "azure":
         command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
     if provider == "aws":
         command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
-
-    i = 1
-    while i !=0:
-        output = execute_command(command, False, False)
-        i = len(output.splitlines())
+    output = execute_command(command, False, False)
+    i = len(output.splitlines())
+    if i != 0:
+        update_default_volumes(keos_cluster)
         time.sleep(30)
-    print("OK")
+        
+        print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
+        command = (
+            f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
+            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+        )
+        execute_command(command, False)
+        
+        print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
+        if provider == "azure":
+            command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
+        if provider == "aws":
+            command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
+
+        i = 1
+        while i !=0:
+            output = execute_command(command, False, False)
+            i = len(output.splitlines())
+            time.sleep(30)
+        print("OK")
+    else: 
+        print("SKIP")
     if not managed:
         cp_global_network_policy("restore", networks, provider, backup_dir, False)
+        
+    if not aks_enabled:
+        scale_cluster_autoscaler(2, config["dry_run"])
    
     end_time = time.time()
     elapsed_time = end_time - start_time
