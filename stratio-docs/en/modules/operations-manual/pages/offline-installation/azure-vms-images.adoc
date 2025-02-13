@@ -121,19 +121,19 @@
 | v1.30.2
 
 | *cloud-provider-azure*
-| *v1.30.4*
+| *1.30.4*
 |
 |
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-controller-manager
-| v1.30.4
+| 1.30.4
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager
-| v1.30.4
+| 1.30.4
 |===
 
 In this case, there is an additional requirement that the following images installed by CAPZ:

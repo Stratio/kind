@@ -90,7 +90,7 @@ azure_vm_chart_versions = {
     "30": {
         "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
         "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.30.4", "app_version": "v1.30.4"},
+        "cloud-provider-azure": {"chart_version": "1.30.4", "app_version": "1.30.4"},
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
@@ -1428,7 +1428,7 @@ def export_default_values(chart, repo, default_values_file):
         chart_name, chart_version = chart["chart"].rsplit("-", 1)
         command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name}> {default_values_file}"
         if chart['name'] == "cluster-operator":
-            command = f"{helm} show values {repo}/{chart_name} --version {chart['app_version']} > {default_values_file}"
+            command = f"{helm} show values {repo}/{chart_name} --version {chart['chart_version']} > {default_values_file}"
         
         default_values, err = run_command(command)
         return default_values
