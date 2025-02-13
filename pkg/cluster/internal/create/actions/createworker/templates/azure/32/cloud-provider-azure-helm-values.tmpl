@@ -1,0 +1,11 @@
+---
+cloudControllerManager:
+  clusterCIDR: {{ $.PodsCidr }}
+  # "false" for Azure CNI and "true" for other network plugins
+  configureCloudRoutes: true
+  imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
+  replicas: 2
+cloudNodeManager:
+  imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
+infra:
+  clusterName: {{ $.ClusterName }}

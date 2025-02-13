@@ -1,0 +1,2 @@
+image:
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks/aws-load-balancer-controller

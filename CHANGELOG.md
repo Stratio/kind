@@ -4,6 +4,7 @@
 
 * [PLT-1394] Bump Flux chart version to 2.14.1
 * [PLT-1393] Bump Tigera Operator version to v3.29.1
+* [PLT-1621] Support k8s v1.32
 
 ## Previous development
 
