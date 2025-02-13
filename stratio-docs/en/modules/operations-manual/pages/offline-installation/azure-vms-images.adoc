@@ -121,7 +121,7 @@
 | v1.30.2
 
 | *cloud-provider-azure*
-| *v1.30.4*
+| *1.30.4*
 |
 |
 
@@ -135,18 +135,6 @@
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager
 | v1.30.4
 |===
-
-In this case, there is an additional requirement that the following images installed by CAPZ:
-
-* mcr.microsoft.com/k8s/azureserviceoperator
-* gcr.io/kubebuilder/kube-rbac-proxy
-* mcr.microsoft.com/oss/azure/aad-pod-identity/nmi
-
-Exist in the repository defined as _keos registry_ under the name of:
-
-* <value of keos_registry>/cluster-api-azure/azureserviceoperator
-* <value of keos_registry>/cluster-api-azure/kube-rbac-proxy
-* <value of keos_registry>/cluster-api-azure/nmi
 
 == Common images needed in unmanaged Azure
 

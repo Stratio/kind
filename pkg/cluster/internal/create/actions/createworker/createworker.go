@@ -326,9 +326,15 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/stratio/cluster-api-gcp\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"  infrastructure-azure:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"  infrastructure-azure/cluster-api-azure-controller:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPZ_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"  infrastructure-azure/azureserviceoperator:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/k8s\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"  infrastructure-azure/kube-rbac-proxy:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/kubebuilder\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"  infrastructure-azure/nmi:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/oss/azure/aad-pod-identity\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/cert-manager\" >> /root/.cluster-api/clusterctl.yaml "
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
