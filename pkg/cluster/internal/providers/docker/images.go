@@ -33,15 +33,12 @@ import (
 	"sigs.k8s.io/kind/pkg/internal/cli"
 )
 
-var (
-	//go:embed stratio/Dockerfile
-	stratioDockerfile   []byte
-	stratioImageVersion = "v1.27.0"
-)
+//go:embed stratio/Dockerfile
+var stratioDockerfile []byte
 
 // ensureNodeImages ensures that the node images used by the create
 // configuration are present
-func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool) error {
+func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool, buildStratioImage bool) error {
 	// pull each required image
 	for _, image := range common.RequiredNodeImages(cfg).List() {
 		// prints user friendly message
@@ -50,10 +47,10 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 		}
 		friendlyImageName, _ := sanitizeImage(image)
 		if useLocalStratioImage {
-			status.Start(fmt.Sprintf("Using local Stratio image (%s) 🖼", "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1]))
-		} else {
+			status.Start(fmt.Sprintf("Using local Stratio image (%s) 🖼", friendlyImageName))
+		} else if buildStratioImage {
 			// build the stratio image
-			status.Start(fmt.Sprintf("Building Stratio image (%s) 📸", "stratio-capi-image:"+strings.Split(friendlyImageName, ":")[1]))
+			status.Start(fmt.Sprintf("Building Stratio image (%s) 📸", friendlyImageName))
 
 			dockerfileDir, err := ensureStratioImageFiles(logger)
 			if err != nil {
@@ -61,9 +58,14 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 				return err
 			}
 
-			stratioImage := "stratio-capi-image:" + strings.Split(friendlyImageName, ":")[1]
-			err = buildStratioImage(logger, stratioImage, dockerfileDir)
+			err = buildStratioImageFromDockerfile(logger, friendlyImageName, dockerfileDir)
 			if err != nil {
+				status.End(false)
+				return err
+			}
+		} else {
+			status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
+			if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
 				status.End(false)
 				return err
 			}
@@ -103,8 +105,8 @@ func ensureStratioImageFiles(logger log.Logger) (dir string, err error) {
 	return dir, nil
 }
 
-// buildStratioImage builds the stratio image
-func buildStratioImage(logger log.Logger, image string, path string) error {
+// buildStratioImageFromDockerfile builds the stratio image
+func buildStratioImageFromDockerfile(logger log.Logger, image string, path string) error {
 	capx_opts := create.Capx_opts
 	cmd := exec.Command("docker", "build",
 		"--build-arg", "CLUSTERCTL="+capx_opts.CAPI_Version,

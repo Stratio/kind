@@ -64,6 +64,7 @@ type ClusterOptions struct {
 	MoveManagement       bool
 	AvoidCreation        bool
 	UseLocalStratioImage bool
+	BuildStratioImage    bool
 	KeosCluster          commons.KeosCluster
 	ClusterConfig        *commons.ClusterConfig
 	ClusterCredentials   commons.ClusterCredentials
@@ -124,7 +125,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	Capx_opts = getCAPXVersion(opts.ClusterConfig.Spec.Capx)
 
 	// Create node containers implementing defined config Nodes
-	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage); err != nil {
+	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage, opts.BuildStratioImage); err != nil {
 		// In case of errors nodes are deleted (except if retain is explicitly set)
 		if !opts.Retain {
 			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
