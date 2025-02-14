@@ -42,9 +42,6 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 	// pull each required image
 	for _, image := range common.RequiredNodeImages(cfg).List() {
 		// prints user friendly message
-		if dockerRegUrl != "" {
-			image = strings.Join([]string{dockerRegUrl, image}, "/")
-		}
 		friendlyImageName, _ := sanitizeImage(image)
 		if useLocalStratioImage {
 			status.Start(fmt.Sprintf("Using local Stratio image (%s) 🖼", friendlyImageName))
@@ -64,8 +61,16 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 				return err
 			}
 		} else {
+			if dockerRegUrl != "" {
+				friendlyImageName = strings.Join([]string{dockerRegUrl, friendlyImageName}, "/")
+			}
 			status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
 			if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
+				status.End(false)
+				return err
+			}
+			err := tag(logger, friendlyImageName, image)
+			if err != nil {
 				status.End(false)
 				return err
 			}
@@ -107,6 +112,7 @@ func ensureStratioImageFiles(logger log.Logger) (dir string, err error) {
 
 // buildStratioImageFromDockerfile builds the stratio image
 func buildStratioImageFromDockerfile(logger log.Logger, image string, path string) error {
+	logger.V(1).Infof("Building image: %s ...", image)
 	capx_opts := create.Capx_opts
 	cmd := exec.Command("docker", "build",
 		"--build-arg", "CLUSTERCTL="+capx_opts.CAPI_Version,
@@ -119,6 +125,17 @@ func buildStratioImageFromDockerfile(logger log.Logger, image string, path strin
 	}
 	return nil
 }
+
+// tag tags an image
+func tag(logger log.Logger, image string, tag string) error {
+	logger.V(1).Infof("Tagging image %s to %s ...", image, tag)
+	cmd := exec.Command("docker", "tag", image, tag)
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to tag image %s to %s", image, tag)
+	}
+	return nil
+}
+
 
 // pull pulls an image, retrying up to retries times
 func pull(logger log.Logger, image string, retries int) error {
