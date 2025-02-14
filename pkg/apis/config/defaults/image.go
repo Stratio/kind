@@ -24,4 +24,4 @@ import (
 
 // Image is the default for the  Config.Image field, aka the default node image.
 // This image is the extended image for Stratio KEOS.
-var Image = fmt.Sprintf("stratio-capi-image:%s", version.Version(false))
+var Image = fmt.Sprintf("cloud-provisioner:%s", version.Version(false))

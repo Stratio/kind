@@ -34,8 +34,7 @@ core:
       source-controller: v1.4.1
     kind:
       kindnetd: v20221004-44d545d1
-      node: v1.27.0
-      stratio-capi-image: v1.27.0
+      cloud-provisioner: v1.27.0
     pause: v3.9
   charts:
     cert-manager: v1.14.5

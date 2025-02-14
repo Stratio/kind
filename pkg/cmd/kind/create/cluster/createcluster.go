@@ -152,13 +152,13 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		&flags.UseLocalStratioImage,
 		"use-local-stratio-image",
 		false,
-		"by setting this flag the the stratio image will not be build or pulled and the local one will be used",
+		"by setting this flag the Stratio cloud-provisioner image will not be build or pulled and the local one will be used",
 	)
 	cmd.Flags().BoolVar(
 		&flags.BuildStratioImage,
 		"build-stratio-image",
 		false,
-		"by setting this flag the the stratio image will not be pulled and will be build and this built image will be used",
+		"by setting this flag the Stratio cloud-provisioner image will not be pulled and will be build and this built image will be used",
 	)
 
 	return cmd

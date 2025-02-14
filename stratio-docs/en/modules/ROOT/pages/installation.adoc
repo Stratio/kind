@@ -1078,6 +1078,8 @@ Currently, this binary includes the following options:
 - `--avoid-creation`: does not create the cluster worker, only the cluster local.
 - `--keep-mgmt`: creates the cluster worker but leaves its management in the cluster local (only for *non-productive* environments).
 - `--retain`: keeps the cluster local even without management.
+- `--use-local-stratio-image`: avoids the Stratio cloud-provisioner image build or pull and uses the local image.
+- `--build-stratio-image`: builds and uses the Stratio cloud-provisioner image.
 
 To create a cluster, a simple command is enough (see the particularities of each provider in their quick start guides):
 
@@ -1087,7 +1089,7 @@ sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-
 Vault Password:
 Creating temporary cluster stratio-pre ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Building Stratio image (cloud-provisioner:<version>) 📸
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
