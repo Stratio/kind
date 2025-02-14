@@ -17,5 +17,11 @@ limitations under the License.
 // Package defaults contains cross-api-version configuration defaults
 package defaults
 
-// Image is the default for the Config.Image field, aka the default node image.
-const Image = "kindest/node:v1.27.0@sha256:bac1b0e00322ba0269a5811fb574dab91f93176d9f00cec3b3eb0832beb1ce84"
+import (
+    "fmt"
+    "sigs.k8s.io/kind/pkg/cmd/kind/version"
+)
+
+// Image is the default for the  Config.Image field, aka the default node image.
+// This image is the extended image for Stratio KEOS.
+var Image = fmt.Sprintf("stratio-capi-image:%s", version.Version(false))
