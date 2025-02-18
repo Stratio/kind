@@ -9,7 +9,7 @@
 For automated provisioning in EKS, it is necessary to execute actions on various services such as EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Although the use of these actions may vary according to the type of installation, the provider verifies that the indicated user has the required permissions to guarantee correct operation.
 +
 ** xref:attachment$stratio-eks-policy.json[Download permanent permissions for EKS].
-** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS and AWS unmanaged].
+** xref:attachment$stratio-aws-temp-policy.json[Download temporary permissions for EKS].
 +
 For EKS deployment, you must manually create the AWSServiceRoleForAmazonEKS role and associate to it the AmazonEKSServiceRolePolicy policy (created by default in AWS).
 
@@ -326,17 +326,6 @@ logging_config:
 ----
 
 |Refer to the Quick start guide for more information.
-
-|_azure_
-|Specific values for the AKS _control-plane_ (_Free, Paid_).
-a|
-
-[source,yaml]
-----
-tier: Paid
-----
-
-|Yes
 
 |_managed_
 |Indicates whether or not the _control-plane_ is managed in the cloud provider.
