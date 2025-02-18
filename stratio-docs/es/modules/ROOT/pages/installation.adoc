@@ -10,7 +10,7 @@ Para el aprovisionamiento automatizado en AWS/EKS, se necesita ejecutar acciones
 +
 ** xref:attachment$stratio-aws-unmanaged-policy.json[Descargar permisos permanentes para AWS no gestionado]
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
-** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS y AWS no gestionado]
+** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
 +
 Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 
@@ -362,17 +362,6 @@ logging_config:
 ----
 
 |Consulta la guía de inicio rápido para más información.
-
-|_azure_
-|Valores específicos para el _control-plane_ de AKS (_Free, Paid_).
-a|
-
-[source,yaml]
-----
-tier: Paid
-----
-
-|Sí
 
 |_managed_
 |Indica si el _control-plane_ es o no gestionado en el proveedor _cloud_.
