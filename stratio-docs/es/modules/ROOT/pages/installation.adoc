@@ -263,17 +263,6 @@ logging:
 
 |Sí
 
-|_azure_
-|Valores específicos para el _control-plane_ de AKS (_Free, Paid_).
-a|
-
-[source,yaml]
-----
-tier: Paid
-----
-
-|Sí
-
 |_managed_
 |Indica si el _control-plane_ es o no gestionado en el proveedor _cloud_.
 |true
