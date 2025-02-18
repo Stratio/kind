@@ -158,7 +158,7 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		&flags.BuildStratioImage,
 		"build-stratio-image",
 		false,
-		"by setting this flag the Stratio cloud-provisioner image will not be pulled and will be build and this built image will be used",
+		"by setting this flag the Stratio cloud-provisioner image will not be pulled and will be build and this built image will be used. This flag is intended for development purposes only",
 	)
 
 	return cmd
