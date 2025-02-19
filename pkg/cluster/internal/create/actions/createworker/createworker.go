@@ -762,7 +762,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			c = "echo \"" + denyEgressIMDSGNetPol + "\" > " + denyallEgressIMDSGNetPolPath
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
-				return errors.Wrap(err, "failed to write the deny-all-traffic-to-" + a.keosCluster.Spec.InfraProvider + "-imds global network policy")
+				return errors.Wrap(err, "failed to write the deny-all-traffic-to-"+a.keosCluster.Spec.InfraProvider+"-imds global network policy")
 			}
 			allowEgressIMDSGNetPol, err := provider.getAllowCAPXEgressIMDSGNetPol()
 			if err != nil {
@@ -772,7 +772,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			c = "echo \"" + allowEgressIMDSGNetPol + "\" > " + allowCAPXEgressIMDSGNetPolPath
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
-				return errors.Wrap(err, "failed to write the allow-traffic-to-" + a.keosCluster.Spec.InfraProvider + "-imds-capa global network policy")
+				return errors.Wrap(err, "failed to write the allow-traffic-to-"+a.keosCluster.Spec.InfraProvider+"-imds-capa global network policy")
 			}
 
 			// Deny CAPX egress to AWS IMDS
