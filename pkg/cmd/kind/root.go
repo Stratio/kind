@@ -54,7 +54,7 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Version:       version.Version(),
+		Version:       version.Version(true),
 	}
 	cmd.SetOut(streams.Out)
 	cmd.SetErr(streams.ErrOut)

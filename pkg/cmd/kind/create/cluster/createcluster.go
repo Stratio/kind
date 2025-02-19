@@ -54,6 +54,7 @@ type flagpole struct {
 	ForceDelete          bool
 	ValidateOnly         bool
 	UseLocalStratioImage bool
+	BuildStratioImage    bool
 }
 
 const clusterDefaultPath = "./cluster.yaml"
@@ -151,7 +152,13 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		&flags.UseLocalStratioImage,
 		"use-local-stratio-image",
 		false,
-		"by setting this flag the the stratio image will not be build and the local one will be used",
+		"by setting this flag the Stratio cloud-provisioner image will not be build or pulled and the local one will be used",
+	)
+	cmd.Flags().BoolVar(
+		&flags.BuildStratioImage,
+		"build-stratio-image",
+		false,
+		"by setting this flag the Stratio cloud-provisioner image will not be pulled and will be build and this built image will be used. This flag is intended for development purposes only",
 	)
 
 	return cmd
@@ -228,6 +235,7 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		flags.MoveManagement,
 		flags.AvoidCreation,
 		flags.UseLocalStratioImage,
+		flags.BuildStratioImage,
 		dockerRegUrl,
 		clusterConfig,
 		*keosCluster,

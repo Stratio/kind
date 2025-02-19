@@ -80,7 +80,7 @@ $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor c
 Vault Password:
 Creating temporary cluster "example-eks" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Building Stratio image (cloud-provisioner:<version>) 📸
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -155,7 +155,7 @@ TIP: Se recomienda crear un bastión para proceder a la instalación.
 ==== Requisitos del bastión
 
 - Tener Docker instalado (versión 27.0.3 o superior).
-- Tener una imagen local: _stratio-capi-image:v1.27.0_.
+- Tener una imagen local: _cloud-provisioner:<version>_.
 
 ==== _control-plane_
 
@@ -250,7 +250,7 @@ $ tar xvzf cloud-provisioner-*tar.gz
 $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --use-local-stratio-image --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster "example-gke" ...
- ✓ Using local Stratio image (stratio-capi-image:v1.27.0) 🖼
+ ✓ Using local Stratio image (cloud-provisioner:<version>) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -379,7 +379,7 @@ $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor c
 Vault Password:
 Creating temporary cluster "example-azure" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Building Stratio image (cloud-provisioner:<version>) 📸
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️

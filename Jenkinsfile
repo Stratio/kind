@@ -25,12 +25,12 @@ hose {
                 [
                     conf: config,
                     dockerfile: "pkg/cluster/internal/providers/docker/stratio/Dockerfile",
-                    image:"stratio-capi-image"
+                    image:"cloud-provisioner"
                 ],
                 [
                     conf: config,
                     dockerfile: "pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile",
-                    image:"stratio-cloud-provisioner-upgrade-image",
+                    image:"cloud-provisioner-upgrade",
                     skipOnPR: false,
                     buildargs: [
                         "CLUSTERCTL=v1.7.4",

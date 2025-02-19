@@ -7,7 +7,7 @@ The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the
 - *EKS* on AWS.
 - *Azure VMs*.
 
-It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.x` to the one provided by `cloud-provisioner 0.6.x`. To ensure a reproducible runtime environment, the Docker image `stratio-cloud-provisioner-upgrade-image` has been created, which includes the upgrade script and all necessary dependencies.
+It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.x` to the one provided by `cloud-provisioner 0.6.x`. To ensure a reproducible runtime environment, the Docker image `cloud-provisioner-upgrade` has been created, which includes the upgrade script and all necessary dependencies.
 
 == Requirements
 
@@ -36,7 +36,7 @@ Run the Docker container with the version upgrade image, mounting the required f
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config cloud-provisioner-upgrade:x.x.x
 ----
 
 *Additional parameters for EKS*
@@ -45,7 +45,7 @@ Include the AWS configuration directory:
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws cloud-provisioner-upgrade:x.x.x
 ----
 
 === Using the version upgrade script
