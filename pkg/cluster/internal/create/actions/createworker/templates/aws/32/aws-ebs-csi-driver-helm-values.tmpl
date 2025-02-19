@@ -1,0 +1,31 @@
+# Default values for aws-ebs-csi-driver.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/ebs-csi-driver/aws-ebs-csi-driver
+
+
+sidecars:
+  provisioner:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/external-provisioner
+  attacher:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/external-attacher
+  snapshotter:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/external-snapshotter/csi-snapshotter
+  livenessProbe:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/livenessprobe
+  resizer:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/external-resizer
+  nodeDriverRegistrar:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks-distro/kubernetes-csi/node-driver-registrar
+  volumemodifier:
+    image:
+      repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/ebs-csi-driver/volume-modifier-for-k8s
+    
