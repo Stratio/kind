@@ -144,7 +144,7 @@ La capa interna de _networking_ del _cluster_ está basada en Calico, con las si
 
 Si bien una de las ventajas de la creación de recursos automática en el aprovisionamiento es el gran dinamismo que otorga, por motivos de seguridad y cumplimiento de normativas, muchas veces es necesario crear ciertos recursos previamente al despliegue de _Stratio KEOS_ en el proveedor de _Cloud_.
 
-En este sentido, el _Stratio Cloud Provisioner_ permite utilizar tanto un VPC como _subnets_ previamente creadas empleando el parámetro _networks_ en el descriptor del _cluster_, como se detalla en la xref:ROOT:installation.adoc[guía de instalación].
+En este sentido, el _Stratio Cloud Provisioner_ permite utilizar tanto un VPC como _subnets_ previamente creadas empleando el parámetro _networks_ en el descriptor del _cluster_, como se detalla en la xref:operations-manual:installation.adoc[guía de instalación].
 
 Ejemplo para EKS:
 

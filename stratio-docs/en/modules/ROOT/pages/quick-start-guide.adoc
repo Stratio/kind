@@ -65,7 +65,7 @@ For any extra customization, the file must be modified before running the _keos-
 * The Kubernetes version indicated must be supported by EKS.
 * The _worker++_++nodes_ group names cannot be repeated.
 
-TIP: For more details, see the xref:ROOT:installation.adoc[installation guide].
+TIP: For more details, see the xref:operations-manual:installation.adoc[installation guide].
 
 ==== Installation
 
@@ -236,7 +236,7 @@ For any extra customization, the file must be modified before running the _keos-
 * Kubernetes version must be (1.28) and supported by GKE.
 * _worker++_++nodes_ group names cannot be repeated.
 
-TIP: For more details, see the xref:ROOT:installation.adoc[installation guide].
+TIP: For more details, see the xref:operations-manual:installation.adoc[installation guide].
 
 === Installation
 
@@ -364,7 +364,7 @@ For any extra customization, the file must be modified before running the _keos-
 * The configured Kubernetes version must be the one supported in the indicated images (optional).
 * The names of the _worker++_++nodes_ groups cannot be repeated.
 
-TIP: For more details, see the xref:ROOT:installation.adoc[installation guide].
+TIP: For more details, see the xref:operations-manual:installation.adoc[installation guide].
 
 === Installation
 
