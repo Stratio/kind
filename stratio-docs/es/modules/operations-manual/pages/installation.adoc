@@ -69,13 +69,6 @@ Al momento de crear la imagen para el _cluster_ se deberán tener en cuenta las 
 
 Para soportar los despliegues de Elasticsearch, el Sistema Operativo deberá contar con el parámetro `max_map_count = 262144` del _sysctl_ como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
 
-Para las imágenes creadas con _image-builder_ (*Azure no gestionado*), hay que añadir el siguiente elemento en el https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[_loop_ de los parámetros del _kernel_] (en _/images/capi/ansible/roles/node/tasks/main.yml_):
-
-[source,yaml]
-----
-- { param: vm.max_map_count, val: 262144 }
-----
-
 Las imágenes de Amazon Linux 2 *utilizadas por EKS* ya cuentan con este parámetro/valor.
 
 == Descriptor del _cluster_

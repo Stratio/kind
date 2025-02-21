@@ -69,13 +69,6 @@ When creating the image for the cluster, the Operating System needs for the appl
 
 To support Elasticsearch deployments, the OS must have the `max_map_count = 262144` parameter of the sysctl as indicated by its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
 
-For images created with image-builder (*unmanaged Azure*), the following element must be added to the https://github.com/kubernetes-sigs/image-builder/blob/main/images/capi/ansible/roles/node/tasks/main.yml#L55[loop of the kernel parameters] (in _/images/capi/ansible/roles/node/tasks/main.yml_):
-
-[source,yaml]
-----
-- { param: vm.max_map_count, val: 262144 }
-----
-
 Amazon Linux 2 images *used by EKS* already have this parameter/value.
 
 == Descriptor of the cluster
