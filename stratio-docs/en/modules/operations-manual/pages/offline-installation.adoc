@@ -20,12 +20,12 @@ NOTE: The images must be accessible in the repository indicated as _keos registr
 The images required for an offline installation are composed of two types: images common to all cloud providers and images specific to each one. Therefore, the references to the images required according to the cloud provider chosen for the cluster are listed below.
 
 |===
-|Version | Common | Unmanaged AWS | EKS | Unmanaged AZURE | Unmanaged AKS | Unmanaged GCP
+| Version | Common | EKS | Unmanaged Azure | GKE
 
 | v1.26.x
 | xref:operations-manual:offline-installation:common-images.adoc[common images]
 | xref:operations-manual:offline-installation:aws-eks-images.adoc[EKS]
-| xref:operations-manual:offline-installation:azure-vms-images.adoc[unmanaged AZURE]
+| xref:operations-manual:offline-installation:azure-vms-images.adoc[unmanaged Azure]
 | xref:operations-manual:offline-installation:gcp-gke-images.adoc[GKE]
 |===
 

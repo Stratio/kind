@@ -124,11 +124,7 @@ sudo gsutil cp gs://gke-vm-base-bastion/resources/autoscaler-trigger-deployment.
 gcloud auth configure-docker europe-docker.pkg.dev
 
 # Pull images
-sudo docker pull stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.6.7
-
-
-# Tag image to stratio-capi-image:v1.27.0
-sudo docker tag stratio-releases.repo.stratio.com/stratio/stratio-capi-image:0.17.0-0.6.7 stratio-capi-image:v1.27.0
+sudo docker pull stratio-releases.repo.stratio.com/stratio/cloud-provisioner:<version>
 
 # Add CLOUDSDK_PYTHON_SITEPACKAGES=1 to .bashrc and .profile (avoid numpy issues)
 echo 'export CLOUDSDK_PYTHON_SITEPACKAGES=1' >> ~/.bashrc
@@ -213,27 +209,12 @@ gcloud compute ssh --zone "europe-west4-a" "gke-vm-janr" --tunnel-through-iap --
 
 ## How to upload files to the VM
 ```bash
-gcloud compute scp Descargas/cloud-provisioner-0.17.0-0.6.0-5c007c2.tar.gz gke-vm-janr:/resources/
+gcloud compute scp Descargas/cloud-provisioner-<version>.tar.gz gke-vm-janr:/resources/
 ```
 ```bash
 ls -lrth /resources/
 ```
 =======
-```
-
-## Common operations
-
-### Upload stratio-capi-image to the VM
-```bash
-# First save the image to a file
-docker save -o stratio-capi-image-06.tar stratio-capi-image:1.27.0
-
-# Then upload the file to the VM
-gcloud compute scp stratio-capi-image-06.tar gke-vm-janr:/resources/
-
-# Finally load the image in the VM
-docker load -i /resources/stratio-capi-image-06.tar
-```
 
 ### Upload cloud-provisioner binaries to the VM
 ```bash
