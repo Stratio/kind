@@ -26,13 +26,41 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Download the AWS CLI installer using curl
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && rm -rf awscliv2.zip aws
+# Instalar python3-venv antes de crear el entorno virtual
+RUN apt-get update && \
+    apt-get install -y python3-venv && \
+    rm -rf /var/lib/apt/lists/*
 
-# Verify AWS CLI installation
+# Set environment variables
+ENV PYTHON_VENV=/opt/venv
+ENV PATH="${PYTHON_VENV}/bin:$PATH"
+
+# Create a virtual environment to isolate our package dependencies locally
+RUN python3 -m venv $PYTHON_VENV
+
+# General update and install necessary system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip and install necessary Python tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Install PyYAML, ensuring to use a version compatible with other awscli dependencies
+RUN pip install "PyYAML==6.0.2"
+
+# Install each dependency required by awscli explicitly to control the versions
+RUN pip install "botocore==1.29.22"
+RUN pip install "docutils<0.17"
+RUN pip install "s3transfer<0.7.0,>=0.6.0"
+RUN pip install "colorama<0.4.5,>=0.2.5"
+RUN pip install "rsa<4.8,>=3.1.2"
+
+# Install awscli without any dependencies to avoid conflicts
+RUN pip install --no-deps awscli==1.27.22
+
+# Verify awscli installation
 RUN aws --version
 
 # Add aliases
