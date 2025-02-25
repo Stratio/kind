@@ -17,19 +17,17 @@ ARG CAPZ=v1.12.4
 
 # Install and update dependencies
 RUN apt-get update \
-    && apt-get install -y curl unzip\
+    && apt-get install -y curl unzip \
                           git \
                           libc-bin \
                           libnghttp2-14 \
                           python3-pip \
                           vim \
+                          python3-venv \
+                          gcc \
+                          libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Instalar python3-venv antes de crear el entorno virtual
-RUN apt-get update && \
-    apt-get install -y python3-venv && \
-    rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
 ENV PYTHON_VENV=/opt/venv
@@ -37,12 +35,6 @@ ENV PATH="${PYTHON_VENV}/bin:$PATH"
 
 # Create a virtual environment to isolate our package dependencies locally
 RUN python3 -m venv $PYTHON_VENV
-
-# General update and install necessary system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libffi-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install necessary Python tools
 RUN pip install --upgrade pip setuptools wheel
