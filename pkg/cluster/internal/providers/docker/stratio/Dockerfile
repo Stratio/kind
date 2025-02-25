@@ -17,7 +17,7 @@ ARG CAPZ=v1.12.4
 
 # Install and update dependencies
 RUN apt-get update \
-    && apt-get install -y curl unzip \
+    && apt-get install -y curl \
                           git \
                           libc-bin \
                           libnghttp2-14 \
