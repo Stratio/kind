@@ -17,7 +17,7 @@ ARG CAPZ=v1.12.4
 
 # Install and update dependencies
 RUN apt-get update \
-    && apt-get install -y curl \
+    && apt-get install -y curl unzip\
                           git \
                           libc-bin \
                           libnghttp2-14 \
@@ -25,6 +25,15 @@ RUN apt-get update \
                           vim \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Download the AWS CLI installer using curl
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip aws
+
+# Verify AWS CLI installation
+RUN aws --version
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
