@@ -12,7 +12,7 @@ ENV HELM=v3.13.1
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 ARG CAPA=v2.5.2
-ARG CAPG=1.6.1-0.3.0
+ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
 
 # Install and update dependencies
