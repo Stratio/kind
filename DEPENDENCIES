@@ -26,7 +26,7 @@ core:
       cert-manager-webhook: v1.14.5
     cluster-autoscaler: v1.30.0
     cluster-operator:
-      cluster-operator: 0.4.0
+      cluster-operator: 0.5.0
       kube-rbac-proxy: v0.15.0
     flux:
       flux-cli: v2.4.0
@@ -39,7 +39,7 @@ core:
   charts:
     cert-manager: v1.14.5
     cluster-autoscaler: 9.37.0
-    cluster-operator: 0.4.0
+    cluster-operator: 0.5.0
     flux: 2.14.1
     tigera-operator: v3.28.2
 aws:
@@ -53,11 +53,10 @@ aws:
       infrastructure-components.yaml: v2.5.2
   managed:
     addons:
-      aws-ebs-csi-driver: v1.29.1-eksbuild.1
-      coredns: v1.10.1-eksbuild.7
-      kube-proxy: v1.24.15-eksbuild.2
-      kube-proxy: v1.26.7-eksbuild.2
-      vpc-cni: v1.27.10-eksbuild.2
+      aws-ebs-csi-driver: v1.39.0-eksbuild.1
+      coredns: v1.11.4-eksbuild.2
+      kube-proxy: v1.32.0-eksbuild.2
+      vpc-cni: v1.19.2-eksbuild.5
     charts:
       aws-load-balancer-controller: 1.8.1
     images:
