@@ -52,9 +52,6 @@ RUN pip install "rsa<4.8,>=3.1.2"
 # Install awscli without any dependencies to avoid conflicts
 RUN pip install --no-deps awscli==1.27.22
 
-# Verify awscli installation
-RUN aws --version
-
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
     && echo 'alias capi-logs="kubectl -n capi-system logs -f deploy/capi-controller-manager"' >> ~/.bash_aliases \
