@@ -124,14 +124,14 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in EKS, the
 | v1.27.2
 
 | *cluster-operator*
-| *0.3.6*
+| *0.3.7*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.3.6
+| 0.3.7
 
 |
 |
@@ -171,24 +171,24 @@ NOTE: In any case, it is not necessary to upload these images to any registry. I
 | Add-on | Version | Public image | Version
 
 | *coredns*
-| *v1.9.3-eksbuild.3*
+| *v1.10.1-eksbuild.18*
 |
 |
 
 |
 |
 | 602401143452.dkr.ecr.eu-west-1.amazonaws.com/eks/coredns
-| v1.9.3-eksbuild.3
+| v1.10.1-eksbuild.18
 
 | *aws-ebs-csi-driver*
-| *v1.19.0-eksbuild.2*
+| *v1.29.1-eksbuild.1*
 |
 |
 
 |
 |
 | 602401143452.dkr.ecr.eu-west-1.amazonaws.com/eks/aws-ebs-csi-driver
-| v1.19.0
+| v1.29.0
 
 |
 |
@@ -221,22 +221,22 @@ NOTE: In any case, it is not necessary to upload these images to any registry. I
 | v2.10.0-eks-1-27-3
 
 | *vpc-cni*
-| *v1.12.6-eksbuild.2*
+| *v1.19.2-eksbuild.5*
 |
 |
 
 |
 |
 | 602401143452.dkr.ecr.eu-west-1.amazonaws.com/amazon-k8s-cni
-| v1.12.6-eksbuild.2
+| v1.19.2-eksbuild.5
 
 | *kube-proxy*
-| *v1.24.15-eksbuild.2*
+| *v1.28.15-eksbuild.9*
 |
 |
 
 |
 |
 | 602401143452.dkr.ecr.eu-west-1.amazonaws.com/eks/kube-proxy
-| v1.26.7-minimal-eksbuild.2
+| v1.28.15-minimal-eksbuild.2
 |===
