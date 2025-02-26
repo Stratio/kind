@@ -30,7 +30,7 @@ from ruamel.yaml import YAML
 from io import StringIO
 
 CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.4.0" 
+CLUSTER_OPERATOR = "0.4.2" 
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.3.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.5"
 
@@ -47,21 +47,21 @@ CAPZ = "v1.12.4"
 eks_chart_versions = {
     "28": {
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
@@ -75,7 +75,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.28.5", "app_version": "v1.28.7"},
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
@@ -84,7 +84,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "v1.29.0", "app_version": "v1.29.0"},
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
@@ -93,7 +93,7 @@ azure_vm_chart_versions = {
         "cloud-provider-azure": {"chart_version": "1.30.4", "app_version": "1.30.4"},
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.0", "app_version": "0.4.0"},
+        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
@@ -2166,7 +2166,7 @@ if __name__ == '__main__':
         chart_versions = eks_chart_versions
     elif provider == "azure":
         chart_versions = azure_vm_chart_versions
-    if cluster_operator_version != "0.4.0":
+    if cluster_operator_version != "0.4.2":
         if provider == "aws":
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
