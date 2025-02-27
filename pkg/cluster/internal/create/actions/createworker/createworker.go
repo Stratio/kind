@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -542,6 +543,126 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
 				return errors.Wrap(err, "failed to apply the kubernetes additional RBAC aws node")
+			}
+
+			if a.keosCluster.Spec.Networks.PodsCidrBlock != "" {
+				c = "kubectl -n capa-system get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}' | base64 -d"
+				credentials, err := commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to get credentials")
+				}
+				credentials = strings.TrimSpace(credentials)
+				credentialsParts := strings.Split(credentials, "\n")
+				if len(credentialsParts) >= 3 {
+					awsAccessKeyID := strings.TrimSpace(strings.Split(credentialsParts[1], "=")[1])
+					awsSecretAccessKey := strings.TrimSpace(strings.Split(credentialsParts[2], "=")[1])
+					awsRegion := strings.TrimSpace(strings.Split(credentialsParts[3], "=")[1])
+					// Configure AWS CLI with the credentials
+					c = "aws configure set aws_access_key_id " + awsAccessKeyID
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to configure aws_access_key_id")
+					}
+					c = "aws configure set aws_secret_access_key " + awsSecretAccessKey
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to configure aws_secret_access_key")
+					}
+					c = "aws configure set region " + awsRegion
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to configure region")
+					}
+				} else {
+					return errors.New("failed to get complete credentials information")
+				}
+
+				// Test aws.cli
+				c = "aws sts get-caller-identity"
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to test aws.cli")
+				}
+
+				// Step 1: Get VPC ID dynamically using the cluster name
+				c := "aws ec2 describe-vpcs --filters Name=tag:Name,Values=" + a.keosCluster.Metadata.Name + "-vpc --query \"Vpcs[*].VpcId\" --output text"
+				vpcID, err := commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to get VPC ID")
+				}
+				vpcID = strings.TrimSpace(vpcID)
+
+				// Step 2: Get all subnets with the "secondary" association tag
+				c = "aws ec2 describe-subnets --filters \"Name=vpc-id,Values=" + vpcID + "\" \"Name=tag:sigs.k8s.io/cluster-api-provider-aws/association,Values=secondary\" --query \"Subnets[*].SubnetId\" --output json"
+				subnets, err := commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to get secondary subnets")
+				}
+
+				// Parse JSON output into a slice
+				subnets = strings.TrimSpace(subnets)
+				var subnetIDs []string
+				err = json.Unmarshal([]byte(subnets), &subnetIDs)
+				if err != nil {
+					return errors.Wrap(err, "failed to parse subnet JSON output")
+				}
+
+				// Step 3: Get VPC default security group
+				c = "aws ec2 describe-security-groups --filters Name=vpc-id,Values=" + vpcID + " Name=group-name,Values=default --query \"SecurityGroups[0].GroupId\" --output text"
+				securityGroup, err := commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to get default security group")
+				}
+				securityGroup = strings.TrimSpace(securityGroup)
+
+				// Step 4: Ensure manifestsPath exists
+				c = "mkdir -p " + manifestsPath
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to create manifests directory")
+				}
+
+				// Step 5: Iterate over subnets and generate ENIConfig YAMLs using echo
+				for _, subnet := range subnetIDs {
+					// Get Availability Zone (AZ) for each subnet
+					c = "aws ec2 describe-subnets --subnet-ids " + subnet + " --query \"Subnets[0].AvailabilityZone\" --output text"
+					az, err := commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						println("Skipping subnet", subnet, "due to AZ fetch failure:", err.Error())
+						continue
+					}
+					az = strings.TrimSpace(az)
+
+					// Define file path
+					yamlFilePath := manifestsPath + "/eniconfig-" + az + ".yaml"
+
+					// Generate ENIConfig YAML using echo and write it to a file
+					eniconfigYAML := `apiVersion: crd.k8s.amazonaws.com/v1alpha1
+kind: ENIConfig
+metadata:
+  name: ` + az + `
+spec:
+  subnet: ` + subnet + `
+  securityGroups:
+    - ` + securityGroup + `
+`
+
+					// Execute echo command to write the YAML file
+					c = "echo '" + eniconfigYAML + "' > " + yamlFilePath
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						println("Failed to write ENIConfig YAML file for", az, ":", err.Error())
+						continue
+					}
+				}
+
+				// Step 6: Apply all ENIConfig YAML files
+				// Use kubeconfigPath to apply the ENIConfig resources
+				c = "find " + manifestsPath + " -name '*eniconfig*' | xargs -I {} kubectl --kubeconfig " + kubeconfigPath + " apply -f {}"
+				_, err = commons.ExecuteCommand(n, c, 10, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to apply ENIConfig YAMLs")
+				}
 			}
 		}
 

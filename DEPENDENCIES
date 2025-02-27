@@ -98,7 +98,7 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.3.0
+      cluster-api-gcp-controller: 1.6.1-0.3.1
     manifests:
       metadata.yaml: 1.6.1-0.3.0
       infrastructure-components.yaml: 1.6.1-0.3.0
