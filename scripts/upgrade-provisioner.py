@@ -159,6 +159,7 @@ def parse_args():
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
+    parser.add_argument("--upgrade-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     args = parser.parse_args()
     return vars(args)
 
@@ -1080,7 +1081,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster, credentials, specific_charts):
+def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only=False):
     '''Adopt all Helm charts'''
     charts = get_installed_helm_charts()
     for chart in charts:
@@ -1090,7 +1091,7 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts):
             if chart['name'] in specific_charts["28"] and chart['name'] != "flux":
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart, credentials)
+                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only)
                 
         except Exception as e:
             print("FAILED")
@@ -1142,7 +1143,7 @@ def check_and_delete_releases(namespace):
             time.sleep(20)
         
 # Generate and apply HelmRelease and HelmRepository
-def adopt_helm_chart(chart, credentials):
+def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
     '''Adopt a Helm chart'''
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
     
@@ -1240,7 +1241,7 @@ def adopt_helm_chart(chart, credentials):
 
     # Apply the manifests to the cluster
     try:
-        if repo_name != "keos":
+        if repo_name != "keos" or upgrade_cloud_provisioner_only:
             command = f"{kubectl} apply -f {repository_file} "
             run_command(command)
         
@@ -1444,7 +1445,7 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
-def install_cert_manager(provider):
+def install_cert_manager(provider, upgrade_cloud_provisioner_only):
     '''Install cert-manager'''
     try:
         print("[INFO] Adopting cert-manager...")
@@ -1518,7 +1519,7 @@ def install_cert_manager(provider):
         print("OK")
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
-        adopt_helm_chart(chart_cert_manager, "")
+        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
@@ -2119,6 +2120,7 @@ if __name__ == '__main__':
     helm = "helm --kubeconfig " + kubeconfig
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+    upgrade_cloud_provisioner_only = config["upgrade_provisioner_only"]
 
     # Set cluster_name
     if "metadata" in keos_cluster:
@@ -2259,8 +2261,8 @@ if __name__ == '__main__':
         install_flux(provider)
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster, credentials, chart_versions)
-    install_cert_manager(provider)
+    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
+    install_cert_manager(provider, upgrade_cloud_provisioner_only)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
     
     # Restore capsule
