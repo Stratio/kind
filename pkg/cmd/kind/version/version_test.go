@@ -110,7 +110,7 @@ func TestVersion(t *testing.T) {
 					gitCommitCount = gitCommitCountBackup
 				}()
 			}
-			if got := Version(); got != tt.want {
+			if got := Version(true); got != tt.want {
 				t.Errorf("Version() = %v, want %v", got, tt.want)
 			}
 		})

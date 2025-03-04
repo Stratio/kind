@@ -9,7 +9,7 @@ cainjector:
     repository: {{ registry if private else 'quay.io' }}/jetstack/cert-manager-cainjector
 startupapicheck:
   image:
-    repository: {{ registry if private else 'quay.io' }}/jetstack/cert-manager-ctl
+    repository: {{ registry if private else 'quay.io' }}/jetstack/cert-manager-startupapicheck
 webhook:
   image:
     repository: {{ registry if private else 'quay.io' }}/jetstack/cert-manager-webhook
