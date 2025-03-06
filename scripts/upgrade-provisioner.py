@@ -904,11 +904,6 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cl
                 if chart_name == "cluster-operator":
                     file_type = "override" 
                     update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
-            ##
-            elif chart_name == "flux2":
-                print("Entro")
-                updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
-            ##
             elif chart_name in updatable_charts:
                 updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
             else:
