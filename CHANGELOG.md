@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.4.1 (upcoming)
 
+* [Core] Enable IMDSv2
 * [Core] Fix panic when keos_version is not defined
 * [Core] Update runc golang module to fix GHSA-xr7r-f8xq-vfvv
 
