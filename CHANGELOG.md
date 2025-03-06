@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.4.1 (upcoming)
+## 0.17.0-0.4.1 (2025-03-06)
 
 * [Core] Enable IMDSv2
 * [Core] Fix panic when keos_version is not defined
