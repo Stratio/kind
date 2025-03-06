@@ -246,7 +246,16 @@ Regarding the Kubernetes version upgrade, this will be done in two stages within
 
 CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image has not been specified may involve an OS upgrade.
 
-CAUTION: In some scenarios, Pod Disruption Budgets (PDBs) may be misconfigured. This happens when the PDB requires at least one available replica, but the resource has only one deployed. As a result, that single replica cannot be removed, preventing the node it runs on from being drained. This issue mainly affects updates, as node draining is common during these processes. To avoid this, ensure that deployments have *more than one replica* if the PDB requires at least one available. Before updating the cluster, review this configuration to prevent disruptions. If the resource has only one replica, a possible solution is to *temporarily remove the PDB* to allow the update to proceed.
+[CAUTION]
+====
+A misconfigured Pod Disruption Budget (PDB) can block the removal of a pod. This happens if the PDB requires at least one available replica, but the resource has only one deployed. In this case, the replica cannot be removed, preventing the node from draining, which may affect updates.
+
+To avoid this issue:
+
+. Ensure that deployments have more than one replica if the PDB requires at least one available.
+. Before updating the cluster, review this configuration to prevent blockages.
+. If the resource has only one replica, you can temporarily remove the PDB to allow the update.
+====
 
 ==== Prerequisites
 
