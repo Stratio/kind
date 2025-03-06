@@ -45,9 +45,9 @@ spec:
       containers:
       - name: coredns
         {{- if .Private }}
-        image: {{ .KeosRegUrl }}/coredns:1.9.4
+        image: {{ .KeosRegUrl }}/coredns/coredns:v1.9.4
         {{- else }}
-        image: coredns/coredns:1.9.4
+        image: registry.k8s.io/coredns/coredns:v1.9.4
         {{- end }}
         imagePullPolicy: IfNotPresent
         resources:

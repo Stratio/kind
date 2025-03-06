@@ -176,6 +176,7 @@ type ControlPlane struct {
 }
 
 type GCPCP struct {
+	ReleaseChannel                 string                          `yaml:"release_channel"`
 	ClusterNetwork                 *ClusterNetwork                 `yaml:"cluster_network,omitempty"`
 	MasterAuthorizedNetworksConfig *MasterAuthorizedNetworksConfig `yaml:"master_authorized_networks_config,omitempty"`
 	MonitoringConfig               *MonitoringConfig               `yaml:"monitoring_config,omitempty"`
@@ -536,6 +537,7 @@ func (s KeosSpec) Init() KeosSpec {
 	s.ControlPlane.AWS.Logging.Scheduler = false
 
 	// GKE
+	s.ControlPlane.Gcp.ReleaseChannel = "extended"
 	if s.ControlPlane.Gcp.ClusterNetwork == nil {
 		s.ControlPlane.Gcp.ClusterNetwork = &ClusterNetwork{}
 	}
