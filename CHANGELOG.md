@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.17.0-0.6.2 (2025-02-17)
+## 0.17.0-0.6.3 (upcoming)
+
+* [PLT-1741] Bump cluster-operator references to 0.4.2 version. Update EKS addons dependencies documentation
+
+## 0.17.0-0.6.2 (2025-02-26)
 
 * [PLT-1628] Fix coredns image registry and repository references
 * [PLT-1628] Fix cluster-api-gcp image registry and repository references
