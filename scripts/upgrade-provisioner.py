@@ -50,21 +50,24 @@ eks_chart_versions = {
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
 
@@ -76,7 +79,8 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "29": {
         "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
@@ -85,7 +89,8 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     },
     "30": {
         "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
@@ -94,7 +99,8 @@ azure_vm_chart_versions = {
         "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
         "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
         "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
+        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
     }
 }
 
@@ -1088,7 +1094,9 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cl
         try:
             if chart['name'] == 'calico':
                 chart['name'] = 'tigera-operator'
-            if chart['name'] in specific_charts["28"] and chart['name'] != "flux":
+            if (chart['name'] in specific_charts["28"] and chart['name'] not in ["flux", "flux2"]) or \
+               (upgrade_cloud_provisioner_only and chart['name'] in ["flux", "flux2"]):
+                
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
                 adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only)
