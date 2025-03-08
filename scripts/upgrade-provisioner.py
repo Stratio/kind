@@ -116,6 +116,7 @@ namespaces = {
         'tigera-operator': 'tigera-operator',
         'cert-manager': 'cert-manager',
         "flux": "kube-system",
+        "flux2": "kube-system",
         "cluster-operator": "kube-system"
     }
         
@@ -135,6 +136,7 @@ specific_repos = {
     'tigera-operator': 'https://docs.projectcalico.org/charts',
     'cert-manager': 'https://charts.jetstack.io',
     "flux": "https://fluxcd-community.github.io/helm-charts",
+    "flux2": "https://fluxcd-community.github.io/helm-charts",
     "cluster-operator": ""
 }
 
@@ -854,20 +856,6 @@ def run_command(command, allow_errors=False, retries=3, retry_delay=2):
         
         time.sleep(retry_delay)
 
-def get_docker_registry(keos_cluster):
-    '''Get the Docker registry URL'''
-    
-    try:
-        docker_registries = keos_cluster["spec"]["docker_registries"]
-        
-        for i, docker_registry in enumerate(docker_registries):
-            if docker_registry["keos_registry"]:
-                return docker_registry["url"]
-            else:
-                continue
-    except KeyError as e:
-        return None
-
 def get_helm_registry_oci(keos_cluster):
     '''Get the Helm registry URL'''
     
@@ -1062,23 +1050,6 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
     command = f"{kubectl}  -n capi-kubeadm-bootstrap-system scale --replicas " + replicas + " deploy capi-kubeadm-bootstrap-controller-manager"
     execute_command(command, False)
 
-def delete_stratio_genai_pdb():
-    '''Delete PodDisruptionBudgets in stratio-genai namespace'''
-    try:
-        print("[INFO] Disabling PodDisruptionBudgets in stratio-genai namespace:", end =" ", flush=True)
-        command = f"{kubectl} get pdb -n stratio-genai"
-        output, err = run_command(command)
-        if output:
-            command = f"{kubectl} delete pdb --all -n stratio-genai"
-            run_command(command)
-            print("OK")
-        else:
-            print("SKIP")
-    except Exception as e:
-        print("FAILED")
-        print(f"[ERROR] {e}.")
-        raise e
-
 def get_deploy_version(deploy, namespace, container):
     '''Get the version of a deployment'''
     
@@ -1095,7 +1066,7 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cl
             if chart['name'] == 'calico':
                 chart['name'] = 'tigera-operator'
             if (chart['name'] in specific_charts["28"] and chart['name'] not in ["flux", "flux2"]) or \
-               (upgrade_cloud_provisioner_only and chart['name'] in ["flux", "flux2"]):
+               (chart['name'] in specific_charts["28"] and upgrade_cloud_provisioner_only and chart['name'] in ["flux", "flux2"]):
                 
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
@@ -1154,28 +1125,31 @@ def check_and_delete_releases(namespace):
 def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
     '''Adopt a Helm chart'''
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
+    release_name = chart_name
+    if chart["name"] == "flux":
+        release_name = "flux"
     
     # Check if there is already a HelmRelease with the name chart_name
-    existing_helmrelease, err = run_command(f"{kubectl} get helmrelease {chart_name} -n {chart['namespace']} --ignore-not-found")
+    existing_helmrelease, err = run_command(f"{kubectl} get helmrelease {release_name} -n {chart['namespace']} --ignore-not-found")
     if existing_helmrelease:
         print("SKIP")
         return
     
     schema = "default"
-    repo = specific_repos[chart_name]
-    repo_name = chart_name
+    repo = specific_repos[release_name]
+    repo_name = release_name
     user = ""
     password = ""
-    if chart_name not in specific_repos:
+    if release_name not in specific_repos:
         print("SKIP")
         return
     
-    if chart_name in "cluster-operator":
+    if release_name in "cluster-operator":
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
         schema = "oci"
         repo_name = "keos"
         
-    if chart_name == "tigera-operator":
+    if release_name == "tigera-operator":
         resources = [
             {"kind": "ServiceAccount", "name": "tigera-operator", "namespace": "tigera-operator"},
             {"kind": "ClusterRole", "name": "tigera-operator"},
@@ -1185,23 +1159,23 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
         ]
         update_annotation_label("tigera-operator", "tigera-operator", "meta.helm.sh/release-name", "tigera-operator", resources)
         
-    default_values_file = f"/tmp/{chart_name}_default_values.yaml"
-    release_values_file = f"/tmp/{chart_name}_release_values.yaml"
-    empty_values_file = f"/tmp/{chart_name}_empty_values.yaml"
+    default_values_file = f"/tmp/{release_name}_default_values.yaml"
+    release_values_file = f"/tmp/{release_name}_release_values.yaml"
+    empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
     
     export_release_values(chart_name, chart['namespace'], release_values_file, chart['provider'], credentials)
        
-    if chart_name == "cert-manager":
+    if release_name == "cert-manager":
         export_default_values(chart, repo, default_values_file)
-        create_configmap_from_values(f"00-{chart_name}-helm-chart-default-values", chart['namespace'], default_values_file)
-        create_configmap_from_values(f"01-{chart_name}-helm-chart-override-values", chart['namespace'], release_values_file)
+        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], default_values_file)
+        create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", chart['namespace'], release_values_file)
     else: 
         create_empty_values_file(empty_values_file)
-        create_configmap_from_values(f"00-{chart_name}-helm-chart-default-values", chart['namespace'], release_values_file)
-        create_configmap_from_values(f"01-{chart_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
+        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], release_values_file)
+        create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
     
-    if namespaces.get(chart_name):
-        namespace = namespaces[chart_name]
+    if namespaces.get(release_name):
+        namespace = namespaces[release_name]
     else:
         namespace = "kube-system"
         
@@ -1217,6 +1191,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
     }
     
     release_context = {
+        'ReleaseName': release_name,
         'ChartName': chart_name,
         'ChartNamespace': chart['namespace'],
         'ChartVersion': chart_version,
@@ -1603,8 +1578,8 @@ def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, 
         values_json = json.dumps({"data": {"values.yaml": values}})
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
-        if chart_name == "flux":
-            cm_name = f"02-{chart_name}-helm-chart-override-values"
+        # if chart_name == "flux":
+        #     cm_name = f"02-{chart_name}-helm-chart-override-values"
         
         command = f"{kubectl} patch configmap {cm_name} -n {namespace} --type merge -p '{values_json}'"
             
@@ -2159,13 +2134,9 @@ if __name__ == '__main__':
     # Set env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
     helm_registry_oci = get_helm_registry_oci(keos_cluster)
-    docker_registry = get_docker_registry(keos_cluster)
     helm_registry = input(f"The current helm repository is: {helm_registry_oci}. Do you want to indicate a new helm repository? Press enter or specify new repository: ")
     if helm_registry != "" and helm_registry != helm_registry_oci:
         update_helm_registry(cluster_name, helm_registry, config["dry_run"]) 
-    new_docker_registry = input(f"The current docker registry is: {docker_registry}. Do you want to indicate a new docker registry? Press enter or specify new docker registry: ")
-    if new_docker_registry != "" and new_docker_registry != docker_registry:
-        update_docker_registry(cluster_name, new_docker_registry, config["dry_run"])
     
     #Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
@@ -2279,7 +2250,6 @@ if __name__ == '__main__':
     
     networks = keos_cluster["spec"].get("networks", {})
     current_k8s_version = get_kubernetes_version()
-    delete_stratio_genai_pdb()
     
     
     if "1.28" in current_k8s_version:
