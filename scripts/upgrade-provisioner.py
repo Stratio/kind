@@ -167,6 +167,7 @@ def parse_args():
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
+    parser.add_argument("--upgrade-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     args = parser.parse_args()
     return vars(args)
 
@@ -904,7 +905,7 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cl
                 updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
                 if chart_name == "cluster-operator":
                     file_type = "override" 
-                    update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
+                    update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
             elif chart_name in updatable_charts:
                 updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
             else:
@@ -913,7 +914,7 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cl
                 charts_updated[chart_name] = chart_version
             if k8s_version == "32" and chart_name == "cert-manager":
                 file_type = "default"
-                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
+                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
 
         return charts_updated
     except Exception as e:
@@ -948,7 +949,7 @@ def update_helmrelease_version(chart_name, namespace, version):
             print(f"[ERROR] Error updating the version of the chart {chart_name}: {e}")
             raise e
 
-def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
+def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only):
     '''Update the values of a HelmRelease'''
     try:
         print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
@@ -958,6 +959,9 @@ def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, 
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
         
+        if chart_name == "flux" and not upgrade_cloud_provisioner_only:
+            cm_name = f"02-{chart_name}-helm-chart-override-values"
+            
         command = f"{kubectl} patch configmap {cm_name} -n {namespace} --type merge -p '{values_json}'"
             
         run_command(command)
@@ -1203,6 +1207,7 @@ if __name__ == '__main__':
     helm = "helm --kubeconfig " + kubeconfig
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+    upgrade_cloud_provisioner_only = config["upgrade_provisioner_only"]
 
     # Set cluster_name
     if "metadata" in keos_cluster:
