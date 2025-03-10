@@ -136,6 +136,7 @@ specific_repos = {
     'tigera-operator': 'https://docs.projectcalico.org/charts',
     'cert-manager': 'https://charts.jetstack.io',
     "flux": "https://fluxcd-community.github.io/helm-charts",
+    "flux2": "https://fluxcd-community.github.io/helm-charts",
     "cluster-operator": ""
 }
 
@@ -956,8 +957,6 @@ def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, 
         values_json = json.dumps({"data": {"values.yaml": values}})
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
-        if chart_name == "flux":
-            cm_name = f"02-{chart_name}-helm-chart-override-values"
         
         command = f"{kubectl} patch configmap {cm_name} -n {namespace} --type merge -p '{values_json}'"
             
@@ -1046,7 +1045,15 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
         
         for chart_name, chart_version in charts.items():
-            cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_version})
+            existing_chart = next((chart for chart in cluster_config["spec"]["charts"] if chart["name"] == chart_name), None)
+    
+            if existing_chart:
+                # Si existe, actualizar la versión
+                existing_chart["version"] = chart_version
+            else:
+                # Si no existe, añadir una nueva entrada
+                cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_version})
+            # cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_version})
         clusterconfig_json = json.dumps(cluster_config)
         command = f"{kubectl} patch clusterconfig {clusterconfig_name} -n {clusterconfig_namespace} --type merge -p '{clusterconfig_json}'"
         output, err = run_command(command)
