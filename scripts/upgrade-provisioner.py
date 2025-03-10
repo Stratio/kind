@@ -1508,7 +1508,7 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         print(f"[ERROR] {e}")
         raise e
     
-def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cluster_operator_version):
+def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cluster_operator_version, upgrade_cloud_provisioner_only):
     '''Update the chart versions'''
     
     try:
@@ -1534,7 +1534,7 @@ def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cl
                 file_type = "default"
                 if chart_name == "cluster-operator":
                     file_type = "override" 
-                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
+                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
             
         return charts_updated
     except Exception as e:
@@ -1569,7 +1569,7 @@ def update_helmrelease_version(chart_name, namespace, version):
             print(f"[ERROR] Error updating the version of the chart {chart_name}: {e}")
             raise e
 
-def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
+def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only):
     '''Update the values of a HelmRelease'''
     try:
         print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
@@ -1578,8 +1578,8 @@ def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, 
         values_json = json.dumps({"data": {"values.yaml": values}})
         
         cm_name = f"01-{chart_name}-helm-chart-override-values"
-        # if chart_name == "flux":
-        #     cm_name = f"02-{chart_name}-helm-chart-override-values"
+        if chart_name == "flux" and not upgrade_cloud_provisioner_only:
+            cm_name = f"02-{chart_name}-helm-chart-override-values"
         
         command = f"{kubectl} patch configmap {cm_name} -n {namespace} --type merge -p '{values_json}'"
             
@@ -2242,7 +2242,7 @@ if __name__ == '__main__':
     
     adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
     install_cert_manager(provider, upgrade_cloud_provisioner_only)
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -2303,7 +2303,7 @@ if __name__ == '__main__':
         #required_k8s_version="1.29.7"
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     current_k8s_version = get_kubernetes_version()
     
     if "1.29" in current_k8s_version:
@@ -2322,7 +2322,7 @@ if __name__ == '__main__':
     if provider == "azure":
         patch_kubeadm_controlplane("cluster-" + cluster_name)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     
     
     if not managed:
