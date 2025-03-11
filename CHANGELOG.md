@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.6.4 (upcoming)
 
-* [PLT-1621] Add kubernetes 1.32 support
+* [PLT-1621] Added new flag to support only provisioner upgrades
 
 ## 0.17.0-0.6.3 (2025-03-06)
 
