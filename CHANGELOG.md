@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.6.4 (upcoming)
+
+* [PLT-1621] Add kubernetes 1.32 support
+
 ## 0.17.0-0.6.3 (2025-03-06)
 
 * [PLT-1741] Bump cluster-operator references to 0.4.2 version. Update EKS addons dependencies documentation
