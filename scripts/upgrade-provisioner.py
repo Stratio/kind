@@ -27,7 +27,7 @@ from ansible_vault import Vault
 from jinja2 import Template
 
 CLOUD_PROVISIONER = "0.17.0-0.5"
-CLUSTER_OPERATOR = "0.3.6"
+CLUSTER_OPERATOR = "0.3.7"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.2.0"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.4"
 
@@ -241,13 +241,9 @@ def patch_clusterrole_aws_node(dry_run):
     else:
         print("DRY-RUN")
 
-def validate_k8s_version(validation, dry_run):
-    if validation == "first":
-        minor = "27"
-        dry_run_version = "1.27.X"
-    elif validation == "second":
-        minor = "28"
-        dry_run_version = "1.28.X"
+def validate_k8s_version(dry_run):
+    minor = "28"
+    dry_run_version = "1.28.X"
     if not dry_run:
         supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
         desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
@@ -498,7 +494,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
         sys.exit(1)
 
-def cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, dry_run):
+def upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, dry_run):
     # Check if cluster-operator is already upgraded
     cluster_operator_version = get_chart_version("cluster-operator", "kube-system")
     if cluster_operator_version == CLUSTER_OPERATOR:
@@ -522,40 +518,14 @@ def cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name,
                 print("FAILED")
                 print("[ERROR] " + errors)
 
-        command = helm + " -n kube-system get values cluster-operator -o yaml 2>/dev/null"
-        values = execute_command(command, dry_run, False)
-        cluster_operator_values = open('./clusteroperator.values', 'w')
-        cluster_operator_values.write(values)
-        cluster_operator_values.close()
-
         # Upgrade cluster-operator
         print("[INFO] Upgrading Cluster Operator " + CLUSTER_OPERATOR + ":", end =" ", flush=True)
         if dry_run:
             print("DRY-RUN")
         else:
-            command = (helm + " -n kube-system upgrade cluster-operator" +
-                " --wait --version " + CLUSTER_OPERATOR +
-                " --values ./clusteroperator.values" +
-                " --set provider=" + provider +
+            command = (helm + " upgrade --reuse-values -n kube-system cluster-operator" +
                 " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
-            if helm_repo["type"] == "generic":
-                command += " cluster-operator --repo " + helm_repo["url"]
-            else:
-                command += " " + helm_repo["url"] + "/cluster-operator"
-            if "user" in helm_repo:
-                command += " --username=" + helm_repo["user"]
-                command += " --password=" + helm_repo["pass"]
-            if provider == "aws":
-                command += " --set secrets.common.credentialsBase64=" + credentials
-            if provider == "azure":
-                command += " --set secrets.azure.clientIDBase64=" + base64.b64encode(credentials["client_id"].encode("ascii")).decode("ascii")
-                command += " --set secrets.azure.clientSecretBase64=" + base64.b64encode(credentials["client_secret"].encode("ascii")).decode("ascii")
-                command += " --set secrets.azure.tenantIDBase64=" + base64.b64encode(credentials["tenant_id"].encode("ascii")).decode("ascii")
-                command += " --set secrets.azure.subscriptionIDBase64=" + base64.b64encode(credentials["subscription_id"].encode("ascii")).decode("ascii")
-            if provider == "gcp":
-                command += " --set secrets.common.credentialsBase64=" + credentials
             execute_command(command, False)
-            os.remove('./clusteroperator.values')
 
 def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=5):
     output = ""
@@ -786,7 +756,7 @@ if __name__ == '__main__':
             sys.exit(0)
 
     # Cluster Operator
-    cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, config["dry_run"])
+    upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, config["dry_run"])
 
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -796,11 +766,7 @@ if __name__ == '__main__':
     # Update kubernetes version to 1.27.X
     current_k8s_version = get_kubernetes_version()
     if "1.26" in current_k8s_version:
-        required_k8s_version=validate_k8s_version("first", config["dry_run"])
-        upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
-
-    # Update kubernetes version to 1.28.X
-    required_k8s_version=validate_k8s_version("second", config["dry_run"])
+        required_k8s_version=validate_k8s_version(config["dry_run"])
     upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
     end_time = time.time()
     elapsed_time = end_time - start_time
