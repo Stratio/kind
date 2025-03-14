@@ -367,6 +367,6 @@ root@<cluster_name>-control-plane:/#
 
 Para saber cómo llevar a cabo una instalación en la que las imágenes de los _workloads_ del _cluster_ provengan de repositorios accesibles desde entornos sin acceso a internet, consulta el xref:operations-manual:offline-installation.adoc[Manual de instalación _offline_].
 
-== Gestión de credentiales
+== Gestión de credenciales
 
-Para saber cómo llevar a cabo la gestión de las credenciales configuradas para el _cluster_, consulta la xref:operations-manual:credentials.adoc[documentación para la gestión de credenciales].
+Para administrar las credenciales configuradas en el _cluster_, consulta la xref:operations-manual:credentials.adoc[documentación de gestión de credenciales].

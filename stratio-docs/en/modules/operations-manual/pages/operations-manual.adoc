@@ -367,6 +367,6 @@ root@<nombre_del_cluster>-plano-de-control:/#
 
 To learn how to perform an installation where the workloads images of the cluster come from repositories accessible from environments without internet access, see the xref:operations-manual:offline-installation.adoc[offline installation manual].
 
-== Credentials management
+== Credential management
 
-TODO
+To manage the credentials configured in the cluster, please look at the xref:operations-manual:credentials.adoc[credential management documentation].
