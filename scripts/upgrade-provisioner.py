@@ -241,9 +241,13 @@ def patch_clusterrole_aws_node(dry_run):
     else:
         print("DRY-RUN")
 
-def validate_k8s_version(dry_run):
-    minor = "28"
-    dry_run_version = "1.28.X"
+def validate_k8s_version(validation, dry_run):
+    if validation == "first":
+        minor = "27"
+        dry_run_version = "1.27.X"
+    elif validation == "second":
+        minor = "28"
+        dry_run_version = "1.28.X"
     if not dry_run:
         supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
         desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
@@ -766,7 +770,11 @@ if __name__ == '__main__':
     # Update kubernetes version to 1.27.X
     current_k8s_version = get_kubernetes_version()
     if "1.26" in current_k8s_version:
-        required_k8s_version=validate_k8s_version(config["dry_run"])
+        required_k8s_version=validate_k8s_version("first", config["dry_run"])
+        upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
+
+    # Update kubernetes version to 1.28.X
+    required_k8s_version=validate_k8s_version("second", config["dry_run"])  
     upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
     end_time = time.time()
     elapsed_time = end_time - start_time
