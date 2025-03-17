@@ -57,6 +57,7 @@ def parse_args():
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
+    parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skipping workers intermediate kubernetes version upgrade")
     args = parser.parse_args()
     return vars(args)
 
@@ -181,6 +182,37 @@ def restore_capsule(dry_run):
                     """jq -r '.webhooks[] |= (select(.name == "namespaces.capsule.clastix.io").objectSelector |= {})' """ +
                     "| " + kubectl + " apply -f -")
             execute_command(command, False)
+    else:
+        print("DRY-RUN")
+
+def delete_cluster_operator_webhooks(dry_run):
+    print("[INFO] Deleting keoscluster-validating-webhook-configuration for the upgrade process:", end =" ", flush=True)
+    if not dry_run:
+        command = kubectl + " delete validatingwebhookconfigurations keoscluster-validating-webhook-configuration"
+        status, output = subprocess.getstatusoutput(command)
+        if status != 0:
+            if "NotFound" in output:
+                print("SKIP")
+            else:
+                print("FAILED")
+                print("[ERROR] Deleting keoscluster-validating-webhook-configuration failed:\n" + output)
+                sys.exit(1)
+    else:
+        print("DRY-RUN")
+
+def restore_cluster_operator_webhooks(dry_run):
+    print("[INFO] Restoring keoscluster-validating-webhook-configuration for the upgrade process:", end =" ", flush=True)
+    if not dry_run:
+        cluster_operator_revision = get_chart_revision("cluster-operator", "kube-system")
+        command = helm + " rollback -n kube-system cluster-operator " + cluster_operator_revision
+        status, output = subprocess.getstatusoutput(command)
+        if status != 0:
+            if "NotFound" in output:
+                print("SKIP")
+            else:
+                print("FAILED")
+                print("[ERROR] Restoring keoscluster-validating-webhook-configuration failed:\n" + output)
+                sys.exit(1)
     else:
         print("DRY-RUN")
 
@@ -416,8 +448,6 @@ spec:
             execute_command(command, dry_run)
             os.remove(allow_cp_gnp_file)
 
-
-
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
@@ -529,6 +559,13 @@ def upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, clust
         else:
             command = (helm + " upgrade --reuse-values -n kube-system cluster-operator" +
                 " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
+            if helm_repo["type"] == "generic":
+                command += " cluster-operator --repo " + helm_repo["url"]
+            else:
+                command += " " + helm_repo["url"] + "/cluster-operator"
+            if "user" in helm_repo:
+                command += " --username=" + helm_repo["user"]
+                command += " --password=" + helm_repo["pass"]
             execute_command(command, False)
 
 def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=5):
@@ -558,6 +595,8 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
 def get_chart_version(chart, namespace):
     command = helm + " -n " + namespace + " list"
     output = execute_command(command, False, False)
+    # NAME                NAMESPACE   REVISION    UPDATED                                 STATUS      CHART                   APP VERSION
+    # cluster-operator    kube-system 1           2025-03-17 10:11:40.845888283 +0000 UTC deployed    cluster-operator-0.2.0  0.2.0 
     for line in output.split("\n"):
         splitted_line = line.split()
         if chart == splitted_line[0]:
@@ -565,6 +604,17 @@ def get_chart_version(chart, namespace):
                 return splitted_line[9]
             else:
                 return splitted_line[8].split("-")[-1]
+    return None
+
+def get_chart_revision(chart, namespace):
+    command = helm + " -n " + namespace + " list"
+    output = execute_command(command, False, False)
+    # NAME                NAMESPACE   REVISION    UPDATED                                 STATUS      CHART                   APP VERSION
+    # cluster-operator    kube-system 1           2025-03-17 10:11:40.845888283 +0000 UTC deployed    cluster-operator-0.2.0  0.2.0 
+    for line in output.split("\n"):
+        splitted_line = line.split()
+        if chart == splitted_line[0]:
+            return splitted_line[2]
     return None
 
 def get_version(version):
@@ -762,20 +812,28 @@ if __name__ == '__main__':
     # Cluster Operator
     upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, config["dry_run"])
 
+    # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
+    if config["skip_k8s_intermediate_version"]:
+        delete_cluster_operator_webhooks(config["dry_run"])
+
     # Restore capsule
     if not config["disable_prepare_capsule"]:
         restore_capsule(config["dry_run"])
-    
+
     networks = keos_cluster["spec"].get("networks", {})
     # Update kubernetes version to 1.27.X
     current_k8s_version = get_kubernetes_version()
-    if "1.26" in current_k8s_version:
+    if "1.26" in current_k8s_version and not config["skip_k8s_intermediate_version"]:
         required_k8s_version=validate_k8s_version("first", config["dry_run"])
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
 
     # Update kubernetes version to 1.28.X
-    required_k8s_version=validate_k8s_version("second", config["dry_run"])  
+    required_k8s_version=validate_k8s_version("second", config["dry_run"])
     upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
+    
+    if config["skip_k8s_intermediate_version"]:
+        restore_cluster_operator_webhooks(config["dry_run"])
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     minutes, seconds = divmod(elapsed_time, 60)
