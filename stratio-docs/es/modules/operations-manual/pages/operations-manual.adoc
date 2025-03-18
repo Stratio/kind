@@ -242,6 +242,8 @@ A diferencia de otras versiones del _script_ de _upgrade_, todas las etapas hast
 - Actualizar la versión de Kubernetes de 1.27.X a 1.28.X.
 - Restaurar, si es necesario, los servicios del proceso de _backup_ realizado previamente.
 
+NOTE: Si se define el flag `--skip-k8s-intermediate-version` Kubernetes se actualiza de 1.26.X a 1.28.X en un solo paso. Esto sólo está soportado en entornos _EKS_.
+
 En cuanto a la actualización de las versiones de Kubernetes, esta se realizará en dos etapas dentro del mismo proceso atómico: primero, el _control-plane_, y una vez que esté en la nueva versión, los nodos _worker_, iterando por cada grupo de nodos y actualizándolos uno a uno de manera secuencial.
 
 CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ donde no se haya especificado la imagen puede implicar una actualización del sistema operativo.
