@@ -8,12 +8,21 @@
 
 ### Branched to branch-0.17.0-0.7 (2025-03-18)
 
-* [PLT-1621] Support k8s v1.32
-* [PLT-1394] Bump Flux chart version to 2.14.1
-* [PLT-1393] Bump Tigera Operator version to v3.29.1
-* [PLT-1741] Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation
-
-
+ * [PLT-1621] -  Add kubernetes 1.32 support  - [`#689`](https://github.com/Stratio/kind/pull/689)
+ * [PLT-1741] -  Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation  - [`#701`](https://github.com/Stratio/kind/pull/701)
+ * [PLT-1682] -  Improve kindest/node and stratio-capi-image management  - [`#685`](https://github.com/Stratio/kind/pull/685)
+ * [PLT-1317] -  Remove non-suported AKS, managed AWS and managed GCP references  - [`#692`](https://github.com/Stratio/kind/pull/692)
+ * [PLT-1628] -  Fix capz images registry and repository references. Replace cloud-provider-azure …  - [`#686`](https://github.com/Stratio/kind/pull/686)
+ * [PLT-1394] -  Bump Flux version to 2.14.1  - [`#662`](https://github.com/Stratio/kind/pull/662)
+ * [PLT-1393] -  Bump Tigera Operator version to v3.29.1  - [`#661`](https://github.com/Stratio/kind/pull/661)
+ * [PLT-1628] -  Fix coredns, cluster-api-gcp and kube-rbac-proxy image registry and repository references  - [`#675`](https://github.com/Stratio/kind/pull/675)
+ * [PLT-1332] -  [GKE] Validaciones parámetros GKE  - [`#657`](https://github.com/Stratio/kind/pull/657)
+ * [PLT-1330] -  CMEK, SA & CIDRs  - [`#642`](https://github.com/Stratio/kind/pull/642)
+ * [PLT-964] -  Validaciones nuevos parámetros GKE  - [`#626`](https://github.com/Stratio/kind/pull/626)
+ * [PLT-1156] -  Add deny-all-egress-imds_gnetpol  - [`#629`](https://github.com/Stratio/kind/pull/629)
+ * [PLT-1309] -  Update docker images requirements documentation. Include stratio-capi-image to cicd flow  - [`#663`](https://github.com/Stratio/kind/pull/663)
+ * [PLT-719] -  Doc 0.5 to master  - [`#645`](https://github.com/Stratio/kind/pull/645)
+ * [PLT-1178] -  fix aws-load-balancer-controller  - [`#640`](https://github.com/Stratio/kind/pull/640)
 
 ### Branched to branch-0.17.0-0.6 (2024-10-25)
 
