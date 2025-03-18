@@ -17,17 +17,6 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 * Archivo `secrets.yml` usado durante la creación del _cluster_.
 * Herramienta Docker, necesaria para ejecutar el contenedor.
 
-=== Específicos para EKS
-
-El `kubeconfig` generado por defecto en EKS tiene un _token_ con tiempo de vida limitado. Para evitar interrupciones, puedes generar un `kubeconfig` actualizado con:
-
-[source,bash]
-----
-  aws eks update-kubeconfig --region <region> --name <cluster_name>
-----
-  
-Este comando habilita la renovación automática del _token_ mediante AWS CLI. Además, debe proporcionarse el directorio local `~/.aws` al contenedor de actualización.
-
 == Ejecución del _script_
 
 === Construcción del contenedor
@@ -37,15 +26,6 @@ Ejecuta el contenedor Docker con la imagen de actualización de versión, montan
 [source,bash]
 ----
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
-----
-
-*Parámetros adicionales para EKS*
-
-Incluye el directorio de configuración de AWS:
-
-[source,bash]
-----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
 
 === Uso del _script_ de actualización de versión
@@ -145,5 +125,4 @@ Asegúrate de que el directorio de trabajo incluya:
 * `files/`: archivos adicionales (configuraciones, Helm, etc.).
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
-* `.aws/`: archivos de configuración de AWS (solo para EKS).
 * `.kube/`: directorio con el archivo _kubeconfig_.

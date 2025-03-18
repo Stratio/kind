@@ -28,15 +28,6 @@ Run the Docker container with the version upgrade image, mounting the required f
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
 
-=== Specific for EKS
-
-The default `kubeconfig` generated in EKS includes a token with a limited lifespan. To avoid interruptions, you can generate an updated `kubeconfig` with the following command:
-
-[source,bash]
-----
-aws eks update-kubeconfig --name <cluster_name>
-----
-
 === Using the version upgrade script
 
 ==== Syntax
@@ -134,5 +125,4 @@ Ensure that the working directory includes the following:
 * `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
 * `secrets.yml`: cluster credentials.  
-* `.aws/`: AWS configuration files (EKS only).
 * `.kube/`: directory containing the `kubeconfig` file.
