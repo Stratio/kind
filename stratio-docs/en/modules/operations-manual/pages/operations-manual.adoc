@@ -242,7 +242,7 @@ Unlike other versions of the upgrade script, all steps until the upgrade is comp
 - Upgrade the version of Kubernetes from 1.27.X to 1.28.X.
 - Restore, if necessary, the services from the backup process previously performed.
 
-NOTE: If `--skip-k8s-intermediate-version` flag is set Kubernetes is upgraded from 1.26.X to 1.28.X in one step. This is only suported in EKS environments.
+NOTE: If you use the `--skip-k8s-intermediate-version` flag, Kubernetes will be upgraded directly from version 1.26.X to 1.28.X in a single step. This is only supported in EKS environments.
 
 Regarding the Kubernetes version upgrade, this will be done in two stages within the same atomic process: first, the _control-plane_, and once on the new version, the _worker_ nodes, iterating through each group of nodes and upgrading them one by one sequentially.
 
