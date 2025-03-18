@@ -83,7 +83,7 @@ Key options:
 | No
 
 | `--skip-k8s-intermediate-version`
-| Skip workers intermediate kubernetes version upgrade.
+| Skips updating the workers to the intermediate Kubernetes version.
 | False
 | No
 |===
