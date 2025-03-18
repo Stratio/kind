@@ -197,6 +197,7 @@ def delete_cluster_operator_webhooks(dry_run):
                 print("FAILED")
                 print("[ERROR] Deleting keoscluster-validating-webhook-configuration failed:\n" + output)
                 sys.exit(1)
+        print("OK")
     else:
         print("DRY-RUN")
 
@@ -213,6 +214,7 @@ def restore_cluster_operator_webhooks(dry_run):
                 print("FAILED")
                 print("[ERROR] Restoring keoscluster-validating-webhook-configuration failed:\n" + output)
                 sys.exit(1)
+        print("OK")
     else:
         print("DRY-RUN")
 
