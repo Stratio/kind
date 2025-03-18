@@ -101,6 +101,11 @@ Opciones principales:
 | Desactiva la preparación del entorno para el proceso de actualización. 
 | False
 | No
+
+| `--skip-k8s-intermediate-version`
+| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes.
+| False
+| No
 |===
 
 *Ejemplos:*

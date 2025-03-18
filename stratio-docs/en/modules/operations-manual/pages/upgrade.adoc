@@ -101,6 +101,11 @@ Key options:
 | Disable environment preparation for the upgrade process.
 | False
 | No
+
+| `--skip-k8s-intermediate-version`
+| Skip workers intermediate kubernetes version upgrade.
+| False
+| No
 |===
 
 *Examples:*

@@ -167,7 +167,7 @@ def parse_args():
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--upgrade-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
-    parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skipping workers intermediate kubernetes version upgrade")
+    parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
     args = parser.parse_args()
     return vars(args)
 
