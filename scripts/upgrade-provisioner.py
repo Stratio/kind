@@ -2314,16 +2314,12 @@ if __name__ == '__main__':
         
         if not config["skip_k8s_intermediate_version"]:
             keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-            required_k8s_version=validate_k8s_version("first", False)
+            required_k8s_version = validate_k8s_version("first", False)
             # Update kubernetes version to 1.29.X
             upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
-    
-    if config["skip_k8s_intermediate_version"]:
-        # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
-        disable_keoscluster_webhooks()
     
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
     command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
@@ -2332,13 +2328,18 @@ if __name__ == '__main__':
     run_command(command)
     print("OK")
     
-    required_k8s_version=validate_k8s_version("second", False)
-    # Update kubernetes version to 1.30.X
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
-
-    if config["skip_k8s_intermediate_version"]:
-        restore_keoscluster_webhooks()
+    if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and config["skip_k8s_intermediate_version"]):
+        if config["skip_k8s_intermediate_version"]:
+            # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
+            disable_keoscluster_webhooks()
+        
+        keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+        required_k8s_version = validate_k8s_version("second", False)
+        # Update kubernetes version to 1.30.X
+        upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
+    
+        if config["skip_k8s_intermediate_version"]:
+            restore_keoscluster_webhooks()
 
     if provider == "azure":
         patch_kubeadm_controlplane("cluster-" + cluster_name)
