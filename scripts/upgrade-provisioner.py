@@ -2320,15 +2320,16 @@ if __name__ == '__main__':
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
-    
-    print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
-    command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
-    run_command(command)
-    command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
-    run_command(command)
-    print("OK")
+    current_k8s_version = get_kubernetes_version()
     
     if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and config["skip_k8s_intermediate_version"]):
+        print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
+        command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
+        run_command(command)
+        command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+        run_command(command)
+        print("OK")
+
         if config["skip_k8s_intermediate_version"]:
             # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
             disable_keoscluster_webhooks()
