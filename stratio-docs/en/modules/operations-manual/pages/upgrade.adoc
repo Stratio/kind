@@ -42,6 +42,11 @@ Key options:
 |===
 | Flag | Description | Default Value | Mandatory
 
+| `-p`, `--vault-password`
+| Specify the Vault password needed to decrypt secrets.
+|
+| Yes
+
 | `-y`, `--yes`
 | Skip task confirmations (automatic mode).
 | False
@@ -51,11 +56,6 @@ Key options:
 | Specify the Kubectl configuration file to use.
 | ~/.kube/config
 | No
-
-| `-p`, `--vault-password`
-| File containing the Vault password needed to decrypt secrets.
-|
-| Yes
 
 | `-s`, `--secrets`
 | Encrypted secrets file.
@@ -94,14 +94,14 @@ Key options:
 +
 [source,bash]
 ----
-python3 upgrade-provisioner.py -p /path/to/vault-password --kubeconfig /path/to/kubeconfig
+python3 upgrade-provisioner.py -p <vault-password>
 ----
 
 * Azure VMs:
 +
 [source,bash]
 ----
-python3 upgrade-provisioner.py -p /path/to/vault-password --user-assign-identity <identity-client-id> --kubeconfig /path/to/kubeconfig
+python3 upgrade-provisioner.py -p <vault-password> --user-assign-identity <identity-client-id>
 ----
 
 [NOTE]

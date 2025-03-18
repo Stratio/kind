@@ -158,7 +158,7 @@ def parse_args():
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-y", "--yes", action="store_true", help="Do not wait for confirmation between tasks")
     parser.add_argument("-k", "--kubeconfig", help="Set the kubeconfig file for kubectl commands, It can also be set using $KUBECONFIG variable", default="~/.kube/config")
-    parser.add_argument("-p", "--vault-password", help="Set the vault password file for decrypting secrets", required=True)
+    parser.add_argument("-p", "--vault-password", help="Set the vault password for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
     parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR)
     parser.add_argument("-i", "--user-assign-identity", help="Set the secrets file for decrypting secrets")
