@@ -2073,6 +2073,18 @@ def disable_cri_etcd_volume(last_kc):
     
     return result
 
+def configure_aws_credentials(vault_secrets_data):
+    print(f"[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
+    aws_access_key = vault_secrets_data['secrets']['aws']['credentials']['access_key']
+    aws_secret_key = vault_secrets_data['secrets']['aws']['credentials']['secret_key']
+    aws_region = vault_secrets_data['secrets']['aws']['credentials']['region']
+
+    command = f"aws configure set aws_access_key_id {aws_access_key}; \
+                aws configure set aws_secret_access_key {aws_secret_key}; \
+                aws configure set region {aws_region} "
+
+    run_command(command)
+    print("OK")
 
 if __name__ == '__main__':
     # Init variables
@@ -2144,7 +2156,7 @@ if __name__ == '__main__':
     # Get secrets
     try:
         vault = Vault(config["vault_password"])
-        data = vault.load(open(config["secrets"]).read())
+        vault_secrets_data = vault.load(open(config["secrets"]).read())
     except Exception as e:
         print("[ERROR] Decoding secrets file failed:\n" + str(e))
         sys.exit(1)
@@ -2155,10 +2167,14 @@ if __name__ == '__main__':
     helm_registry = input(f"The current helm repository is: {helm_registry_oci}. Do you want to indicate a new helm repository? Press enter or specify new repository: ")
     if helm_registry != "" and helm_registry != helm_registry_oci:
         update_helm_registry(cluster_name, helm_registry, config["dry_run"]) 
-    
-    #Update the clusterconfig and keoscluster
+
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     provider = keos_cluster["spec"]["infra_provider"]
+    # Configure aws CLI
+    if provider == "aws":
+        configure_aws_credentials(vault_secrets_data)
+    
+    # Update the clusterconfig and keoscluster
     managed = keos_cluster["spec"]["control_plane"]["managed"]
     cluster_operator_version = config["cluster_operator"]
     if provider == "aws":
@@ -2201,8 +2217,8 @@ if __name__ == '__main__':
         version = CAPZ
         if managed:
             env_vars += " EXP_MACHINE_POOL=true"
-        if "credentials" in data["secrets"]["azure"]:
-            credentials = data["secrets"]["azure"]["credentials"]
+        if "credentials" in vault_secrets_data["secrets"]["azure"]:
+            credentials = vault_secrets_data["secrets"]["azure"]["credentials"]
             env_vars += " AZURE_CLIENT_ID_B64=" + base64.b64encode(credentials["client_id"].encode("ascii")).decode("ascii")
             env_vars += " AZURE_CLIENT_SECRET_B64=" + base64.b64encode(credentials["client_secret"].encode("ascii")).decode("ascii")
             env_vars += " AZURE_SUBSCRIPTION_ID_B64=" + base64.b64encode(credentials["subscription_id"].encode("ascii")).decode("ascii")
@@ -2211,18 +2227,18 @@ if __name__ == '__main__':
             print("[ERROR] Azure credentials not found in secrets file")
             sys.exit(1)
 
-    if "github_token" in data["secrets"]:
-        env_vars += " GITHUB_TOKEN=" + data["secrets"]["github_token"]
-        helm = "GITHUB_TOKEN=" + data["secrets"]["github_token"] + " " + helm
-        kubectl = "GITHUB_TOKEN=" + data["secrets"]["github_token"] + " " + kubectl
+    if "github_token" in vault_secrets_data["secrets"]:
+        env_vars += " GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"]
+        helm = "GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"] + " " + helm
+        kubectl = "GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"] + " " + kubectl
 
     # Set helm repository
     helm_repo["url"] = keos_cluster["spec"]["helm_repository"]["url"]
     if "auth_required" in keos_cluster["spec"]["helm_repository"]:
         if keos_cluster["spec"]["helm_repository"]["auth_required"]:
-            if "user" in data["secrets"]["helm_repository"] and "pass" in data["secrets"]["helm_repository"]:
-                helm_repo["user"] = data["secrets"]["helm_repository"]["user"]
-                helm_repo["pass"] = data["secrets"]["helm_repository"]["pass"]
+            if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
+                helm_repo["user"] = vault_secrets_data["secrets"]["helm_repository"]["user"]
+                helm_repo["pass"] = vault_secrets_data["secrets"]["helm_repository"]["pass"]
             else:
                 print("[ERROR] Helm repository credentials not found in secrets file")
                 sys.exit(1)
@@ -2240,7 +2256,7 @@ if __name__ == '__main__':
     # EKS LoadBalancer Controller
     if config["enable_lb_controller"]:
         if provider == "aws" and managed:
-            account_id = data["secrets"]["aws"]["credentials"]["account_id"]
+            account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
             install_lb_controller(cluster_name, account_id, config["dry_run"])
         else:
             print("[WARN] AWS LoadBalancer Controller is only supported for EKS managed clusters")

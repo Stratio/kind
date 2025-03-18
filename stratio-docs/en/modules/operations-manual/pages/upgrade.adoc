@@ -17,17 +17,6 @@ It allows you to upgrade the Kubernetes cluster version from the version install
 * `secrets.yml` file used during cluster creation.
 * Docker tool, required to run the container.
 
-=== Specific for EKS
-
-The default `kubeconfig` generated in EKS includes a token with a limited lifespan. To avoid interruptions, you can generate an updated `kubeconfig` with the following command:
-
-[source,bash]
-----
-aws eks update-kubeconfig --region <region> --name <cluster_name>
-----
-
-This command enables automatic token renewal via AWS CLI. Additionally, the local `~/.aws` directory must be provided to the upgrade container.
-
 == Running the script
 
 === Building the container
@@ -39,13 +28,13 @@ Run the Docker container with the version upgrade image, mounting the required f
 docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:x.x.x
 ----
 
-*Additional parameters for EKS*
+=== Specific for EKS
 
-Include the AWS configuration directory:
+The default `kubeconfig` generated in EKS includes a token with a limited lifespan. To avoid interruptions, you can generate an updated `kubeconfig` with the following command:
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws stratio-cloud-provisioner-upgrade-image:x.x.x
+aws eks update-kubeconfig --name <cluster_name>
 ----
 
 === Using the version upgrade script
