@@ -1,10 +1,11 @@
 # Changelog
 
-## 0.17.0-0.5.8 (2025-02-10)
+## 0.17.0-0.5.8 (2025-03-06)
 
 * [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
 * [PLT-1654] Fix AWS ClusterRole patch during cloud-provisioner upgrade
 * [PLT-1656] Fix cluster-operator upgrade cloud-provisioner upgrade when using an OCI helm repository
+* [PLT-1423] Add pod disruption budget known issue documentation
 
 ## 0.17.0-0.5.7 (2024-12-09)
 

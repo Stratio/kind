@@ -248,6 +248,17 @@ Regarding the Kubernetes version upgrade, this will be done in two stages within
 
 CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image has not been specified may involve an OS upgrade.
 
+[CAUTION]
+====
+A misconfigured Pod Disruption Budget (PDB) can block the removal of a pod. This happens if the PDB requires at least one available replica, but the resource has only one deployed. In this case, the replica cannot be removed, preventing the node from draining, which may affect updates.
+
+To avoid this issue:
+
+. Ensure that deployments have more than one replica if the PDB requires at least one available.
+. Before updating the cluster, review this configuration to prevent blockages.
+. If the resource has only one replica, you can temporarily remove the PDB to allow the update.
+====
+
 ==== Prerequisites
 
 * The following binaries must be available on the bastion machine:

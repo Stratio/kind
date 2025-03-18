@@ -248,6 +248,17 @@ En cuanto a la actualización de las versiones de Kubernetes, esta se realizará
 
 CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ donde no se haya especificado la imagen puede implicar una actualización del sistema operativo.
 
+[CAUTION]
+====
+Un _Pod Disruption Budget_ (PDB) mal configurado puede bloquear la eliminación de un _pod_. Esto ocurre si el PDB exige al menos una réplica disponible, pero el recurso solo tiene una desplegada. En ese caso, la réplica no puede eliminarse y el nodo no se puede drenar, lo que puede afectar a las actualizaciones.
+
+Para evitar este problema:
+
+. Asegúrate de que los despliegues tengan más de una réplica si el PDB requiere al menos una disponible.
+. Antes de actualizar el _cluster_, revisa esta configuración para evitar bloqueos.
+. Si el recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para permitir la actualización.
+====
+
 ==== Prerrequisitos
 
 * Los siguientes binarios deberán estar disponibles en la máquina bastión:
