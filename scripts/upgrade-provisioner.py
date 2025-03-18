@@ -3,11 +3,10 @@
 
 ##############################################################
 # Author: Stratio Clouds <clouds-integration@stratio.com>    #
-# Supported provisioner versions: 0.4.X                      #
+# Supported provisioner versions: 0.5.X                      #
 # Supported cloud providers:                                 #
-#   - AWS VMs & EKS                                          #
-#   - GCP VMs                                                #
-#   - Azure VMs & AKS                                        #
+#   - EKS                                                    #
+#   - Azure VMs                                              #
 ##############################################################
 
 __version__ = "0.5.0"
