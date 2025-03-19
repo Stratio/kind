@@ -62,11 +62,6 @@ Key options:
 | secrets.yml
 | No
 
-| `-i`, `--user-assign-identity`
-| User-assigned identity ID in Azure (`nodes_identity` clientID).
-|
-| Yes (Azure)
-
 | `--enable-lb-controller`
 | Enable the load balancer controller in EKS (disabled by default).
 | False
@@ -77,8 +72,8 @@ Key options:
 | False
 | No
 
-| `--disable-prepare-capsule`
-| Disable environment preparation for the upgrade process.
+| `--upgrade-provisioner-only`
+| Prepare the upgrade process for the cloud-provisioner upgrade only
 | False
 | No
 
@@ -87,32 +82,6 @@ Key options:
 | False
 | No
 |===
-
-*Examples:*
-
-* EKS on AWS:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault-password>
-----
-
-* Azure VMs:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault-password> --user-assign-identity <identity-client-id>
-----
-
-[NOTE]
-.Getting `user-assign-identity` in Azure
-====
-To retrieve the `user-assign-identity`, you can use the Azure CLI:
-
-[source,bash]
-----
-az identity list --resource-group <resource-group> --query "[?name=='<user-assign-identity-name>'].clientId" -o table
-----
 
 ====
 

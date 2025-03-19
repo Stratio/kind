@@ -62,11 +62,6 @@ Opciones principales:
 | secrets.yml
 | No
 
-| `-i`, `--user-assign-identity` 
-| ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). 
-|
-| Sí (Azure)
-
 | `--enable-lb-controller` 
 | Activa el controlador de balanceador de carga en EKS (desactivado por defecto). 
 | False
@@ -82,37 +77,16 @@ Opciones principales:
 | False
 | No
 
+| `--upgrade-provisioner-only`
+| Actualiza sólo los componentes de _cloud-provisioner_.
+| False
+| No
+
 | `--skip-k8s-intermediate-version`
 | Salta la actualización de los _workers_ a la versión intermedia de Kubernetes.
 | False
 | No
 |===
-
-*Ejemplos:*
-
-* EKS en AWS:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault-password>
-----
-
-* Azure VMs:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p <vault-password> --user-assign-identity <identity-client-id>
-----
-
-[NOTE]
-.Obtener `user-assign-identity` en Azure
-====
-Para obtener el `user-assign-identity` es posible recurrir al CLI de Azure:
-
-[source,bash]
-----
-az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
-----
 
 ====
 

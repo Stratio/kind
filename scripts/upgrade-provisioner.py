@@ -161,7 +161,6 @@ def parse_args():
     parser.add_argument("-p", "--vault-password", help="Set the vault password for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
     parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR)
-    parser.add_argument("-i", "--user-assign-identity", help="Set the secrets file for decrypting secrets")
     parser.add_argument("--enable-lb-controller", action="store_true", help="Install AWS Load Balancer Controller for EKS clusters (disabled by default)")
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
@@ -2086,6 +2085,28 @@ def configure_aws_credentials(vault_secrets_data):
     run_command(command)
     print("OK")
 
+def configure_azure_credentials(vault_secrets_data):
+    print(f"[INFO] Configuring Azure CLI credentials", end=" ", flush=True)
+    azure_client_id = vault_secrets_data['secrets']['azure']['credentials']['client_id']
+    azure_client_secret = vault_secrets_data['secrets']['azure']['credentials']['client_secret']
+    azure_subscription_id = vault_secrets_data['secrets']['azure']['credentials']['subscription_id']
+    azure_tenant_id = vault_secrets_data['secrets']['azure']['credentials']['tenant_id']
+
+    command = f"az login --service-principal --username {azure_client_id} \
+                --password {azure_client_secret} --tenant {azure_tenant_id}"
+
+    run_command(command)
+    print("OK")
+
+def get_user_assign_identity(node_identity):
+    print(f"[INFO] Getting Azure userAssignIdentity from {node_identity}", end=" ", flush=True)
+
+    node_identity_name = node_identity.split('/')[-1]
+    command = f"az identity list --query "[?name=={node_identity_name}].clientId" | jq -r .[0]"
+    run_command(command)
+
+    print("OK")
+
 if __name__ == '__main__':
     # Init variables
     start_time = time.time()
@@ -2135,6 +2156,8 @@ if __name__ == '__main__':
     # Configure aws CLI
     if 'aws' in vault_secrets_data['secrets']:
         configure_aws_credentials(vault_secrets_data)
+    elif 'azure' in vault_secrets_data['secrets']:
+        configure_azure_credentials(vault_secrets_data)
 
     print("[INFO] Using kubeconfig: " + kubeconfig)
 
@@ -2207,10 +2230,7 @@ if __name__ == '__main__':
             env_vars += " EXP_MACHINE_POOL=true EXP_CAPG_GKE=true"
         env_vars += " GCP_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
-        if config['user_assign_identity'] == "":
-            print("[ERROR] The flag --user-assign-identity must be indicated with azure provider")
-            sys.exit(1)
-        userAssignIdentity = config['user_assign_identity']
+        userAssignIdentity = get_user_assign_identity(keos_cluster["spec"]["security"]["nodes_identity"])
         print(f"[INFO] User assigned identity: {userAssignIdentity}")
         namespace = "capz-system"
         version = CAPZ
