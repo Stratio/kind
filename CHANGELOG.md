@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* Pending changelog
+* [PLT-1887] Dynamic region describe
 
 ## Previous development
 
