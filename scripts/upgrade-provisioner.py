@@ -450,7 +450,6 @@ spec:
             os.remove(allow_cp_gnp_file)
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
-    aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
@@ -740,22 +739,26 @@ if __name__ == '__main__':
         print("[ERROR] Decoding secrets file failed:\n" + str(e))
         sys.exit(1)
 
-    # Set env vars
-    env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
+    # Check supported upgrades
     provider = keos_cluster["spec"]["infra_provider"]
     managed = keos_cluster["spec"]["control_plane"]["managed"]
+    if not ((provider == "aws" and managed) or (provider == "azure" and not managed)):
+        print("[ERROR] Upgrade is only supported for EKS and Azure VMs clusters")
+        sys.exit(1)
+
+    # Check special flags
+    skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
+    if provider != "aws" and skip_k8s_intermediate_version:
+        print("[ERROR] --skip-k8s-intermediate-version flag is only supported for EKS")
+        sys.exit(1)
+
+    # Set env vars
+    env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
     if provider == "aws":
         namespace = "capa-system"
         version = CAPA
         credentials = subprocess.getoutput(kubectl + " -n " + namespace + " get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
         env_vars += " CAPA_EKS_IAM=true AWS_B64ENCODED_CREDENTIALS=" + credentials
-    if provider == "gcp":
-        namespace = "capg-system"
-        version = CAPG
-        credentials = subprocess.getoutput(kubectl + " -n " + namespace + " get secret capg-manager-bootstrap-credentials -o json | jq -r '.data[\"credentials.json\"]'")
-        if managed:
-            env_vars += " EXP_MACHINE_POOL=true EXP_CAPG_GKE=true"
-        env_vars += " GCP_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
         namespace = "capz-system"
         version = CAPZ
@@ -814,7 +817,7 @@ if __name__ == '__main__':
     upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, cluster_name, config["dry_run"])
 
     # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
-    if config["skip_k8s_intermediate_version"]:
+    if skip_k8s_intermediate_version:
         delete_cluster_operator_webhooks(config["dry_run"])
 
     # Restore capsule
@@ -824,7 +827,7 @@ if __name__ == '__main__':
     networks = keos_cluster["spec"].get("networks", {})
     # Update kubernetes version to 1.27.X
     current_k8s_version = get_kubernetes_version()
-    if "1.26" in current_k8s_version and not config["skip_k8s_intermediate_version"]:
+    if "1.26" in current_k8s_version and not skip_k8s_intermediate_version:
         required_k8s_version=validate_k8s_version("first", config["dry_run"])
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
 
@@ -832,7 +835,7 @@ if __name__ == '__main__':
     required_k8s_version=validate_k8s_version("second", config["dry_run"])
     upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, config["dry_run"])
     
-    if config["skip_k8s_intermediate_version"]:
+    if skip_k8s_intermediate_version:
         restore_cluster_operator_webhooks(config["dry_run"])
 
     end_time = time.time()

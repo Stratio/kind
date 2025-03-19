@@ -270,7 +270,6 @@ Para evitar este problema:
 ** jq
 ** aws (opcional)
 ** az (opcional)
-** gcloud (opcional)
 * Se deberán asegurar los permisos necesarios en el directorio _backup_ de la máquina bastión para que el usuario que ejecuta el _script_ pueda escribir en él (se crea el directorio _./backup/upgrade/_).
 * Se debe asegurar la compatibilidad de la versión de Kubernetes para los diferentes proveedores, con especial atención para _clusters_ cuyos grupos de nodos no tienen definida una imagen _custom_:
 ** EKS

@@ -270,7 +270,6 @@ To avoid this issue:
 ** jq
 ** aws (optional)
 ** az (optional)
-** gcloud (optional)
 * The necessary permissions must be ensured in the backup directory of the bastion machine so that the user running the script can write to it (the _./backup/upgrade/_ directory is created).
 * Kubernetes version compatibility must be ensured for different vendors, with special attention for clusters whose node groups do not have a custom image defined:
 ** EKS
