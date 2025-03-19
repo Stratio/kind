@@ -261,8 +261,6 @@ func getAWSRegions(config aws.Config, spec commons.KeosSpec) ([]string, error) {
 	// Use the parsed region to authenticate
 	config.Region = spec.Region
 
-	fmt.Println("Using region: ", config.Region)
-
 	// Create EC2 client
 	client := ec2.NewFromConfig(config)
 
