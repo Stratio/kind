@@ -165,7 +165,7 @@ def parse_args():
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
-    parser.add_argument("--upgrade-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
+    parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
     args = parser.parse_args()
     return vars(args)
@@ -582,7 +582,6 @@ spec:
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     '''Upgrade Kubernetes version'''
     
-    aks_enabled = provider == "azure" and managed
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
@@ -930,8 +929,6 @@ def update_allow_global_netpol(provider):
         if provider == "azure":
             print("SKIP")
             return
-        elif provider == "gcp":
-            globalnetpol_name = "allow-traffic-to-gcp-imds-capa"
             
         check_command = f"{kubectl} get globalnetworkpolicies.crd.projectcalico.org "
         check_result, err = run_command(check_command)
@@ -1018,7 +1015,7 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
     command = f"{kubectl}  -n capi-system scale --replicas " + replicas + " deploy capi-controller-manager"
     execute_command(command, False)
 
-    # For AKS/EKS clusters scale capi-kubeadm-control-plane-controller-manager and capi-kubeadm-bootstrap-controller-manager to 0 replicas
+    # For EKS clusters scale capi-kubeadm-control-plane-controller-manager and capi-kubeadm-bootstrap-controller-manager to 0 replicas
     if managed:
         replicas = "0"
     print("[INFO] Scaling capi-kubeadm-control-plane-controller-manager to " + replicas + " replicas:", end =" ", flush=True)
@@ -2137,7 +2134,6 @@ if __name__ == '__main__':
     helm = "helm --kubeconfig " + kubeconfig
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    upgrade_cloud_provisioner_only = config["upgrade_provisioner_only"]
 
     # Set cluster_name
     if "metadata" in keos_cluster:
@@ -2156,6 +2152,20 @@ if __name__ == '__main__':
         print("[ERROR] Cluster not found. Verify the kubeconfig file")
         sys.exit(1)
 
+    # Check supported upgrades
+    provider = keos_cluster["spec"]["infra_provider"]
+    managed = keos_cluster["spec"]["control_plane"]["managed"]
+    if not ((provider == "aws" and managed) or (provider == "azure" and not managed)):
+        print("[ERROR] Upgrade is only supported for EKS and Azure VMs clusters")
+        sys.exit(1)
+
+    # Check special flags
+    upgrade_cloud_provisioner_only = config["upgrade_cloud_provisioner_only"]
+    skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
+    if provider != "aws" and (skip_k8s_intermediate_version or upgrade_cloud_provisioner_only):
+        print("[ERROR] --upgrade-cloud-provisioner-only and --skip-k8s-intermediate-version flags are only supported for EKS")
+        sys.exit(1)
+
     # Set env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
     helm_registry_oci = get_helm_registry_oci(keos_cluster)
@@ -2165,8 +2175,6 @@ if __name__ == '__main__':
 
     # Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    provider = keos_cluster["spec"]["infra_provider"]
-    managed = keos_cluster["spec"]["control_plane"]["managed"]
     cluster_operator_version = config["cluster_operator"]
     if provider == "aws":
         chart_versions = eks_chart_versions
@@ -2181,23 +2189,14 @@ if __name__ == '__main__':
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
                     charts["cluster-operator"]["chart_version"] = cluster_operator_version
-    aks_enabled = provider == "azure" and managed
     
-    if not aks_enabled:
-        scale_cluster_autoscaler(0, config["dry_run"])
+    scale_cluster_autoscaler(0, config["dry_run"])
     
     if provider == "aws":
         namespace = "capa-system"
         version = CAPA
         credentials = subprocess.getoutput(kubectl + " -n " + namespace + " get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
         env_vars += " CAPA_EKS_IAM=true AWS_B64ENCODED_CREDENTIALS=" + credentials
-    if provider == "gcp":
-        namespace = "capg-system"
-        version = CAPG
-        credentials = subprocess.getoutput(kubectl + " -n " + namespace + " get secret capg-manager-bootstrap-credentials -o json | jq -r '.data[\"credentials.json\"]'")
-        if managed:
-            env_vars += " EXP_MACHINE_POOL=true EXP_CAPG_GKE=true"
-        env_vars += " GCP_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
         userAssignIdentity = get_user_assign_identity(keos_cluster["spec"]["security"]["nodes_identity"])
         print(f"[INFO] User assigned identity: {userAssignIdentity}")
@@ -2247,7 +2246,7 @@ if __name__ == '__main__':
             account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
             install_lb_controller(cluster_name, account_id, config["dry_run"])
         else:
-            print("[WARN] AWS LoadBalancer Controller is only supported for EKS managed clusters")
+            print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
             sys.exit(0)
 
     # Cluster Operator
@@ -2316,7 +2315,7 @@ if __name__ == '__main__':
         command = "kubectl wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
         run_command(command)
         
-        if not config["skip_k8s_intermediate_version"]:
+        if not skip_k8s_intermediate_version:
             keos_cluster, cluster_config = get_keos_cluster_cluster_config()
             required_k8s_version = validate_k8s_version("first", False)
             # Update kubernetes version to 1.29.X
@@ -2326,7 +2325,7 @@ if __name__ == '__main__':
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     current_k8s_version = get_kubernetes_version()
     
-    if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and config["skip_k8s_intermediate_version"]):
+    if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and skip_k8s_intermediate_version):
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
         command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
         run_command(command)
@@ -2334,7 +2333,7 @@ if __name__ == '__main__':
         run_command(command)
         print("OK")
 
-        if config["skip_k8s_intermediate_version"]:
+        if skip_k8s_intermediate_version:
             # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
             disable_keoscluster_webhooks()
         
@@ -2343,7 +2342,7 @@ if __name__ == '__main__':
         # Update kubernetes version to 1.30.X
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     
-        if config["skip_k8s_intermediate_version"]:
+        if skip_k8s_intermediate_version:
             restore_keoscluster_webhooks()
 
     if provider == "azure":
@@ -2390,10 +2389,9 @@ if __name__ == '__main__':
         print("SKIP")
     if not managed:
         cp_global_network_policy("restore", networks, provider, backup_dir, False)
-        
-    if not aks_enabled:
-        scale_cluster_autoscaler(2, config["dry_run"])
-   
+    
+    scale_cluster_autoscaler(2, config["dry_run"])
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     minutes, seconds = divmod(elapsed_time, 60)
