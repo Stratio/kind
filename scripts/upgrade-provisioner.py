@@ -2077,7 +2077,7 @@ def get_user_assign_identity(node_identity):
     print(f"[INFO] Getting Azure userAssignIdentity from {node_identity}", end=" ", flush=True)
 
     node_identity_name = node_identity.split('/')[-1]
-    command = f"az identity list --query "[?name=={node_identity_name}].clientId" | jq -r .[0]"
+    command = f"az identity list --query \"[?name=='{node_identity_name}'].clientId\" | jq -r .[0]"
     run_command(command)
 
     print("OK")
