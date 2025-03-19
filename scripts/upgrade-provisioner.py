@@ -2086,7 +2086,6 @@ if __name__ == '__main__':
     # Init variables
     start_time = time.time()
     backup_dir = "./backup/upgrade/"
-    binaries = ["clusterctl", "kubectl", "helm", "jq"]
     helm_repo = {}
     # Configurar el logger
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -2100,12 +2099,6 @@ if __name__ == '__main__':
         kubeconfig = os.environ.get("KUBECONFIG")
     else:
         kubeconfig = os.path.expanduser(config["kubeconfig"])
-
-    # Check binaries
-    for binary in binaries:
-        if not subprocess.getstatusoutput("which " + binary)[0] == 0:
-            print("[ERROR] " + binary + " binary not found in $PATH")
-            sys.exit(1)
 
     command = "clusterctl version -o short"
     status, output = subprocess.getstatusoutput(command)
