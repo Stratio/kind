@@ -2074,13 +2074,14 @@ def configure_azure_credentials(vault_secrets_data):
     print("OK")
 
 def get_user_assign_identity(node_identity):
-    print(f"[INFO] Getting Azure userAssignIdentity from {node_identity}", end=" ", flush=True)
+    print(f"[INFO] Getting Azure userAssignIdentity from {node_identity}:", end=" ", flush=True)
 
     node_identity_name = node_identity.split('/')[-1]
     command = f"az identity list --query \"[?name=='{node_identity_name}'].clientId\" | jq -r .[0]"
-    run_command(command)
+    output = execute_command(command, False, False)
 
     print("OK")
+    return output
 
 if __name__ == '__main__':
     # Init variables
