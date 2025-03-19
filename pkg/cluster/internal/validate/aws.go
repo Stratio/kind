@@ -52,7 +52,7 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 		return err
 	}
 
-	regions, err := getAWSRegions(cfg)
+	regions, err := getAWSRegions(cfg, spec)
 	if err != nil {
 		return err
 	}
@@ -255,12 +255,13 @@ func validateAWSPodsNetwork(podsNetwork string) error {
 	return nil
 }
 
-func getAWSRegions(config aws.Config) ([]string, error) {
+func getAWSRegions(config aws.Config, spec commons.KeosSpec) ([]string, error) {
 	regions := []string{}
 
-	// Use a default region to authenticate
-	config.Region = *aws.String("eu-west-1")
+	// Use the parsed region to authenticate
+	config.Region = spec.Region
 
+	// Create EC2 client
 	client := ec2.NewFromConfig(config)
 
 	// Describe regions
