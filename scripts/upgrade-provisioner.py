@@ -2124,6 +2124,18 @@ if __name__ == '__main__':
         print("[ERROR] Kubeconfig file not found")
         sys.exit(1)
 
+    # Get secrets
+    try:
+        vault = Vault(config["vault_password"])
+        vault_secrets_data = vault.load(open(config["secrets"]).read())
+    except Exception as e:
+        print("[ERROR] Decoding secrets file failed:\n" + str(e))
+        sys.exit(1)
+
+    # Configure aws CLI
+    if 'aws' in vault_secrets_data['secrets']:
+        configure_aws_credentials(vault_secrets_data)
+
     print("[INFO] Using kubeconfig: " + kubeconfig)
 
     # Set kubectl
@@ -2144,21 +2156,12 @@ if __name__ == '__main__':
     print("[INFO] Cluster name: " + cluster_name)
     if not config["dry_run"] and not config["yes"]:
         request_confirmation()
-        
 
     # Check kubectl access
     command = kubectl + " get cl -A --no-headers | awk '{print $1}'"
     status, output = subprocess.getstatusoutput(command)
     if status != 0 or output != "cluster-" + cluster_name:
         print("[ERROR] Cluster not found. Verify the kubeconfig file")
-        sys.exit(1)
-
-    # Get secrets
-    try:
-        vault = Vault(config["vault_password"])
-        vault_secrets_data = vault.load(open(config["secrets"]).read())
-    except Exception as e:
-        print("[ERROR] Decoding secrets file failed:\n" + str(e))
         sys.exit(1)
 
     # Set env vars
@@ -2168,13 +2171,9 @@ if __name__ == '__main__':
     if helm_registry != "" and helm_registry != helm_registry_oci:
         update_helm_registry(cluster_name, helm_registry, config["dry_run"]) 
 
+    # Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     provider = keos_cluster["spec"]["infra_provider"]
-    # Configure aws CLI
-    if provider == "aws":
-        configure_aws_credentials(vault_secrets_data)
-    
-    # Update the clusterconfig and keoscluster
     managed = keos_cluster["spec"]["control_plane"]["managed"]
     cluster_operator_version = config["cluster_operator"]
     if provider == "aws":
