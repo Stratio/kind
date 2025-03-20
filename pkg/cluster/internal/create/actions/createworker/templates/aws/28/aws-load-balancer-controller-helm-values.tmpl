@@ -5,4 +5,4 @@ serviceAccount:
   create: true
   name: aws-load-balancer-controller
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::{{ $.AccountID }}:role/{{ $.ClusterName }}-external-dns
+    eks.amazonaws.com/role-arn: arn:aws:iam::{{ $.AccountID }}:role/{{ $.ClusterName }}-lb-controller-manager
