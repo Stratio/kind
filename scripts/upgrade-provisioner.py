@@ -1411,7 +1411,7 @@ if __name__ == '__main__':
         charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
         current_k8s_version = get_kubernetes_version()
     
-    if "1.31" in current_k8s_version or ("1.30" in current_k8s_version and skip_k8s_intermediate_version)::
+    if "1.31" in current_k8s_version or ("1.30" in current_k8s_version and skip_k8s_intermediate_version):
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
         command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
         run_command(command)
