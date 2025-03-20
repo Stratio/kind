@@ -6,8 +6,9 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 
 - *EKS* en AWS.
 - *Azure VMs*.
+- *GKE* en GCP.
 
-Permite actualizar la versión del _cluster_ Kubernetes desde la versión instalada por `cloud-provisioner 0.5.x` hasta la proporcionada por `cloud-provisioner 0.6.x`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade`, que incluye el _script_ de actualización y las dependencias necesarias.
+Permite actualizar la versión del _cluster_ Kubernetes desde la versión instalada por `cloud-provisioner 0.6.X` hasta la proporcionada por `cloud-provisioner 0.7.X`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade`, que incluye el _script_ de actualización y las dependencias necesarias.
 
 == Requisitos
 
@@ -17,17 +18,6 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 * Archivo `secrets.yml` usado durante la creación del _cluster_.
 * Herramienta Docker, necesaria para ejecutar el contenedor.
 
-=== Específicos para EKS
-
-El `kubeconfig` generado por defecto en EKS tiene un _token_ con tiempo de vida limitado. Para evitar interrupciones, puedes generar un `kubeconfig` actualizado con:
-
-[source,bash]
-----
-  aws eks update-kubeconfig --region <region> --name <cluster_name>
-----
-  
-Este comando habilita la renovación automática del _token_ mediante AWS CLI. Además, debe proporcionarse el directorio local `~/.aws` al contenedor de actualización.
-
 == Ejecución del _script_
 
 === Construcción del contenedor
@@ -36,16 +26,7 @@ Ejecuta el contenedor Docker con la imagen de actualización de versión, montan
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config cloud-provisioner-upgrade:x.x.x
-----
-
-*Parámetros adicionales para EKS*
-
-Incluye el directorio de configuración de AWS:
-
-[source,bash]
-----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws cloud-provisioner-upgrade:x.x.x
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config cloud-provisioner-upgrade:0.7.X
 ----
 
 === Uso del _script_ de actualización de versión
@@ -62,6 +43,11 @@ Opciones principales:
 |=== 
 | _Flag_ | Descripción | Valor predeterminado | Obligatoria
 
+| `-p`, `--vault-password` 
+| Archivo con la contraseña del Vault necesaria para descifrar secretos. 
+| 
+| Sí
+
 | `-y`, `--yes` 
 | No requiere confirmación entre tareas (modo automático). 
 | False
@@ -72,20 +58,10 @@ Opciones principales:
 | ~/.kube/config
 | No
 
-| `-p`, `--vault-password` 
-| Archivo con la contraseña del Vault necesaria para descifrar secretos. 
-| 
-| Sí
-
 | `-s`, `--secrets` 
 | Archivo de secretos cifrados. 
 | secrets.yml
 | No
-
-| `-i`, `--user-assign-identity` 
-| ID asignado al usuario en Azure (_clientID_ de `nodes_identity`). 
-|
-| Sí (Azure)
 
 | `--enable-lb-controller` 
 | Activa el controlador de balanceador de carga en EKS (desactivado por defecto). 
@@ -101,35 +77,16 @@ Opciones principales:
 | Desactiva la preparación del entorno para el proceso de actualización. 
 | False
 | No
+
+| `--upgrade-cloud-provisioner-only`
+| Actualiza sólo los componentes de _cloud-provisioner_. Esto solo es compatible con entornos EKS.
+| False
+
+| `--skip-k8s-intermediate-version`
+| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes.Esto solo es compatible con entornos EKS.
+| False
+| No
 |===
-
-*Ejemplos:*
-
-* EKS en AWS:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p /ruta/vault-password --kubeconfig /ruta/kubeconfig
-----
-
-* Azure VMs:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p /ruta/vault-password --user-assign-identity <identity-client-id> --kubeconfig /ruta/kubeconfig
-----
-
-[NOTE]
-.Obtener `user-assign-identity` en Azure
-====
-Para obtener el `user-assign-identity` es posible recurrir al CLI de Azure:
-
-[source,bash]
-----
-az identity list --resource-group <resource-group>  --query "[?name=='<user-assign-identity-name>'].clientId" -o table
-----
-
-====
 
 == Estructura necesaria
 
@@ -140,5 +97,4 @@ Asegúrate de que el directorio de trabajo incluya:
 * `files/`: archivos adicionales (configuraciones, Helm, etc.).
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
-* `.aws/`: archivos de configuración de AWS (solo para EKS).
 * `.kube/`: directorio con el archivo _kubeconfig_.

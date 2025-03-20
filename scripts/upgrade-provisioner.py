@@ -5,12 +5,12 @@
 # Author: Stratio Clouds <clouds-integration@stratio.com>    #
 # Supported provisioner versions: 0.4.X                      #
 # Supported cloud providers:                                 #
-#   - AWS VMs & EKS                                          #
-#   - GCP VMs                                                #
-#   - Azure VMs & AKS                                        #
+#   - EKS                                                    #
+#   - Azure VMs                                              #
+#   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.5.0"
+__version__ = "0.7.0"
 
 import argparse
 import os
@@ -30,7 +30,8 @@ from ruamel.yaml import YAML
 from io import StringIO
 
 CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.5.0" 
+# TODO: Change when releasing cluster-operator
+CLUSTER_OPERATOR = "0.5.0-M1" 
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.4.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.6"
 
@@ -105,22 +106,22 @@ azure_vm_chart_versions = {
 
 
 namespaces = {
-        'aws-cloud-controller-manager': 'kube-system',
-        'aws-load-balancer-controller': 'kube-system',
-        'aws-ebs-csi-driver': 'kube-system',
-        'azuredisk-csi-driver': 'kube-system',
-        'azurefile-csi-driver': 'kube-system',
-        'cloud-provider-azure': 'kube-system',
-        'cluster-autoscaler': 'kube-system',
-        'calico': 'tigera-operator',
-        'tigera-operator': 'tigera-operator',
-        'cert-manager': 'cert-manager',
-        "flux": "kube-system",
-        "flux2": "kube-system",
-        "cluster-operator": "kube-system"
-    }
-        
-        
+    'aws-cloud-controller-manager': 'kube-system',
+    'aws-load-balancer-controller': 'kube-system',
+    'aws-ebs-csi-driver': 'kube-system',
+    'azuredisk-csi-driver': 'kube-system',
+    'azurefile-csi-driver': 'kube-system',
+    'cloud-provider-azure': 'kube-system',
+    'cluster-autoscaler': 'kube-system',
+    'calico': 'tigera-operator',
+    'tigera-operator': 'tigera-operator',
+    'cert-manager': 'cert-manager',
+    "flux": "kube-system",
+    "flux2": "kube-system",
+    "cluster-operator": "kube-system"
+}
+
+
 #Updatable Charts
 updatable_charts = ["cluster-autoscaler", "cloud-provider-azure", "cert-manager"]
 
@@ -159,15 +160,15 @@ def parse_args():
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-y", "--yes", action="store_true", help="Do not wait for confirmation between tasks")
     parser.add_argument("-k", "--kubeconfig", help="Set the kubeconfig file for kubectl commands, It can also be set using $KUBECONFIG variable", default="~/.kube/config")
-    parser.add_argument("-p", "--vault-password", help="Set the vault password file for decrypting secrets", required=True)
+    parser.add_argument("-p", "--vault-password", help="Set the vault password for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
     parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR)
-    parser.add_argument("-i", "--user-assign-identity", help="Set the secrets file for decrypting secrets")
     parser.add_argument("--enable-lb-controller", action="store_true", help="Install AWS Load Balancer Controller for EKS clusters (disabled by default)")
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
-    parser.add_argument("--upgrade-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
+    parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
+    parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
     args = parser.parse_args()
     return vars(args)
 
@@ -337,53 +338,28 @@ def install_lb_controller(cluster_name, account_id, dry_run):
 
 def patch_clusterrole_aws_node(dry_run):
     '''Patch aws-node ClusterRole'''
-    
-    aws_node_clusterrole = """
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: aws-node
-rules:
-  - apiGroups:
-      - crd.k8s.amazonaws.com
-    resources:
-      - eniconfigs
-    verbs: ["list", "watch", "get"]
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["list", "watch", "get"]
-  - apiGroups: [""]
-    resources:
-      - pods
-    verbs: ["list", "watch", "get", "patch"]
-  - apiGroups: [""]
-    resources:
-      - nodes
-    verbs: ["list", "watch", "get"]
-  - apiGroups: ["", "events.k8s.io"]
-    resources:
-      - events
-    verbs: ["create", "patch", "list"]
-  - apiGroups: ["networking.k8s.aws"]
-    resources:
-      - policyendpoints
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["networking.k8s.aws"]
-    resources:
-      - policyendpoints/status
-    verbs: ["get"]
-  - apiGroups:
-      - vpcresources.k8s.aws
-    resources:
-      - cninodes
-    verbs: ["get", "list", "watch", "patch"]
-"""
+
+    aws_node_clusterrole_name = "aws-node"
     print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
     if not dry_run:
-        command = "cat <<EOF | " + kubectl + " apply -f -" + aws_node_clusterrole + "EOF"
-        execute_command(command, False)
+        get_clusterrole_command = kubectl + " get clusterrole -o json " + aws_node_clusterrole_name + " | jq -r '.rules'"
+        cluster_role_rule = json.loads(execute_command(get_clusterrole_command, False))
+        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rule) if 'pods' in rule.get('resources', [])), None)
+        if rule_pods_index is not None:
+            verbs = cluster_role_rule[rule_pods_index].get('verbs', [])
+            if 'patch' not in verbs:
+                patch = [
+                    {
+                        "op": "add",
+                        "path": f"/rules/{rule_pods_index}/verbs/-",
+                        "value": "patch"
+                    }
+                ]
+                patch_clusterrole_command = kubectl + " patch clusterrole " + aws_node_clusterrole_name + " --type=json -p='" + json.dumps(patch) + "'"
+                execute_command(patch_clusterrole_command, False, False)
+        else:
+            print("[ERROR] Pods resource not found in the ClusterRole " + aws_node_clusterrole_name)
+            sys.exit(1)
     else:
         print("DRY-RUN")
 
@@ -433,6 +409,8 @@ def validate_k8s_version(validation, dry_run):
         return dry_run_version
     
 def upgrade_k8s_version_desired_version(minor, tries):
+    '''Get the Kubernetes desired version'''
+
     supported_k8s_versions = r"^1\.("+ minor +")\.\d+$"
     desired_k8s_version = input("Please provide the Kubernetes version to which you want to upgrade: ")
     if not re.match(supported_k8s_versions, desired_k8s_version):
@@ -607,7 +585,7 @@ spec:
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     '''Upgrade Kubernetes version'''
-    aks_enabled = provider == "azure" and managed
+
     current_k8s_version = get_kubernetes_version()
     current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
@@ -765,6 +743,8 @@ def get_chart_version(chart, namespace):
     
     command = helm + " -n " + namespace + " list"
     output = execute_command(command, False, False)
+    # NAME                NAMESPACE   REVISION    UPDATED                                 STATUS      CHART                   APP VERSION
+    # cluster-operator    kube-system 1           2025-03-17 10:11:40.845888283 +0000 UTC deployed    cluster-operator-0.2.0  0.2.0 
     for line in output.split("\n"):
         splitted_line = line.split()
         if chart == splitted_line[0]:
@@ -781,6 +761,7 @@ def get_version(version):
 
 def print_upgrade_support():
     '''Print the upgrade support message'''
+
     print("[WARN] Upgrading cloud-provisioner from a version minor than " + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " to " + CLOUD_PROVISIONER + " is NOT SUPPORTED")
     print("[WARN] You have to upgrade to cloud-provisioner:"+ CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " first")
     sys.exit(0)
@@ -951,6 +932,7 @@ def update_helmrelease_version(chart_name, namespace, version):
 
 def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only):
     '''Update the values of a HelmRelease'''
+
     try:
         print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
         
@@ -986,6 +968,7 @@ def stop_keoscluster_controller():
 
 def disable_keoscluster_webhooks():
     '''Disable the KEOSCluster webhooks'''
+
     try:
         backup_keoscluster_webhooks()
         print("[INFO] Disabling KEOSCluster webhooks:", end =" ", flush=True)
@@ -1000,6 +983,7 @@ def disable_keoscluster_webhooks():
 
 def backup_keoscluster_webhooks():
     '''Backup the KEOSCluster webhooks'''
+
     try:
         if not os.path.exists(backup_dir+'/cluster-operator'):
             os.makedirs(backup_dir+'/cluster-operator')
@@ -1041,6 +1025,7 @@ def backup_keoscluster_webhooks():
 
 def update_clusterconfig(cluster_config, charts, provider, cluster_operator_version):
     '''Update the clusterconfig'''
+
     try:
         print("[INFO] Updating clusterconfig:", end =" ", flush=True)
         clusterconfig_name = cluster_config["metadata"]["name"]
@@ -1069,6 +1054,7 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
     
 def restore_keoscluster_webhooks():
     '''Restore the KEOSCluster webhooks'''
+
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup...")
         print("[INFO] Restoring validation webhooks:", end =" ", flush=True)
@@ -1096,6 +1082,7 @@ def restore_keoscluster_webhooks():
 
 def start_keoscluster_controller():
     '''Start the KEOSCluster controller'''
+
     try:
         print("[INFO] Starting keoscluster-controller-manager deployment:", end =" ", flush=True)
 
@@ -1111,6 +1098,7 @@ def start_keoscluster_controller():
 
 def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remove):
     '''Update the ConfigMap'''
+
     try:
         print(f"[INFO] Updating the ConfigMap '{configmap_name}'. Removing {yaml_key_to_remove} from default values:", end=" ", flush=True)
         ryaml = YAML()
@@ -1157,14 +1145,36 @@ def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remov
         print("FAILED")
         print(f"[ERROR] Error updating the ConfigMap '{configmap_name}': {e}")
 
-    
+def configure_aws_credentials(vault_secrets_data):
+    print(f"[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
+    aws_access_key = vault_secrets_data['secrets']['aws']['credentials']['access_key']
+    aws_secret_key = vault_secrets_data['secrets']['aws']['credentials']['secret_key']
+    aws_region = vault_secrets_data['secrets']['aws']['credentials']['region']
+
+    command = f"aws configure set aws_access_key_id {aws_access_key}; \
+                aws configure set aws_secret_access_key {aws_secret_key}; \
+                aws configure set region {aws_region} "
+
+    run_command(command)
+    print("OK")
+
+def configure_azure_credentials(vault_secrets_data):
+    print(f"[INFO] Configuring Azure CLI credentials", end=" ", flush=True)
+    azure_client_id = vault_secrets_data['secrets']['azure']['credentials']['client_id']
+    azure_client_secret = vault_secrets_data['secrets']['azure']['credentials']['client_secret']
+    azure_subscription_id = vault_secrets_data['secrets']['azure']['credentials']['subscription_id']
+    azure_tenant_id = vault_secrets_data['secrets']['azure']['credentials']['tenant_id']
+
+    command = f"az login --service-principal --username {azure_client_id} \
+                --password {azure_client_secret} --tenant {azure_tenant_id}"
+
+    run_command(command)
+    print("OK")
+
+
 if __name__ == '__main__':
-    
-   
-    # Init variables
     start_time = time.time()
     backup_dir = "./backup/upgrade/"
-    binaries = ["clusterctl", "kubectl", "helm", "jq"]
     helm_repo = {}
     # Configurar el logger
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1179,12 +1189,6 @@ if __name__ == '__main__':
     else:
         kubeconfig = os.path.expanduser(config["kubeconfig"])
 
-    # Check binaries
-    for binary in binaries:
-        if not subprocess.getstatusoutput("which " + binary)[0] == 0:
-            print("[ERROR] " + binary + " binary not found in $PATH")
-            sys.exit(1)
-
     command = "clusterctl version -o short"
     status, output = subprocess.getstatusoutput(command)
     if (status != 0) or (get_version(output) < get_version(CLUSTERCTL)):
@@ -1198,6 +1202,20 @@ if __name__ == '__main__':
         print("[ERROR] Kubeconfig file not found")
         sys.exit(1)
 
+    # Get secrets
+    try:
+        vault = Vault(config["vault_password"])
+        vault_secrets_data = vault.load(open(config["secrets"]).read())
+    except Exception as e:
+        print("[ERROR] Decoding secrets file failed:\n" + str(e))
+        sys.exit(1)
+
+    # Configure aws CLI
+    if 'aws' in vault_secrets_data['secrets']:
+        configure_aws_credentials(vault_secrets_data)
+    elif 'azure' in vault_secrets_data['secrets']:
+        configure_azure_credentials(vault_secrets_data)
+
     print("[INFO] Using kubeconfig: " + kubeconfig)
 
     # Set kubectl
@@ -1207,7 +1225,6 @@ if __name__ == '__main__':
     helm = "helm --kubeconfig " + kubeconfig
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    upgrade_cloud_provisioner_only = config["upgrade_provisioner_only"]
 
     # Set cluster_name
     if "metadata" in keos_cluster:
@@ -1218,7 +1235,6 @@ if __name__ == '__main__':
     print("[INFO] Cluster name: " + cluster_name)
     if not config["dry_run"] and not config["yes"]:
         request_confirmation()
-        
 
     # Check kubectl access
     command = kubectl + " get cl -A --no-headers | awk '{print $1}'"
@@ -1227,12 +1243,18 @@ if __name__ == '__main__':
         print("[ERROR] Cluster not found. Verify the kubeconfig file")
         sys.exit(1)
 
-    # Get secrets
-    try:
-        vault = Vault(config["vault_password"])
-        data = vault.load(open(config["secrets"]).read())
-    except Exception as e:
-        print("[ERROR] Decoding secrets file failed:\n" + str(e))
+    # Check supported upgrades
+    provider = keos_cluster["spec"]["infra_provider"]
+    managed = keos_cluster["spec"]["control_plane"]["managed"]
+    if not ((provider == "aws" and managed) or (provider == "azure" and not managed) or (provider == "gcp" and managed)):
+        print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
+        sys.exit(1)
+
+    # Check special flags
+    upgrade_cloud_provisioner_only = config["upgrade_cloud_provisioner_only"]
+    skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
+    if provider != "aws" and (skip_k8s_intermediate_version or upgrade_cloud_provisioner_only):
+        print("[ERROR] --upgrade-cloud-provisioner-only and --skip-k8s-intermediate-version flags are only supported for EKS")
         sys.exit(1)
 
     # Set env vars
@@ -1241,11 +1263,9 @@ if __name__ == '__main__':
     helm_registry = input(f"The current helm repository is: {helm_registry_oci}. Do you want to indicate a new helm repository? Press enter or specify new repository: ")
     if helm_registry != "" and helm_registry != helm_registry_oci:
         update_helm_registry(cluster_name, helm_registry, config["dry_run"]) 
-    
-    #Update the clusterconfig and keoscluster
+
+    # Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    provider = keos_cluster["spec"]["infra_provider"]
-    managed = keos_cluster["spec"]["control_plane"]["managed"]
     cluster_operator_version = config["cluster_operator"]
     if provider == "aws":
         chart_versions = eks_chart_versions
@@ -1260,10 +1280,8 @@ if __name__ == '__main__':
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
                     charts["cluster-operator"]["chart_version"] = cluster_operator_version
-    aks_enabled = provider == "azure" and managed
     
-    if not aks_enabled:
-        scale_cluster_autoscaler(0, config["dry_run"])
+    scale_cluster_autoscaler(0, config["dry_run"])
     
     if provider == "aws":
         namespace = "capa-system"
@@ -1281,14 +1299,12 @@ if __name__ == '__main__':
         if config['user_assign_identity'] == "":
             print("[ERROR] The flag --user-assign-identity must be indicated with azure provider")
             sys.exit(1)
-        userAssignIdentity = config['user_assign_identity']
-        print(f"[INFO] User assigned identity: {userAssignIdentity}")
         namespace = "capz-system"
         version = CAPZ
         if managed:
             env_vars += " EXP_MACHINE_POOL=true"
-        if "credentials" in data["secrets"]["azure"]:
-            credentials = data["secrets"]["azure"]["credentials"]
+        if "credentials" in vault_secrets_data["secrets"]["azure"]:
+            credentials = vault_secrets_data["secrets"]["azure"]["credentials"]
             env_vars += " AZURE_CLIENT_ID_B64=" + base64.b64encode(credentials["client_id"].encode("ascii")).decode("ascii")
             env_vars += " AZURE_CLIENT_SECRET_B64=" + base64.b64encode(credentials["client_secret"].encode("ascii")).decode("ascii")
             env_vars += " AZURE_SUBSCRIPTION_ID_B64=" + base64.b64encode(credentials["subscription_id"].encode("ascii")).decode("ascii")
@@ -1297,18 +1313,18 @@ if __name__ == '__main__':
             print("[ERROR] Azure credentials not found in secrets file")
             sys.exit(1)
 
-    if "github_token" in data["secrets"]:
-        env_vars += " GITHUB_TOKEN=" + data["secrets"]["github_token"]
-        helm = "GITHUB_TOKEN=" + data["secrets"]["github_token"] + " " + helm
-        kubectl = "GITHUB_TOKEN=" + data["secrets"]["github_token"] + " " + kubectl
+    if "github_token" in vault_secrets_data["secrets"]:
+        env_vars += " GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"]
+        helm = "GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"] + " " + helm
+        kubectl = "GITHUB_TOKEN=" + vault_secrets_data["secrets"]["github_token"] + " " + kubectl
 
     # Set helm repository
     helm_repo["url"] = keos_cluster["spec"]["helm_repository"]["url"]
     if "auth_required" in keos_cluster["spec"]["helm_repository"]:
         if keos_cluster["spec"]["helm_repository"]["auth_required"]:
-            if "user" in data["secrets"]["helm_repository"] and "pass" in data["secrets"]["helm_repository"]:
-                helm_repo["user"] = data["secrets"]["helm_repository"]["user"]
-                helm_repo["pass"] = data["secrets"]["helm_repository"]["pass"]
+            if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
+                helm_repo["user"] = vault_secrets_data["secrets"]["helm_repository"]["user"]
+                helm_repo["pass"] = vault_secrets_data["secrets"]["helm_repository"]["pass"]
             else:
                 print("[ERROR] Helm repository credentials not found in secrets file")
                 sys.exit(1)
@@ -1326,10 +1342,10 @@ if __name__ == '__main__':
     # EKS LoadBalancer Controller
     if config["enable_lb_controller"]:
         if provider == "aws" and managed:
-            account_id = data["secrets"]["aws"]["credentials"]["account_id"]
+            account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
             install_lb_controller(cluster_name, account_id, config["dry_run"])
         else:
-            print("[WARN] AWS LoadBalancer Controller is only supported for EKS managed clusters")
+            print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
             sys.exit(0)
 
     # Cluster Operator
@@ -1347,9 +1363,7 @@ if __name__ == '__main__':
     networks = keos_cluster["spec"].get("networks", {})
     current_k8s_version = get_kubernetes_version()
     
-    
     if "1.30" in current_k8s_version:
-        
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'=True --timeout=5m"
         run_command(command)
@@ -1359,7 +1373,6 @@ if __name__ == '__main__':
         command = kubectl + " patch helmrelease cluster-operator -n kube-system --type merge --patch '{\"spec\":{\"suspend\":true}}'"
         run_command(command)
         print("OK")
-        
         
         stop_keoscluster_controller()
         disable_keoscluster_webhooks()
@@ -1385,40 +1398,46 @@ if __name__ == '__main__':
         )
         execute_command(command, False)
                 
-        keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         command = "kubectl wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
         run_command(command)
-        required_k8s_version=validate_k8s_version("first", False)
         
-        upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
+        if not skip_k8s_intermediate_version:
+            keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+            required_k8s_version=validate_k8s_version("first", False)
+            # Update kubernetes version to 1.31.X
+            upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
+        
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
         current_k8s_version = get_kubernetes_version()
     
-    if "1.31" in current_k8s_version:
-        
-        required_k8s_version=validate_k8s_version("second", False)
+    if "1.31" in current_k8s_version or ("1.30" in current_k8s_version and skip_k8s_intermediate_version)::
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
         command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
         run_command(command)
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
         run_command(command)
         print("OK")
-        
+
+        if skip_k8s_intermediate_version:
+            # Prepare cluster-operator for skipping validations to avoid upgrading to k8s intermediate versions
+            disable_keoscluster_webhooks()
+
+        required_k8s_version=validate_k8s_version("second", False)
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+        # Update kubernetes version to 1.32.X
         upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
-        
+
+        if skip_k8s_intermediate_version:
+            restore_keoscluster_webhooks()
+
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version)
     
     if not managed:
-        cp_global_network_policy("patch", networks, provider, backup_dir, False)
-        
-    if not managed:
         cp_global_network_policy("restore", networks, provider, backup_dir, False)
         
-    if not aks_enabled:
-        scale_cluster_autoscaler(2, config["dry_run"])
+    scale_cluster_autoscaler(2, config["dry_run"])
    
     end_time = time.time()
     elapsed_time = end_time - start_time
