@@ -884,7 +884,8 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DescribeTags",
 				"elasticloadbalancing:DescribeTargetGroups",
 				"elasticloadbalancing:DescribeTargetGroupAttributes",
-				"elasticloadbalancing:DescribeTargetHealth"
+				"elasticloadbalancing:DescribeTargetHealth",
+        "shield:GetSubscriptionState"
 			],
 			"Effect": "Allow",
 			"Resource": "*"
