@@ -1,4 +1,4 @@
-= Version upgrade script
+= Version upgrade
 
 == Description
 
@@ -139,6 +139,6 @@ Ensure that the working directory includes the following:
 * `templates/`: Jinja2 templates.
 * `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
-* `secrets.yml`: cluster credentials.  
+* `secrets.yml`: cluster credentials.
 * `.aws/`: AWS configuration files (EKS only).
 * `.kube/`: directory containing the `kubeconfig` file.
