@@ -756,7 +756,8 @@ Actualmente, este binario incluye las siguientes opciones:
 - `--avoid-creation`: no se crea el _cluster_ _worker_, sólo el _cluster_ local.
 - `--keep-mgmt`: crea el _cluster_ _worker_ pero deja su gestión en el _cluster_ local (sólo para entornos *no productivos*).
 - `--retain`: permite mantener el _cluster_ local aún sin gestión.
-- `--use-local-stratio-image`: no se construye la imagen _stratio-capi-image_ y usa la imagen local.
+- `--use-local-stratio-image`: no se construye ni se descarga la imagen de Statio _cloud-provisioner_ y usa la imagen local.
+- `--build-stratio-image`: se construye la imagen de Stratio _cloud-provisioner_ y usa la imagen construida (sólo para fines de desarrollo).
 
 Para crear un _cluster_, basta con un simple comando (consulta las particularidades de cada proveedor en sus guías de inicio rápido):
 
@@ -766,7 +767,7 @@ sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-
 Vault Password:
 Creating temporary cluster "stratio-pre" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Building Stratio image (cloud-provisioner:<version>) 📸
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -877,7 +878,8 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DescribeTags",
 				"elasticloadbalancing:DescribeTargetGroups",
 				"elasticloadbalancing:DescribeTargetGroupAttributes",
-				"elasticloadbalancing:DescribeTargetHealth"
+				"elasticloadbalancing:DescribeTargetHealth",
+        "shield:GetSubscriptionState"
 			],
 			"Effect": "Allow",
 			"Resource": "*"
@@ -930,3 +932,11 @@ $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document f
 ----
 $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${AWS_IAM_POLICY_NAME}
 ----
+
+* Reiniciar el controlador (_aws-load-balancer-controller-manager_):
++
+[source,console]
+----
+$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller-manager
+----
+

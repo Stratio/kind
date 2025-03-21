@@ -28,7 +28,7 @@ import (
 )
 
 // Version returns the kind CLI Semantic Version
-func Version() string {
+func Version(useGitCommit bool) string {
 	v := versionCore
 	// add pre-release version info if we have it
 	if versionPreRelease != "" {
@@ -39,7 +39,7 @@ func Version() string {
 			v += "-" + versionPreRelease
 		}
 		// otherwise if commit was set, add to the pre-release version
-		if gitCommit != "" {
+		if useGitCommit && gitCommit != "" {
 			// NOTE: use 14 character short hash, like Kubernetes
 			v += " GitCommit:" + truncate(gitCommit, 14)
 		}
@@ -50,12 +50,12 @@ func Version() string {
 // DisplayVersion is Version() display formatted, this is what the version
 // subcommand prints
 func DisplayVersion() string {
-	return "cloud-provisioner Version:" + Version() + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
+	return "cloud-provisioner Version:" + Version(true) + " GoVersion:" + runtime.Version() + " Platform:" + runtime.GOOS + "/" + runtime.GOARCH
 }
 
 // versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
 
-const versionCore = "0.17.0-0.7.0"
+const versionCore = "0.17.0-0.8.0"
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0
@@ -86,7 +86,7 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 				fmt.Fprintln(streams.Out, DisplayVersion())
 			} else {
 				// otherwise only show semver
-				fmt.Fprintln(streams.Out, Version())
+				fmt.Fprintln(streams.Out, Version(true))
 			}
 			return nil
 		},

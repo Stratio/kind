@@ -254,14 +254,14 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en Azure no ges
 | v1.30.0
 
 | *cluster-operator*
-| *0.4.0*
+| *0.5.0*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.4.0
+| 0.5.0
 
 |
 |

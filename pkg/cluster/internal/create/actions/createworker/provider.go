@@ -209,26 +209,6 @@ var scTemplate = DefaultStorageClass{
 
 var commonsCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
-		"28": {
-			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
-			},
-			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
-			},
-		},
-		"29": {
-			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
-			},
-			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
-			},
-		},
 		"30": {
 			"managed": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
@@ -236,6 +216,26 @@ var commonsCharts = ChartsDictionary{
 			},
 			"unmanaged": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+		},
+		"31": {
+			"managed": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+			"unmanaged": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.14.5", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+		},
+		"32": {
+			"managed": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.17.0", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+			"unmanaged": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.17.0", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
@@ -338,7 +338,6 @@ func ConvertToChart(chartEntries map[string]commons.ChartEntry) *[]commons.Chart
 
 func getGenericCharts(clusterConfigSpec *commons.ClusterConfigSpec, keosSpec commons.KeosSpec, chartDictionary ChartsDictionary, clusterType string) map[string]commons.ChartEntry {
 	chartsToInstall := chartDictionary.Charts[majorVersion][clusterType]
-
 	for _, overrideChart := range clusterConfigSpec.Charts {
 		chart := chartsToInstall[overrideChart.Name]
 		if !reflect.DeepEqual(chart, commons.ChartEntry{}) {

@@ -12,7 +12,7 @@ ENV HELM=v3.13.1
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 ARG CAPA=v2.5.2
-ARG CAPG=1.6.1-0.3.0
+ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
 
 # Install and update dependencies
@@ -23,8 +23,34 @@ RUN apt-get update \
                           libnghttp2-14 \
                           python3-pip \
                           vim \
+                          python3-venv \
+                          gcc \
+                          libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV PYTHON_VENV=/opt/venv
+ENV PATH="${PYTHON_VENV}/bin:$PATH"
+
+# Create a virtual environment to isolate our package dependencies locally
+RUN python3 -m venv $PYTHON_VENV
+
+# Upgrade pip and install necessary Python tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Install PyYAML, ensuring to use a version compatible with other awscli dependencies
+RUN pip install "PyYAML==6.0.2"
+
+# Install each dependency required by awscli explicitly to control the versions
+RUN pip install "botocore==1.29.22"
+RUN pip install "docutils<0.17"
+RUN pip install "s3transfer<0.7.0,>=0.6.0"
+RUN pip install "colorama<0.4.5,>=0.2.5"
+RUN pip install "rsa<4.8,>=3.1.2"
+
+# Install awscli without any dependencies to avoid conflicts
+RUN pip install --no-deps awscli==1.27.22
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \

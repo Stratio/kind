@@ -14,16 +14,16 @@ spec:
         kind: HelmRepository
         name: {{ $.ChartRepoRef }}
         namespace: kube-system
-      interval: 1m
-  interval: 1m
+      interval: {{ $.HelmReleaseSourceInterval }}
+  interval: {{ $.HelmReleaseInterval }}
   install:
     crds: CreateReplace
     remediation:
-      retries: 3
+      retries: {{ $.HelmReleaseRetries }}
   upgrade:
     crds: CreateReplace
     remediation:
-      retries: 3
+      retries: {{ $.HelmReleaseRetries }}
       remediateLastFailure: true
     force: false
   valuesFrom:

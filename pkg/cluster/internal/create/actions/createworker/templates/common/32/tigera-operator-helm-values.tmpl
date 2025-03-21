@@ -1,12 +1,26 @@
 ---
 apiServer:
   enabled: false
+defaultFelixConfiguration:
+  enabled: false
 calicoctl:
 {{- if $.Private }}
   image: {{ $.KeosRegUrl }}/calico/ctl
 {{- else }}
   image: docker.io/calico/ctl
 {{- end }}
+  tag: 3.29.1
+certs:
+  node:
+    cert:
+    commonName:
+    key:
+  typha:
+    caBundle:
+    cert:
+    commonName:
+    key:
+imagePullSecrets: {}
 installation:
   calicoNetwork:
     bgp: {{- if or ($.Spec.ControlPlane.Managed) (eq $.Spec.InfraProvider "azure") }} Disabled {{- else }} Enabled {{- end }}
@@ -48,6 +62,10 @@ installation:
 # NodeSelector for the tigera/operator pod.
 nodeSelector:
   kubernetes.io/os: linux
+# Affinity for the tigera/operator pod.
+affinity: {}
+# PriorityClassName for the tigera/operator pod.
+priorityClassName: ""
 # Custom annotations for the tigera/operator pod.
 podAnnotations:
 {{- range $key, $value := $.Annotations }}
@@ -65,9 +83,14 @@ tigeraOperator:
   registry: quay.io
 {{- end }}
   image: tigera/operator
+  version: v1.36.2
 # Tolerations for the tigera/operator pod.
 tolerations:
   - effect: NoExecute
     operator: Exists
   - effect: NoSchedule
     operator: Exists
+# Optionally configure the host and port used to access the Kubernetes API server.
+kubernetesServiceEndpoint:
+  host: ""
+  port: "6443"

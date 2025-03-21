@@ -756,7 +756,8 @@ Currently, this binary includes the following options:
 - `--avoid-creation`: does not create the cluster worker, only the cluster local.
 - `--keep-mgmt`: creates the cluster worker but leaves its management in the cluster local (only for *non-productive* environments).
 - `--retain`: keeps the cluster local even without management.
-- `--use-local-stratio-image`: do not build the _stratio-capi-image_ and use the local image.
+- `--use-local-stratio-image`: does not build or download the Stratio _cloud-provisioner_ image; instead, it uses the local image.
+- `--build-stratio-image`: builds the Stratio _cloud-provisioner_ image and uses the built image (only for development purposes).
 
 To create a cluster, a simple command is enough (see the particularities of each provider in their quick start guides):
 
@@ -766,7 +767,7 @@ sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-
 Vault Password:
 Creating temporary cluster "stratio-pre" ...
  ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (stratio-capi-image:v1.27.0) 📸
+ ✓ Building Stratio image (cloud-provisioner:<version>) 📸
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -877,7 +878,8 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DescribeTags",
 				"elasticloadbalancing:DescribeTargetGroups",
 				"elasticloadbalancing:DescribeTargetGroupAttributes",
-				"elasticloadbalancing:DescribeTargetHealth"
+				"elasticloadbalancing:DescribeTargetHealth",
+        "shield:GetSubscriptionState"
 			],
 			"Effect": "Allow",
 			"Resource": "*"
@@ -929,4 +931,11 @@ $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document f
 [source,console]
 ----
 $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${AWS_IAM_POLICY_NAME}
+----
+
+* Restart the controller (_aws-load-balancer-controller-manager_):
++
+[source,console]
+----
+$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller-manager
 ----
