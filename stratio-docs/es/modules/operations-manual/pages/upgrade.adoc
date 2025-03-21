@@ -40,7 +40,7 @@ python3 upgrade-provisioner.py [OPTIONS]
 
 Opciones principales:
 
-|=== 
+|===
 | _Flag_ | Descripción | Valor predeterminado | Obligatoria
 
 | `-p`, `--vault-password`
