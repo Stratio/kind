@@ -43,7 +43,7 @@ Opciones principales:
 | _Flag_ | Descripción | Valor predeterminado | Obligatoria
 
 | `-p`, `--vault-password` 
-| Contraseña del Vault necesaria para descifrar secretos. 
+| Contraseña de Vault necesaria para descifrar secretos. 
 | 
 | Sí
 
@@ -83,7 +83,7 @@ Opciones principales:
 | No
 
 | `--skip-k8s-intermediate-version`
-| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes.Esto solo es compatible con entornos EKS.
+| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
 | False
 | No
 |===
