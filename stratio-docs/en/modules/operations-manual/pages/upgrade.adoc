@@ -44,8 +44,8 @@ Key options:
 | Flag | Description | Default Value | Mandatory
 
 | `-p`, `--vault-password`
-| File containing the Vault password needed to decrypt secrets.
-|
+| Specifies a file with the Vault password to decrypt secrets.
+| None
 | Yes
 
 | `-y`, `--yes`
@@ -79,11 +79,12 @@ Key options:
 | No
 
 | `--upgrade-cloud-provisioner-only`
-| Prepare the upgrade process for the cloud-provisioner upgrade only. This is only supported in EKS environments.
+| Updates only the _cloud-provisioner_ components. Compatible only with EKS environments.
 | False
+| No
 
 | `--skip-k8s-intermediate-version`
-| Skips updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
+| Skips the upgrade of _workers_ to an intermediate Kubernetes version. Compatible only with EKS environments.
 | False
 | No
 |===
