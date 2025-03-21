@@ -14,3 +14,4 @@
 *** xref:operations-manual:offline-installation/common-images.adoc[]
 ** xref:operations-manual:api-reference.adoc[]
 ** xref:operations-manual:upgrade.adoc[]
+** xref:operations-manual:credentials.adoc[]
