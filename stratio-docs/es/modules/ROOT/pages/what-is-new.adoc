@@ -1,1 +1,12 @@
-TODO
+= Novedades
+
+Las principales novedades de esta versión de _Stratio Cloud Provisioner_ son:
+
+* Se añade compatibilidad con Kubernetes 1.32.
+* Se actualizan _cluster-operator_ (v0.5.0), Flux (v2.14.1) y Tigera Operator (v3.29.1).
+* Se mejoran la gestión de imágenes y las referencias en CAPZ, CoreDNS, _cluster-api-gcp_ y _kube-rbac-proxy_.
+* Se eliminan referencias obsoletas a AKS, AWS gestionado y GCP gestionado.
+* Se amplían validaciones y soporte en GKE (CMEK, Service Accounts, CIDRs).
+* Se añade la política de red `deny-all-egress-imds_gnetpol`.
+* Se actualiza la documentación sobre imágenes Docker y su flujo de CI/CD.
+* Se integra la versión 0.5 en master y se corrige un error en _aws-load-balancer-controller_.

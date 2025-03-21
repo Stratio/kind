@@ -1,5 +1,6 @@
 * xref:ROOT:introduction.adoc[]
 * xref:ROOT:what-is-new.adoc[]
+** xref:ROOT:what-is-new/release-notes.adoc[]
 * xref:ROOT:architecture.adoc[]
 * xref:ROOT:quick-start-guide.adoc[]
 * xref:operations-manual:operations-manual.adoc[]
