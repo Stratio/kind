@@ -7,7 +7,7 @@ The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the
 - *EKS* on AWS.
 - *Azure VMs*.
 
-It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.X` to the one provided by `cloud-provisioner 0.6.X`. To ensure a reproducible runtime environment, the Docker image `stratio-cloud-provisioner-upgrade-image` has been created, which includes the upgrade script and all necessary dependencies.
+It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.X` to that provided by `cloud-provisioner 0.6.X`. To ensure a reproducible runtime environment, the Docker image `stratio-cloud-provisioner-upgrade-image` has been created, which includes the upgrade script and all necessary dependencies.
 
 == Requirements
 
@@ -83,7 +83,7 @@ Key options:
 | No
 
 | `--skip-k8s-intermediate-version`
-| Skips updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
+| Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
 | False
 | No
 |===
