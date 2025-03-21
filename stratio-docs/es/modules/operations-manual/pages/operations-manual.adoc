@@ -1,13 +1,5 @@
 = Manual de operaciones
 
-== Generación de imágenes personalizadas
-
-Para la generación de imágenes personalizadas en los diferentes proveedores _cloud_ se ha creado una documentación de referencia para cada uno de ellos que se puede encontrar en los siguientes enlaces:
-
-* xref:operations-manual:image-builder/aws-image-builder.adoc[AWS]
-* xref:operations-manual:image-builder/azure-image-builder.adoc[Azure]
-* xref:operations-manual:image-builder/gcp-image-builder.adoc[GCP]
-
 == Obtención del _kubeconfig_
 
 Para comunicarse con el _API Server_ del _cluster_ creado es necesario el fichero _kubeconfig_, que se obtendrá de forma diferente según el proveedor _cloud_ utilizado y la gestión del _control-plane_ del _cluster_.
