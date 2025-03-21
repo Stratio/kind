@@ -1,0 +1,30 @@
+{
+    "Name": "stratio-azure-workers-role",
+    "IsCustom": true,
+    "Description": "Stratio azure workers permissions",
+    "Actions": [
+        "Microsoft.Authorization/*/read",
+        "Microsoft.Compute/disks/read",
+        "Microsoft.Compute/disks/write",
+        "Microsoft.ContainerRegistry/registries/pull/read",
+        "Microsoft.Insights/alertRules/*",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/read",
+        "Microsoft.Resources/deployments/*",
+        "Microsoft.Resources/subscriptions/resourceGroups/read",
+        "Microsoft.Storage/storageAccounts/delete",
+        "Microsoft.Storage/storageAccounts/fileServices/shares/delete",
+        "Microsoft.Storage/storageAccounts/fileServices/shares/read",
+        "Microsoft.Storage/storageAccounts/fileServices/shares/write",
+        "Microsoft.Storage/storageAccounts/listKeys/action",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Storage/storageAccounts/write",
+        "Microsoft.Support/*"
+    ],
+    "NotActions": [
+        "Microsoft.Compute/galleries/share/action"
+    ],
+    "AssignableScopes": [
+        "/subscriptions/6e2a38cd-ef16-47b3-a75e-5a4960cedf65/"
+    ]
+}
