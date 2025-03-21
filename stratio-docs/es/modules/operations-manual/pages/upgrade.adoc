@@ -1,4 +1,4 @@
-= _Script_ de actualización de versión
+= Actualización de versión
 
 == Descripción
 

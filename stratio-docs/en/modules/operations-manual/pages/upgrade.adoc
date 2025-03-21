@@ -1,4 +1,4 @@
-= Version upgrade script
+= Version upgrade
 
 == Description
 
