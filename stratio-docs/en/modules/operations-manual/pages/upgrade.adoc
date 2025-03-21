@@ -49,12 +49,12 @@ Key options:
 | Yes
 
 | `-y`, `--yes`
-| Skip task confirmations (automatic mode).
+| Skips task confirmations (automatic mode).
 | False
 | No
 
 | `-k`, `--kubeconfig`
-| Specify the Kubectl configuration file to use.
+| Specifies the Kubectl configuration file to use.
 | ~/.kube/config
 | No
 
@@ -64,17 +64,17 @@ Key options:
 | No
 
 | `--enable-lb-controller`
-| Enable the load balancer controller in EKS (disabled by default).
+| Enables the load balancer controller in EKS (disabled by default).
 | False
 | No
 
 | `--disable-backup`
-| Disable backup before upgrading (enabled by default).
+| Disables backup before upgrading (enabled by default).
 | False
 | No
 
 | `--disable-prepare-capsule`
-| Disable environment preparation for the upgrade process.
+| Disables environment preparation for the upgrade process.
 | False
 | No
 
