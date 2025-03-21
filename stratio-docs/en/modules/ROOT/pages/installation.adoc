@@ -884,7 +884,8 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DescribeTags",
 				"elasticloadbalancing:DescribeTargetGroups",
 				"elasticloadbalancing:DescribeTargetGroupAttributes",
-				"elasticloadbalancing:DescribeTargetHealth"
+				"elasticloadbalancing:DescribeTargetHealth",
+        "shield:GetSubscriptionState"
 			],
 			"Effect": "Allow",
 			"Resource": "*"
@@ -936,4 +937,11 @@ $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document f
 [source,console]
 ----
 $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${AWS_IAM_POLICY_NAME}
+----
+
+* Restart the controller (_aws-load-balancer-controller-manager_):
++
+[source,console]
+----
+$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller-manager
 ----
