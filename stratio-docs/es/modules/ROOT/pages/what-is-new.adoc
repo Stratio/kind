@@ -4,16 +4,6 @@ Las principales novedades de esta versión de _Stratio Cloud Provisioner_ son:
 
 * Las réplicas de CoreDNS ahora se distribuyen en nodos diferentes para mejorar la disponibilidad.
 * Se crean volúmenes por defecto para containerd, etcd y la raíz del sistema si no se especifican en la configuración del _keoscluster_.
-* Compatibilidad con Kubernetes 1.30.
-* Se han marcado como obsoletas las versiones de Kubernetes anteriores a la 1.28.
-* Actualización del Tigera Operator a la versión 3.28.2.
-* Se ha deshabilitado la monitorización y el registro de _logs_ gestionados.
-* Compatibilidad con _clusters_ privados en GKE.
+* Compatibilidad con Kubernetes 1.30. Se han marcado como obsoletas las versiones anteriores a la 1.28.
+* Actualización de Tigera Operator a la versión 3.28.2.
 * Se ha añadido la opción "use-local-stratio-image" para reutilizar imágenes locales.
-* Los archivos YAML de CoreDNS se han sustituido por una única plantilla (tmpl).
-* En GKE, se ha eliminado la instalación de Calico como gestor de políticas a través de _Helm Chart_.
-* Se ha añadido soporte para deshabilitar el _endpoint_ externo en GKE.
-* Se ha eliminado la ruta `/stratio` en la referencia de la imagen del _kube-rbac-proxy_.
-* Se ha desacoplado CAPX del aprovisionador en la nube y ahora es posible especificar versiones en la configuración del _cluster_.
-* CAPX ya no depende del Dockerfile.
-* Se han añadido validaciones para _clusters_ privados en GKE.
