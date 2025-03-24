@@ -1,3 +1,6 @@
 = What's new
 
 The key updates in this version of _Stratio Cloud Provisioner_ are:
+
+* Added support for Kubernetes 1.32.
+* Updated _cluster-operator_ (v0.5.0), Flux (v2.14.1), and Tigera Operator (v3.29.1).

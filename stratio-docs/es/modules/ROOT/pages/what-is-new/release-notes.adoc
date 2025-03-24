@@ -1,3 +1,11 @@
 = Notas de _release_
 
 Estos son los aspectos más destacados de las versiones de _Stratio Cloud Provisioner_ para los últimos lanzamientos:
+
+== 0.17.0-0.6 (15 de noviembre de 2024)
+
+* Las réplicas de CoreDNS ahora se distribuyen en nodos diferentes para mejorar la disponibilidad.
+* Se crean volúmenes por defecto para containerd, etcd y la raíz del sistema si no se especifican en la configuración del _keoscluster_.
+* Compatibilidad con Kubernetes 1.30. Se han marcado como obsoletas las versiones anteriores a la 1.28.
+* Actualización de Tigera Operator a la versión 3.28.2.
+* Se ha añadido la opción "use-local-stratio-image" para reutilizar imágenes locales.
