@@ -23,7 +23,6 @@ ENV AWS_CONFIG_FILE=/upgrade/.aws/config
 ENV AWS_SHARED_CREDENTIALS_FILE=/upgrade/.aws/credentials
 ENV KUBECONFIG=/upgrade/.kube/config
 
-
 # Upodate packages and install essential tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -33,12 +32,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     unzip \
     && rm -rf /var/lib/apt/lists/*
-
-# Install AWS CLI v2.15.60
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.15.60.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && rm -rf awscliv2.zip ./aws
 
 # Install kubectl
 RUN curl -LO https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \
@@ -71,7 +64,7 @@ RUN mkdir -p ${CAPI_REPO}/infrastructure-aws/${CAPA} ${CAPI_REPO}/infrastructure
   && echo "  - name: kubeadm\n    url: ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/bootstrap-components.yaml\n    type: BootstrapProvider" >> /root/.cluster-api/clusterctl.yaml \
   && echo "  - name: kubeadm\n    url: ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/control-plane-components.yaml\n    type: ControlPlaneProvider" >> /root/.cluster-api/clusterctl.yaml \
   && echo "  - name: cluster-api\n    url: ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/core-components.yaml\n    type: CoreProvider" >> /root/.cluster-api/clusterctl.yaml 
-  
+
 
 # Download cluster-api artifacts
 RUN for i in metadata.yaml infrastructure-components.yaml; do \
@@ -96,7 +89,6 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
     && echo 'alias capg-logs="kubectl -n capg-system logs -f deploy/capg-controller-manager"' >> ~/.bash_aliases \
     && echo 'alias capz-logs="kubectl -n capz-system logs -f deploy/capz-controller-manager"' >> ~/.bash_aliases \
     && echo 'alias kc-logs="kubectl -n kube-system logs -f deploy/keoscluster-controller-manager"' >> ~/.bash_aliases
-
 
 # Copy the upgrade scripts and files
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
