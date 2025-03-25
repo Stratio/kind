@@ -127,8 +127,7 @@ func getECRCredentials(clusterCredentials commons.ClusterCredentials, keosRegUrl
 		"AccessKey": clusterCredentials.ProviderCredentials["AccessKey"],
 		"SecretKey": clusterCredentials.ProviderCredentials["SecretKey"],
 	}
-	region := strings.Split(keosRegUrl, ".")[3]
-	cfg, err := commons.AWSGetConfig(ctx, credentials, region)
+	cfg, err := commons.AWSGetConfig(ctx, credentials)
 	if err != nil {
 		return "", "", err
 	}
