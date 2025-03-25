@@ -7,7 +7,8 @@
 ## Previous development
 
 ### Branched to branch-0.17.0-0.7 (2025-03-18)
-
+ 
+ * [PLT-1849]  -  Fix aws-load-balancer-controller annotation
  * [PLT-1621] -  Add kubernetes 1.32 support  - [`#689`](https://github.com/Stratio/kind/pull/689)
  * [PLT-1741] -  Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation  - [`#701`](https://github.com/Stratio/kind/pull/701)
  * [PLT-1682] -  Improve kindest/node and stratio-capi-image management  - [`#685`](https://github.com/Stratio/kind/pull/685)
