@@ -170,7 +170,7 @@ The _spec_ of the _KeosCluster_ is composed of the following fields:
 
 On the first execution, the credentials for provisioning in the cloud provider will be indicated in this section.
 
-These secrets are encrypted with a passphrase requested from within the provisioning in the _secrets.yml_ file, thus removing the entire credentials section of the descriptor. In subsequent executions, the passphrase is simply requested to decrypt the secrets file, from which the credentials are read.
+These secrets are encrypted with a passphrase requested during provisioning and stored in the _secrets.yml_ file, removing the entire credentials section from the descriptor. In subsequent executions, the passphrase is simply requested to decrypt the secrets file, from which the credentials are read.
 
 The following fields are considered provisioning secrets:
 
