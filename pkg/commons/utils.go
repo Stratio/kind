@@ -35,6 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	vault "github.com/sosedoff/ansible-vault-go"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -311,10 +312,11 @@ func Contains(s []string, str string) bool {
 	return false
 }
 
-func AWSGetConfig(ctx context.Context, secrets map[string]string, region string) (aws.Config, error) {
+func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, error) {
 	customProvider := credentials.NewStaticCredentialsProvider(
 		secrets["AccessKey"], secrets["SecretKey"], "",
 	)
+	region := secrets["Region"]
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(customProvider),
@@ -322,6 +324,23 @@ func AWSGetConfig(ctx context.Context, secrets map[string]string, region string)
 	)
 	if err != nil {
 		return aws.Config{}, err
+	}
+
+	if roleARN, ok := secrets["RoleARN"]; ok && roleARN != "false" {
+		stsSvc := sts.NewFromConfig(cfg)
+		assumeRoleOutput, err := stsSvc.AssumeRole(ctx, &sts.AssumeRoleInput{
+			RoleArn:         aws.String(roleARN),
+			RoleSessionName: aws.String("assume-role-session"),
+		})
+		if err != nil {
+			return aws.Config{}, err
+		}
+
+		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(
+			*assumeRoleOutput.Credentials.AccessKeyId,
+			*assumeRoleOutput.Credentials.SecretAccessKey,
+			*assumeRoleOutput.Credentials.SessionToken,
+		))
 	}
 	return cfg, nil
 }

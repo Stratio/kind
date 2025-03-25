@@ -18,6 +18,7 @@ package createworker
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
@@ -32,6 +33,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -1086,7 +1088,7 @@ func customCoreDNS(n nodes.Node, keosCluster commons.KeosCluster) error {
 }
 
 // installCAPXWorker installs CAPX in the worker cluster
-func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosCluster, clusterConfig commons.ClusterConfig, kubeconfigPath string) error {
+func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosCluster, clusterConfig commons.ClusterConfig, kubeconfigPath string, providerParams ProviderParams) error {
 	var c string
 	var err error
 
@@ -1122,6 +1124,39 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 	_, err = commons.ExecuteCommand(n, c, 5, 3, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in workload cluster")
+	}
+
+	// [EKS] If we are using assume role, update capa-manager-bootstrap-credentials secret
+	if providerParams.Credentials["RoleARN"] != "" {
+		// Update secret capa-manager-bootstrap-credentials with new credentials
+		providerSecrets := providerParams.Credentials
+		var cfg aws.Config
+		var err error
+		// Step 1: Get AWS Config in order to retrieve new credentials with session token
+		cfg, err = commons.AWSGetConfig(context.TODO(), providerSecrets)
+		if err != nil {
+			return err
+		}
+		// Step 2: Retrieve new credentials
+		creds, err := cfg.Credentials.Retrieve(context.TODO())
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve new credentials")
+		}
+		// Step 3: Encode new credentials to base64
+		credentialsString := fmt.Sprintf("[default]\naws_access_key_id=%s\naws_secret_access_key=%s\naws_session_token=%s\n", creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+		credentialsString = base64.StdEncoding.EncodeToString([]byte(credentialsString))
+		// Step 4: Patch secret with new credentials
+		c = "kubectl -n capa-system patch secret capa-manager-bootstrap-credentials -p '{\"data\":{\"credentials\":\"" + credentialsString + "\"}}'"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to update capa-manager-bootstrap-credentials secret")
+		}
+		// Step 5: Rollout restart capa-controller-manager
+		c = "kubectl -n capa-system rollout restart deployment capa-controller-manager"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to restart capa-controller-manager")
+		}
 	}
 
 	// GKE by default limits the consumption of this priority class using ResourceQuota
@@ -1300,7 +1335,7 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 }
 
 // installCAPXLocal installs CAPX in the local cluster
-func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterConfig) error {
+func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterConfig, providerParams ProviderParams) error {
 	var c string
 	var err error
 
@@ -1334,6 +1369,39 @@ func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterC
 	_, err = commons.ExecuteCommand(n, c, 5, 3, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")
+	}
+
+	// [EKS] If we are using assume role, update capa-manager-bootstrap-credentials secret
+	if providerParams.Credentials["RoleARN"] != "false" {
+		// Update secret capa-manager-bootstrap-credentials with new credentials
+		providerSecrets := providerParams.Credentials
+		var cfg aws.Config
+		var err error
+		// Step 1: Get AWS Config in order to retrieve new credentials with session token
+		cfg, err = commons.AWSGetConfig(context.TODO(), providerSecrets)
+		if err != nil {
+			return err
+		}
+		// Step 2: Retrieve new credentials
+		creds, err := cfg.Credentials.Retrieve(context.TODO())
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve new credentials")
+		}
+		// Step 3: Encode new credentials to base64
+		credentialsString := fmt.Sprintf("[default]\naws_access_key_id=%s\naws_secret_access_key=%s\naws_session_token=%s\n", creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+		credentialsString = base64.StdEncoding.EncodeToString([]byte(credentialsString))
+		// Step 4: Patch secret with new credentials
+		c = "kubectl -n capa-system patch secret capa-manager-bootstrap-credentials -p '{\"data\":{\"credentials\":\"" + credentialsString + "\"}}'"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to update capa-manager-bootstrap-credentials secret")
+		}
+		// Step 5: Rollout restart capa-controller-manager
+		c = "kubectl -n capa-system rollout restart deployment capa-controller-manager"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to restart capa-controller-manager")
+		}
 	}
 
 	return nil

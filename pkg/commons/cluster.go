@@ -366,6 +366,7 @@ type AWSCredentials struct {
 	SecretKey string `yaml:"secret_key"`
 	Region    string `yaml:"region"`
 	AccountID string `yaml:"account_id"`
+	RoleARN   string `yaml:"role_arn"`
 }
 
 type AzureCredentials struct {
