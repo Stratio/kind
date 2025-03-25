@@ -170,7 +170,7 @@ El _spec_ del _KeosCluster_ está compuesto por los siguientes campos:
 
 En la primera ejecución, las credenciales para el aprovisionamiento en el proveedor _cloud_ se indicarán en este apartado.
 
-Estos secretos se cifran con una _passphrase_ solicitada desde en el aprovisionamiento en el fichero _secrets.yml_, eliminándose todo el apartado de credenciales del descriptor. En posteriores ejecuciones, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, de donde se leen las credenciales.
+Estos secretos se cifran con una _passphrase_ solicitada durante el aprovisionamiento en el fichero _secrets.yml_, eliminándose todo el apartado de credenciales del descriptor. En posteriores ejecuciones, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, de donde se leen las credenciales.
 
 Los siguientes campos son considerados secretos del aprovisionamiento:
 
