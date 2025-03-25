@@ -65,7 +65,7 @@ Para cualquier personalización extra, deberá modificarse el fichero antes de e
 * La versión de Kubernetes indicada debe estar soportada por EKS.
 * Los nombres de los grupos de _worker++_++nodes_ no pueden repetirse.
 
-TIP: Para más detalles, consulta la xref:ROOT:installation.adoc[guía de instalación].
+TIP: Para más detalles, consulta la xref:operations-manual:installation.adoc[guía de instalación].
 
 === Instalación
 
@@ -236,7 +236,7 @@ Para cualquier personalización extra, deberá modificarse el fichero antes de e
 * La versión de Kubernetes debe ser (1.28) y estar soportada por GKE.
 * Los nombres de los grupos de _worker++_++nodes_ no pueden repetirse.
 
-TIP: Para más detalles, consulta la xref:ROOT:installation.adoc[guía de instalación].
+TIP: Para más detalles, consulta la xref:operations-manual:installation.adoc[guía de instalación].
 
 === Instalación
 
@@ -364,7 +364,7 @@ Para cualquier personalización extra, deberá modificarse el fichero antes de e
 * La versión de Kubernetes configurada debe ser la soportada en las imágenes indicadas (opcional).
 * Los nombres de los grupos de _worker++_++nodes_ no pueden repetirse.
 
-TIP: Para más detalles, consulta la xref:ROOT:installation.adoc[guía de instalación].
+TIP: Para más detalles, consulta la xref:operations-manual:installation.adoc[guía de instalación].
 
 === Instalación
 

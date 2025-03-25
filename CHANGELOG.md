@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.0-0.6.4 (2025-03-24)
+
+* [PLT-1887] Dynamic region describe
+* [PLT-1621] Added new flag to support only provisioner upgrades
+
+## 0.17.0-0.6.3 (2025-03-06)
+
+* [PLT-1741] Bump cluster-operator references to 0.4.2 version. Update EKS addons dependencies documentation
+
 ## 0.17.0-0.6.2 (2025-02-26)
 
 * [PLT-1628] Fix coredns image registry and repository references
