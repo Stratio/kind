@@ -1,4 +1,4 @@
-= Version upgrade script
+= Version upgrade
 
 == Description
 
@@ -6,8 +6,9 @@ The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the
 
 - *EKS* on AWS.
 - *Azure VMs*.
+- *GKE* on GCP.
 
-It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.x` to the one provided by `cloud-provisioner 0.6.x`. To ensure a reproducible runtime environment, the Docker image `cloud-provisioner-upgrade` has been created, which includes the upgrade script and all necessary dependencies.
+It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.6.X` to the one provided by `cloud-provisioner 0.7.X`. To ensure a reproducible runtime environment, the Docker image `cloud-provisioner-upgrade` has been created, which includes the upgrade script and all necessary dependencies.
 
 == Requirements
 
@@ -17,17 +18,6 @@ It allows you to upgrade the Kubernetes cluster version from the version install
 * `secrets.yml` file used during cluster creation.
 * Docker tool, required to run the container.
 
-=== Specific for EKS
-
-The default `kubeconfig` generated in EKS includes a token with a limited lifespan. To avoid interruptions, you can generate an updated `kubeconfig` with the following command:
-
-[source,bash]
-----
-aws eks update-kubeconfig --region <region> --name <cluster_name>
-----
-
-This command enables automatic token renewal via AWS CLI. Additionally, the local `~/.aws` directory must be provided to the upgrade container.
-
 == Running the script
 
 === Building the container
@@ -36,16 +26,7 @@ Run the Docker container with the version upgrade image, mounting the required f
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config cloud-provisioner-upgrade:x.x.x
-----
-
-*Additional parameters for EKS*
-
-Include the AWS configuration directory:
-
-[source,bash]
-----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config -v ~/.aws:/upgrade/.aws cloud-provisioner-upgrade:x.x.x
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config cloud-provisioner-upgrade:0.7.X
 ----
 
 === Using the version upgrade script
@@ -62,74 +43,51 @@ Key options:
 |===
 | Flag | Description | Default Value | Mandatory
 
+| `-p`, `--vault-password`
+| Specifies a file with the Vault password to decrypt secrets.
+| None
+| Yes
+
 | `-y`, `--yes`
-| Skip task confirmations (automatic mode).
+| Skips task confirmations (automatic mode).
 | False
 | No
 
 | `-k`, `--kubeconfig`
-| Specify the Kubectl configuration file to use.
+| Specifies the Kubectl configuration file to use.
 | ~/.kube/config
 | No
-
-| `-p`, `--vault-password`
-| File containing the Vault password needed to decrypt secrets.
-|
-| Yes
 
 | `-s`, `--secrets`
 | Encrypted secrets file.
 | secrets.yml
 | No
 
-| `-i`, `--user-assign-identity`
-| User-assigned identity ID in Azure (`nodes_identity` clientID).
-|
-| Yes (Azure)
-
 | `--enable-lb-controller`
-| Enable the load balancer controller in EKS (disabled by default).
+| Enables the load balancer controller in EKS (disabled by default).
 | False
 | No
 
 | `--disable-backup`
-| Disable backup before upgrading (enabled by default).
+| Disables backup before upgrading (enabled by default).
 | False
 | No
 
 | `--disable-prepare-capsule`
-| Disable environment preparation for the upgrade process.
+| Disables environment preparation for the upgrade process.
+| False
+| No
+
+| `--upgrade-cloud-provisioner-only`
+| Updates only the _cloud-provisioner_ components. Compatible only with EKS environments.
+| False
+| No
+
+| `--skip-k8s-intermediate-version`
+| Skips the upgrade of _workers_ to an intermediate Kubernetes version. Compatible only with EKS environments.
 | False
 | No
 |===
-
-*Examples:*
-
-* EKS on AWS:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p /path/to/vault-password --kubeconfig /path/to/kubeconfig
-----
-
-* Azure VMs:
-+
-[source,bash]
-----
-python3 upgrade-provisioner.py -p /path/to/vault-password --user-assign-identity <identity-client-id> --kubeconfig /path/to/kubeconfig
-----
-
-[NOTE]
-.Getting `user-assign-identity` in Azure
-====
-To retrieve the `user-assign-identity`, you can use the Azure CLI:
-
-[source,bash]
-----
-az identity list --resource-group <resource-group> --query "[?name=='<user-assign-identity-name>'].clientId" -o table
-----
-
-====
 
 == Required structure
 
@@ -139,6 +97,5 @@ Ensure that the working directory includes the following:
 * `templates/`: Jinja2 templates.
 * `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
-* `secrets.yml`: cluster credentials.  
-* `.aws/`: AWS configuration files (EKS only).
+* `secrets.yml`: cluster credentials.
 * `.kube/`: directory containing the `kubeconfig` file.
