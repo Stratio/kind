@@ -1146,7 +1146,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 		credentialsString := fmt.Sprintf("[default]\naws_access_key_id=%s\naws_secret_access_key=%s\naws_session_token=%s\n", creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
 		credentialsString = base64.StdEncoding.EncodeToString([]byte(credentialsString))
 		// Step 4: Patch secret with new credentials
-		c = "kubectl -n capa-system patch secret capa-manager-bootstrap-credentials -p '{\"data\":{\"credentials\":\"" + credentialsString + "\"}}'"
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n capa-system patch secret capa-manager-bootstrap-credentials -p '{\"data\":{\"credentials\":\"" + credentialsString + "\"}}'"
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to update capa-manager-bootstrap-credentials secret")
