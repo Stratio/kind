@@ -1300,7 +1300,7 @@ def create_custom_helm_repository(repository_name, repository_url, type, provide
     except Exception as e:
         raise e
 
-def create_helm_release(release_name, release_namespace, chart_repo_name, chart_name, chart_version, provider)
+def create_helm_release(release_name, release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials)
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
     export_default_values(release_name, release_namespace, default_values_file, provider, credentials)
@@ -1331,7 +1331,7 @@ def create_helm_release(release_name, release_namespace, chart_repo_name, chart_
     except Exception as e:
         raise e
 
-def upgrade_charts(helm_charts_data, provider, private_helm_repo):
+def upgrade_charts(helm_charts_data, provider, private_helm_repo, credentials):
     '''Update the chart versions'''
     
     try:
@@ -1353,7 +1353,7 @@ def upgrade_charts(helm_charts_data, provider, private_helm_repo):
                 if not private_helm_repo:
                     create_custom_helm_repository(chart_repo_name, chart_repo_url, 'default', 'generic')
 
-                create_helm_release(chart_release_name, chart_release_namespace, chart_repo_name, chart_name, chart_version, provider)
+                create_helm_release(chart_release_name, chart_release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials)
 
                 if updated and not chart_name == "cluster-operator":
                     updated_charts[chart_name] = chart_version
@@ -2067,7 +2067,7 @@ if __name__ == '__main__':
 
     adopt_cert_manager_resources_chart()
     
-    upgraded_charts = upgrade_charts(helm_charts_data, provider, cluster_config["spec"]["private_helm_repo"])
+    upgraded_charts = upgrade_charts(helm_charts_data, provider, cluster_config["spec"]["private_helm_repo"], credentials)
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
