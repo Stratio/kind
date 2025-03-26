@@ -89,6 +89,12 @@ def get_helm_charts_data(keos_cluster, cluster_config):
             "namespace": "kube-system",
             "enabled": provider == "azure" 
         },
+        'cert-manager': {
+            "repo_url": repo_url_keos if repo_private else "https://charts.jetstack.io",
+            "version": "v1.14.5",
+            "namespace": "cert-manager",
+            "enabled": True
+        },
         'cloud-provider-azure': {
             "repo_url": repo_url_keos if repo_private else "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo",
             "version": "1.30.4",
@@ -101,28 +107,22 @@ def get_helm_charts_data(keos_cluster, cluster_config):
             "namespace": "kube-system",
             "enabled": True
         },
-        'tigera-operator': {
-            "repo_url": repo_url_keos if repo_private else "https://docs.projectcalico.org/charts",
-            "version": "v3.28.2",
-            "namespace": "tigera-operator",
+        "cluster-operator": {
+            "repo_url": repo_url_keos,
+            "version": CLUSTER_OPERATOR_VERSION,
+            "namespace": "kube-system",
             "enabled": True
         },
-        'cert-manager': {
-            "repo_url": repo_url_keos if repo_private else "https://charts.jetstack.io",
-            "version": "v1.14.5",
-            "namespace": "cert-manager",
-            "enabled": True
-        },
-        "flux": {
+        "flux2": {
             "repo_url": repo_url_keos if repo_private else "https://fluxcd-community.github.io/helm-charts",
             "version": "2.12.2",
             "namespace": "kube-system",
             "enabled": True
         },
-        "cluster-operator": {
-            "repo_url": repo_url_keos,
-            "version": CLUSTER_OPERATOR_VERSION,
-            "namespace": "kube-system",
+        'tigera-operator': {
+            "repo_url": repo_url_keos if repo_private else "https://docs.projectcalico.org/charts",
+            "version": "v3.28.2",
+            "namespace": "tigera-operator",
             "enabled": True
         }
     }
@@ -802,15 +802,21 @@ def install_flux(provider, charts):
         print("SKIP")
         return
 
-    chart_repo_url = "https://fluxcd-community.github.io/helm-charts"
+    chart_name = "flux2"
+    chart_repo_url = helm_charts_data[chart_name]["repo_url"]
     chart_version = helm_charts_data[chart_name]["version"]
     chart_namespace = helm_charts_data[chart_name]["namespace"]
     chart_values_file = "files/flux-values.yaml"
+    release_name = "flux"
+
+    command = f"{helm} install {release_name} -n {chart_namespace} --values {chart_values_file} --version {chart_version}"
+    if "oci" in chart_repo_url:
+        command += f" {chart_repo_url}/{chart_name}"
+    else:
+        command += f" {chart_name} --repo {chart_repo_url}"
 
     try:
-        run_command(f"{helm} repo add fluxcd {repository_url}")
-        run_command(f"{helm} repo update")  # Actualizar el repositorio
-        run_command(f"{helm} install {release_name} fluxcd/{chart_name} --version {chart_version} -n {namespace} --create-namespace --values {values_file}")
+        run_command(command)
         if provider == "azure":
             create_azurePodIdentityException()
         print("OK")
