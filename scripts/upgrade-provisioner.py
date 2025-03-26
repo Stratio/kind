@@ -51,7 +51,7 @@ helmrelease_template = env.get_template('helmrelease_template.yaml')
 def parse_args():
     parser = argparse.ArgumentParser(
         description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_VERSION_UPGRADE_SUPPORT + ''' to ''' + CLOUD_PROVISIONER_VERSION +
-                    ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_VERSION_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR + ''' .
+                    ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_VERSION_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR_VERSION + ''' .
                         It requires kubectl, helm and jq binaries in $PATH.
                         A component (or all) must be selected for upgrading.
                         By default, the process will wait for confirmation for every component selected for upgrade.''',
@@ -109,7 +109,7 @@ def get_helm_charts_data(keos_cluster, cluster_config):
         },
         "cluster-operator": {
             "repo_url": repo_url_keos,
-            "version": CLUSTER_OPERATOR_VERSION,
+            "version": config["cluster_operator_version"],
             "namespace": "kube-system",
             "upgrade": True
         },
@@ -129,9 +129,13 @@ def get_helm_charts_data(keos_cluster, cluster_config):
 
     return data
 
-def backup(backup_dir, namespace, cluster_name, dry_run):
+def backup(backup_dir, cluster_name, provider, dry_run):
     '''Backup CAPX and capsule files'''
     
+    if provider == "aws":
+        namespace = "capa-system"
+    elif provider == "azure":
+        namespace = "capz-system"
     print("[INFO] Backing up files into directory " + backup_dir)
     # Backup CAPX files
     print("[INFO] Backing up CAPX files:", end =" ", flush=True)
@@ -176,9 +180,14 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
     else:
         print("DRY-RUN")
 
-def prepare_capsule(dry_run):
+def prepare_capsule(provider, dry_run):
     '''Prepare capsule for the upgrade process'''
     
+    if provider == "aws":
+        namespace = "capa-system"
+    elif provider == "azure":
+        namespace = "capz-system"
+
     print("[INFO] Preparing capsule-mutating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -1059,7 +1068,7 @@ def get_pods_cidr(keos_cluster):
         return ""
 
 
-def render_values_template(values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
+def render_values_template(values_file, keos_cluster, cluster_config, credentials):
     '''Render the values template'''
     
     try:
@@ -1070,7 +1079,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
             "provider": keos_cluster["spec"]["infra_provider"],
             "managed_cluster": keos_cluster["spec"]["control_plane"]["managed"],
             "pods_cidr": get_pods_cidr(keos_cluster),
-            "cluster_operator_version" : cluster_operator_version,
+            "cluster_operator_version" : config["cluster_operator_version"],
             "credentials": credentials
         }
         
@@ -1155,10 +1164,9 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
 
 def export_default_values(chart_name, namespace, values_file, provider, credentials):
     '''Export the release values'''
-    
     try:
         name = chart_name
-        values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
+        values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials)
         run_command(f"echo '{values}' > {values_file}")
     except Exception as e:
         raise
@@ -1300,7 +1308,7 @@ def create_custom_helm_repository(repository_name, repository_url, type, provide
     except Exception as e:
         raise e
 
-def create_helm_release(release_name, release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials)
+def create_helm_release(release_name, release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials):
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
     export_default_values(release_name, release_namespace, default_values_file, provider, credentials)
@@ -1323,10 +1331,10 @@ def create_helm_release(release_name, release_namespace, chart_repo_name, chart_
         helmrelease_yaml = helmrelease_template.render(release_context)
         release_file = f'/tmp/{release_name}_helmrelease.yaml'
 
-        with open(repository_file, 'w') as f:
-            f.write(helmrepository_yaml)
+        with open(release_file, 'w') as f:
+            f.write(helmrelease_yaml)
 
-        command = f"{kubectl} apply -f {repository_file} "
+        command = f"{kubectl} apply -f {release_file} "
         run_command(command)        
     except Exception as e:
         raise e
@@ -1340,10 +1348,10 @@ def upgrade_charts(helm_charts_data, provider, private_helm_repo, credentials):
             if chart_data["upgrade"]:
                 chart_release_name = chart_name
                 # We need to manage flux since its chart name does not match the release name
-                if chart_name == "flux2"
+                if chart_name == "flux2":
                     chart_release_name = "flux"
-                else
-                chart_release_namespace = chart_data["namespace"]
+                else:
+                    chart_release_namespace = chart_data["namespace"]
                 chart_repo_url = chart_data["repo_url"]
                 chart_repo_name = 'keos' if private_helm_repo else chart_release_name
                 chart_version = chart_data["version"]
@@ -1355,7 +1363,7 @@ def upgrade_charts(helm_charts_data, provider, private_helm_repo, credentials):
 
                 create_helm_release(chart_release_name, chart_release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials)
 
-                if updated and not chart_name == "cluster-operator":
+                if not chart_name == "cluster-operator":
                     updated_charts[chart_name] = chart_version
                 
                 if chart_name == "tigera-operator":
@@ -1363,7 +1371,7 @@ def upgrade_charts(helm_charts_data, provider, private_helm_repo, credentials):
 
                 print("OK")
 
-        return charts_updated
+        return updated_charts
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating chart versions: {e}")
@@ -1568,7 +1576,7 @@ def backup_keoscluster_webhooks():
         print(f"[ERROR] Error backing up KEOSCluster webhooks: {e}")
         raise e
 
-def update_clusterconfig(cluster_config, charts, provider, cluster_operator_version):
+def update_clusterconfig(cluster_config, charts, provider):
     '''Update the clusterconfig'''
     
     try:
@@ -1576,7 +1584,7 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         clusterconfig_name = cluster_config["metadata"]["name"]
         clusterconfig_namespace = cluster_config["metadata"]["namespace"]
         
-        cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
+        cluster_config["spec"]["cluster_operator_version"] = config["cluster_operator_version"]
         cluster_config["spec"]["capx"] = {}
         cluster_config["spec"]["capx"]["capi_version"] = "v1.7.4"
         if provider == "aws":
@@ -2001,7 +2009,7 @@ if __name__ == '__main__':
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     
     if provider == "aws":
-        credentials = subprocess.getoutput(kubectl + " -n " + capx_namespace + " get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
+        credentials = subprocess.getoutput(kubectl + " -n capa-system get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
         env_vars += " CAPA_EKS_IAM=true AWS_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
         userAssignIdentity = get_user_assign_identity(keos_cluster["spec"]["security"]["nodes_identity"])
@@ -2040,12 +2048,11 @@ if __name__ == '__main__':
     if not config["disable_backup"]:
         now = datetime.now()
         backup_dir = backup_dir + now.strftime("%Y%m%d-%H%M%S")
-        backup(backup_dir, capx_namespace, cluster_name, config["dry_run"])
+        backup(backup_dir, cluster_name, provider, config["dry_run"])
 
     # Prepare capsule
     if not config["disable_prepare_capsule"]:
-        prepare_capsule(config["dry_run"])
-
+        prepare_capsule(provider, config["dry_run"])
 
     if provider == "azure":
         patch_kubeadm_config_templates("cluster-" + cluster_name)
@@ -2077,9 +2084,8 @@ if __name__ == '__main__':
     current_k8s_version = get_kubernetes_version()
     
     if "1.28" in current_k8s_version:   
-        tigera_version = chart_versions["28"]["tigera-operator"]["chart_version"] 
         print(f"[INFO] Restarting Tigera Operator: ", end =" ", flush=True)
-        restart_tigera_operator_manifest(provider,tigera_version=tigera_version)
+        restart_tigera_operator_manifest(provider)
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'=True --timeout=5m"
         run_command(command)
@@ -2093,7 +2099,7 @@ if __name__ == '__main__':
         stop_keoscluster_controller()
         patch_webhook_timeout("keoscluster-validating-webhook-configuration", "vkeoscluster.kb.io", 30)
         disable_keoscluster_webhooks()
-        update_clusterconfig(cluster_config, upgraded_charts, provider, cluster_operator_version)
+        update_clusterconfig(cluster_config, upgraded_charts, provider)
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         provider = keos_cluster["spec"]["infra_provider"]
         update_keoscluster(keos_cluster, provider)
