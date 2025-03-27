@@ -986,11 +986,11 @@ spec:
         print(f"[ERROR] {e}.")
         raise e
 
-def set_clusterctl_registry_config(keos_cluster):
+def add_clusterctl_registry_config(keos_cluster):
     clusterctl_config_file = "/root/.cluster-api/clusterctl.yaml"
     registry_url = get_keos_registry_url(keos_cluster)
 
-    print("[INFO] Configuring " + clusterctl_config_file + " to set private registry", end =" ", flush=True)
+    print("[INFO] Modifying " + clusterctl_config_file + " to add private registry config", end =" ", flush=True)
     
     try:
         with open(clusterctl_config_file, 'r') as file:
@@ -1012,7 +1012,7 @@ def set_clusterctl_registry_config(keos_cluster):
             yaml.dump(data, file, default_flow_style=False)
     except Exception as e:
         print("FAILED")
-        print(f"[ERROR] Error configuring {clusterctl_config_file}: {e}")
+        print(f"[ERROR] Error modifying {clusterctl_config_file}: {e}")
         raise e
     
     print("OK")
@@ -1027,7 +1027,7 @@ def upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, 
         print("SKIP")
     else:
         if private_registry:
-            set_clusterctl_registry_config(keos_cluster)
+            add_clusterctl_registry_config(keos_cluster)
         command = (env_vars + " clusterctl upgrade apply --wait-providers" +
                     " --core capi-system/cluster-api:" + CAPI +
                     " --infrastructure " + namespace + "/" + provider + ":" + version)
