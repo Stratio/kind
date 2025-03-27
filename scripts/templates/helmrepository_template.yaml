@@ -6,5 +6,5 @@ metadata:
 spec:
   url: {{ repository_url }}
   interval: {{ interval }}
-  type: {{ schema }}
+  type: {{ type }}
   provider: {{ provider }}

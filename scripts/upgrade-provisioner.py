@@ -28,117 +28,17 @@ from jinja2 import Template, Environment, FileSystemLoader
 from ruamel.yaml import YAML
 from io import StringIO
 
-CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.4.2" 
-CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.3.X"
-CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.5"
+CLOUD_PROVISIONER_VERSION = "0.17.0-0.6"
+CLOUD_PROVISIONER_VERSION_UPGRADE_SUPPORT = "0.17.0-0.5"
 
-AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.8.1"
+CLUSTER_OPERATOR_VERSION = "0.4.2" 
+CLUSTER_OPERATOR_VERSION_UPGRADE_SUPPORT = "0.3.X"
 
-CLUSTERCTL = "v1.7.2"
+CLUSTERCTL_VERSION = "v1.7.2"
 
-CAPI = "v1.7.4"
-CAPA = "v2.5.2"
-CAPG = "1.6.1-0.2.0"
-CAPZ = "v1.12.4"
-
-#Chart Versions
-eks_chart_versions = {
-    "28": {
-        "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    },
-    "29": {
-        "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.0", "app_version": "v2.8.0"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    },
-    "30": {
-        "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    }
-}
-
-azure_vm_chart_versions = {
-    "28": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.28.5", "app_version": "v1.28.7"},
-        "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    },
-    "29": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.29.0", "app_version": "v1.29.0"},
-        "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    },
-    "30": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "1.30.4", "app_version": "1.30.4"},
-        "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
-    }
-}
-
-namespaces = {
-    'aws-cloud-controller-manager': 'kube-system',
-    'aws-load-balancer-controller': 'kube-system',
-    'aws-ebs-csi-driver': 'kube-system',
-    'azuredisk-csi-driver': 'kube-system',
-    'azurefile-csi-driver': 'kube-system',
-    'cloud-provider-azure': 'kube-system',
-    'cluster-autoscaler': 'kube-system',
-    'calico': 'tigera-operator',
-    'tigera-operator': 'tigera-operator',
-    'cert-manager': 'cert-manager',
-    "flux": "kube-system",
-    "flux2": "kube-system",
-    "cluster-operator": "kube-system"
-}
-        
-        
-#Updatable Charts
-updatable_charts = ["cluster-autoscaler", "cloud-provider-azure"]
-
-# Definir repositorios específicos
-specific_repos = {
-    'aws-cloud-controller-manager': 'https://kubernetes.github.io/cloud-provider-aws',
-    'aws-load-balancer-controller': 'https://aws.github.io/eks-charts',
-    'aws-ebs-csi-driver': 'https://kubernetes-sigs.github.io/aws-ebs-csi-driver',
-    'azuredisk-csi-driver': 'https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts',
-    'azurefile-csi-driver': 'https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts',
-    'cloud-provider-azure': 'https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo',
-    'cluster-autoscaler': 'https://kubernetes.github.io/autoscaler',
-    'tigera-operator': 'https://docs.projectcalico.org/charts',
-    'cert-manager': 'https://charts.jetstack.io',
-    "flux": "https://fluxcd-community.github.io/helm-charts",
-    "flux2": "https://fluxcd-community.github.io/helm-charts",
-    "cluster-operator": ""
-}
-
+CAPI_VERSION = "v1.7.4"
+CAPA_VERSION = "v2.5.2"
+CAPZ_VERSION = "v1.12.4"
 
 # Crear entorno de Jinja2 para cargar las plantillas
 template_dir = './templates'
@@ -150,8 +50,8 @@ helmrelease_template = env.get_template('helmrelease_template.yaml')
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + ''' to ''' + CLOUD_PROVISIONER +
-                    ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR + ''' .
+        description='''This script upgrades cloud-provisioner from ''' + CLOUD_PROVISIONER_VERSION_UPGRADE_SUPPORT + ''' to ''' + CLOUD_PROVISIONER_VERSION +
+                    ''' by upgrading mainly cluster-operator from ''' + CLUSTER_OPERATOR_VERSION_UPGRADE_SUPPORT + ''' to ''' + CLUSTER_OPERATOR_VERSION + ''' .
                         It requires kubectl, helm and jq binaries in $PATH.
                         A component (or all) must be selected for upgrading.
                         By default, the process will wait for confirmation for every component selected for upgrade.''',
@@ -160,8 +60,7 @@ def parse_args():
     parser.add_argument("-k", "--kubeconfig", help="Set the kubeconfig file for kubectl commands, It can also be set using $KUBECONFIG variable", default="~/.kube/config")
     parser.add_argument("-p", "--vault-password", help="Set the vault password for decrypting secrets", required=True)
     parser.add_argument("-s", "--secrets", help="Set the secrets file for decrypting secrets", default="secrets.yml")
-    parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR)
-    parser.add_argument("--enable-lb-controller", action="store_true", help="Install AWS Load Balancer Controller for EKS clusters (disabled by default)")
+    parser.add_argument("--cluster-operator", help="Set the cluster-operator target version", default=CLUSTER_OPERATOR_VERSION)
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
@@ -170,9 +69,73 @@ def parse_args():
     args = parser.parse_args()
     return vars(args)
 
-def backup(backup_dir, namespace, cluster_name, dry_run):
+def get_helm_charts_data(keos_cluster, cluster_config):
+    '''Returns helm_charts_data '''
+
+    provider = keos_cluster["spec"]["infra_provider"] 
+    repo_url_keos = keos_cluster["spec"]["helm_repository"]["url"]
+    repo_private = cluster_config["spec"]["private_helm_repo"]
+
+    data = {
+        'azuredisk-csi-driver': {
+            "repo_url": repo_url_keos if repo_private else "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts",
+            "version": "v1.30.1",
+            "namespace": "kube-system",
+            "upgrade": provider == "azure" 
+        },
+        'azurefile-csi-driver': {
+            "repo_url": repo_url_keos if repo_private else "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts",
+            "version": "v1.30.2",
+            "namespace": "kube-system",
+            "upgrade": provider == "azure" 
+        },
+        'cert-manager': {
+            "repo_url": repo_url_keos if repo_private else "https://charts.jetstack.io",
+            "version": "v1.14.5",
+            "namespace": "cert-manager",
+            "upgrade": True
+        },
+        'cloud-provider-azure': {
+            "repo_url": repo_url_keos if repo_private else "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo",
+            "version": "1.30.4",
+            "namespace": "kube-system",
+            "upgrade": provider == "azure" 
+        },
+        'cluster-autoscaler': {
+            "repo_url": repo_url_keos if repo_private else "https://kubernetes.github.io/autoscaler",
+            "version": "9.37.0",
+            "namespace": "kube-system",
+            "upgrade": True
+        },
+        "cluster-operator": {
+            "repo_url": repo_url_keos,
+            "version": config["cluster_operator_version"],
+            "namespace": "kube-system",
+            "upgrade": True
+        },
+        "flux2": {
+            "repo_url": repo_url_keos if repo_private else "https://fluxcd-community.github.io/helm-charts",
+            "version": "2.12.2",
+            "namespace": "kube-system",
+            "upgrade": True
+        },
+        'tigera-operator': {
+            "repo_url": repo_url_keos if repo_private else "https://docs.projectcalico.org/charts",
+            "version": "v3.28.2",
+            "namespace": "tigera-operator",
+            "upgrade": True
+        }
+    }
+
+    return data
+
+def backup(backup_dir, cluster_name, provider, dry_run):
     '''Backup CAPX and capsule files'''
     
+    if provider == "aws":
+        namespace = "capa-system"
+    elif provider == "azure":
+        namespace = "capz-system"
     print("[INFO] Backing up files into directory " + backup_dir)
     # Backup CAPX files
     print("[INFO] Backing up CAPX files:", end =" ", flush=True)
@@ -217,9 +180,14 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
     else:
         print("DRY-RUN")
 
-def prepare_capsule(dry_run):
+def prepare_capsule(provider, dry_run):
     '''Prepare capsule for the upgrade process'''
     
+    if provider == "aws":
+        namespace = "capa-system"
+    elif provider == "azure":
+        namespace = "capz-system"
+
     print("[INFO] Preparing capsule-mutating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -297,40 +265,6 @@ def restore_capsule(dry_run):
                     """jq -r '.webhooks[] |= (select(.name == "namespaces.capsule.clastix.io").objectSelector |= {})' """ +
                     "| " + kubectl + " apply -f -")
             execute_command(command, False)
-    else:
-        print("DRY-RUN")
-
-def install_lb_controller(cluster_name, account_id, dry_run):
-    '''Install AWS Load Balancer Controller for EKS clusters'''
-    
-    print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
-    if not dry_run:
-        chart_version = get_chart_version("aws-load-balancer-controller", "kube-system")
-        if chart_version == AWS_LOAD_BALANCER_CONTROLLER_CHART:
-            print("SKIP")
-            return
-        gnpPatch = {
-                        "spec": {
-                                    "selector":
-                                        "app.kubernetes.io/name in {'aws-ebs-csi-driver', 'aws-load-balancer-controller' } || " +
-                                        "cluster.x-k8s.io/provider == 'infrastructure-aws' || " +
-                                        "k8s-app == 'aws-cloud-controller-manager'"
-                                }
-                    }
-        gnpPatch_file = open('./gnpPatch.yaml', 'w')
-        gnpPatch_file.write(yaml.dump(gnpPatch, default_flow_style=False))
-        gnpPatch_file.close()
-        command = kubectl + " patch globalnetworkpolicy allow-traffic-to-aws-imds-capa --type merge --patch-file gnpPatch.yaml"
-        execute_command(command, False, False)
-        os.remove('./gnpPatch.yaml')
-        role_name = cluster_name + "-lb-controller-manager"
-        command = (helm + " -n kube-system install aws-load-balancer-controller aws-load-balancer-controller" +
-                    " --wait --version " + AWS_LOAD_BALANCER_CONTROLLER_CHART +
-                    " --set clusterName=" + cluster_name +
-                    " --set podDisruptionBudget.minAvailable=1" +
-                    " --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::" + account_id + ":role/" + role_name +
-                    " --repo https://aws.github.io/eks-charts")
-        execute_command(command, False)
     else:
         print("DRY-RUN")
 
@@ -680,22 +614,21 @@ def wait_for_keos_cluster(cluster_name, time):
     )
     execute_command(command, False, False)
 
-def update_helm_registry(cluster_name, oci_registry, dry_run):
+def update_helm_repo(cluster_name, helm_repo, dry_run):
     '''Update the Helm registry'''
     
     wait_for_keos_cluster(cluster_name, "10")
 
-    
-    patch_helm_registry = [
-        {"op": "replace", "path": "/spec/helm_repository/url", "value": oci_registry},
+    patch_helm_repo = [
+        {"op": "replace", "path": "/spec/helm_repository/url", "value": helm_repo},
     ]
 
-    patch_json = json.dumps(patch_helm_registry)
+    patch_json = json.dumps(patch_helm_repo)
     command = f"{kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
     execute_command(command, False, False)
     
     patch_helmRepository = [
-        {"op": "replace", "path": "/spec/url", "value": oci_registry},
+        {"op": "replace", "path": "/spec/url", "value": helm_repo},
     ]
     patch_json = json.dumps(patch_helmRepository)
     existing_helmrepo, err = run_command(f"{kubectl} get helmrepository -n kube-system keos --ignore-not-found", allow_errors=True)
@@ -786,8 +719,8 @@ def get_version(version):
 def print_upgrade_support():
     '''Print the upgrade support message'''
     
-    print("[WARN] Upgrading cloud-provisioner from a version minor than " + CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " to " + CLOUD_PROVISIONER + " is NOT SUPPORTED")
-    print("[WARN] You have to upgrade to cloud-provisioner:"+ CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE + " first")
+    print("[WARN] Upgrading cloud-provisioner from a version minor than " + CLOUD_PROVISIONER_VERSION_UPGRADE_SUPPORT + " to " + CLOUD_PROVISIONER_VERSION + " is NOT SUPPORTED")
+    print("[WARN] You have to upgrade to cloud-provisioner:"+ CLOUD_PROVISIONER_VERSION_UPGRADE_SUPPORT + " first")
     sys.exit(0)
 
 def request_confirmation():
@@ -832,16 +765,11 @@ def run_command(command, allow_errors=False, retries=3, retry_delay=2):
         
         time.sleep(retry_delay)
 
-def get_helm_registry_oci(keos_cluster):
+def get_helm_repo_url(keos_cluster):
     '''Get the Helm registry URL'''
     
     try:
-        helm_registry_oci = keos_cluster["spec"]["helm_repository"]["url"]
-        
-        if helm_registry_oci:
-            return helm_registry_oci
-        else:
-            return None
+        return keos_cluster["spec"]["helm_repository"]["url"]
     except KeyError as e:
         return None
 
@@ -849,17 +777,16 @@ def get_helm_registry_oci(keos_cluster):
 def check_flux_installed():
     '''Check if Flux is installed'''
     
-    print("[INFO] Installing Flux:", end =" ", flush=True)
+    print("[INFO] Checking if Flux is instelled:", end =" ", flush=True)
     try:
         charts = get_installed_helm_charts()
         for chart in charts:
             if chart['name'] == 'flux':
-                print("SKIP")
                 return True
         return False
     except Exception as e:
         print("FAILED")
-        print(f"[ERROR] Error checking flux installation{e}.")
+        print(f"[ERROR] Error checking flux installation {e}.")
         raise e
 
 # List all Helm charts installed in the cluster
@@ -875,30 +802,40 @@ def get_installed_helm_charts():
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-# Install Flux if it is not present
-def install_flux(provider):
+def install_flux(provider, charts):
     '''Install Flux'''
-    
-    repository_url = "https://fluxcd-community.github.io/helm-charts"
+
+    print("[INFO] Installing Flux:", end =" ", flush=True)
+
+    if check_flux_installed():
+        print("SKIP")
+        return
+
     chart_name = "flux2"
+    chart_repo_url = helm_charts_data[chart_name]["repo_url"]
+    chart_version = helm_charts_data[chart_name]["version"]
+    chart_namespace = helm_charts_data[chart_name]["namespace"]
+    # TODO: Refactor to template to support private upgrades
+    chart_values_file = "files/flux-values.yaml"
     release_name = "flux"
-    chart_version = "2.12.2"
-    namespace = "kube-system"
-    values_file = "files/flux-values.yaml"
+
+    command = f"{helm} install {release_name} -n {chart_namespace} --values {chart_values_file} --version {chart_version}"
+    if "oci" in chart_repo_url:
+        command += f" {chart_repo_url}/{chart_name}"
+    else:
+        command += f" {chart_name} --repo {chart_repo_url}"
 
     try:
-        run_command(f"{helm} repo add fluxcd {repository_url}")
-        run_command(f"{helm} repo update")  # Actualizar el repositorio
-        run_command(f"{helm} install {release_name} fluxcd/{chart_name} --version {chart_version} -n {namespace} --create-namespace --values {values_file}")
+        run_command(command)
         if provider == "azure":
-            install_azurePodIdentityException()
+            create_azurePodIdentityException()
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
         raise
     
-def install_azurePodIdentityException():
+def create_azurePodIdentityException():
     '''Install AzurePodIdentityException'''
     
     try:
@@ -967,21 +904,27 @@ spec:
         print(f"[ERROR] {e}.")
         raise e
     
-def upgrade_capx(managed, provider, namespace, version, env_vars):
+def upgrade_capx(managed, provider, env_vars):
     '''Upgrade CAPX'''
-    
-    print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
-    capx_version = get_deploy_version(namespace.split("-")[0] + "-controller-manager", namespace, "controller")
-    capi_version = get_deploy_version("capi-controller-manager", "capi-system", "controller")
-    if capx_version == version and capi_version == CAPI:
+    if provider == "aws":
+        namespace = "capa-system"
+        version = CAPA_VERSION
+    elif provider == "azure":
+        namespace = "capz-system"
+        version = CAPZ_VERSION
+
+    print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI_VERSION + ":", end =" ", flush=True)
+    capx_version_current = get_deploy_version(namespace.split("-")[0] + "-controller-manager", namespace, "controller")
+    capi_version_current = get_deploy_version("capi-controller-manager", "capi-system", "controller")
+    if capx_version_current == version and capi_version_current == CAPI_VERSION:
         print("SKIP")
     else:
         command = (env_vars + " clusterctl upgrade apply --wait-providers" +
-                    " --core capi-system/cluster-api:" + CAPI +
+                    " --core capi-system/cluster-api:" + CAPI_VERSION +
                     " --infrastructure " + namespace + "/" + provider + ":" + version)
         if not managed:
-            command += ( " --bootstrap capi-kubeadm-bootstrap-system/kubeadm:" + CAPI +
-                " --control-plane capi-kubeadm-control-plane-system/kubeadm:" + CAPI )
+            command += ( " --bootstrap capi-kubeadm-bootstrap-system/kubeadm:" + CAPI_VERSION +
+                " --control-plane capi-kubeadm-control-plane-system/kubeadm:" + CAPI_VERSION )
                     
         execute_command(command, False, True, 5, 60)
         if provider == "azure":
@@ -1032,26 +975,6 @@ def get_deploy_version(deploy, namespace, container):
     output = execute_command(command, False, False)
     return output.split("@")[0]
 
-
-def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only=False):
-    '''Adopt all Helm charts'''
-    
-    charts = get_installed_helm_charts()
-    for chart in charts:
-        try:
-            if chart['name'] == 'calico':
-                chart['name'] = 'tigera-operator'
-            if (chart['name'] in specific_charts["28"] and chart['name'] not in ["flux", "flux2"]) or \
-               (chart['name'] in specific_charts["28"] and upgrade_cloud_provisioner_only and chart['name'] in ["flux", "flux2"]):
-                
-                print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
-                chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only)
-                
-        except Exception as e:
-            print("FAILED")
-            print(f"[ERROR] {e}")
-
 def check_releases(namespace):
     '''Check if the releases exist'''
     
@@ -1098,125 +1021,6 @@ def check_and_delete_releases(namespace):
         else:
             time.sleep(20)
         
-# Generate and apply HelmRelease and HelmRepository
-def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
-    '''Adopt a Helm chart'''
-    
-    chart_name, chart_version = chart["chart"].rsplit("-", 1)
-    release_name = chart_name
-    if chart["name"] == "flux":
-        release_name = "flux"
-    
-    # Check if there is already a HelmRelease with the name chart_name
-    existing_helmrelease, err = run_command(f"{kubectl} get helmrelease {release_name} -n {chart['namespace']} --ignore-not-found")
-    if existing_helmrelease:
-        print("SKIP")
-        return
-    
-    schema = "default"
-    repo = specific_repos[release_name]
-    repo_name = release_name
-    user = ""
-    password = ""
-    if release_name not in specific_repos:
-        print("SKIP")
-        return
-    
-    if release_name in "cluster-operator":
-        repo =  keos_cluster["spec"]["helm_repository"]["url"]
-        schema = "oci"
-        repo_name = "keos"
-        
-    if release_name == "tigera-operator":
-        resources = [
-            {"kind": "ServiceAccount", "name": "tigera-operator", "namespace": "tigera-operator"},
-            {"kind": "ClusterRole", "name": "tigera-operator"},
-            {"kind": "ClusterRoleBinding", "name": "tigera-operator"},
-            {"kind": "Deployment", "name": "tigera-operator", "namespace": "tigera-operator"},
-            {"kind": "Installation", "name": "default"}
-        ]
-        update_annotation_label("tigera-operator", "tigera-operator", "meta.helm.sh/release-name", "tigera-operator", resources)
-        
-    default_values_file = f"/tmp/{release_name}_default_values.yaml"
-    release_values_file = f"/tmp/{release_name}_release_values.yaml"
-    empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
-    
-    export_release_values(chart_name, chart['namespace'], release_values_file, chart['provider'], credentials)
-       
-    if release_name == "cert-manager":
-        export_default_values(chart, repo, default_values_file)
-        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], default_values_file)
-        create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", chart['namespace'], release_values_file)
-    else: 
-        create_empty_values_file(empty_values_file)
-        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], release_values_file)
-        create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
-    
-    if namespaces.get(release_name):
-        namespace = namespaces[release_name]
-    else:
-        namespace = "kube-system"
-        
-    repository_context = {
-        'repository_name': repo_name,
-        'namespace': chart['namespace'],
-        'interval': '10m',
-        'repository_url': repo,
-        'schema': schema,
-        'provider': chart['provider'],
-        'username': user,
-        'password': password
-    }
-    
-    release_context = {
-        'ReleaseName': release_name,
-        'ChartName': chart_name,
-        'ChartNamespace': chart['namespace'],
-        'ChartVersion': chart_version,
-        'ChartRepoRef': repo_name,
-        'HelmReleaseSourceInterval': '1m',
-        'HelmReleaseInterval': '1m',
-        'HelmReleaseRetries': 3
-    }
-
-    # Render HelmRepository and HelmRelease YAML
-    try:
-        helmrepository_yaml = helmrepository_template.render(repository_context)
-        helmrelease_yaml = helmrelease_template.render(release_context)
-    except Exception as e:
-        raise e
-
-    # Save to temporary files
-    try:
-        repository_file = f'/tmp/{release_context["ChartName"]}_helmrepository.yaml'
-        release_file = f'/tmp/{release_context["ChartName"]}_helmrelease.yaml'
-
-        with open(repository_file, 'w') as f:
-            f.write(helmrepository_yaml)
-
-        with open(release_file, 'w') as f:
-            f.write(helmrelease_yaml)
-    except Exception as e:
-        raise e
-    
-
-    # Apply the manifests to the cluster
-    try:
-        if repo_name != "keos" or upgrade_cloud_provisioner_only:
-            command = f"{kubectl} apply -f {repository_file} "
-            run_command(command)
-        
-        command = f"{kubectl} apply -f {release_file} -n {chart['namespace']}"
-        run_command(command)
-        
-        if chart_name == "tigera-operator":
-            check_and_delete_releases("tigera-operator")
-        
-        print("OK")
-
-    except Exception as e:
-        raise e
-    
 def update_annotation_label(name, namespace, annotation_label_key, annotation_label_value, resources, type="annotation"):
     '''Update the annotation or label of a resource'''
     
@@ -1264,7 +1068,7 @@ def get_pods_cidr(keos_cluster):
         return ""
 
 
-def render_values_template(values_file, keos_cluster, cluster_config, credentials, cluster_operator_version):
+def render_values_template(values_file, keos_cluster, cluster_config, credentials):
     '''Render the values template'''
     
     try:
@@ -1275,7 +1079,7 @@ def render_values_template(values_file, keos_cluster, cluster_config, credential
             "provider": keos_cluster["spec"]["infra_provider"],
             "managed_cluster": keos_cluster["spec"]["control_plane"]["managed"],
             "pods_cidr": get_pods_cidr(keos_cluster),
-            "cluster_operator_version" : cluster_operator_version,
+            "cluster_operator_version" : config["cluster_operator_version"],
             "credentials": credentials
         }
         
@@ -1358,21 +1162,12 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         print(f"[ERROR] {e}.")
         raise e
 
-def export_release_values(chart_name, namespace, release_values_file, provider, credentials):
+def export_default_values(chart_name, namespace, values_file, provider, credentials):
     '''Export the release values'''
-    
     try:
         name = chart_name
-        allow_errors = False
-        if chart_name == "cert-manager":
-            open(release_values_file, 'w').close() 
-            return
-        elif chart_name == "cluster-operator":
-            values, err = run_command(f"{helm} get values {name} -n {namespace} --output yaml > {release_values_file}", allow_errors=allow_errors)
-        else:
-            values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version)
-            run_command(f"echo '{values}' > {release_values_file}")
-        return values
+        values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config, credentials)
+        run_command(f"echo '{values}' > {values_file}")
     except Exception as e:
         raise
 
@@ -1383,21 +1178,6 @@ def create_empty_values_file(values_file):
         open(values_file, 'w').close()  
     except Exception as e:
         raise e
-
-def export_default_values(chart, repo, default_values_file):
-    '''Export the default values'''
-    
-    try: 
-        chart_name, chart_version = chart["chart"].rsplit("-", 1)
-        command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name}> {default_values_file}"
-        if chart['name'] == "cluster-operator":
-            command = f"{helm} show values {repo}/{chart_name} --version {chart['chart_version']} > {default_values_file}"
-        
-        default_values, err = run_command(command)
-        return default_values
-    except Exception as e:
-        raise
-    
     
 def create_configmap_from_values(configmap_name, namespace, values_file):
     '''Create a ConfigMap from values'''
@@ -1408,23 +1188,17 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
-def install_cert_manager(provider, upgrade_cloud_provisioner_only):
-    '''Install cert-manager'''
+def adopt_cert_manager_resources_chart():
+    '''Adopt cert-manager resources'''
     
+    print("[INFO] Adopting cert-manager resources to its Helm chart:", end =" ", flush=True)
     try:
-        print("[INFO] Adopting cert-manager...")
-        chart_cert_manager = {
-            'name': 'cert-manager',
-            'namespace': 'cert-manager',
-            'chart': 'cert-manager-v1.14.5',
-            'app_version': 'v1.14.5',
-            'provider': provider
-        }
         existing_helmrelease, err = run_command(f"{kubectl} get helmrelease cert-manager -n cert-manager --ignore-not-found")
         if existing_helmrelease:
+            print("SKIP")
             return
         
-        resources_service_accounts = [
+        resources = [
             {"kind": "ServiceAccount", "name": "cert-manager-cainjector", "namespace": "cert-manager"},
             {"kind": "ServiceAccount", "name": "cert-manager", "namespace": "cert-manager"},
             {"kind": "ServiceAccount", "name": "cert-manager-webhook", "namespace": "cert-manager"},
@@ -1473,51 +1247,131 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         ]
         # Annotating and labeling existing resources
         print("[INFO] Labeling existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "app.kubernetes.io/managed-by", "Helm", resources_service_accounts, "label")
+        update_annotation_label("cert-manager", "cert-manager", "app.kubernetes.io/managed-by", "Helm", resources, "label")
         print("OK")
         print("[INFO] Annotating with 'meta.helm.sh/release-name' existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-name", "cert-manager", resources_service_accounts)
+        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-name", "cert-manager", resources)
         print("OK")
         print("[INFO] Annotating with 'meta.helm.sh/release-namespace' existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-namespace", "cert-manager", resources_service_accounts)
+        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-namespace", "cert-manager", resources)
         print("OK")
         
-        print("[INFO] Adopted cert-manager:", end =" ", flush=True)
-        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only)
+        print("[INFO] Adopted cert-manager resources to its Helm chart:", end =" ", flush=True)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
         raise e
+
+def adopt_tigera_operator_resources_chart():
+    '''Adopt tigera-operator resources'''
     
-def update_chart_versions(keos_cluster, cluster_config, charts, crendentials, cluster_operator_version, upgrade_cloud_provisioner_only):
+    print("[INFO] Adopting calico resources to its Helm chart:", end =" ", flush=True)
+    try:
+        existing_helmrelease, err = run_command(f"{kubectl} get helmrelease tigera-operator -n tigera-operator --ignore-not-found")
+        if existing_helmrelease:
+            print("SKIP")
+            return
+        
+        resources = [
+            {"kind": "ServiceAccount", "name": "tigera-operator", "namespace": "tigera-operator"},
+            {"kind": "ClusterRole", "name": "tigera-operator"},
+            {"kind": "ClusterRoleBinding", "name": "tigera-operator"},
+            {"kind": "Deployment", "name": "tigera-operator", "namespace": "tigera-operator"},
+            {"kind": "Installation", "name": "default"}
+        ]
+        update_annotation_label("tigera-operator", "tigera-operator", "meta.helm.sh/release-name", "tigera-operator", resources)
+        
+        print("[INFO] Adopted tigera-operator resources to its Helm chart:", end =" ", flush=True)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {e}")
+        raise e
+
+def create_custom_helm_repository(repository_name, repository_url, type, provider):
+    repository_context = {
+        'repository_name': repository_name,
+        'interval': '10m',
+        'repository_url': repository_url,
+        'type': type,
+        'provider': provider
+    }
+
+    try:
+        helmrepository_yaml = helmrepository_template.render(repository_context)
+        repository_file = f'/tmp/{repository_name}_helmrepository.yaml'
+
+        with open(repository_file, 'w') as f:
+            f.write(helmrepository_yaml)
+
+        command = f"{kubectl} apply -f {repository_file} "
+        run_command(command)        
+    except Exception as e:
+        raise e
+
+def create_helm_release(release_name, release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials):
+    default_values_file = f"/tmp/{release_name}_default_values.yaml"
+    empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
+    export_default_values(release_name, release_namespace, default_values_file, provider, credentials)
+    create_empty_values_file(empty_values_file)
+    create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", release_namespace, default_values_file)
+    create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", release_namespace, empty_values_file)
+
+    release_context = {
+        'ReleaseName': release_name,
+        'ChartName': chart_name,
+        'ChartNamespace': release_namespace,
+        'ChartVersion': chart_version,
+        'ChartRepoRef': chart_repo_name,
+        'HelmReleaseSourceInterval': '1m',
+        'HelmReleaseInterval': '1m',
+        'HelmReleaseRetries': 3
+    }
+
+    try:
+        helmrelease_yaml = helmrelease_template.render(release_context)
+        release_file = f'/tmp/{release_name}_helmrelease.yaml'
+
+        with open(release_file, 'w') as f:
+            f.write(helmrelease_yaml)
+
+        command = f"{kubectl} apply -f {release_file} "
+        run_command(command)        
+    except Exception as e:
+        raise e
+
+def upgrade_charts(helm_charts_data, provider, private_helm_repo, credentials):
     '''Update the chart versions'''
     
     try:
-        
-        charts_updated = {}
-        updated = False
-        k8s_version = keos_cluster["spec"]["k8s_version"].split(".")[1]
-        provider = keos_cluster["spec"]["infra_provider"]
-        print(f"[INFO] Updating chart versions for Kubernetes {k8s_version} in {provider}:")
-        for chart_name, chart_info in charts[k8s_version].items():
-            print(f"[INFO] Updating chart {chart_name} to version {chart_info['chart_version']}:", end =" ", flush=True)
-            chart_version = chart_info["chart_version"]
-            app_version = chart_info["app_version"]
-            if k8s_version == "28":
-                updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
-            elif chart_name in updatable_charts:
-                updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
-            else:
-                print("SKIP")
-            if updated and not chart_name == "cluster-operator":
-                charts_updated[chart_name] = chart_version
-            if k8s_version == "28" and updated and not chart_name == "tigera-operator":
-                file_type = "default"
-                if chart_name == "cluster-operator":
-                    file_type = "override" 
-                update_helmrelease_values(chart_name, namespaces.get(chart_name), f"values/{provider}/{chart_name}_{file_type}_values.tmpl", keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
-            
-        return charts_updated
+        updated_charts = {}
+        for chart_name, chart_data in helm_charts_data:
+            if chart_data["upgrade"]:
+                chart_release_name = chart_name
+                # We need to manage flux since its chart name does not match the release name
+                if chart_name == "flux2":
+                    chart_release_name = "flux"
+                else:
+                    chart_release_namespace = chart_data["namespace"]
+                chart_repo_url = chart_data["repo_url"]
+                chart_repo_name = 'keos' if private_helm_repo else chart_release_name
+                chart_version = chart_data["version"]
+                
+                print(f"[INFO] Upgrading {chart_release_name} to {chart_version}:")
+                
+                if not private_helm_repo:
+                    create_custom_helm_repository(chart_repo_name, chart_repo_url, 'default', 'generic')
+
+                create_helm_release(chart_release_name, chart_release_namespace, chart_repo_name, chart_name, chart_version, provider, credentials)
+
+                if not chart_name == "cluster-operator":
+                    updated_charts[chart_name] = chart_version
+                
+                if chart_name == "tigera-operator":
+                    check_and_delete_releases("tigera-operator")
+
+                print("OK")
+
+        return updated_charts
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating chart versions: {e}")
@@ -1527,14 +1381,11 @@ def update_helmrelease_version(chart_name, namespace, version):
     '''Update the version of a HelmRelease'''
     
     try:
-        
         check_command = f"{kubectl} get helmrelease {chart_name} -n {namespace}"
         stdout, stderr = run_command(check_command, allow_errors=True)
-        
         if "not found" in stderr.lower():
             print("SKIP")
             return  False
-
         update_command = f"{kubectl} get helmrelease {chart_name} -n {namespace} -o json | jq '.spec.chart.spec.version = \"{version}\"' | kubectl apply -f -"
         run_command(update_command)
         print("OK")
@@ -1549,28 +1400,6 @@ def update_helmrelease_version(chart_name, namespace, version):
             print("FAILED")
             print(f"[ERROR] Error updating the version of the chart {chart_name}: {e}")
             raise e
-
-def update_helmrelease_values(chart_name, namespace, values_file, keos_cluster, cluster_config, credentials, cluster_operator_version, upgrade_cloud_provisioner_only):
-    '''Update the values of a HelmRelease'''
-    
-    try:
-        print(f"[INFO] Updating values for chart {chart_name} in namespace {namespace}:", end =" ", flush=True)
-        
-        values = render_values_template(values_file, keos_cluster, cluster_config, credentials, cluster_operator_version)
-        values_json = json.dumps({"data": {"values.yaml": values}})
-        
-        cm_name = f"01-{chart_name}-helm-chart-override-values"
-        if chart_name == "flux" and not upgrade_cloud_provisioner_only:
-            cm_name = f"02-{chart_name}-helm-chart-override-values"
-        
-        command = f"{kubectl} patch configmap {cm_name} -n {namespace} --type merge -p '{values_json}'"
-            
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("FAILED")
-        print(f"[ERROR] Error updating the values for chart {chart_name} in namespace {namespace}: {e}")
-        raise e
 
 def patch_kubeadm_config_templates(namespace):
     '''Patch the KubeadmConfigTemplates'''
@@ -1747,7 +1576,7 @@ def backup_keoscluster_webhooks():
         print(f"[ERROR] Error backing up KEOSCluster webhooks: {e}")
         raise e
 
-def update_clusterconfig(cluster_config, charts, provider, cluster_operator_version):
+def update_clusterconfig(cluster_config, charts, provider):
     '''Update the clusterconfig'''
     
     try:
@@ -1755,7 +1584,7 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         clusterconfig_name = cluster_config["metadata"]["name"]
         clusterconfig_namespace = cluster_config["metadata"]["namespace"]
         
-        cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
+        cluster_config["spec"]["cluster_operator_version"] = config["cluster_operator_version"]
         cluster_config["spec"]["capx"] = {}
         cluster_config["spec"]["capx"]["capi_version"] = "v1.7.4"
         if provider == "aws":
@@ -1764,7 +1593,10 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         if provider == "azure":
             cluster_config["spec"]["capx"]["capz_image_version"] = "v1.12.4"
             cluster_config["spec"]["capx"]["capz_version"] = "v1.12.4"
-        cluster_config["spec"]["private_helm_repo"] = False
+        if 'private_registry' in cluster_config["spec"]:
+            cluster_config["spec"]["private_helm_repo"] = cluster_config["spec"]["private_registry"]
+        else:
+            cluster_config["spec"]["private_helm_repo"] = False
         cluster_config["spec"]["charts"] = []
         for chart_name, chart_version in charts.items():
             cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_version})
@@ -2100,8 +1932,8 @@ if __name__ == '__main__':
 
     command = "clusterctl version -o short"
     status, output = subprocess.getstatusoutput(command)
-    if (status != 0) or (get_version(output) < get_version(CLUSTERCTL)):
-        print("[ERROR] clusterctl version " + CLUSTERCTL + " is required")
+    if (status != 0) or (get_version(output) < get_version(CLUSTERCTL_VERSION)):
+        print("[ERROR] clusterctl version " + CLUSTERCTL_VERSION + " is required")
         sys.exit(1)
 
     if not os.path.exists(config["secrets"]):
@@ -2168,40 +2000,20 @@ if __name__ == '__main__':
 
     # Set env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
-    helm_registry_oci = get_helm_registry_oci(keos_cluster)
-    helm_registry = input(f"The current helm repository is: {helm_registry_oci}. Do you want to indicate a new helm repository? Press enter or specify new repository: ")
-    if helm_registry != "" and helm_registry != helm_registry_oci:
-        update_helm_registry(cluster_name, helm_registry, config["dry_run"]) 
+    helm_repo_url = get_helm_repo_url(keos_cluster)
+    helm_repo = input(f"The current helm repository is: {helm_repo_url}. Do you want to indicate a new helm repository? Press enter or specify new repository: ")
+    if helm_repo != "" and helm_repo != helm_repo_url:
+        update_helm_repo(cluster_name, helm_repo, config["dry_run"]) 
 
     # Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    cluster_operator_version = config["cluster_operator"]
-    if provider == "aws":
-        chart_versions = eks_chart_versions
-    elif provider == "azure":
-        chart_versions = azure_vm_chart_versions
-    if cluster_operator_version != "0.4.2":
-        if provider == "aws":
-            for version_key, charts in chart_versions.items():
-                if "cluster-operator" in charts.keys():
-                    charts["cluster-operator"]["chart_version"] = cluster_operator_version
-        elif provider == "azure":
-            for version_key, charts in chart_versions.items():
-                if "cluster-operator" in charts.keys():
-                    charts["cluster-operator"]["chart_version"] = cluster_operator_version
-    
-    scale_cluster_autoscaler(0, config["dry_run"])
     
     if provider == "aws":
-        namespace = "capa-system"
-        version = CAPA
-        credentials = subprocess.getoutput(kubectl + " -n " + namespace + " get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
+        credentials = subprocess.getoutput(kubectl + " -n capa-system get secret capa-manager-bootstrap-credentials -o jsonpath='{.data.credentials}'")
         env_vars += " CAPA_EKS_IAM=true AWS_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
         userAssignIdentity = get_user_assign_identity(keos_cluster["spec"]["security"]["nodes_identity"])
         print(f"[INFO] User assigned identity: {userAssignIdentity}")
-        namespace = "capz-system"
-        version = CAPZ
         if managed:
             env_vars += " EXP_MACHINE_POOL=true"
         if "credentials" in vault_secrets_data["secrets"]["azure"]:
@@ -2229,27 +2041,19 @@ if __name__ == '__main__':
             else:
                 print("[ERROR] Helm repository credentials not found in secrets file")
                 sys.exit(1)
+    
+    scale_cluster_autoscaler(0, config["dry_run"])
                 
     # Backup
     if not config["disable_backup"]:
         now = datetime.now()
         backup_dir = backup_dir + now.strftime("%Y%m%d-%H%M%S")
-        backup(backup_dir, namespace, cluster_name, config["dry_run"])
+        backup(backup_dir, cluster_name, provider, config["dry_run"])
 
     # Prepare capsule
     if not config["disable_prepare_capsule"]:
-        prepare_capsule(config["dry_run"])
+        prepare_capsule(provider, config["dry_run"])
 
-    # EKS LoadBalancer Controller
-    if config["enable_lb_controller"]:
-        if provider == "aws" and managed:
-            account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
-            install_lb_controller(cluster_name, account_id, config["dry_run"])
-        else:
-            print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
-            sys.exit(0)
-
-    # Cluster Operator
     if provider == "azure":
         patch_kubeadm_config_templates("cluster-" + cluster_name)
         update_configmap("kube-system", "00-metrics-server-helm-chart-default-values", "values.yaml", "affinity")
@@ -2257,13 +2061,20 @@ if __name__ == '__main__':
         create_and_apply_azure_secret("azure-cloud-provider", "kube-system", credentials["tenant_id"], credentials["subscription_id"], cluster_name, keos_cluster["spec"]["region"], userAssignIdentity)
     if provider == "aws":
         update_allow_global_netpol(provider)
-    if not check_flux_installed():
-        install_flux(provider)
-    upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
-    install_cert_manager(provider, upgrade_cloud_provisioner_only)
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
+    upgrade_capx(managed, provider, env_vars)
+    
+    helm_charts_data = get_helm_charts_data(keos_cluster, cluster_config)
+
+    # If we are upgrading from KEOS 1.0 (using --upgrade-cloud-provisioner-only) Flux won't be already installed
+    if upgrade_cloud_provisioner_only:
+        install_flux(provider, helm_charts_data)
+    
+    adopt_tigera_operator_resources_chart()
+
+    adopt_cert_manager_resources_chart()
+    
+    upgraded_charts = upgrade_charts(helm_charts_data, provider, cluster_config["spec"]["private_helm_repo"], credentials)
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -2273,9 +2084,8 @@ if __name__ == '__main__':
     current_k8s_version = get_kubernetes_version()
     
     if "1.28" in current_k8s_version:   
-        tigera_version = chart_versions["28"]["tigera-operator"]["chart_version"] 
         print(f"[INFO] Restarting Tigera Operator: ", end =" ", flush=True)
-        restart_tigera_operator_manifest(provider,tigera_version=tigera_version)
+        restart_tigera_operator_manifest(provider)
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
         command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'=True --timeout=5m"
         run_command(command)
@@ -2289,7 +2099,7 @@ if __name__ == '__main__':
         stop_keoscluster_controller()
         patch_webhook_timeout("keoscluster-validating-webhook-configuration", "vkeoscluster.kb.io", 30)
         disable_keoscluster_webhooks()
-        update_clusterconfig(cluster_config, charts, provider, cluster_operator_version)
+        update_clusterconfig(cluster_config, upgraded_charts, provider)
         keos_cluster, cluster_config = get_keos_cluster_cluster_config()
         provider = keos_cluster["spec"]["infra_provider"]
         update_keoscluster(keos_cluster, provider)
@@ -2321,10 +2131,8 @@ if __name__ == '__main__':
             # Update kubernetes version to 1.29.X
             upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     current_k8s_version = get_kubernetes_version()
-    
+
     if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and skip_k8s_intermediate_version):
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
         command = f"{kubectl} wait --for=condition=Available deployment/keoscluster-controller-manager -n kube-system --timeout=300s"
@@ -2347,9 +2155,6 @@ if __name__ == '__main__':
 
     if provider == "azure":
         patch_kubeadm_controlplane("cluster-" + cluster_name)
-    
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     
     if not managed:
         cp_global_network_policy("patch", networks, provider, backup_dir, False)

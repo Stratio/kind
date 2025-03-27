@@ -6,6 +6,7 @@
 
 ## 0.17.0-0.6.4 (2025-03-24)
 
+* [PLT-1906] Refactor upgrade flow
 * [PLT-1887] Dynamic region describe
 * [PLT-1849] Fix aws-load-balancer-controller annotation
 * [PLT-1621] Added new flag to support only provisioner upgrades
