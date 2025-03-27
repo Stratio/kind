@@ -33,7 +33,7 @@ This object defines the desired state of _ClusterConfig_.
 | Parameter | Description | Default value | Validation
 
 | * `eks_lb_controller`* _boolean_
-| Enables the `aws-load-balancer-controller-manager` operator to be installed.
+| Enables the `aws-load-balancer-controller` operator to be installed.
 | false
 | -
 
