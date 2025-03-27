@@ -810,11 +810,11 @@ Eventually, this could generate request problems in case of failure of any of th
 
 To avoid this problem, the health check of the load balancer created must be modified, using the HTTPS protocol and the _/readyz_ path. The port should be maintained, being 443 for GCP and 6443 for Azure.
 
-== Deployment of _aws-load-balancer-controller-manager_ (EKS only)
+== Deployment of _aws-load-balancer-controller_ (EKS only)
 
-In EKS clusters, it is possible to deploy a controller (_aws-load-balancer-controller-manager_) responsible for creating _Elastic Load Balancers_, used by objects such as _Ingress_ and _Service_ type _LoadBalancer_.
+In EKS clusters, it is possible to deploy a controller (_aws-load-balancer-controller_) responsible for creating _Elastic Load Balancers_, used by objects such as _Ingress_ and _Service_ type _LoadBalancer_.
 
-Since this deployment is not enabled by default, it must be indicated with _spec.eks_lb_controller_: "true" in the _ClusterConfig_ object of the cluster descriptor.
+Since this deployment is not enabled by default, it must be indicated with _spec.eks_lb_controller_: true in the _ClusterConfig_ object of the cluster descriptor.
 
 To authorize the controller, we will use https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IAM roles for service accounts], which involves creating the corresponding IAM objects as indicated below:
 
@@ -831,7 +831,7 @@ export AWS_IAM_POLICY_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 export AWS_IAM_ROLE_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 ----
 
-* https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that will be used by the _service account_ of the _aws-load-balancer-controller-manager_ deployment with the following trust policy:
+* https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that will be used by the _service account_ of the _aws-load-balancer-controller_ deployment with the following trust policy:
 +
 [source,console]
 ----
@@ -933,9 +933,9 @@ $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document f
 $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${AWS_IAM_POLICY_NAME}
 ----
 
-* Restart the controller (_aws-load-balancer-controller-manager_):
+* Restart the controller (_aws-load-balancer-controller_):
 +
 [source,console]
 ----
-$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller-manager
+$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller
 ----

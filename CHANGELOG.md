@@ -1,6 +1,14 @@
 # Changelog
 
+<<<<<<< HEAD
 ## 0.17.0-0.8.0 (upcoming)
+=======
+## 0.17.0-0.6.5 (upcoming)
+
+* [PLT-1922] Rename reference to aws-load-balancer-controller
+
+## 0.17.0-0.6.4 (2025-03-24)
+>>>>>>> f5df1e19 ([PLT-1922] Rename reference to aws-load-balancer-controller (#741))
 
 * [PLT-1887] Dynamic region describe
 
