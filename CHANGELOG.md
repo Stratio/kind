@@ -1,5 +1,6 @@
 # Changelog
 
+<<<<<<< HEAD
 ## 0.17.0-0.7.0 (2025-03-25)
 
 * [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
@@ -20,6 +21,13 @@
 * [PLT-1309] -  Update docker images requirements documentation. Include stratio-capi-image to cicd flow  - [`#663`](https://github.com/Stratio/kind/pull/663)
 * [PLT-719] -  Doc 0.5 to master  - [`#645`](https://github.com/Stratio/kind/pull/645)
 * [PLT-1178] -  fix aws-load-balancer-controller  - [`#640`](https://github.com/Stratio/kind/pull/640)
+=======
+## 0.17.0-0.6.5 (upcoming)
+
+* [PLT-1922] Rename reference to aws-load-balancer-controller
+
+## 0.17.0-0.6.4 (2025-03-24)
+>>>>>>> f5df1e19 ([PLT-1922] Rename reference to aws-load-balancer-controller (#741))
 
 ## Previous development
 

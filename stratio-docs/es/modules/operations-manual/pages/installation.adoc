@@ -810,11 +810,11 @@ Eventualmente, esto podría generar problemas en las peticiones en caso de fallo
 
 Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
 
-== Despliegue de _aws-load-balancer-controller-manager_ (sólo EKS)
+== Despliegue de _aws-load-balancer-controller_ (sólo EKS)
 
-En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller-manager_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
+En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
 
-Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_: "true" en el objeto _ClusterConfig_ del descriptor del _cluster_.
+Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_: true en el objeto _ClusterConfig_ del descriptor del _cluster_.
 
 Para autorizar el controlador se utilizarán https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[roles de IAM para cuentas de servicio], lo que implica crear los correspondientes objetos de IAM como se indica a continuación:
 
@@ -831,7 +831,7 @@ export AWS_IAM_POLICY_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 export AWS_IAM_ROLE_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 ----
 
-* https://docs.aws.amazon.com/es_es/IAM/latest/UserGuide/id_roles_create.html[Crear el rol de IAM] que utilizará la cuenta de servicio del despliegue de _aws-load-balancer-controller-manager_ con la siguiente política de confianza:
+* https://docs.aws.amazon.com/es_es/IAM/latest/UserGuide/id_roles_create.html[Crear el rol de IAM] que utilizará la cuenta de servicio del despliegue de _aws-load-balancer-controller_ con la siguiente política de confianza:
 +
 [source,console]
 ----
@@ -933,10 +933,10 @@ $ aws iam create-policy --policy-name ${AWS_IAM_POLICY_NAME} --policy-document f
 $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${AWS_IAM_POLICY_NAME}
 ----
 
-* Reiniciar el controlador (_aws-load-balancer-controller-manager_):
+* Reiniciar el controlador (_aws-load-balancer-controller_):
 +
 [source,console]
 ----
-$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller-manager
+$ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller
 ----
 
