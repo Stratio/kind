@@ -301,12 +301,19 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def install_lb_controller(cluster_name, account_id, dry_run):
+def install_lb_controller(cluster_name, account_id, private_registry, dry_run):
     '''Install AWS Load Balancer Controller for EKS clusters'''
     
     print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
     if not dry_run:
-        chart_version = get_chart_version("aws-load-balancer-controller", "kube-system")
+        chart_name = "aws-load-balancer-controller"
+        chart_namespace = "kube-system"
+        chart_version = get_chart_version(chart_name, chart_namespace)
+        if private_registry:
+            repository_url = keos_cluster["spec"]["helm_repository"]["url"]
+        else:
+            repository_url = specific_repos[chart_name]
+        
         if chart_version == AWS_LOAD_BALANCER_CONTROLLER_CHART:
             print("SKIP")
             return
@@ -325,12 +332,14 @@ def install_lb_controller(cluster_name, account_id, dry_run):
         execute_command(command, False, False)
         os.remove('./gnpPatch.yaml')
         role_name = cluster_name + "-lb-controller-manager"
-        command = (helm + " -n kube-system install aws-load-balancer-controller aws-load-balancer-controller" +
-                    " --wait --version " + AWS_LOAD_BALANCER_CONTROLLER_CHART +
-                    " --set clusterName=" + cluster_name +
-                    " --set podDisruptionBudget.minAvailable=1" +
-                    " --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::" + account_id + ":role/" + role_name +
-                    " --repo https://aws.github.io/eks-charts")
+        
+        command = f"{helm} install {release_name} -n {chart_namespace} --wait --version {chart_version}"
+        command += f" --set clusterName={cluster_name} --set podDisruptionBudget.minAvailable=1"
+        command += f" --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::{account_id}:role/{role_name}"
+        if "oci" in repository_url:
+            command += f" {repository_url}/{chart_name}"
+        else:
+            command += f" {chart_name} --repo {repository_url}"
         execute_command(command, False)
     else:
         print("DRY-RUN")
@@ -2255,7 +2264,7 @@ if __name__ == '__main__':
     if config["enable_lb_controller"]:
         if provider == "aws" and managed:
             account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
-            install_lb_controller(cluster_name, account_id, config["dry_run"])
+            install_lb_controller(keos_cluster, cluster_name, account_id, private_registry, config["dry_run"])
         else:
             print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
             sys.exit(0)
