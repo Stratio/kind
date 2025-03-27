@@ -86,6 +86,11 @@ Opciones principales:
 | Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
 | False
 | No
+
+| `--private_registry`
+| Considera el _registry_ de _Docker_ y el repositorio de _Helm_ como _registry_ y repositorio privados.
+| False
+| No
 |===
 
 ====

@@ -167,7 +167,7 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
-    parser.add_argument("--private_registry", action="store_true", help="Consider Docker registry and Helm repository as private")
+    parser.add_argument("--private_registry", action="store_true", help="Consider Docker registry and Helm repository as private registry and repository")
     args = parser.parse_args()
     return vars(args)
 
