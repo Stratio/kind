@@ -360,7 +360,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
-	err = provider.installCAPXLocal(n, *a.clusterConfig)
+	err = provider.installCAPXLocal(n, *a.clusterConfig, providerParams)
 	if err != nil {
 		return err
 	}
@@ -774,7 +774,7 @@ spec:
 			return err
 		}
 
-		err = provider.installCAPXWorker(n, a.keosCluster, *a.clusterConfig, kubeconfigPath)
+		err = provider.installCAPXWorker(n, a.keosCluster, *a.clusterConfig, kubeconfigPath, providerParams)
 		if err != nil {
 			return err
 		}

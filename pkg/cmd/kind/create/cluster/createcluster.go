@@ -192,6 +192,11 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		runtime.GetDefault(logger),
 	)
 
+	// Check if "RoleARN" is nil or not set, and set the "RoleARN" field to a default value
+	if keosCluster.Spec.Credentials.AWS.RoleARN == "" {
+		keosCluster.Spec.Credentials.AWS.RoleARN = "false"
+	}
+
 	clusterCredentials, err := provider.Validate(
 		*keosCluster,
 		clusterConfig,
