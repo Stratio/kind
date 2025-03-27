@@ -167,6 +167,7 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
+    parser.add_argument("--private_registry", action="store_true", help="Consider Docker registry and Helm repository as private registry and repository")
     args = parser.parse_args()
     return vars(args)
 
@@ -300,12 +301,19 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def install_lb_controller(cluster_name, account_id, dry_run):
+def install_lb_controller(keos_cluster, cluster_name, account_id, private_registry, dry_run):
     '''Install AWS Load Balancer Controller for EKS clusters'''
     
     print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
     if not dry_run:
-        chart_version = get_chart_version("aws-load-balancer-controller", "kube-system")
+        chart_name = "aws-load-balancer-controller"
+        chart_namespace = "kube-system"
+        chart_version = get_chart_version(chart_name, chart_namespace)
+        if private_registry:
+            repository_url = keos_cluster["spec"]["helm_repository"]["url"]
+        else:
+            repository_url = specific_repos[chart_name]
+        
         if chart_version == AWS_LOAD_BALANCER_CONTROLLER_CHART:
             print("SKIP")
             return
@@ -324,12 +332,14 @@ def install_lb_controller(cluster_name, account_id, dry_run):
         execute_command(command, False, False)
         os.remove('./gnpPatch.yaml')
         role_name = cluster_name + "-lb-controller-manager"
-        command = (helm + " -n kube-system install aws-load-balancer-controller aws-load-balancer-controller" +
-                    " --wait --version " + AWS_LOAD_BALANCER_CONTROLLER_CHART +
-                    " --set clusterName=" + cluster_name +
-                    " --set podDisruptionBudget.minAvailable=1" +
-                    " --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::" + account_id + ":role/" + role_name +
-                    " --repo https://aws.github.io/eks-charts")
+        
+        command = f"{helm} install {chart_name} -n {chart_namespace} --wait --version {chart_version}"
+        command += f" --set clusterName={cluster_name} --set podDisruptionBudget.minAvailable=1"
+        command += f" --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::{account_id}:role/{role_name}"
+        if "oci" in repository_url:
+            command += f" {repository_url}/{chart_name}"
+        else:
+            command += f" {chart_name} --repo {repository_url}"
         execute_command(command, False)
     else:
         print("DRY-RUN")
@@ -876,20 +886,29 @@ def get_installed_helm_charts():
         raise e
 
 # Install Flux if it is not present
-def install_flux(provider):
+def install_flux(keos_cluster, provider, private_registry):
     '''Install Flux'''
     
-    repository_url = "https://fluxcd-community.github.io/helm-charts"
+    if private_registry:
+        repository_url = keos_cluster["spec"]["helm_repository"]["url"]
+    else:
+        repository_url = specific_repos["flux"]
     chart_name = "flux2"
     release_name = "flux"
     chart_version = "2.12.2"
     namespace = "kube-system"
-    values_file = "files/flux-values.yaml"
+    values_file = f"/tmp/{release_name}_release_values.yaml"
+
+    export_release_values(release_name, namespace, values_file, provider, credentials)
+
+    command = f"{helm} install {release_name} -n {namespace} --values {values_file} --version {chart_version}"
+    if "oci" in repository_url:
+        command += f" {repository_url}/{chart_name}"
+    else:
+        command += f" {chart_name} --repo {repository_url}"
 
     try:
-        run_command(f"{helm} repo add fluxcd {repository_url}")
-        run_command(f"{helm} repo update")  # Actualizar el repositorio
-        run_command(f"{helm} install {release_name} fluxcd/{chart_name} --version {chart_version} -n {namespace} --create-namespace --values {values_file}")
+        run_command(command)
         if provider == "azure":
             install_azurePodIdentityException()
         print("OK")
@@ -966,8 +985,39 @@ spec:
         print("FAILED")
         print(f"[ERROR] {e}.")
         raise e
+
+def add_clusterctl_registry_config(keos_cluster):
+    clusterctl_config_file = "/root/.cluster-api/clusterctl.yaml"
+    registry_url = get_keos_registry_url(keos_cluster)
+
+    print("[INFO] Modifying " + clusterctl_config_file + " to add private registry config", end =" ", flush=True)
     
-def upgrade_capx(managed, provider, namespace, version, env_vars):
+    try:
+        with open(clusterctl_config_file, 'r') as file:
+            data = yaml.safe_load(file)
+
+        data['images'] = {
+            'cluster-api': {'repository': f'{registry_url}/cluster-api'},
+            'bootstrap-kubeadm': {'repository': f'{registry_url}/cluster-api'},
+            'control-plane-kubeadm': {'repository': f'{registry_url}/cluster-api'},
+            'infrastructure-aws': {'repository': f'{registry_url}/cluster-api-aws'},
+            'infrastructure-azure/cluster-api-azure-controller': {'repository': f'{registry_url}/cluster-api-azure'},
+            'infrastructure-azure/azureserviceoperator': {'repository': f'{registry_url}/k8s'},
+            'infrastructure-azure/kube-rbac-proxy': {'repository': f'{registry_url}/kubebuilder'},
+            'infrastructure-azure/nmi': {'repository': f'{registry_url}/oss/azure/aad-pod-identity'},
+            'cert-manager': {'repository': f'{registry_url}/cert-manager'},
+        }
+
+        with open(clusterctl_config_file, 'w') as file:
+            yaml.dump(data, file, default_flow_style=False)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error modifying {clusterctl_config_file}: {e}")
+        raise e
+    
+    print("OK")
+
+def upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, private_registry, registry_url=""):
     '''Upgrade CAPX'''
     
     print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
@@ -976,6 +1026,8 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
     if capx_version == version and capi_version == CAPI:
         print("SKIP")
     else:
+        if private_registry:
+            add_clusterctl_registry_config(keos_cluster)
         command = (env_vars + " clusterctl upgrade apply --wait-providers" +
                     " --core capi-system/cluster-api:" + CAPI +
                     " --infrastructure " + namespace + "/" + provider + ":" + version)
@@ -1033,7 +1085,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only=False):
+def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only, private_registry):
     '''Adopt all Helm charts'''
     
     charts = get_installed_helm_charts()
@@ -1046,7 +1098,7 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cl
                 
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only)
+                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only, private_registry)
                 
         except Exception as e:
             print("FAILED")
@@ -1099,7 +1151,7 @@ def check_and_delete_releases(namespace):
             time.sleep(20)
         
 # Generate and apply HelmRelease and HelmRepository
-def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
+def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only, private_registry):
     '''Adopt a Helm chart'''
     
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
@@ -1122,7 +1174,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
         print("SKIP")
         return
     
-    if release_name in "cluster-operator":
+    if release_name in "cluster-operator" or private_registry:
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
         schema = "oci"
         repo_name = "keos"
@@ -1408,7 +1460,7 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
-def install_cert_manager(provider, upgrade_cloud_provisioner_only):
+def install_cert_manager(provider, upgrade_cloud_provisioner_only, private_registry):
     '''Install cert-manager'''
     
     try:
@@ -1483,7 +1535,7 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         print("OK")
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
-        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only)
+        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only, private_registry)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
@@ -2162,6 +2214,7 @@ if __name__ == '__main__':
     # Check special flags
     upgrade_cloud_provisioner_only = config["upgrade_cloud_provisioner_only"]
     skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
+    private_registry = config["private_registry"]
     if provider != "aws" and (skip_k8s_intermediate_version or upgrade_cloud_provisioner_only):
         print("[ERROR] --upgrade-cloud-provisioner-only and --skip-k8s-intermediate-version flags are only supported for EKS")
         sys.exit(1)
@@ -2244,7 +2297,7 @@ if __name__ == '__main__':
     if config["enable_lb_controller"]:
         if provider == "aws" and managed:
             account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
-            install_lb_controller(cluster_name, account_id, config["dry_run"])
+            install_lb_controller(keos_cluster, cluster_name, account_id, private_registry, config["dry_run"])
         else:
             print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
             sys.exit(0)
@@ -2258,11 +2311,11 @@ if __name__ == '__main__':
     if provider == "aws":
         update_allow_global_netpol(provider)
     if not check_flux_installed():
-        install_flux(provider)
-    upgrade_capx(managed, provider, namespace, version, env_vars)
+        install_flux(keos_cluster, provider, private_registry)
+    upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, private_registry)
     
-    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
-    install_cert_manager(provider, upgrade_cloud_provisioner_only)
+    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only, private_registry)
+    install_cert_manager(provider, upgrade_cloud_provisioner_only, private_registry)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     
     # Restore capsule

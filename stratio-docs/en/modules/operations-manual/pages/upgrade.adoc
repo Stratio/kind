@@ -86,6 +86,11 @@ Key options:
 | Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
 | False
 | No
+
+| `--private_registry`
+| Consider Docker registry and Helm repository as private registry and repository.
+| False
+| No
 |===
 
 ====
