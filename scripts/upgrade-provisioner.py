@@ -167,6 +167,7 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
+    parser.add_argument("--private_registry", action="store_true", help="Consider Docker registry and Helm repository as private")
     args = parser.parse_args()
     return vars(args)
 
@@ -876,20 +877,29 @@ def get_installed_helm_charts():
         raise e
 
 # Install Flux if it is not present
-def install_flux(provider):
+def install_flux(keos_cluster, provider, private_registry):
     '''Install Flux'''
     
-    repository_url = "https://fluxcd-community.github.io/helm-charts"
+    if private_registry:
+        repository_url = keos_cluster["spec"]["helm_repository"]["url"]
+    else:
+        repository_url = specific_repos["flux"]
     chart_name = "flux2"
     release_name = "flux"
     chart_version = "2.12.2"
     namespace = "kube-system"
-    values_file = "files/flux-values.yaml"
+    values_file = f"/tmp/{release_name}_release_values.yaml"
+
+    export_release_values(release_name, namespace, values_file, provider, credentials)
+
+    command = f"{helm} install {release_name} -n {namespace} --values {values_file} --version {chart_version}"
+    if "oci" in repository_url:
+        command += f" {repository_url}/{chart_name}"
+    else:
+        command += f" {chart_name} --repo {repository_url}"
 
     try:
-        run_command(f"{helm} repo add fluxcd {repository_url}")
-        run_command(f"{helm} repo update")  # Actualizar el repositorio
-        run_command(f"{helm} install {release_name} fluxcd/{chart_name} --version {chart_version} -n {namespace} --create-namespace --values {values_file}")
+        run_command(command)
         if provider == "azure":
             install_azurePodIdentityException()
         print("OK")
@@ -1033,7 +1043,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only=False):
+def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cloud_provisioner_only, private_registry):
     '''Adopt all Helm charts'''
     
     charts = get_installed_helm_charts()
@@ -1046,7 +1056,7 @@ def adopt_all_helm_charts(keos_cluster, credentials, specific_charts, upgrade_cl
                 
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only)
+                adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only, private_registry)
                 
         except Exception as e:
             print("FAILED")
@@ -1099,7 +1109,7 @@ def check_and_delete_releases(namespace):
             time.sleep(20)
         
 # Generate and apply HelmRelease and HelmRepository
-def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
+def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only, private_registry):
     '''Adopt a Helm chart'''
     
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
@@ -1122,7 +1132,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only=False):
         print("SKIP")
         return
     
-    if release_name in "cluster-operator":
+    if release_name in "cluster-operator" or private_registry:
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
         schema = "oci"
         repo_name = "keos"
@@ -1408,7 +1418,7 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
-def install_cert_manager(provider, upgrade_cloud_provisioner_only):
+def install_cert_manager(provider, upgrade_cloud_provisioner_only, private_registry):
     '''Install cert-manager'''
     
     try:
@@ -1483,7 +1493,7 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         print("OK")
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
-        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only)
+        adopt_helm_chart(chart_cert_manager, "", upgrade_cloud_provisioner_only, private_registry)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
@@ -2162,6 +2172,7 @@ if __name__ == '__main__':
     # Check special flags
     upgrade_cloud_provisioner_only = config["upgrade_cloud_provisioner_only"]
     skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
+    private_registry = config["private_registry"]
     if provider != "aws" and (skip_k8s_intermediate_version or upgrade_cloud_provisioner_only):
         print("[ERROR] --upgrade-cloud-provisioner-only and --skip-k8s-intermediate-version flags are only supported for EKS")
         sys.exit(1)
@@ -2258,11 +2269,11 @@ if __name__ == '__main__':
     if provider == "aws":
         update_allow_global_netpol(provider)
     if not check_flux_installed():
-        install_flux(provider)
+        install_flux(keos_cluster, provider, private_registry)
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
-    install_cert_manager(provider, upgrade_cloud_provisioner_only)
+    adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only, private_registry)
+    install_cert_manager(provider, upgrade_cloud_provisioner_only, private_registry)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, credentials, cluster_operator_version, upgrade_cloud_provisioner_only)
     
     # Restore capsule
