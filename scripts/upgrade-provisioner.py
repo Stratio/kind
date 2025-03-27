@@ -301,7 +301,7 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def install_lb_controller(cluster_name, account_id, private_registry, dry_run):
+def install_lb_controller(keos_cluster, cluster_name, account_id, private_registry, dry_run):
     '''Install AWS Load Balancer Controller for EKS clusters'''
     
     print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
@@ -333,7 +333,7 @@ def install_lb_controller(cluster_name, account_id, private_registry, dry_run):
         os.remove('./gnpPatch.yaml')
         role_name = cluster_name + "-lb-controller-manager"
         
-        command = f"{helm} install {release_name} -n {chart_namespace} --wait --version {chart_version}"
+        command = f"{helm} install {chart_name} -n {chart_namespace} --wait --version {chart_version}"
         command += f" --set clusterName={cluster_name} --set podDisruptionBudget.minAvailable=1"
         command += f" --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::{account_id}:role/{role_name}"
         if "oci" in repository_url:
@@ -985,8 +985,39 @@ spec:
         print("FAILED")
         print(f"[ERROR] {e}.")
         raise e
+
+def set_clusterctl_registry_config(keos_cluster):
+    clusterctl_config_file = "/root/.cluster-api/clusterctl.yaml"
+    registry_url = get_keos_registry_url(keos_cluster)
+
+    print("[INFO] Configuring " + clusterctl_config_file + " to set private registry", end =" ", flush=True)
     
-def upgrade_capx(managed, provider, namespace, version, env_vars):
+    try:
+        with open(clusterctl_config_file, 'r') as file:
+            data = yaml.safe_load(file)
+
+        data['images'] = {
+            'cluster-api': {'repository': f'{registry_url}/cluster-api'},
+            'bootstrap-kubeadm': {'repository': f'{registry_url}/cluster-api'},
+            'control-plane-kubeadm': {'repository': f'{registry_url}/cluster-api'},
+            'infrastructure-aws': {'repository': f'{registry_url}/cluster-api-aws'},
+            'infrastructure-azure/cluster-api-azure-controller': {'repository': f'{registry_url}/cluster-api-azure'},
+            'infrastructure-azure/azureserviceoperator': {'repository': f'{registry_url}/k8s'},
+            'infrastructure-azure/kube-rbac-proxy': {'repository': f'{registry_url}/kubebuilder'},
+            'infrastructure-azure/nmi': {'repository': f'{registry_url}/oss/azure/aad-pod-identity'},
+            'cert-manager': {'repository': f'{registry_url}/cert-manager'},
+        }
+
+        with open(clusterctl_config_file, 'w') as file:
+            yaml.dump(data, file, default_flow_style=False)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error configuring {clusterctl_config_file}: {e}")
+        raise e
+    
+    print("OK")
+
+def upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, private_registry, registry_url=""):
     '''Upgrade CAPX'''
     
     print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
@@ -995,6 +1026,8 @@ def upgrade_capx(managed, provider, namespace, version, env_vars):
     if capx_version == version and capi_version == CAPI:
         print("SKIP")
     else:
+        if private_registry:
+            set_clusterctl_registry_config(keos_cluster)
         command = (env_vars + " clusterctl upgrade apply --wait-providers" +
                     " --core capi-system/cluster-api:" + CAPI +
                     " --infrastructure " + namespace + "/" + provider + ":" + version)
@@ -2279,7 +2312,7 @@ if __name__ == '__main__':
         update_allow_global_netpol(provider)
     if not check_flux_installed():
         install_flux(keos_cluster, provider, private_registry)
-    upgrade_capx(managed, provider, namespace, version, env_vars)
+    upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, private_registry)
     
     adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only, private_registry)
     install_cert_manager(provider, upgrade_cloud_provisioner_only, private_registry)
