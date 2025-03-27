@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.6.5 (upcoming)
+
+* [PLT-1922] Rename reference to aws-load-balancer-controller
+
 ## 0.17.0-0.6.4 (2025-03-24)
 
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
