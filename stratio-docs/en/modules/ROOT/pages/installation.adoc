@@ -26,14 +26,30 @@ WARNING: Suppose you have not previously created the CloudFormation stack or man
 === Azure unmanaged
 
 * Permissions
-+
+
 As with other supported providers, provisioning requires an account with all the requested permissions, but in this case in addition a role is required for the cluster _workers_ (indicated in the descriptor in `spec.security.nodes_identity`) and another for the _control-plane_ (indicated in the descriptor in `spec.security.control_plane_identity`).
-+
-** xref:attachment$stratio-azure-role.json[Download permissions for Azure].
-** xref:attachment$stratio-azure-nodes-role.json[Download permissions for Azure _workers_.]
+
+For _subscription-level_ permissions, the following permissions are recommended:
+
+** xref:attachment$stratio-azure-role.json[Download permissions for Azure deployment user].
+** xref:attachment$stratio-azure-nodes-role.json[Download permissions for Azure _workers_].
 ** xref:attachment$stratio-azure-cp-role.json[Download permissions for Azure _control-plane_].
 
-* Certified operating systems
+For _resource group-level_ permissions, the following permissions are recommended:
+
+** xref:attachment$stratio-azure-role-rg.json[Download permissions for Azure deployment user].
+** xref:attachment$stratio-azure-nodes-role-rg.json[Download permissions for Azure _workers_].
+** xref:attachment$stratio-azure-cp-role-rg.json[Download permissions for Azure _control-plane_].
+** xref:attachment$stratio-azure-acr.json[Download permissions for Azure deployment user, _workers_, and _control-plane_].
+** Additionally, the following permissions will be added at the _resource group-level_:
+- Deployment user:
+  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+- _Control-plane_:
+  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+- _Workers_:
+  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+
+** Certified operating systems
 +
 In Azure environments, you must use the images provided by Stratio. You can find them in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
 +
