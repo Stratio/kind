@@ -4,35 +4,49 @@ Arquitectura de referencia:
 
 image::eks-reference-architecture.png[]
 
-== Introducción
+== Fases de aprovisionamiento
 
 image::arq-intro.png[]
 
-_Stratio Cloud Provisioner_ es la fase inicial para la creación de un _cluster_ de _Stratio KEOS_ en un proveedor _cloud_. Esta comprende el aprovisionamiento de la infraestructura (máquinas virtuales, red privada, balanceadores de carga, etc., en el _cloud_), la creación de un _cluster_ de Kubernetes, su _networking_ y almacenamiento.
+== Introducción
 
-Para llevar a cabo la creación del _cluster_, _Stratio Cloud Provisioner_ creará un recurso de Kubernetes _KeosCluster_ y el _controller_ encargado de su ciclo de vida, _Stratio Cluster Operator_. Este _KeosCluster_ será el encargado de la generación de los recursos necesarios para la creación y operación del _cluster_.
+_Stratio Cloud Provisioner_ es la fase inicial para la creación de un _cluster_ de _Stratio KEOS_ en un proveedor _cloud_. Esta fase comprende el aprovisionamiento de la infraestructura (máquinas virtuales, redes privadas, balanceadores de carga, etc.), la creación de un _cluster_ de Kubernetes, su _networking_ y almacenamiento, todo ello en el proveedor seleccionado.
 
-Al finalizar la creación del _cluster_ en esta fase y según un descriptor de _cluster_ indicado, se creará un fichero descriptor (_keos.yaml_) y otro cifrado de credenciales (_secrets.yml_) para la siguiente fase, de instalación de _Stratio KEOS_.
+Durante esta fase, se genera un recurso de Kubernetes denominado _KeosCluster_, el cual define las características del _cluster_ y actúa como punto único de gestión de su ciclo de vida. A partir del descriptor de _cluster_ proporcionado, también se generan dos archivos: un descriptor (`keos.yaml`) y otro cifrado con las credenciales (`secrets.yml`) los cuales serán utilizados en la siguiente fase de instalación de _Stratio KEOS_.
 
-Una vez finalizada la instalación, todas las operaciones de día 2 sobre la propia infraestructura _cloud_ en la que se ejecuten los distintos servicios se deben realizar mediante la edición de _KeosCluster_ para gestionar los recursos del _cluster_. Estas ediciones serán validadas y aplicadas por el _Stratio Cluster Operator_.
+Una vez completada la instalación, todas las operaciones de mantenimiento y gestión de la infraestructura _cloud_ (día 2) deberán realizarse exclusivamente mediante la edición del recurso _KeosCluster_, garantizando así una administración controlada por el _Stratio Cluster Operator_.
 
-== Objeto _KeosCluster_
+== Recurso _KeosCluster_
 
-Durante la fase de instalación, tras desplegar el _chart_ de Helm de _Stratio Cluster Operator_ y teniendo como punto de partida el descriptor del _cluster_, se creará por defecto un recurso _KeosCluster_ que centralizará la creación del _cluster_ y de todos los objetos de los distintos proveedores _Cloud_ y las operaciones sobre estos.
+Tras desplegar el _chart_ de Helm del _Stratio Cluster Operator_ y con base en el descriptor del _cluster_, se crea automáticamente un recurso _KeosCluster_. Este recurso centraliza la creación y administración del _cluster_ y los objetos específicos del proveedor _cloud_.
 
-=== Mitigación del error humano
+=== Control de concurrencia y prevención de errores
 
-Al centralizar todas las operaciones sobre el _cluster_ y los distintos recursos _cloud_, una vez se inicie una operación desencadenada por una edición del objeto _KeosCluster_ el controlador _Stratio Cluster Operator_ denegará cualquier otra solicitud hasta que haya finalizado la operación previa.
+Para evitar conflictos y mitigar errores humanos, el _Stratio Cluster Operator_ deniega nuevas solicitudes si ya existe una operación en curso sobre el objeto _KeosCluster_. Esta situación se refleja mediante su subrecurso `status`, que informa del tipo de operación activa.
 
-Para ello, se define el subrecurso del _KeosCluster_, _status_ que informará del tipo de operación que se encuentra haciendo en caso de que así sea.
+== Recurso _ClusterConfig_
 
-== Objeto _ClusterConfig_
+Junto con el objeto _KeosCluster_, se puede declarar un recurso adicional llamado _ClusterConfig_, el cual permite definir configuraciones específicas para el _cluster_.
 
-Del mismo modo que el objeto _KeosCluster_, durante la fase de instalación se creará el recurso _ClusterConfig_, que permite indicar configuraciones específicas para ese _cluster_ en particular.
-
-La declaración de este recurso de Kubernetes deberá hacerse en el propio fichero descriptor, junto al objeto _KeosCluster_. En caso de no indicarse durante la instalación del _cluster_, se generará el recurso con los valores por defecto.
+Este recurso debe incluirse en el mismo fichero descriptor que el _KeosCluster_. Si no se declara explícitamente durante la instalación, se generará automáticamente con valores por defecto.
 
 TIP: Para más detalles, consulta la sección de xref:operations-manual:api-reference.adoc[referencia API].
+
+=== Selección del _Cluster Operator_
+
+Por defecto, se instalará la última versión del _chart_ disponible en el repositorio de Helm especificado en el objeto _KeosCluster_. Este comportamiento puede sobrescribirse indicando manualmente la versión deseada en la configuración del _ClusterConfig_.
+
+==== Criterios de selección de versión
+
+La elección automática se basa en los siguientes criterios:
+- Prioridad de versionado: _release_, _prerelease_, _milestone_, _snapshot_, _pull request_.
+- Orden alfanumérico dentro de versiones de igual precedencia (excepto _prerelease_).
+
+Por ejemplo, se seleccionará `0.2.1` antes que `0.2.0`. 
+
+En el caso de versiones _prerelease_ sin un orden alfanumérico claro, se seleccionará la última versión publicada en el repositorio de Helm, debido al esquema de nomenclatura utilizado en Stratio.
+
+NOTE: Si se utiliza la selección por defecto, no es necesario especificar la versión manualmente. Esta se reflejará automáticamente en el objeto creado en el _cluster_.
 
 === Elección del _Cluster Operator_
 
@@ -48,63 +62,195 @@ NOTE: En caso de optar por la elección por defecto del _chart_, no será necesa
 
 == Objetos del proveedor del _cloud_
 
-En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor _cloud_ (en [silver]#gris# los objetos opcionales que dependerán de lo especificado en el descriptor del _cluster_):
+En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor _cloud_ (los objetos generados dependerán de lo especificado en el descriptor del _cluster_):
 
 === EKS
 
-* 1 _cluster_ de Elastic Kubernetes Service (EKS) con _add-ons_ para EBS y CNI, _logging_ (si se ha especificado) y un proveedor OIDC.
-** 2 _Security Groups_ de EKS para el _control-plane_ y los nodos _Worker_.
-** 1 rol de IAM con la política AmazonEKSClusterPolicy.
-* [silver]#1 VPC.#
-* [silver]#6 _subnets_ con sus respectivas tablas de rutas.#
-** [silver]#3 _subnets_ públicas (una por AZ).#
-** [silver]#3 _subnets_ privadas (también una por AZ).#
-* [silver]#1 _NAT gateway_ por cada _subnet_ pública.#
-* [silver]#1 _Internet gateway_ para la VPC.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ privada para salir a internet a través de los _NAT gateways_.#
-* [silver]#1 ruta por defecto en la tabla de rutas de cada _subnet_ pública para salir a internet a través del _Internet Gateway_.#
-* 1 política de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* 1 rol de IAM para los nodos del _cluster_ (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* VMs para _Workers_ (según descriptor del _cluster_ y autoescalado).
-** 1 Volumen EBS para cada volumen persistente.
-* 1 Balanceador de carga tipo _Network_ para la exposición de _Services_ tipo Load Balancer.
-** 1 _Listener_ por puerto para cada _Service_.
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
+
+| Cluster de Elastic Kubernetes Service (EKS)
+| 1
+
+| Add-ons gestionados por EKS (EBS CSI Driver, CoreDNS, kube-proxy, VPC CNI)
+| 1 conjunto
+
+| Add-on de logging (CloudWatch)
+| 1 (si se especifica)
+
+| Proveedor OIDC
+| 1
+
+| VPC*
+| 1
+
+| Subnets públicas (una por zona de disponibilidad)
+| 3
+
+| Subnets privadas (una por zona de disponibilidad)
+| 3
+
+| Internet Gateway*
+| 1
+
+| NAT Gateways (uno por subnet pública)
+| 3
+
+| Tablas de rutas con salida a Internet Gateway
+| 3
+
+| Tablas de rutas con salida a NAT Gateway
+| 3
+
+| Security Groups (control-plane y nodos _Worker_)
+| 2
+
+| IAM Role `<cluster-name>-iam-service-role` para el _control-plane_
+| 1
+
+| Asociar IAM Policy `AmazonEKSClusterPolicy` al rol `<cluster-name>-iam-service-role`
+| 1
+
+| IAM Role para _nodos del cluster_ `nodes.cluster-api-provider-aws.sigs.k8s.io`
+| 1
+
+| IAM Policy para nodos (`nodes.cluster-api-provider-aws.sigs.k8s.io`)
+| 1
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Volúmenes EBS persistentes
+| 1 por volumen solicitado
+
+| Balanceador de carga tipo _Network_
+| 1
+
+| Listeners (uno por puerto de cada _Service_)
+| Variable
+|===
+
+[IMPORTANT]
+.Dependencias según permisos del cliente
+====
+Dependiendo de los permisos disponibles en la cuenta del cliente, será necesario crear previamente los siguientes roles y políticas como prerrequisitos. 
+
+En caso contrario, estos se crearán automáticamente durante el proceso:
+
+* Rol: `nodes.cluster-api-provider-aws.sigs.k8s.io`
+* Política: `nodes.cluster-api-provider-aws.sigs.k8s.io` y asociarla al rol `nodes.cluster-api-provider-aws.sigs.k8s.io`
+* Rol: `<cluster-name>-iam-service-role (controlplane)`
+* Política: `AmazonEKSClusterPolicy` y asociarla al rol `<cluster-name>-iam-service-role`
+====
 
 === GKE (_cluster_ privado)
 
-* 1 _cluster_ de Google Kubernetes Engine (GKE): configurado como VPC-nativa.
-* 1 VPC.
-* 1 subred por región.
-** Bloque CIDR principal para la subred (nodos).
-** Bloque CIDR secundario para la subred (_pods_ y servicios).
-* 1 ruta de _peering_: conexión mediante _VPC Network peering_.
-* 2 rutas: para los CIDR secundarios de _pods_ y servicios.
-* 1 red de VPC _peering_.
-* 5 reglas de _firewall_ de VPC: (gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all]).
-* Máquinas virtuales para _workers_: configuradas según el descriptor del _cluster_ y el autoescalado.
-* 1 volumen persistente por máquina virtual.
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
+
+| Cluster de Google Kubernetes Engine (GKE) configurado con VPC-nativa
+| 1
+
+| VPC
+| 1
+
+| Subred por región
+| 1
+
+| Bloque CIDR principal para subred (nodos)
+| 1
+
+| Bloque CIDR secundario para subred (pods y servicios)
+| 1 por tipo
+
+| Ruta de peering (VPC Network Peering)
+| 1
+
+| Rutas para bloques CIDR secundarios (pods y servicios)
+| 2
+
+| Red de VPC peering
+| 1
+
+| Reglas de firewall de VPC  
+(gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all])
+| 5
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Volúmenes persistentes
+| 1 por nodo
+|===
 
 === Azure no gestionado
 
-* [silver]#1 resource group.#
-* 1 red virtual.
-* 1 Route table para _workers_.
-* 1 _NAT gateway_ para _workers_.
-* 2 direcciones IP públicas (_API Server_ y NATgw de _workers_).
-* 2 grupos de seguridad de red (_control-plane_ y _workers_).
-* 1 balanceador de carga público.
-* 1/3 máquinas virtuales para el _control-plane_ (según descriptor del _cluster_).
-** 1 disco de bloque por máquina virtual.
-** 1 interfaz de red por máquina virtual.
-* Máquinas virtuales para _workers_ (según el descriptor del _cluster_ y autoescalado).
-** 1 disco de bloque por máquina virtual.
-** 1 interfaz de red por máquina virtual.
-* 1 balanceador de carga para la exposición de _Services_ de tipo Load Balancer.
-** 1 dirección de IP pública para cada _service_.
-** 1 _Frontend IP config_ para cada _service_.
-** 1 _Health probe_ para cada _service_.
-** 1 regla de balanceador de carga para cada _service_.
-* Disco de bloque para cada volumen persistente.
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
+
+| Resource Group
+| 1
+
+| Red virtual (Virtual Network)
+| 1
+
+| Route table para nodos _Worker_
+| 1
+
+| NAT Gateway para nodos _Worker_
+| 1
+
+| Direcciones IP públicas (API Server y NAT Gateway)
+| 2
+
+| Grupos de seguridad de red (NSG) para _control-plane_ y _workers_
+| 2
+
+| Balanceador de carga público para API Server
+| 1
+
+| Máquinas virtuales para _control-plane_
+| 1–3 (según descriptor)
+
+| Disco de bloque por máquina virtual de _control-plane_
+| 1 por VM
+
+| Interfaz de red por máquina virtual de _control-plane_
+| 1 por VM
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Disco de bloque por máquina virtual de _Worker_
+| 1 por VM
+
+| Interfaz de red por máquina virtual de _Worker_
+| 1 por VM
+
+| Balanceador de carga para exposición de _Services_ tipo LoadBalancer
+| 1
+
+| Dirección IP pública por _Service_ expuesto
+| 1 por Service
+
+| Configuración de IP frontal (_Frontend IP config_) por _Service_
+| 1 por Service
+
+| _Health probe_ por _Service_
+| 1 por Service
+
+| Regla de balanceador de carga por _Service_
+| 1 por Service
+
+| Disco de bloque para volúmenes persistentes
+| 1 por volumen solicitado
+|===
 
 == _Networking_
 
@@ -180,8 +326,11 @@ spec:
 
 En este caso, se crearán 3 _subnets_ (1 por zona) con una máscara de 18 bits (/18) del rango indicado de las cuales se obtendrán las IP para los _pods_:
 
-[.center,cols="1,2",width=40%]
+[.center,cols="1,2",width=40%, options="header"]
 |===
+^|**Zona**
+^|**CIDR**
+
 ^|zone-a
 ^|100.64.0.0/18
 
@@ -207,7 +356,6 @@ spec:
           - subnet_id: subnet-0416da6767f910929 # example-custom-sn-priv-zone-a
           - subnet_id: subnet-0b2f81b89da1dfdfd # example-custom-sn-priv-zone-b
           - subnet_id: subnet-0df75719efe5f6615 # example-custom-sn-priv-zone-c
-      pods_cidr: 100.64.0.0/16
 ----
 
 NOTE: El CIDR secundario asignado al VPC para los _pods_ debe indicarse en el parámetro `spec.networks.pods_cidr` obligatoriamente.
@@ -235,15 +383,62 @@ La red de _pods_ en GKE se configura automáticamente con el CIDR secundario par
 
 Actualmente, para la comunicación con los proveedores _cloud_, los _controllers_ almacenan en el _cluster_ las credenciales de la identidad utilizada en la instalación.
 
-Estas credenciales se pueden ver con los siguientes comandos:
-
 ==== EKS
 
-Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Namespace_ del _controller_ con el formato del fichero `~/.aws/credentials`:
+Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Namespace_ del _controller_ utilizando el formato estándar de configuración de credenciales de AWS (`~/.aws/credentials`), que sigue la especificación de perfiles de AWS CLI.
+
+A continuación se muestra una tabla con los controladores utilizados y la ubicación de sus credenciales:
+
+[cols="3,2,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+
+
+| `capa-controller-manager`
+| `capa-controller-manager`
+| `capa-manager-bootstrap-credentials`
+| Sí (base64)
+| Credenciales de AWS
+
+| `capi-kubeadm-bootstrap-controller-manager`
+| `capi-kubeadm-bootstrap-manager`
+| `capi-kubeadm-bootstrap-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+
+| `capi-kubeadm-control-plane-controller-manager`
+| `capi-kubeadm-control-plane-manager`
+| `capi-kubeadm-control-plane-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+
+| `capi-controller-manager`
+| `capi-manager`
+| `capi-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `keoscluster-settings`
+| Sí (base64)
+| Credenciales de AWS
+|===
+
+Para ver el contenido de las credenciales, se puede utilizar el siguiente comando a modo de ejemplo:
 
 [source,bash]
 ----
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
+
+[default]
+aws_access_key_id = XXXXXXXXXXXXXXXXXXXXXXX
+aws_secret_access_key = XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+region = eu-west-1
 ----
 
 ==== GKE
