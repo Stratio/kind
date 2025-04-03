@@ -251,10 +251,22 @@ def install_lb_controller(cluster_name, account_id, dry_run):
 
 def patch_clusterrole_aws_node(dry_run):
     aws_node_clusterrole_name = "aws-node"
-    print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
+    print("[INFO] Modifying aws-node ClusterRole:", end=" ", flush=True)
     if not dry_run:
         get_clusterrole_command = kubectl + " get clusterrole -o json " + aws_node_clusterrole_name + " | jq -r '.rules'"
-        cluster_role_rule = json.loads(execute_command(get_clusterrole_command, False))
+        cluster_role_rule_output = execute_command(get_clusterrole_command, False, False)
+
+        # Check if the output is empty or invalid
+        if not cluster_role_rule_output.strip():
+            print("[ERROR] Failed to retrieve ClusterRole rules. Output is empty.")
+            sys.exit(1)
+
+        try:
+            cluster_role_rule = json.loads(cluster_role_rule_output)
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Failed to parse ClusterRole rules as JSON: {e}")
+            sys.exit(1)
+
         rule_pods_index = next((i for i, rule in enumerate(cluster_role_rule) if 'pods' in rule.get('resources', [])), None)
         if rule_pods_index is not None:
             verbs = cluster_role_rule[rule_pods_index].get('verbs', [])
