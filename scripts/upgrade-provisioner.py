@@ -1389,16 +1389,17 @@ def export_default_values(chart, repo, default_values_file):
     
     try: 
         chart_name, chart_version = chart["chart"].rsplit("-", 1)
-        command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name}> {default_values_file}"
-        if chart['name'] == "cluster-operator":
-            command = f"{helm} show values {repo}/{chart_name} --version {chart['chart_version']} > {default_values_file}"
+        # Fix: Append the chart name to the OCI repository URL
+        if "oci://" in repo:
+            command = f"{helm} show values {repo}/{chart_name} --version {chart_version} > {default_values_file}"
+        else:
+            command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name} > {default_values_file}"
         
         default_values, err = run_command(command)
         return default_values
     except Exception as e:
         raise
-    
-    
+       
 def create_configmap_from_values(configmap_name, namespace, values_file):
     '''Create a ConfigMap from values'''
     
