@@ -44,34 +44,34 @@ The deployment of _Stratio KEOS_ in GKE must be done using a bastion that facili
 === Azure unmanaged
 
 * Permissions
-
-As with other supported providers, provisioning requires an account with all the requested permissions, but in this case in addition a role is required for the cluster _workers_ (indicated in the descriptor in `spec.security.nodes_identity`) and another for the _control-plane_ (indicated in the descriptor in `spec.security.control_plane_identity`).
-
-For _subscription-level_ permissions, the following permissions are recommended:
-
-** xref:attachment$stratio-azure-role.json[Download permissions for Azure deployment user].
++
+To provision in unmanaged Azure, you need an account with all the required permissions, just like with other supported providers. Additionally, you must define:
++
+** A role for the cluster _workers_ in `spec.security.nodes_identity`.
+** A role for the _control-plane_ in `spec.security.control_plane_identity`.
++
+For subscription-level permissions, the following are recommended:
++
+** xref:attachment$stratio-azure-role.json[Download permissions for the Azure deployment user].
 ** xref:attachment$stratio-azure-nodes-role.json[Download permissions for Azure _workers_].
-** xref:attachment$stratio-azure-cp-role.json[Download permissions for Azure _control-plane_].
-
-For _resource group-level_ permissions, the following permissions are recommended:
-
-** xref:attachment$stratio-azure-role-rg.json[Download permissions for Azure deployment user].
+** xref:attachment$stratio-azure-cp-role.json[Download permissions for the Azure _control-plane_].
++
+For resource group-level permissions, the following are recommended:
++
+** xref:attachment$stratio-azure-role-rg.json[Download permissions for the Azure deployment user].
 ** xref:attachment$stratio-azure-nodes-role-rg.json[Download permissions for Azure _workers_].
-** xref:attachment$stratio-azure-cp-role-rg.json[Download permissions for Azure _control-plane_].
-** xref:attachment$stratio-azure-acr.json[Download permissions for Azure deployment user, _workers_, and _control-plane_].
-** Additionally, the following permissions will be added at the _resource group-level_:
-- Deployment user:
-  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
-- _Control-plane_:
-  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
-- _Workers_:
-  *** Acrpull for the scope: `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
-
-** Certified operating systems
+** xref:attachment$stratio-azure-cp-role-rg.json[Download permissions for the Azure _control-plane_].
+** xref:attachment$stratio-azure-acr.json[Download permissions for the Azure deployment user, _workers_, and _control-plane_].
+** Additionally, the following permissions must be assigned at the resource group level:
+*** Deployment user: `Acrpull` for `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+*** _Control-plane_: `Acrpull` for `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+*** _Workers_: `Acrpull` for `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 +
-In Azure environments, you must use the images provided by Stratio. You can find them in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
+* Certified operating systems
 +
-The currently recommended operating system for this provider is Ubuntu 22.04, the one that creates by default the controller of this cloud provider.
+In Azure environments, you must use the images provided by Stratio. Refer to the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section.
++
+The recommended operating system is Ubuntu 22.04, which is the default configuration for the Azure _controller_.
 
 === Considerations for images
 
