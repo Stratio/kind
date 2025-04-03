@@ -23,7 +23,7 @@ data:
           prefer_udp
         }
         {{- else }}
-        forward . /etc/resolv.conf {
+        forward . 169.254.169.254 {
           max_concurrent 1000
         }
         {{- end }}
