@@ -896,7 +896,7 @@ def get_installed_helm_charts():
         raise e
 
 # Install Flux if it is not present
-def install_flux(keos_cluster, provider):
+def install_flux(provider):
     '''Install Flux'''
     
     if private_helm_repo:
@@ -996,7 +996,7 @@ spec:
         print(f"[ERROR] {e}.")
         raise e
 
-def add_clusterctl_registry_config(keos_cluster):
+def add_clusterctl_registry_config():
     clusterctl_config_file = "/root/.cluster-api/clusterctl.yaml"
     registry_url = get_keos_registry_url(keos_cluster)
 
@@ -1027,7 +1027,7 @@ def add_clusterctl_registry_config(keos_cluster):
     
     print("OK")
 
-def upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, registry_url=""):
+def upgrade_capx(managed, provider, namespace, version, env_vars, registry_url=""):
     '''Upgrade CAPX'''
     
     print("[INFO] Upgrading " + namespace.split("-")[0] + " to " + version + " and capi to " + CAPI + ":", end =" ", flush=True)
@@ -1037,7 +1037,7 @@ def upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars, 
         print("SKIP")
     else:
         if private_registry:
-            add_clusterctl_registry_config(keos_cluster)
+            add_clusterctl_registry_config()
         command = (env_vars + " clusterctl upgrade apply --wait-providers" +
                     " --core capi-system/cluster-api:" + CAPI +
                     " --infrastructure " + namespace + "/" + provider + ":" + version)
@@ -2329,8 +2329,8 @@ if __name__ == '__main__':
     if provider == "aws":
         update_allow_global_netpol(provider)
     if not check_flux_installed():
-        install_flux(keos_cluster, provider)
-    upgrade_capx(keos_cluster, managed, provider, namespace, version, env_vars)
+        install_flux(provider)
+    upgrade_capx(managed, provider, namespace, version, env_vars)
     
     adopt_all_helm_charts(keos_cluster, credentials, chart_versions, upgrade_cloud_provisioner_only)
     install_cert_manager(provider, upgrade_cloud_provisioner_only)
