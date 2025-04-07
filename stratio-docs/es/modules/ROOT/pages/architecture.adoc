@@ -397,12 +397,17 @@ A continuación se muestra una tabla con los controladores utilizados y la ubica
 | Cifrado
 | Tipo de autenticación
 
-
 | `capa-controller-manager`
 | `capa-controller-manager`
 | `capa-manager-bootstrap-credentials`
 | Sí (base64)
 | Credenciales de AWS
+
+| `capg-controller-manager`
+| `capa-controller-manager`
+| `capg-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
 
 | `capi-kubeadm-bootstrap-controller-manager`
 | `capi-kubeadm-bootstrap-manager`
@@ -427,6 +432,13 @@ A continuación se muestra una tabla con los controladores utilizados y la ubica
 | `keoscluster-settings`
 | Sí (base64)
 | Credenciales de AWS
+
+| `keoscluster-controller-manager`
+| `webhook-server-cert`
+| `keoscluster-controller-manager`
+| Sí (base64)
+| kubernetes.io/tls
+
 |===
 
 Para ver el contenido de las credenciales, se puede utilizar el siguiente comando a modo de ejemplo:
@@ -443,7 +455,30 @@ region = eu-west-1
 
 ==== GKE
 
-Igual que para EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente.
+Al igual que en el caso de EKS, el _controller_ de GCP obtiene las credenciales de un _Secret_ dentro del _Namespace_ correspondiente. Cabe destacar que, excepto por el cambio de `capa-controller-manager` a `capg-controller-manager`, el resto de las credenciales y su configuración son idénticas.
+
+[cols="3,2,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+
+
+| `capg-controller-manager`
+| `capg-manager`
+| `capg-manager-bootstrap-credentials`
+| Sí (base64)
+| Credenciales de GCP
+
+| `capg-controller-manager`
+| `capg-manager`
+| `capg-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+
+|===
 
 [source,bash]
 ----
@@ -452,29 +487,181 @@ $ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r
 
 ==== Azure
 
-Para el caso de Azure, el _client++_++id_ se almacena en el objeto _AzureIdentity_ dentro del _Namespace_ del _controller_, que también tiene la referencia al _Secret_ donde se almacena el _client++_++secret_:
+En un entorno Azure no gestionado, el `capz-controller-manager` **actualmente utiliza AAD Pod Identity** para autenticarse con Azure. Aunque el clúster proyecta un token OIDC, este **no se usa activamente** ya que la identidad está definida mediante un objeto `AzureIdentity` con `clientID` y `clientSecret`.
 
-*_client++_++id_*:
+===== Certificados Webhook (TLS)
+
+[cols="3,2,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+
+| `capz-controller-manager`
+| `capz-manager`
+| `capz-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+
+|===
+
+===== Autenticación contra Azure (AAD Pod Identity)
+
+[cols="2", options="header"]
+|===
+| Componente | Descripción
+
+| Controlador
+| `capz-controller-manager`, que gestiona recursos de infraestructura en Azure
+
+| Método
+| AAD Pod Identity (modelo anterior)
+
+| Identidad
+| Definida mediante el objeto `AzureIdentity`
+
+| clientID
+| `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX` (desde `AzureIdentity.spec.clientID`)
+
+| clientSecret
+| Almacenado en el `Secret` `cluster-identity-secret` en el namespace `capz-system`
+
+| Autenticación en Azure
+| Mediante `clientID` + `clientSecret` hacia `https://login.microsoftonline.com/`
+
+| Tipo de identidad
+| User Assigned Managed Identity (UAMI)
+|===
+
+====== Validacion de la asignación de identidad en el pod (mediante etiquetas o binding)
+
+Para validar la asignación de identidad en el pod, se puede utilizar el siguiente comando(etiquetas):
+[source,bash]
+----
+kubectl -n capz-system get pod <capz-controller-manager-pod-name> -o jsonpath="{.metadata.labels.aadpodidbinding}"
+capz-controller-aadpodidentity-selector
+# o mediante 
+kubectl -n capz-system get pod -l control-plane=capz-controller-manager -o jsonpath="{.items[0].metadata.labels.aadpodidbinding}"
+capz-controller-aadpodidentity-selector
+----
+
+Para validar la asignación de identidad en el pod, se puede utilizar el siguiente comando(binding):
+[source,bash]
+----
+kubectl -n capz-system get azureidentitybinding <resource-group-name>-<cluster-name>-*-identity-binding -o jsonpath="{.spec.selector}"
+capz-controller-aadpodidentity-selector
+----
+
+====== Validación de la identidad configurada
+
+Para consultar el `clientID` configurado:
 
 [source,bash]
 ----
-$ k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientID
+$ kubectl -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientID
 ----
 
-*_client++_++secret_*:
+Para obtener el `clientSecret` correspondiente:
 
 [source,bash]
 ----
-$ CLIENT_PASS_NAME=$(k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.name)
-$ CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.namespace)
+$ CLIENT_PASS_NAME=$(kubectl -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.name)
+$ CLIENT_PASS_NAMESPACE=$(kubectl -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.namespace)
 $ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
 ----
 
-=== Acceso a IMDS (para EKS)
+====== Token OIDC proyectado (no utilizado actualmente)
+
+El pod proyecta un token OIDC en:
+
+`/var/run/secrets/azure/tokens/azure-identity-token`
+
+Este token **no se está utilizando** en la autenticación actual, ya que no hay federated credential configurada en Azure ni objeto `AzureClusterIdentity` presente en el clúster. Sin embargo, se puede validar con los siguientes pasos.
+
+======= Validación del token OIDC
+
+.Crear un pod temporal con el mismo `ServiceAccount`
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oidc-debugger
+  namespace: capz-system
+spec:
+  serviceAccountName: capz-manager
+  restartPolicy: Never
+  volumes:
+    - name: azure-identity-token
+      projected:
+        sources:
+          - serviceAccountToken:
+              audience: api://AzureADTokenExchange
+              expirationSeconds: 3600
+              path: azure-identity-token
+  containers:
+    - name: debug
+      image: busybox
+      command: ["cat", "/var/run/secrets/azure/tokens/azure-identity-token"]
+      volumeMounts:
+        - mountPath: /var/run/secrets/azure/tokens
+          name: azure-identity-token
+          readOnly: true
+----
+
+.Decodificar el token para inspeccionar los campos:
+
+[source,bash]
+----
+$ kubectl -n capz-system logs oidc-debugger | cut -d '.' -f2 | base64 --decode --ignore-garbage | jq
+----
+
+.Ejemplo de payload decodificado:
+
+[source,json]
+----
+{
+  "aud": ["api://AzureADTokenExchange"],
+  "iss": "https://kubernetes.default.svc.cluster.local",
+  "sub": "system:serviceaccount:capz-system:capz-manager",
+  ...
+}
+----
+
+NOTE: Este token proyectado es compatible con Azure Workload Identity, pero **no está siendo usado actualmente** en este entorno.
+
+El resto de _controllers_ (_capi_ y _keoscluster_)  utilizan el mismo mecanismo de autenticación que EKS y GCP, es decir, almacenan las credenciales en un _Secret_ dentro del _Namespace_ del _controller_.
+
+=== Acceso a IMDSv2
+
+==== EKS
 
 Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente interactuando con IMDS, se utiliza una política de red global (_GlobalNetworkPolicy_ de Calico) para impedir el acceso a todos los _pods_ del _cluster_ que no sean parte de _Stratio KEOS_.
 
 A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de IAM para _Service Accounts_, asegurando el uso de políticas IAM con mínimos privilegios.
+
+==== GKE
+
+En Google Kubernetes Engine (GKE), los nodos del clúster acceden al servidor de metadatos (`IMDS`) a través de la IP reservada `169.254.169.254`. Este servidor permite obtener credenciales mediante Application Default Credentials (ADC), que los _pods_ también pueden utilizar si no se restringe explícitamente.
+
+Dado que los _pods_ pueden impersonar al nodo donde se ejecutan accediendo directamente a `IMDS`, se utiliza una política de red global (`GlobalNetworkPolicy` de Calico) para impedir el acceso a este endpoint desde cualquier _pod_ que no pertenezca a componentes autorizados, como los controladores de infraestructura de Stratio KEOS.
+
+Esta política filtra el tráfico de salida (`egress`) hacia `169.254.169.254` mediante un selector de _labels_, limitando el acceso únicamente a los _pods_ que requieren interacción con las APIs de GCP y están adecuadamente identificados.
+
+==== Azure no gestionado
+
+En Azure, el acceso al endpoint de metadatos (IMDS) se simula localmente mediante el componente `nmi` del DaemonSet de AAD Pod Identity.
+
+Este componente:
+
+* Intercepta las peticiones a `http://169.254.169.254/metadata/identity/oauth2/token` hechas por los pods
+* Verifica si el pod tiene una asignación válida de identidad (mediante etiquetas y `AzureIdentityBinding`)
+* Solicita el token a Azure AD en nombre del pod y lo devuelve si está autorizado
+
+NOTE: Esto permite una autenticación segura sin exponer el IMDS del nodo real.
 
 === Acceso al _endpoint_ del _API Server_
 
