@@ -782,10 +782,7 @@ def get_chart_version(chart, namespace):
     for line in output.split("\n"):
         splitted_line = line.split()
         if chart == splitted_line[0]:
-            if chart == "cluster-operator":
-                return splitted_line[9]
-            else:
-                return splitted_line[8].split("-")[-1]
+            return splitted_line[8].split("-")[-1]
     return None
 
 def get_version(version):
