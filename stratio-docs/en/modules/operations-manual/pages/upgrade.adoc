@@ -88,7 +88,7 @@ Key options:
 | No
 
 | `--private_registry`
-| Consider Docker registry and Helm repository as private registry and repository.
+| Treats the Docker registry and the Helm repository as private.
 | False
 | No
 |===
