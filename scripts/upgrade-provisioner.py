@@ -338,7 +338,7 @@ def install_lb_controller(keos_cluster, cluster_name, account_id, private_helm_r
         command = f"{helm} install {chart_name} -n {chart_namespace} --wait --version {chart_version}"
         command += f" --set clusterName={cluster_name} --set podDisruptionBudget.minAvailable=1"
         command += f" --set serviceAccount.annotations.\"eks\\.amazonaws\\.com/role-arn\"=arn:aws:iam::{account_id}:role/{role_name}"
-        if "oci" in repository_url:
+        if urlparse(repository_url).scheme == "oci":
             command += f" {repository_url}/{chart_name}"
         else:
             command += f" {chart_name} --repo {repository_url}"
@@ -912,7 +912,7 @@ def install_flux(keos_cluster, provider, private_registry, private_helm_reposito
     export_release_values(release_name, namespace, values_file, provider, credentials, private_registry)
 
     command = f"{helm} install {release_name} -n {namespace} --values {values_file} --version {chart_version}"
-    if "oci" in repository_url:
+    if urlparse(repository_url).scheme == "oci":
         command += f" {repository_url}/{chart_name}"
     else:
         command += f" {chart_name} --repo {repository_url}"
@@ -1186,7 +1186,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only, private
     
     if release_name in "cluster-operator" or private_helm_repository:
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
-        if "oci" in repo:
+        if urlparse(repo).scheme == "oci":
             schema = "oci"
         else:
             schema = "default"
@@ -1456,7 +1456,7 @@ def export_default_values(chart, repository_url, default_values_file):
         chart_name, chart_version = chart["chart"].rsplit("-", 1)
 
         command = f"{helm} show values --version {chart_version}"
-        if "oci" in repository_url:
+        if urlparse(repository_url).scheme == "oci":
             command += f" {repository_url}/{chart_name}"
         else:
             command += f" {chart_name} --repo {repository_url}"
