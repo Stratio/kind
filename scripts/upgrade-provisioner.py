@@ -1436,15 +1436,20 @@ def create_empty_values_file(values_file):
     except Exception as e:
         raise e
 
-def export_default_values(chart, repo, default_values_file):
+def export_default_values(chart, repository_url, default_values_file):
     '''Export the default values'''
     
     try: 
         chart_name, chart_version = chart["chart"].rsplit("-", 1)
-        command = f"{helm} show values --repo {repo} --version {chart_version} {chart_name}> {default_values_file}"
-        if chart['name'] == "cluster-operator":
-            command = f"{helm} show values {repo}/{chart_name} --version {chart['chart_version']} > {default_values_file}"
+
+        command = f"{helm} show values --version {chart_version}"
+        if "oci" in repository_url:
+            command += f" {repository_url}/{chart_name}"
+        else:
+            command += f" {chart_name} --repo {repository_url}"
         
+        command += f" > {default_values_file}"
+
         default_values, err = run_command(command)
         return default_values
     except Exception as e:
