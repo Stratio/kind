@@ -303,7 +303,7 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def install_lb_controller(keos_cluster, cluster_name, account_id, dry_run):
+def install_lb_controller(cluster_name, account_id, dry_run):
     '''Install AWS Load Balancer Controller for EKS clusters'''
     
     print("[INFO] Installing LoadBalancer Controller:", end =" ", flush=True)
@@ -2315,7 +2315,7 @@ if __name__ == '__main__':
     if config["enable_lb_controller"]:
         if provider == "aws" and managed:
             account_id = vault_secrets_data["secrets"]["aws"]["credentials"]["account_id"]
-            install_lb_controller(keos_cluster, cluster_name, account_id, config["dry_run"])
+            install_lb_controller(cluster_name, account_id, config["dry_run"])
         else:
             print("[WARN] AWS LoadBalancer Controller is only supported for EKS clusters")
             sys.exit(0)
