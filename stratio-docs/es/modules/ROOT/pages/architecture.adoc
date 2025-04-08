@@ -707,10 +707,10 @@ aws eks describe-cluster --name eks-cl02 --query "cluster.resourcesVpcConfig" --
         "subnet-0764ad7f79ecee088"
     ],
     "securityGroupIds": [
-        "sg-06c020270b9bf32be"
+        "sg-XXXXXXXXXXXXXXXXX"
     ],
-    "clusterSecurityGroupId": "sg-0ac529005334e679d",
-    "vpcId": "vpc-0583a405424313f85",
+    "clusterSecurityGroupId": "sg-XXXXXXXXXXXXXXXXX",
+    "vpcId": "vpc-XXXXXXXXXXXXXXXXX",
     "endpointPublicAccess": true,   # Acceso público habilitado
     "endpointPrivateAccess": true,  # Acceso privado habilitado
     "publicAccessCidrs": [
