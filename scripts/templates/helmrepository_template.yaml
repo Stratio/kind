@@ -11,9 +11,7 @@ spec:
 {%- if repository_name == "keos" %}
   secretRef:
     name: {{ repository_name }}
-{%- endif %}
 ---
-{%- if repository_name == "keos" %}
 apiVersion: v1
 kind: Secret
 metadata:
