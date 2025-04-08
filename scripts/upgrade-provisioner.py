@@ -352,11 +352,18 @@ def patch_clusterrole_aws_node(dry_run):
     aws_node_clusterrole_name = "aws-node"
     print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
     if not dry_run:
-        get_clusterrole_command = kubectl + " get clusterrole -o json " + aws_node_clusterrole_name + " | jq -r '.rules'"
-        cluster_role_rule = json.loads(execute_command(get_clusterrole_command, False))
-        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rule) if 'pods' in rule.get('resources', [])), None)
+        command = f"{kubectl} get clusterrole -o json {aws_node_clusterrole_name} | jq -r '.rules'"
+        cluster_role_rules_output = execute_command(command, False, False)
+
+        try:
+            cluster_role_rules = json.loads(cluster_role_rules_output)
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Failed to parse ClusterRole rules as JSON: {e}")
+            sys.exit(1)
+
+        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rules) if 'pods' in rule.get('resources', [])), None)
         if rule_pods_index is not None:
-            verbs = cluster_role_rule[rule_pods_index].get('verbs', [])
+            verbs = cluster_role_rules[rule_pods_index].get('verbs', [])
             if 'patch' not in verbs:
                 patch = [
                     {
@@ -365,10 +372,12 @@ def patch_clusterrole_aws_node(dry_run):
                         "value": "patch"
                     }
                 ]
-                patch_clusterrole_command = kubectl + " patch clusterrole " + aws_node_clusterrole_name + " --type=json -p='" + json.dumps(patch) + "'"
-                execute_command(patch_clusterrole_command, False, False)
+                patch_command = f"{kubectl} patch clusterrole {aws_node_clusterrole_name} --type=json -p='{json.dumps(patch)}'"
+                execute_command(patch_command, False, True)
+            else:
+                print("SKIP")
         else:
-            print("[ERROR] Pods resource not found in the ClusterRole " + aws_node_clusterrole_name)
+            print(f"[ERROR] Pods resource not found in the ClusterRole {aws_node_clusterrole_name}")
             sys.exit(1)
     else:
         print("DRY-RUN")
