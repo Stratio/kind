@@ -5,6 +5,7 @@
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
 * [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
 * [PLT-1971] Fix upgrade when using a non oci Helm repository
+* [PLT-1957] Fix aws-load-balancer-controller upgrade
 * [PLT-1956] Improve cluster-operator backup and restore management during upgrade
 * [PLT-1958] Improve aws-node ClusterRole patch exception handling during upgrade
 

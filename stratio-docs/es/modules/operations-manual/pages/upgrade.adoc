@@ -62,11 +62,6 @@ Opciones principales:
 | secrets.yml
 | No
 
-| `--enable-lb-controller`
-| Activa el controlador de balanceador de carga en EKS (desactivado por defecto).
-| False
-| No
-
 | `--disable-backup`
 | Desactiva el respaldo antes de actualizar (habilitado por defecto).
 | False

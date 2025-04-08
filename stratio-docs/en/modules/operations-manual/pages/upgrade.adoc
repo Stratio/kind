@@ -62,11 +62,6 @@ Key options:
 | secrets.yml
 | No
 
-| `--enable-lb-controller`
-| Enable the load balancer controller in EKS (disabled by default).
-| False
-| No
-
 | `--disable-backup`
 | Disable backup before upgrading (enabled by default).
 | False
