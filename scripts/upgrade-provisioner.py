@@ -1177,6 +1177,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only):
     
     repo = specific_repos[release_name]
     repo_name = release_name
+    auth_required = False
     user = ""
     password = ""
     schema = "default"
@@ -1190,6 +1191,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only):
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
+                    auth_required= True
                     user = vault_secrets_data["secrets"]["helm_repository"]["user"]
                     password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
                 else:
@@ -1237,6 +1239,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only):
         'repository_url': repo,
         'schema': schema,
         'provider': chart['provider'],
+        'auth_required': auth_required,
         'username': user,
         'password': password
     }

@@ -8,7 +8,7 @@ spec:
   interval: {{ interval }}
   type: {{ schema }}
   provider: {{ provider }}
-{%- if repository_name == "keos" %}
+{%- if auth_required and repository_name == "keos" %}
   secretRef:
     name: {{ repository_name }}
 ---
