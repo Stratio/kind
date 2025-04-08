@@ -652,6 +652,8 @@ NOTE: Este token proyectado es compatible con Azure Workload Identity, pero **no
 
 El resto de _controllers_ (_capi_ y _keoscluster_)  utilizan el mismo mecanismo de autenticación que EKS y GCP, es decir, almacenan las credenciales en un _Secret_ dentro del _Namespace_ del _controller_.
 
+NOTE: Para actualizar las credenciales del _keoscluster-controller-manager_ o de los controladores _capa_, _capg_ o _capz_, consulta la sección correspondiente en la guía de xref:operations-manual:credentials.adoc[Renovación de credenciales].
+
 === Acceso a IMDSv2
 
 ==== EKS
