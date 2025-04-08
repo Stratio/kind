@@ -924,9 +924,9 @@ spec:
 
 Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del _cluster_ (`keos_registry: true`). Deberá haber un (y sólo uno) Docker registry para _Stratio KEOS_, el resto se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
 
-Actualmente, se soportan 3 tipos de Docker registries: _generic_, _ecr_ y _acr_. Para el tipo _generic_, se deberá indicar si el _registry_ es autenticado o no (los tipos _ecr_ y _acr_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y contraseña en la sección 'spec.credentials'.
+Actualmente, se soportan 3 tipos de Docker registries: _acr_, _ecr_, _gar_ y _generic_. Para el tipo _generic_, se deberá indicar si el _registry_ es autenticado o no (los tipos _ecr_, _acr_ y _gar_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y contraseña en la sección 'spec.credentials'.
 
-La siguiente tabla muestra los _registries_ soportados según proveedor/_flavour_:
+La siguiente tabla muestra los _registries_ soportados según _proveedor_:
 
 [.center,cols="2,1",width=40%]
 |===
