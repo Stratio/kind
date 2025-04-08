@@ -896,24 +896,6 @@ a|
 
 En el aprovisionamiento se crean otras _StorageClasses_ (no default) según el proveedor, pero para utilizarlas, las cargas de trabajo deberán especificarlas en su despliegue.
 
-=== Amazon EFS
-
-En esta versión, si se desea utilizar un sistema de archivos de EFS se deberá crear previamente y pasar los siguientes datos al descriptor del _cluster_:
-
-[source,bash]
-----
-spec:
-  storageclass:
-      efs:
-          name: fs-015ea5e2ba5fe7fa5
-          id: fs-015ea5e2ba5fe7fa5
-          permissions: 700
-----
-
-Con estos datos, se renderizará el _keos.yaml_ de forma que en la ejecución del _keos-installer_ se despliegue el _driver_ y se configure la _StorageClass_ correspondiente.
-
-NOTE: Esta funcionalidad está pensada para infraestructura personalizada, ya que el sistema de ficheros de EFS deberá asociarse a un VPC existente en su creación.
-
 == Atributos en EKS
 
 Todos los objetos que se crean en EKS contienen por defecto el atributo con clave _keos.stratio.com/owner_ y como valor el nombre del _cluster_. También se permite añadir atributos personalizados a todos los objetos creados en el proveedor _cloud_ de la siguiente forma:
