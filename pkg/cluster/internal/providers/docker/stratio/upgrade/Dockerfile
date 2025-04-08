@@ -11,6 +11,7 @@ ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 ARG CLUSTERCTL=v1.7.4
 ENV CLUSTERAWSADM=v2.5.2
 ARG PYTHON_VERSION=3.12
+ARG YQ_VERSION=v4.45.1
 ARG KUBECTL_VERSION=1.30.1
 ARG HELM_VERSION=3.15.2
 
@@ -32,6 +33,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install yq
+RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.tar.gz -O - |\
+    tar xz && mv yq_linux_amd64 /usr/bin/yq
 
 # Install kubectl
 RUN curl -LO https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl \

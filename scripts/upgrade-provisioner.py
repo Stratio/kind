@@ -1140,7 +1140,7 @@ def delete_release(release_name, namespace):
             {"kind": "Deployment", "name": "tigera-operator", "namespace": "tigera-operator"},
             {"kind": "Installation", "name": "default"}
         ]
-    update_annotation_label("calico", "tigera-operator", "helm.sh/resource-policy", "keep", resources)
+    update_annotation_label("helm.sh/resource-policy", "keep", resources)
     command = f"{helm} uninstall {release_name} --namespace {namespace}"
     run_command(command, False)
         
@@ -1210,7 +1210,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only):
             {"kind": "Deployment", "name": "tigera-operator", "namespace": "tigera-operator"},
             {"kind": "Installation", "name": "default"}
         ]
-        update_annotation_label("tigera-operator", "tigera-operator", "meta.helm.sh/release-name", "tigera-operator", resources)
+        update_annotation_label("meta.helm.sh/release-name", "tigera-operator", resources)
         
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     release_values_file = f"/tmp/{release_name}_release_values.yaml"
@@ -1293,7 +1293,7 @@ def adopt_helm_chart(chart, credentials, upgrade_cloud_provisioner_only):
     except Exception as e:
         raise e
     
-def update_annotation_label(name, namespace, annotation_label_key, annotation_label_value, resources, type="annotation"):
+def update_annotation_label(annotation_label_key, annotation_label_value, resources, type="annotation"):
     '''Update the annotation or label of a resource'''
     
     for resource in resources:
@@ -1554,13 +1554,13 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         ]
         # Annotating and labeling existing resources
         print("[INFO] Labeling existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "app.kubernetes.io/managed-by", "Helm", resources_service_accounts, "label")
+        update_annotation_label("app.kubernetes.io/managed-by", "Helm", resources_service_accounts, "label")
         print("OK")
         print("[INFO] Annotating with 'meta.helm.sh/release-name' existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-name", "cert-manager", resources_service_accounts)
+        update_annotation_label("meta.helm.sh/release-name", "cert-manager", resources_service_accounts)
         print("OK")
         print("[INFO] Annotating with 'meta.helm.sh/release-namespace' existing resources:", end =" ", flush=True)
-        update_annotation_label("cert-manager", "cert-manager", "meta.helm.sh/release-namespace", "cert-manager", resources_service_accounts)
+        update_annotation_label("meta.helm.sh/release-namespace", "cert-manager", resources_service_accounts)
         print("OK")
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
@@ -1789,40 +1789,16 @@ def disable_keoscluster_webhooks():
 def backup_keoscluster_webhooks():
     '''Backup the KEOSCluster webhooks'''
     
+    backup_file = backup_dir + "/cluster-operator/keoscluster-webhooks.yaml"
     try:
-        if not os.path.exists(backup_dir+'/cluster-operator'):
-            os.makedirs(backup_dir+'/cluster-operator')
+        if not os.path.exists(os.path.dirname(backup_file)):
+            os.makedirs(os.path.dirname(backup_file))
         print("[INFO] Backing up KEOSCluster webhooks...")
         print("[INFO] Backup of validation webhooks:", end =" ", flush=True)
-        validating_webhook = run_command(f"{kubectl} get validatingwebhookconfiguration keoscluster-validating-webhook-configuration -o json --ignore-not-found")
-        if isinstance(validating_webhook, tuple):
-            validating_webhook = validating_webhook[0]
-        else:
-            print("SKIP")
-        if validating_webhook != "":
-            validating_webhook_json = json.loads(validating_webhook)  
-            
-            with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration-backup.json', 'w') as f:
-                json.dump(validating_webhook_json, f, indent=4)
-        else:
-            print("SKIP")
-        print("OK")
-        
-        print("[INFO] Backup of mutation webhooks:", end =" ", flush=True)
-        mutating_webhook = run_command("kubectl get mutatingwebhookconfiguration keoscluster-mutating-webhook-configuration -o json --ignore-not-found")
-        if isinstance(mutating_webhook, tuple):
-            mutating_webhook = mutating_webhook[0]
-        else:
-            print("SKIP")
-        if mutating_webhook != "":
-            mutating_webhook_json = json.loads(mutating_webhook)  
-            with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration-backup.json', 'w') as f:
-                json.dump(mutating_webhook_json, f, indent=4)
-        else:
-            print("SKIP")
-        
-        print("OK")
-
+        command = f"{helm} get manifest -n kube-system cluster-operator"
+        command += f" | yq 'select(.kind == \"ValidatingWebhookConfiguration\" or .kind == \"MutatingWebhookConfiguration\")'"
+        command += f" > {backup_file}"
+        execute_command(command, False)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error backing up KEOSCluster webhooks: {e}")
@@ -1903,27 +1879,20 @@ def update_keoscluster(keos_cluster, provider):
     
 def restore_keoscluster_webhooks():
     '''Restore the KEOSCluster webhooks'''
-    
+    backup_file = backup_dir + "/cluster-operator/keoscluster-webhooks.yaml"
+    resources_webhooks = [
+        {"kind": "MutatingWebhookConfiguration", "name": "keoscluster-mutating-webhook-configuration", "namespace": "kube-system"},
+        {"kind": "ValidatingWebhookConfiguration", "name": "keoscluster-validating-webhook-configuration", "namespace": "kube-system"},
+    ]
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup...")
-        print("[INFO] Restoring validation webhooks:", end =" ", flush=True)
+        run_command(f"{kubectl} create -f {backup_file}", allow_errors=True)
 
-        with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration-backup.json', 'r') as f:
-            validating_webhook = json.load(f)
-            with open(backup_dir+'/cluster-operator/keoscluster-validating-webhook-configuration.yaml', 'w') as backup_file:
-                yaml.dump(validating_webhook, backup_file)
-            run_command(f"{kubectl} create -f {backup_dir}/cluster-operator/keoscluster-validating-webhook-configuration.yaml", allow_errors=True)
-            print("OK")
-        
-        print("[INFO] Restoring mutation webhooks:", end =" ", flush=True)
-
-        with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration-backup.json', 'r') as f:
-            mutating_webhook = json.load(f)
-            with open(backup_dir+'/cluster-operator/keoscluster-mutating-webhook-configuration.yaml', 'w') as backup_file:
-                yaml.dump(mutating_webhook, backup_file)
-            run_command(f"{kubectl} create -f {backup_dir}/cluster-operator/keoscluster-mutating-webhook-configuration.yaml", allow_errors=True)
-            print("OK")
-        
+        print("[INFO] Labeling and annotating webhooks...", end =" ", flush=True)
+        update_annotation_label("app.kubernetes.io/managed-by", "Helm", resources_webhooks, "label")
+        update_annotation_label("meta.helm.sh/release-name", "cluster-operator", resources_webhooks)
+        update_annotation_label("meta.helm.sh/release-namespace", "kube-system", resources_webhooks)
+        print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error restoring KEOSCluster webhooks from backup: {e}")
