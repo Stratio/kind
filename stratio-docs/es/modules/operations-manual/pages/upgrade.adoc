@@ -88,7 +88,7 @@ Opciones principales:
 | No
 
 | `--private_helm_repo`
-| Considera el repositorio de _Helm_ como privado.
+| Considera el repositorio de Helm como privado.
 | False
 | No
 |===
