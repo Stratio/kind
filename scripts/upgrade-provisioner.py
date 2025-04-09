@@ -1719,6 +1719,7 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         clusterconfig_namespace = cluster_config["metadata"]["namespace"]
         
         cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
+        cluster_config["spec"]["cluster_operator_image_version"] = cluster_operator_version
         cluster_config["spec"]["capx"] = {}
         cluster_config["spec"]["capx"]["capi_version"] = "v1.7.4"
         if provider == "aws":
