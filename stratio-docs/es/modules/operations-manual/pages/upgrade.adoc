@@ -82,13 +82,8 @@ Opciones principales:
 | False
 | No
 
-| `--private_registry`
-| Considera el _registry_ de Docker como privado.
-| False
-| No
-
-| `--private_helm_repo`
-| Considera el repositorio de Helm como privado.
+| `--private`
+| Considera el _registry_ de Docker y el repositorio de Helm como privados.
 | False
 | No
 |===

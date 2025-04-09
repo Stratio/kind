@@ -165,8 +165,7 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
-    parser.add_argument("--private_registry", action="store_true", help="Consider Docker registry as private registry")
-    parser.add_argument("--private_helm_repo", action="store_true", help="Consider Helm repository as private repository")
+    parser.add_argument("--private", action="store_true", help="Treats the Docker registry and the Helm repository as private")
     args = parser.parse_args()
     return vars(args)
 
@@ -2121,8 +2120,8 @@ if __name__ == '__main__':
         validate_helm_repository(helm_repository)
         update_helm_repository(cluster_name, helm_repository, config["dry_run"]) 
 
-    private_registry = config["private_registry"]
-    private_helm_repo = config["private_helm_repo"]
+    private_registry = config["private"]
+    private_helm_repo = config["private"]
     
     # Update the clusterconfig and keoscluster
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
