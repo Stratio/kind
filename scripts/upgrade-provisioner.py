@@ -1370,6 +1370,7 @@ def create_default_values(chart_name, namespace, values_file, provider):
     '''Create defaults values file'''
 
     charts_requiring_values_update_all = [
+        "cert-manager",
         "cluster-autoscaler",
         "flux",
         "tigera-operator"
