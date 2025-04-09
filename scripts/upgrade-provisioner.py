@@ -1054,14 +1054,16 @@ def adopt_all_helm_charts(keos_cluster, specific_charts):
     charts = get_installed_helm_charts()
     for chart in charts:
         try:
+            print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
             if chart['name'] == 'calico':
                 chart['name'] = 'tigera-operator'
             if chart['name'] == 'flux':
                 chart['name'] = 'flux2'
             if chart['name'] in specific_charts["28"]:
-                print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
                 adopt_helm_chart(chart)
+            else:
+                print("SKIP")
                 
         except Exception as e:
             print("FAILED")
@@ -1115,7 +1117,6 @@ def check_and_delete_releases(namespace):
         
 def adopt_helm_chart(chart):
     '''Adopt a Helm chart'''
-    
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
     release_name = chart_name
     if chart["name"] == "flux2":
@@ -1127,17 +1128,17 @@ def adopt_helm_chart(chart):
         print("SKIP")
         return
     
-    repo = specific_repos[release_name]
-    repo_name = release_name
+    repo = specific_repos[chart_name]
+    repo_name = chart_name
     auth_required = False
     user = ""
     password = ""
     schema = "default"
-    if release_name not in specific_repos:
+    if chart_name not in specific_repos:
         print("SKIP")
         return
     
-    if release_name in "cluster-operator" or private_helm_repo:
+    if chart_name in "cluster-operator" or private_helm_repo:
         repo =  keos_cluster["spec"]["helm_repository"]["url"]
         repo_name = "keos"
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
@@ -1208,8 +1209,8 @@ def adopt_helm_chart(chart):
 
     # Save to temporary files
     try:
-        repository_file = f'/tmp/{release_context["ChartName"]}_helmrepository.yaml'
-        release_file = f'/tmp/{release_context["ChartName"]}_helmrelease.yaml'
+        repository_file = f'/tmp/{release_context["ReleaseName"]}_helmrepository.yaml'
+        release_file = f'/tmp/{release_context["ReleaseName"]}_helmrelease.yaml'
 
         with open(repository_file, 'w') as f:
             f.write(helmrepository_yaml)
