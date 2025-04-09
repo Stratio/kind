@@ -1177,10 +1177,13 @@ def adopt_helm_chart(chart, upgrade_cloud_provisioner_only):
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
     
     create_default_values(chart_name, chart['namespace'], default_values_file, chart['provider'])
+    if release_name == "cluster-operator":
+        update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
+
     create_empty_values_file(empty_values_file)
     
     create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], default_values_file)
-    create_configmap_from_values(f"01-{release_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
+    create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
     
     if namespaces.get(release_name):
         namespace = namespaces[release_name]
@@ -1397,6 +1400,23 @@ def create_default_values(chart_name, namespace, values_file, provider):
         run_command(f"echo '{values}' > {values_file}")
     except Exception as e:
         raise
+
+def update_cluster_operator_image_tag_value(values_file, cluster_operator_version):
+    '''Update cluster-operator image tag value'''
+
+    print(f"Updating cluster-operator image version to {cluster_operator_version} in {values_file}:", end =" ", flush=True)
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file)
+
+        values['app']['containers']['controllerManager']['image']['tag'] = cluster_operator_version
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+        print("OK")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def create_empty_values_file(values_file):
     ''' Create an empty values file'''

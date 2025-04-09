@@ -965,7 +965,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	// Create override HelmRelease configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
-		"01-" + params.ChartName + "-helm-chart-override-values " +
+		"02-" + params.ChartName + "-helm-chart-override-values " +
 		"--from-literal=values.yaml=\"\""
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
