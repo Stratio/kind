@@ -46,65 +46,59 @@ CAPZ = "v1.12.4"
 #Chart Versions
 eks_chart_versions = {
     "28": {
-        "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "cluster-autoscaler": {"chart_version": "9.34.1"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
+        "flux2": {"chart_version": "2.12.2"}
     },
     "29": {
-        "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "cluster-autoscaler": {"chart_version": "9.35.0"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
+        "flux2": {"chart_version": "2.12.2"}
     },
     "30": {
-        "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1", "app_version": "v2.8.1"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "cluster-autoscaler": {"chart_version": "9.37.0"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
+        "flux2": {"chart_version": "2.12.2"}
     }
 }
 
 azure_vm_chart_versions = {
     "28": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.28.5", "app_version": "v1.28.7"},
-        "cluster-autoscaler": {"chart_version": "9.34.1", "app_version": "1.28.1"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
+        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
+        "cloud-provider-azure": {"chart_version": "v1.28.5"},
+        "cluster-autoscaler": {"chart_version": "9.34.1"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "flux2": {"chart_version": "2.12.2"}
     },
     "29": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.29.0", "app_version": "v1.29.0"},
-        "cluster-autoscaler": {"chart_version": "9.35.0", "app_version": "1.29.0"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
+        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
+        "cloud-provider-azure": {"chart_version": "v1.29.0"},
+        "cluster-autoscaler": {"chart_version": "9.35.0"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "flux2": {"chart_version": "2.12.2"}
     },
     "30": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1", "app_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2", "app_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "1.30.4", "app_version": "1.30.4"},
-        "cluster-autoscaler": {"chart_version": "9.37.0", "app_version": "1.30.0"},
-        "tigera-operator": {"chart_version": "v3.28.2", "app_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2", "app_version": "0.4.2"},
-        "flux": {"chart_version": "2.12.2", "app_version": "2.2.2"},
-        "flux2": {"chart_version": "2.12.2", "app_version": "2.2.2"}
+        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
+        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
+        "cloud-provider-azure": {"chart_version": "1.30.4"},
+        "cluster-autoscaler": {"chart_version": "9.37.0"},
+        "tigera-operator": {"chart_version": "v3.28.2"},
+        "cluster-operator": {"chart_version": "0.4.2"},
+        "flux2": {"chart_version": "2.12.2"}
     }
 }
 
-namespaces = {
+charts_namespaces = {
     'aws-load-balancer-controller': 'kube-system',
     'aws-ebs-csi-driver': 'kube-system',
     'azuredisk-csi-driver': 'kube-system',
@@ -114,13 +108,12 @@ namespaces = {
     'calico': 'tigera-operator',
     'tigera-operator': 'tigera-operator',
     'cert-manager': 'cert-manager',
-    "flux": "kube-system",
     "flux2": "kube-system",
     "cluster-operator": "kube-system"
 }
         
         
-#Updatable Charts
+# Updatable Charts
 charts_dependent_on_k8s_version = ["cluster-autoscaler", "cloud-provider-azure"]
 
 # Definir repositorios específicos
@@ -133,7 +126,6 @@ specific_repos = {
     'cluster-autoscaler': 'https://kubernetes.github.io/autoscaler',
     'tigera-operator': 'https://docs.projectcalico.org/charts',
     'cert-manager': 'https://charts.jetstack.io',
-    "flux": "https://fluxcd-community.github.io/helm-charts",
     "flux2": "https://fluxcd-community.github.io/helm-charts",
     "cluster-operator": ""
 }
@@ -163,7 +155,6 @@ def parse_args():
     parser.add_argument("--disable-backup", action="store_true", help="Disable backing up files before upgrading (enabled by default)")
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
-    parser.add_argument("--upgrade-cloud-provisioner-only", action="store_true", help="Prepare the upgrade process for the cloud-provisioner upgrade only")
     parser.add_argument("--skip-k8s-intermediate-version", action="store_true", help="Skip workers intermediate kubernetes version upgrade")
     parser.add_argument("--private", action="store_true", help="Treats the Docker registry and the Helm repository as private")
     args = parser.parse_args()
@@ -840,7 +831,7 @@ def check_flux_installed():
         return False
     except Exception as e:
         print("FAILED")
-        print(f"[ERROR] Error checking flux installation{e}.")
+        print(f"[ERROR] Error checking flux installation {e}.")
         raise e
 
 # List all Helm charts installed in the cluster
@@ -856,18 +847,19 @@ def get_installed_helm_charts():
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-# Install Flux if it is not present
 def install_flux(provider):
     '''Install Flux'''
     
+    chart_name = "flux2"
+    release_name = "flux"
+    namespace = charts_namespaces[chart_name]
+    chart_version = "2.12.2"
+
     if private_helm_repo:
         repository_url = keos_cluster["spec"]["helm_repository"]["url"]
     else:
-        repository_url = specific_repos["flux"]
-    chart_name = "flux2"
-    release_name = "flux"
-    chart_version = "2.12.2"
-    namespace = "kube-system"
+        repository_url = specific_repos[chart_name]
+
     values_file = f"/tmp/{release_name}_default_values.yaml"
 
     create_default_values(release_name, namespace, values_file, provider)
@@ -1056,7 +1048,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster, specific_charts, upgrade_cloud_provisioner_only):
+def adopt_all_helm_charts(keos_cluster, specific_charts):
     '''Adopt all Helm charts'''
     
     charts = get_installed_helm_charts()
@@ -1064,12 +1056,12 @@ def adopt_all_helm_charts(keos_cluster, specific_charts, upgrade_cloud_provision
         try:
             if chart['name'] == 'calico':
                 chart['name'] = 'tigera-operator'
-            if (chart['name'] in specific_charts["28"] and chart['name'] not in ["flux", "flux2"]) or \
-               (chart['name'] in specific_charts["28"] and upgrade_cloud_provisioner_only and chart['name'] in ["flux", "flux2"]):
-                
+            if chart['name'] == 'flux':
+                chart['name'] = 'flux2'
+            if chart['name'] in specific_charts["28"]:
                 print(f"[INFO] Adopting chart {chart['name']} in namespace {chart['namespace']}:", end =" ", flush=True)
                 chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart, upgrade_cloud_provisioner_only)
+                adopt_helm_chart(chart)
                 
         except Exception as e:
             print("FAILED")
@@ -1121,13 +1113,12 @@ def check_and_delete_releases(namespace):
         else:
             time.sleep(20)
         
-# Generate and apply HelmRelease and HelmRepository
-def adopt_helm_chart(chart, upgrade_cloud_provisioner_only):
+def adopt_helm_chart(chart):
     '''Adopt a Helm chart'''
     
     chart_name, chart_version = chart["chart"].rsplit("-", 1)
     release_name = chart_name
-    if chart["name"] == "flux":
+    if chart["name"] == "flux2":
         release_name = "flux"
     
     # Check if there is already a HelmRelease with the name chart_name
@@ -1176,7 +1167,7 @@ def adopt_helm_chart(chart, upgrade_cloud_provisioner_only):
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
     
-    create_default_values(chart_name, chart['namespace'], default_values_file, chart['provider'])
+    create_default_values(release_name, chart['namespace'], default_values_file, chart['provider'])
     if release_name == "cluster-operator":
         update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
 
@@ -1184,12 +1175,7 @@ def adopt_helm_chart(chart, upgrade_cloud_provisioner_only):
     
     create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart['namespace'], default_values_file)
     create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart['namespace'], empty_values_file)
-    
-    if namespaces.get(release_name):
-        namespace = namespaces[release_name]
-    else:
-        namespace = "kube-system"
-        
+
     repository_context = {
         'repository_name': repo_name,
         'namespace': chart['namespace'],
@@ -1236,7 +1222,7 @@ def adopt_helm_chart(chart, upgrade_cloud_provisioner_only):
 
     # Apply the manifests to the cluster
     try:
-        if repo_name != "keos" or upgrade_cloud_provisioner_only:
+        if repo_name != "keos":
             command = f"{kubectl} apply -f {repository_file} "
             run_command(command)
         
@@ -1435,7 +1421,7 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
-def install_cert_manager(provider, upgrade_cloud_provisioner_only):
+def install_cert_manager(provider):
     '''Install cert-manager'''
     
     try:
@@ -1444,7 +1430,6 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
             'name': 'cert-manager',
             'namespace': 'cert-manager',
             'chart': 'cert-manager-v1.14.5',
-            'app_version': 'v1.14.5',
             'provider': provider
         }
         existing_helmrelease, err = run_command(f"{kubectl} get helmrelease cert-manager -n cert-manager --ignore-not-found")
@@ -1510,13 +1495,13 @@ def install_cert_manager(provider, upgrade_cloud_provisioner_only):
         print("OK")
         
         print("[INFO] Adopted cert-manager:", end =" ", flush=True)
-        adopt_helm_chart(chart_cert_manager, upgrade_cloud_provisioner_only)
+        adopt_helm_chart(chart_cert_manager)
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}")
         raise e
     
-def update_chart_versions(keos_cluster, cluster_config, charts, upgrade_cloud_provisioner_only):
+def update_chart_versions(keos_cluster, cluster_config, charts):
     '''Update the chart versions'''
     
     try:
@@ -1528,9 +1513,8 @@ def update_chart_versions(keos_cluster, cluster_config, charts, upgrade_cloud_pr
         for chart_name, chart_info in charts[k8s_version].items():
             print(f"[INFO] Updating chart {chart_name} to version {chart_info['chart_version']}:", end =" ", flush=True)
             chart_version = chart_info["chart_version"]
-            app_version = chart_info["app_version"]
             if k8s_version == "28" or chart_name in charts_dependent_on_k8s_version:
-                updated = update_helmrelease_version(chart_name, namespaces.get(chart_name), chart_version)
+                updated = update_helmrelease_version(chart_name, chart_version)
             else:
                 print("SKIP")
             if updated and not chart_name == "cluster-operator":
@@ -1542,11 +1526,15 @@ def update_chart_versions(keos_cluster, cluster_config, charts, upgrade_cloud_pr
         print(f"[ERROR] Error updating chart versions: {e}")
         raise e
 
-def update_helmrelease_version(chart_name, namespace, version):
+def update_helmrelease_version(chart_name, version):
     '''Update the version of a HelmRelease'''
-    
+
+    release_name = chart_name
+    if chart_name == "flux2":
+        release_name = "flux"
+    namespace = charts_namespaces[release_name]
+
     try:
-        
         check_command = f"{kubectl} get helmrelease {chart_name} -n {namespace}"
         stdout, stderr = run_command(check_command, allow_errors=True)
         
@@ -2126,10 +2114,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Check special flags
-    upgrade_cloud_provisioner_only = config["upgrade_cloud_provisioner_only"]
     skip_k8s_intermediate_version = config["skip_k8s_intermediate_version"]
-    if provider != "aws" and (skip_k8s_intermediate_version or upgrade_cloud_provisioner_only):
-        print("[ERROR] --upgrade-cloud-provisioner-only and --skip-k8s-intermediate-version flags are only supported for EKS")
+    if provider != "aws" and skip_k8s_intermediate_version:
+        print("[ERROR] --skip-k8s-intermediate-version flag is only supported for EKS")
         sys.exit(1)
 
     # Set env vars
@@ -2214,9 +2201,9 @@ if __name__ == '__main__':
     
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster, chart_versions, upgrade_cloud_provisioner_only)
-    install_cert_manager(provider, upgrade_cloud_provisioner_only)
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, upgrade_cloud_provisioner_only)
+    adopt_all_helm_charts(keos_cluster, chart_versions)
+    install_cert_manager(provider)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -2275,7 +2262,7 @@ if __name__ == '__main__':
             upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, upgrade_cloud_provisioner_only)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     current_k8s_version = get_kubernetes_version()
     
     if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and skip_k8s_intermediate_version):
@@ -2302,7 +2289,7 @@ if __name__ == '__main__':
         patch_kubeadm_controlplane("cluster-" + cluster_name)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions, upgrade_cloud_provisioner_only)
+    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
     if not managed:
         cp_global_network_policy("patch", networks, provider, backup_dir, False)

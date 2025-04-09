@@ -72,11 +72,6 @@ Key options:
 | False
 | No
 
-| `--upgrade-cloud-provisioner-only`
-| Prepare the upgrade process for the cloud-provisioner upgrade only. This is only supported in EKS environments.
-| False
-| No
-
 | `--skip-k8s-intermediate-version`
 | Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
 | False

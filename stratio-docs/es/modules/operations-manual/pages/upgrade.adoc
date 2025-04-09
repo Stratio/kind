@@ -72,11 +72,6 @@ Opciones principales:
 | False
 | No
 
-| `--upgrade-cloud-provisioner-only`
-| Actualiza sólo los componentes de _cloud-provisioner_. Esto solo es compatible con entornos EKS.
-| False
-| No
-
 | `--skip-k8s-intermediate-version`
 | Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
 | False
