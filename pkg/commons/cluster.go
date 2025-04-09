@@ -274,6 +274,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
+	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
