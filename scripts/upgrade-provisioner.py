@@ -1531,10 +1531,10 @@ def update_chart_versions(keos_cluster, cluster_config, charts):
 def update_helmrelease_version(chart_name, version):
     '''Update the version of a HelmRelease'''
 
+    namespace = charts_namespaces[chart_name]
     release_name = chart_name
     if chart_name == "flux2":
         release_name = "flux"
-    namespace = charts_namespaces[release_name]
 
     try:
         check_command = f"{kubectl} get helmrelease {chart_name} -n {namespace}"
