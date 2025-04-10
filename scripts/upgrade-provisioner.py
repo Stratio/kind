@@ -1223,9 +1223,8 @@ def adopt_helm_chart(chart):
 
     # Apply the manifests to the cluster
     try:
-        if repo_name != "keos":
-            command = f"{kubectl} apply -f {repository_file} "
-            run_command(command)
+        command = f"{kubectl} apply -f {repository_file} "
+        run_command(command)
         
         command = f"{kubectl} apply -f {release_file} -n {chart['namespace']}"
         run_command(command)
@@ -1392,7 +1391,6 @@ def create_default_values(chart_name, namespace, values_file, provider):
 def update_cluster_operator_image_tag_value(values_file, cluster_operator_version):
     '''Update cluster-operator image tag value'''
 
-    print(f"Updating cluster-operator image version to {cluster_operator_version} in {values_file}:", end =" ", flush=True)
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
@@ -1402,7 +1400,6 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
 
-        print("OK")
     except Exception as e:
         print(f"An error occurred: {e}")
 
