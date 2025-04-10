@@ -43,7 +43,7 @@ Este objeto define el estado deseado de _ClusterConfig_.
 | -
 
 | *`private_helm_repo`* _boolean_
-| Permite especificar el tipo de instalación. En caso de habilitarse este campo, los _charts_ que deban descargarse durante el proceso de instalación del _cluster_ se recuperarán del repositorio indicado como _helm_repository_.
+| Permite especificar el tipo de instalación. Si se activa, los _charts_ necesarios para la instalación del _cluster_ se descargarán desde el repositorio indicado como _helm++_++repository_.
 | _false_
 | -
 
