@@ -11,7 +11,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: 01-{{ $.CMName }}-helm-chart-override-values
+  name: 02-{{ $.CMName }}-helm-chart-override-values
   namespace: {{ $.CMNamespace }}
 data:
   values.yaml: ""

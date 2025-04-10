@@ -1,8 +1,0 @@
-controller:
-    podAnnotations:
-        cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: socket-dir,azure-cred
-    tolerations: {}
-    vmType: standard
-
-image:
-    baseRepo: {{ registry if private else 'mcr.microsoft.com' }}
