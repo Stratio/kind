@@ -12,7 +12,7 @@ Para llevar a cabo una instalación _offline_ de forma satisfactoria, es necesar
 ** *`spec.private_registry`: _true_*. Con este parámetro se le indica a _Stratio Cloud Provisioner_ que todas las imágenes necesarias durante el aprovisionamiento e instalación del _cluster_ se deben recuperar del _keos registry_.
 ** *`spec.private_helm_repo`: _true_*. Este parámetro indica a _Stratio Cloud Provisioner_ que todos los _charts_ necesarios para el aprovisionamiento e instalación del _cluster_ deben obtenerse desde el _keos registry_.
 * _KeosCluster_:
-** `spec.docker_registries`: en la sección de 'docker_registries' se debe indicar el _keos registry_ del que se descargarán las imágenes para el despliegue _offline_. Este _registry_ deberá contar con las imágenes necesarias para cada instalación.
+** `spec.docker_registries`: en la sección de 'docker++_++registries' se debe indicar el _keos registry_ del que se descargarán las imágenes para el despliegue _offline_. Este _registry_ deberá contar con las imágenes necesarias para cada instalación.
 
 NOTE: Las imágenes deberán estar accesibles en el repositorio indicado como _keos registry_ pero se deberá respetar la ruta del nombre de las imágenes. Por ejemplo, la imagen `registry.k8s.io/cluster-api/cluster-api-controller:v1.7.4` deberá recuperarse de `<keos_registry_url>/cluster-api/cluster-api-controller:v1.7.4`.
 
