@@ -3,7 +3,8 @@
 <<<<<<< HEAD
 ## 0.17.0-0.7.0 (2025-03-25)
 
-* [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
+* [PLT-1549] -  Activate NodePool SecureBoot
+* [PLT-1652] -  Allow skipping kubernetes intermediate version during upgrade
 * [PLT-1887] -  Dynamic region describe
 * [PLT-1849] -  Fix aws-load-balancer-controller annotation
 * [PLT-1621] -  Add kubernetes 1.32 support  - [`#689`](https://github.com/Stratio/kind/pull/689)
