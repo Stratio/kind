@@ -936,7 +936,7 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	// Generate HelmRepository manifest
 	fluxHelmRepository, err := getManifest("common", templatePath, majorVersion, params)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate "+params.ChartName+" HelmRepository")
+		return errors.Wrap(err, "failed to generate " + params.ChartName + " HelmRepository")
 	}
 
 	// Write HelmRepository manifest to file
@@ -944,39 +944,39 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	c := "echo '" + fluxHelmRepository + "' > " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create "+params.ChartName+" Flux HelmRepository file")
+		return errors.Wrap(err, "failed to create " + params.ChartName + " Flux HelmRepository file")
 	}
 
 	// Apply HelmRepository
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" Flux HelmRepository")
+		return errors.Wrap(err, "failed to deploy " + params.ChartName + " Flux HelmRepository")
 	}
 	return nil
 }
 
 func configureHelmRelease(n nodes.Node, k string, templatePath string, params fluxHelmReleaseParams, helmRepository commons.HelmRepository) error {
-	valuesFile := "/kind/" + params.ChartName + "-helm-values.yaml"
+	valuesFile := "/kind/" + params.HelmReleaseName + "-helm-values.yaml"
 
 	// Create default HelmRelease configmap
 	c := "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
-		"00-" + params.ChartName + "-helm-chart-default-values " +
+		"00-" + params.HelmReleaseName + "-helm-chart-default-values " +
 		"--from-file=values.yaml=" + valuesFile
 	_, err := commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" HelmRelease default configuration map")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease default configuration map")
 	}
 
 	// Create override HelmRelease configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
-		"02-" + params.ChartName + "-helm-chart-override-values " +
+		"02-" + params.HelmReleaseName + "-helm-chart-override-values " +
 		"--from-literal=values.yaml=\"\""
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" HelmRelease override configmap")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease override configmap")
 	}
 
 	var defaultHelmReleaseInterval = "1m"
@@ -1018,30 +1018,30 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	// Generate HelmRelease manifest
 	fluxHelmHelmRelease, err := getManifest("common", templatePath, majorVersion, completedfluxHelmReleaseParams)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate "+params.ChartName+" HelmHelmRelease")
+		return errors.Wrap(err, "failed to generate " + params.HelmReleaseName + " HelmHelmRelease")
 	}
 
 	// Write HelmHelmRelease manifest to file
-	fluxHelmHelmReleaseTemplate := "/kind/" + params.ChartName + "_helmrelease.yaml"
+	fluxHelmHelmReleaseTemplate := "/kind/" + params.HelmReleaseName + "_helmrelease.yaml"
 	c = "echo '" + fluxHelmHelmRelease + "' > " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create "+params.ChartName+" Flux HelmHelmRelease file")
+		return errors.Wrap(err, "failed to create " + params.HelmReleaseName + " Flux HelmHelmRelease file")
 	}
 
 	// Apply HelmHelmRelease
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" Flux HelmHelmRelease")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " Flux HelmHelmRelease")
 	}
 	// Wait for HelmRelease to become ready
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
-		"-n " + params.ChartNamespace + " wait helmrelease/" + params.ChartName +
+		"-n " + params.ChartNamespace + " wait helmrelease/" + params.HelmReleaseName +
 		" --for=condition=ready --timeout=5m"
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to wait for "+params.ChartName+" HelmRelease to become ready")
+		return errors.Wrap(err, "failed to wait for " + params.HelmReleaseName + " HelmRelease to become ready")
 	}
 	return nil
 }
