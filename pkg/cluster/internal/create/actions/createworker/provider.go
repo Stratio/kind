@@ -801,7 +801,7 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 	var c string
 	var err error
 
-	fluxTemplate := "/kind/flux2-helm-values.yaml"
+	fluxTemplate := "/kind/flux-helm-values.yaml"
 	keosChartRepoScheme := "default"
 	chartRepoScheme := "default"
 
