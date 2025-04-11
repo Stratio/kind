@@ -62,11 +62,6 @@ Opciones principales:
 | secrets.yml
 | No
 
-| `--enable-lb-controller`
-| Activa el controlador de balanceador de carga en EKS (desactivado por defecto).
-| False
-| No
-
 | `--disable-backup`
 | Desactiva el respaldo antes de actualizar (habilitado por defecto).
 | False
@@ -77,13 +72,13 @@ Opciones principales:
 | False
 | No
 
-| `--upgrade-cloud-provisioner-only`
-| Actualiza sólo los componentes de _cloud-provisioner_. Esto solo es compatible con entornos EKS.
+| `--skip-k8s-intermediate-version`
+| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
 | False
 | No
 
-| `--skip-k8s-intermediate-version`
-| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
+| `--private`
+| Considera el _registry_ de Docker y el repositorio de Helm como privados.
 | False
 | No
 |===

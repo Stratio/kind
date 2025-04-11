@@ -241,10 +241,11 @@ func (b *AWSBuilder) installCSI(n nodes.Node, k string, privateParams PrivatePar
 	csiValuesFile := "/kind/" + csiName + "-helm-values.yaml"
 	csiEntry := chartsList[csiName]
 	csiHelmReleaseParams := fluxHelmReleaseParams{
-		ChartRepoRef:   "keos",
-		ChartName:      csiName,
-		ChartNamespace: csiEntry.Namespace,
-		ChartVersion:   csiEntry.Version,
+		HelmReleaseName: csiName,
+		ChartRepoRef:    "keos",
+		ChartName:       csiName,
+		ChartNamespace:  csiEntry.Namespace,
+		ChartVersion:    csiEntry.Version,
 	}
 	if !privateParams.HelmPrivate {
 		csiHelmReleaseParams.ChartRepoRef = csiName
@@ -283,10 +284,11 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	}
 
 	lbControllerHelmReleaseParams := fluxHelmReleaseParams{
-		ChartRepoRef:   "keos",
-		ChartName:      lbControllerName,
-		ChartNamespace: lbControllerEntry.Namespace,
-		ChartVersion:   lbControllerEntry.Version,
+		HelmReleaseName: lbControllerName,
+		ChartRepoRef:    "keos",
+		ChartName:       lbControllerName,
+		ChartNamespace:  lbControllerEntry.Namespace,
+		ChartVersion:    lbControllerEntry.Version,
 	}
 	if !privateParams.HelmPrivate {
 		lbControllerHelmReleaseParams.ChartRepoRef = lbControllerName

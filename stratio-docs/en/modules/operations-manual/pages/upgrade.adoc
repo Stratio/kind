@@ -62,11 +62,6 @@ Key options:
 | secrets.yml
 | No
 
-| `--enable-lb-controller`
-| Enable the load balancer controller in EKS (disabled by default).
-| False
-| No
-
 | `--disable-backup`
 | Disable backup before upgrading (enabled by default).
 | False
@@ -77,13 +72,13 @@ Key options:
 | False
 | No
 
-| `--upgrade-cloud-provisioner-only`
-| Prepare the upgrade process for the cloud-provisioner upgrade only. This is only supported in EKS environments.
+| `--skip-k8s-intermediate-version`
+| Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
 | False
 | No
 
-| `--skip-k8s-intermediate-version`
-| Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
+| `--private`
+| Treats the Docker registry and the Helm repository as private.
 | False
 | No
 |===

@@ -42,6 +42,11 @@ This object defines the desired state of _ClusterConfig_.
 | false
 | -
 
+| * `private_helm_repo`* _boolean_
+| Specifies the type of installation. If enabled, the charts required for the cluster installation will be downloaded from the repository specified as _helm++_++repository_.
+| false
+| -
+
 | *`controlplane_config`* _ControlplaneConfig_
 | The _control-plane_ can be configured with different settings.
 | -
