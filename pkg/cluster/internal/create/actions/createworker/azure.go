@@ -302,10 +302,11 @@ func (b *AzureBuilder) installCSI(n nodes.Node, kubeconfigPath string, privatePa
 		csiValuesFile := "/kind/" + csiName + "-helm-values.yaml"
 		csiEntry := chartsList[csiName]
 		csiHelmReleaseParams := fluxHelmReleaseParams{
-			ChartRepoRef:   "keos",
-			ChartName:      csiName,
-			ChartNamespace: csiEntry.Namespace,
-			ChartVersion:   csiEntry.Version,
+			HelmReleaseName: csiName,
+			ChartRepoRef:    "keos",
+			ChartName:       csiName,
+			ChartNamespace:  csiEntry.Namespace,
+			ChartVersion:    csiEntry.Version,
 		}
 		if !privateParams.HelmPrivate {
 			csiHelmReleaseParams.ChartRepoRef = csiName
