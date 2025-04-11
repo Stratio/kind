@@ -185,10 +185,11 @@ type fluxHelmRepositoryParams struct {
 }
 
 type fluxHelmReleaseParams struct {
-	ChartName      string
-	ChartNamespace string
-	ChartRepoRef   string
-	ChartVersion   string
+	HelmReleaseName string
+	ChartName       string
+	ChartNamespace  string
+	ChartRepoRef    string
+	ChartVersion    string
 }
 
 var scTemplate = DefaultStorageClass{
@@ -657,10 +658,11 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		}
 
 		clusterOperatorHelmReleaseParams := fluxHelmReleaseParams{
-			ChartName:      "cluster-operator",
-			ChartNamespace: "kube-system",
-			ChartRepoRef:   "keos",
-			ChartVersion:   chartVersion,
+			HelmReleaseName: "cluster-operator",
+			ChartName:       "cluster-operator",
+			ChartNamespace:  "kube-system",
+			ChartRepoRef:    "keos",
+			ChartVersion:    chartVersion,
 		}
 		// Create Helm release using the fluxHelmReleaseParams
 		if err := configureHelmRelease(n, kubeconfigPath, "flux2_helmrelease.tmpl", clusterOperatorHelmReleaseParams, privateParams.KeosCluster.Spec.HelmRepository); err != nil {
@@ -743,10 +745,11 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 	helmValuesCAFile := "/kind/cluster-autoscaler-helm-values.yaml"
 	clusterAutoscalerEntry := chartsList["cluster-autoscaler"]
 	clusterAutoscalerHelmReleaseParams := fluxHelmReleaseParams{
-		ChartRepoRef:   "keos",
-		ChartName:      "cluster-autoscaler",
-		ChartNamespace: clusterAutoscalerEntry.Namespace,
-		ChartVersion:   clusterAutoscalerEntry.Version,
+		HelmReleaseName: "cluster-autoscaler",
+		ChartRepoRef:    "keos",
+		ChartName:       "cluster-autoscaler",
+		ChartNamespace:  clusterAutoscalerEntry.Namespace,
+		ChartVersion:    clusterAutoscalerEntry.Version,
 	}
 	if !privateParams.HelmPrivate {
 		clusterAutoscalerHelmReleaseParams.ChartRepoRef = "cluster-autoscaler"
@@ -837,7 +840,7 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		return errors.Wrap(err, "failed to create Flux Helm chart values file")
 	}
 
-	c = "helm install flux2 /stratio/helm/flux2" +
+	c = "helm install flux /stratio/helm/flux2" +
 		" --kubeconfig " + k +
 		" --namespace kube-system" +
 		" --create-namespace" +
@@ -912,6 +915,11 @@ func reconcileCharts(n nodes.Node, k string, privateParams PrivateParams, keosCl
 
 		// Adopt helm charts already deployed: tigera-operator and cloud-provider
 		if entry.Reconcile {
+			helmReleaseName := name
+			if name == "flux2" {
+				helmReleaseName = "flux"
+			}
+			fluxHelmReleaseParams.HelmReleaseName = helmReleaseName
 			fluxHelmReleaseParams.ChartName = name
 			fluxHelmReleaseParams.ChartNamespace = entry.Namespace
 			fluxHelmReleaseParams.ChartVersion = entry.Version
@@ -977,6 +985,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	var defaultHelmReleaseSourceInterval = "1m"
 
 	completedfluxHelmReleaseParams := struct {
+		HelmReleaseName           string
 		ChartName                 string
 		ChartNamespace            string
 		ChartRepoRef              string
@@ -985,6 +994,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 		HelmReleaseRetries        int
 		HelmReleaseSourceInterval string
 	}{
+		HelmReleaseName:           params.HelmReleaseName,
 		ChartName:                 params.ChartName,
 		ChartNamespace:            params.ChartNamespace,
 		ChartRepoRef:              params.ChartRepoRef,

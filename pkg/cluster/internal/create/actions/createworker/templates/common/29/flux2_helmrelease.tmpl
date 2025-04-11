@@ -2,10 +2,10 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: {{ $.ChartName }}
+  name: {{ $.HelmReleaseName }}
   namespace: {{ $.ChartNamespace }}
 spec:
-  releaseName: {{ $.ChartName }}
+  releaseName: {{ $.HelmReleaseName }}
   chart:
     spec:
       chart: {{ $.ChartName }}
