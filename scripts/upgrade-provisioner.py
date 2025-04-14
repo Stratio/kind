@@ -883,6 +883,21 @@ def create_configmap_from_values(configmap_name, namespace, values_file):
     except Exception as e:
         raise e
 
+def filter_installed_charts(charts):
+    '''Remove not installed charts'''
+
+    try:
+        output, err = run_command(helm  + " list --all-namespaces --output json")
+        charts_installed = json.loads(output)
+        charts_installed_names = [chart["name"] for chart in charts_installed]
+
+        charts_filtered = {chart_name: chart_data for chart_name, chart_data in charts.items() if chart_name in charts_installed_names}
+        return charts_filtered
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error getting charts installed {e}.")
+        raise e
+
 def upgrade_chart(chart_name, chart_data):
     '''Update chart HelmRelease'''
     chart_repo = chart_data["repo"]
@@ -1267,7 +1282,9 @@ if __name__ == '__main__':
     
     charts_to_upgrade = common_charts
     if provider == "aws":
-        charts_to_upgrade.update(aws_eks_charts)
+        # Since aws-load-balancer-controller is optional we need to check if is installed
+        aws_eks_charts_installed = filter_installed_charts(aws_eks_charts)
+        charts_to_upgrade.update(aws_eks_charts_installed)
     elif provider == "azure":
         charts_to_upgrade.update(azure_vm_charts)
     charts_to_upgrade["cluster-operator"]["chart_version"] = cluster_operator_version
