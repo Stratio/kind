@@ -44,6 +44,9 @@ CAPA = "v2.5.2"
 CAPG = "1.6.1-0.2.0"
 CAPZ = "v1.12.4"
 
+TIGERA_OPERATOR_CALICOCTL_VERSION = "3.29.1"
+TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.36.2"
+
 common_charts = {
     "cert-manager": {
         "version": "v1.17.0",
@@ -866,6 +869,22 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def update_tigera_operator_image_tag_value(values_file):
+    '''Update cluster-operator image tag value'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file)
+
+        values['calicoctl']['tag'] = TIGERA_OPERATOR_CALICOCTL_VERSION
+        values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 def create_empty_values_file(values_file):
     ''' Create an empty values file'''
     
@@ -935,6 +954,8 @@ def upgrade_chart(chart_name, chart_data):
     create_default_values(release_name, chart_namespace, default_values_file, provider)
     if release_name == "cluster-operator":
         update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
+    elif release_name == "tigera-operator":
+        update_tigera_operator_image_tag_value(default_values_file)
 
     create_empty_values_file(empty_values_file)
     
