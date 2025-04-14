@@ -1059,8 +1059,8 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         cluster_config["spec"]["cluster_operator_image_version"] = cluster_operator_version
         cluster_config["spec"]["private_helm_repo"] = private_helm_repo
         cluster_config["spec"]["charts"] = []
-        for chart_name, chart_version in charts.items():
-            cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_version})
+        for chart_name, chart_data in charts.items():
+            cluster_config["spec"]["charts"].append({"name": chart_name, "version": chart_data["version"]})
         clusterconfig_json = json.dumps(cluster_config)
         command = f"{kubectl} patch clusterconfig {clusterconfig_name} -n {clusterconfig_namespace} --type merge -p '{clusterconfig_json}'"
         output, err = run_command(command)
