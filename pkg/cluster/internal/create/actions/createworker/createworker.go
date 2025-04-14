@@ -56,12 +56,6 @@ type HelmRegistry struct {
 	Type string
 }
 
-type CMHelmRelease struct {
-	CMName      string
-	CMNamespace string
-	CMValue     string
-}
-
 const (
 	kubeconfigPath           = "/kind/worker-cluster.kubeconfig"
 	workKubeconfigPath       = ".kube/config"

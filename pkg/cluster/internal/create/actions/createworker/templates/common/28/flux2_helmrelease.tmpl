@@ -28,8 +28,8 @@ spec:
     force: false
   valuesFrom:
     - kind: ConfigMap
-      name: 00-{{ $.ChartName }}-helm-chart-default-values
+      name: 00-{{ $.HelmReleaseName }}-helm-chart-default-values
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: 02-{{ $.ChartName }}-helm-chart-override-values
+      name: 02-{{ $.HelmReleaseName }}-helm-chart-override-values
       valuesKey: values.yaml
