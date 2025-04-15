@@ -837,7 +837,7 @@ def check_flux_installed():
 # List all Helm charts installed in the cluster
 def get_installed_helm_charts():
     '''Get all Helm charts installed in the cluster'''
-    
+
     try:
         output, err = run_command(helm  + " list --all-namespaces --output json")
         charts = json.loads(output)
@@ -846,6 +846,76 @@ def get_installed_helm_charts():
         print("FAILED")
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
+
+def get_keos_helm_repository_oci_credentials(repository_url, repository_type):
+    repo_user = ""
+    repo_pass = ""
+
+    if repository_type == "ecr":
+        repo_user = "AWS"
+        helm_repository_region = vault_secrets_data['secrets']['aws']['credentials']['region']
+        command = f"aws ecr get-login-password --region {helm_repository_region}"
+    elif repository_type == "acr":
+        cluster_id = keos_cluster["spec"]["cluster_id"]
+        repo_user = f"{cluster_id}-helm"
+        repo_permissions = "content/read metadata/read"
+        command = f"az acr token create --only-show-errors --name {repo_user} --registry {urlparse(repository_url).netloc} --repository \* {repo_permissions}"
+    try:
+        output, err = run_command(command)
+        if repository_type == "ecr":
+            repo_pass = output
+        elif repository_type == "ecr":
+            output_json = json.loads(output)
+            repo_pass = output_json["credentials"]["passwords"][0]["value"]
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error getting credentials for Helm repository {repository_url}: {e}")
+
+    return repo_user, repo_pass
+
+def configure_keos_helm_repository(repository_url, repository_name):
+    '''Configure KEOS helm repository credentials'''
+    print(f"[INFO] Configuring {repository_url} Helm repository:", end =" ", flush=True)
+
+    helm_repository_username="omit"
+    helm_repository_password="omit"
+
+    helm_repository_type = "generic"
+    if "type" in keos_cluster["spec"]["helm_repository"]:
+        helm_repository_type = keos_cluster["spec"]["helm_repository"]["type"]
+
+    helm_auth_required = False
+    if "auth_required" in keos_cluster["spec"]["helm_repository"]:
+        helm_auth_required = keos_cluster["spec"]["helm_repository"]["auth_required"]
+
+    if helm_auth_required:
+        helm_repository_username = vault_secrets_data["secrets"]["helm_repository"]["user"]
+        helm_repository_password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
+    else:
+        helm_repository_username, helm_repository_password = get_keos_helm_repository_oci_credentials(repository_url, helm_repository_type)
+
+    if urlparse(repository_url).scheme != "oci":
+        command = f"{helm} repo add --force-update {repository_name} {repository_url} --username {helm_repository_username} --password {helm_repository_password}"
+    else:
+        command = f"{helm} registry login {urlparse(repository_url).netloc} --username {helm_repository_username} --password {helm_repository_password}"
+    try:
+        run_command(command)
+        print("OK")
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {e}.")
+        raise
+
+def configure_public_helm_repository(repository_url, repository_name):
+    print(f"[INFO] Configuring {repository_url} Helm repository:", end =" ", flush=True)
+    command = f"{helm} repo add --force-update {repository_name} {repository_url}"
+    try:
+        run_command(command)
+        print("OK")
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {e}.")
+        raise
 
 def install_flux(provider):
     '''Install Flux'''
@@ -856,9 +926,13 @@ def install_flux(provider):
     chart_version = "2.12.2"
 
     if private_helm_repo:
+        repository_name = "keos"
         repository_url = keos_cluster["spec"]["helm_repository"]["url"]
+        configure_keos_helm_repository(repository_url, repository_name)
     else:
+        repository_name = chart_name
         repository_url = specific_repos[chart_name]
+        configure_public_helm_repository(repository_url, repository_name)
 
     values_file = f"/tmp/{release_name}_default_values.yaml"
 
@@ -868,7 +942,7 @@ def install_flux(provider):
     if urlparse(repository_url).scheme == "oci":
         command += f" {repository_url}/{chart_name}"
     else:
-        command += f" {chart_name} --repo {repository_url}"
+        command += f" {repository_name}/{chart_name}"
 
     try:
         run_command(command)
@@ -953,8 +1027,6 @@ def add_clusterctl_registry_config():
     clusterctl_config_file = "/root/.cluster-api/clusterctl.yaml"
     registry_url = get_keos_registry_url(keos_cluster)
 
-    print("[INFO] Modifying " + clusterctl_config_file + " to add private registry config", end =" ", flush=True)
-    
     try:
         with open(clusterctl_config_file, 'r') as file:
             data = yaml.safe_load(file)
@@ -968,7 +1040,7 @@ def add_clusterctl_registry_config():
             'infrastructure-azure/azureserviceoperator': {'repository': f'{registry_url}/k8s'},
             'infrastructure-azure/kube-rbac-proxy': {'repository': f'{registry_url}/kubebuilder'},
             'infrastructure-azure/nmi': {'repository': f'{registry_url}/oss/azure/aad-pod-identity'},
-            'cert-manager': {'repository': f'{registry_url}/cert-manager'},
+            'cert-manager': {'repository': f'{registry_url}/jetstack'},
         }
 
         with open(clusterctl_config_file, 'w') as file:
