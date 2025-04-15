@@ -1000,8 +1000,9 @@ def upgrade_chart(chart_name, chart_data):
 
         command = f"{kubectl} apply -f {repository_file} "
         run_command(command)
-        
-        command = f"{kubectl} apply -f {release_file} -n {chart_namespace}"
+
+        # We need to use --server-side flag to avoid metadata.resourceVersion conflicts
+        command = f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side"
         run_command(command)
         
         print("OK")
