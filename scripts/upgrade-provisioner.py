@@ -45,20 +45,6 @@ CAPZ = "v1.12.4"
 
 #Chart Versions
 eks_chart_versions = {
-    "28": {
-        "cluster-autoscaler": {"chart_version": "9.34.1"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
-        "flux2": {"chart_version": "2.12.2"}
-    },
-    "29": {
-        "cluster-autoscaler": {"chart_version": "9.35.0"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
-        "flux2": {"chart_version": "2.12.2"}
-    },
     "30": {
         "cluster-autoscaler": {"chart_version": "9.37.0"},
         "cluster-operator": {"chart_version": "0.4.2"},
@@ -69,24 +55,6 @@ eks_chart_versions = {
 }
 
 azure_vm_chart_versions = {
-    "28": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.28.5"},
-        "cluster-autoscaler": {"chart_version": "9.34.1"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "flux2": {"chart_version": "2.12.2"}
-    },
-    "29": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "v1.29.0"},
-        "cluster-autoscaler": {"chart_version": "9.35.0"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "flux2": {"chart_version": "2.12.2"}
-    },
     "30": {
         "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
         "azurefile-csi-driver": {"chart_version": "v1.30.2"},
@@ -112,10 +80,6 @@ charts_namespaces = {
     "cluster-operator": "kube-system"
 }
         
-        
-# Updatable Charts
-charts_dependent_on_k8s_version = ["cluster-autoscaler", "cloud-provider-azure"]
-
 # Definir repositorios específicos
 specific_repos = {
     'aws-load-balancer-controller': 'https://aws.github.io/eks-charts',
@@ -1575,22 +1539,19 @@ def install_cert_manager(provider):
 def update_chart_versions(keos_cluster, cluster_config, charts):
     '''Update the chart versions'''
     
+    k8s_version = "1.30"
+    charts_updated = {}
+    provider = keos_cluster["spec"]["infra_provider"]
+    print(f"[INFO] Updating chart versions for Kubernetes {k8s_version} in {provider}:")
+
     try:
-        charts_updated = {}
-        updated = False
-        k8s_version = keos_cluster["spec"]["k8s_version"].split(".")[1]
-        provider = keos_cluster["spec"]["infra_provider"]
-        print(f"[INFO] Updating chart versions for Kubernetes {k8s_version} in {provider}:")
         for chart_name, chart_info in charts[k8s_version].items():
-            print(f"[INFO] Updating chart {chart_name} to version {chart_info['chart_version']}:", end =" ", flush=True)
             chart_version = chart_info["chart_version"]
-            if k8s_version == "28" or chart_name in charts_dependent_on_k8s_version:
-                updated = update_helmrelease_version(chart_name, chart_version)
-            else:
-                print("SKIP")
-            if updated and not chart_name == "cluster-operator":
+            print(f"[INFO] Updating chart {chart_name} to version {chart_version}:", end =" ", flush=True)
+            update_helmrelease_version(chart_name, chart_version)
+            if not chart_name == "cluster-operator":
                 charts_updated[chart_name] = chart_version
-            
+
         return charts_updated
     except Exception as e:
         print("FAILED")
@@ -2334,7 +2295,6 @@ if __name__ == '__main__':
             upgrade_k8s(cluster_name, keos_cluster["spec"]["control_plane"], keos_cluster["spec"]["worker_nodes"], networks, required_k8s_version, provider, managed, backup_dir, False)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     current_k8s_version = get_kubernetes_version()
     
     if "1.29" in current_k8s_version or ("1.28" in current_k8s_version and skip_k8s_intermediate_version):
@@ -2361,7 +2321,6 @@ if __name__ == '__main__':
         patch_kubeadm_controlplane("cluster-" + cluster_name)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
     if not managed:
         cp_global_network_policy("patch", networks, provider, backup_dir, False)
