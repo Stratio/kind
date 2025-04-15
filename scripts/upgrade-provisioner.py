@@ -45,25 +45,21 @@ CAPZ = "v1.12.4"
 
 #Chart Versions
 eks_chart_versions = {
-    "30": {
-        "cluster-autoscaler": {"chart_version": "9.37.0"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "aws-load-balancer-controller": {"chart_version": "1.8.1"},
-        "flux2": {"chart_version": "2.12.2"}
-    }
+    "cluster-autoscaler": {"chart_version": "9.37.0"},
+    "cluster-operator": {"chart_version": "0.4.2"},
+    "tigera-operator": {"chart_version": "v3.28.2"},
+    "aws-load-balancer-controller": {"chart_version": "1.8.1"},
+    "flux2": {"chart_version": "2.12.2"}
 }
 
 azure_vm_chart_versions = {
-    "30": {
-        "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
-        "azurefile-csi-driver": {"chart_version": "v1.30.2"},
-        "cloud-provider-azure": {"chart_version": "1.30.4"},
-        "cluster-autoscaler": {"chart_version": "9.37.0"},
-        "tigera-operator": {"chart_version": "v3.28.2"},
-        "cluster-operator": {"chart_version": "0.4.2"},
-        "flux2": {"chart_version": "2.12.2"}
-    }
+    "azuredisk-csi-driver": {"chart_version": "v1.30.1"},
+    "azurefile-csi-driver": {"chart_version": "v1.30.2"},
+    "cloud-provider-azure": {"chart_version": "1.30.4"},
+    "cluster-autoscaler": {"chart_version": "9.37.0"},
+    "tigera-operator": {"chart_version": "v3.28.2"},
+    "cluster-operator": {"chart_version": "0.4.2"},
+    "flux2": {"chart_version": "2.12.2"}
 }
 
 charts_namespaces = {
@@ -1084,9 +1080,8 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster, specific_charts):
+def adopt_all_helm_charts(keos_cluster):
     '''Adopt all Helm charts'''
-    
     charts = get_installed_helm_charts()
     for chart in charts:
         try:
@@ -1095,11 +1090,8 @@ def adopt_all_helm_charts(keos_cluster, specific_charts):
                 chart['name'] = 'tigera-operator'
             if chart['name'] == 'flux':
                 chart['name'] = 'flux2'
-            if chart['name'] in specific_charts["28"]:
-                chart['provider'] = keos_cluster["spec"]["infra_provider"]
-                adopt_helm_chart(chart)
-            else:
-                print("SKIP")
+            chart['provider'] = keos_cluster["spec"]["infra_provider"]
+            adopt_helm_chart(chart)
                 
         except Exception as e:
             print("FAILED")
@@ -1539,13 +1531,9 @@ def install_cert_manager(provider):
 def update_chart_versions(keos_cluster, cluster_config, charts):
     '''Update the chart versions'''
     
-    k8s_version = "1.30"
     charts_updated = {}
-    provider = keos_cluster["spec"]["infra_provider"]
-    print(f"[INFO] Updating chart versions for Kubernetes {k8s_version} in {provider}:")
-
     try:
-        for chart_name, chart_info in charts[k8s_version].items():
+        for chart_name, chart_info in charts.items():
             chart_version = chart_info["chart_version"]
             print(f"[INFO] Updating chart {chart_name} to version {chart_version}:", end =" ", flush=True)
             update_helmrelease_version(chart_name, chart_version)
@@ -2234,7 +2222,7 @@ if __name__ == '__main__':
     
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster, chart_versions)
+    adopt_all_helm_charts(keos_cluster)
     install_cert_manager(provider)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
@@ -2245,8 +2233,8 @@ if __name__ == '__main__':
     networks = keos_cluster["spec"].get("networks", {})
     current_k8s_version = get_kubernetes_version()
     
-    if "1.28" in current_k8s_version:   
-        tigera_version = chart_versions["28"]["tigera-operator"]["chart_version"] 
+    if "1.28" in current_k8s_version:
+        tigera_version = chart_versions["tigera-operator"]["chart_version"]
         print(f"[INFO] Restarting Tigera Operator: ", end =" ", flush=True)
         restart_tigera_operator_manifest(provider,tigera_version=tigera_version)
         print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
