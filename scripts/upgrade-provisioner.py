@@ -816,7 +816,7 @@ def get_keos_helm_repository_oci_credentials(repository_url, repository_type):
         helm_repository_region = vault_secrets_data['secrets']['aws']['credentials']['region']
         command = f"aws ecr get-login-password --region {helm_repository_region}"
     elif repository_type == "acr":
-        cluster_id = keos_cluster["spec"]["cluster_id"]
+        cluster_id = keos_cluster["metadata"]["name"]
         repo_user = f"{cluster_id}-helm"
         repo_permissions = "content/read metadata/read"
         command = f"az acr token create --only-show-errors --name {repo_user} --registry {urlparse(repository_url).netloc} --repository \* {repo_permissions}"
@@ -824,7 +824,7 @@ def get_keos_helm_repository_oci_credentials(repository_url, repository_type):
         output, err = run_command(command)
         if repository_type == "ecr":
             repo_pass = output
-        elif repository_type == "ecr":
+        elif repository_type == "acr":
             output_json = json.loads(output)
             repo_pass = output_json["credentials"]["passwords"][0]["value"]
     except Exception as e:
@@ -1376,8 +1376,6 @@ def restart_tigera_operator_manifest(provider, tigera_version="v3.28.2"):
         command = "helm get manifest tigera-operator -n tigera-operator | kubectl apply -f -"
         output = execute_command(command, False, result=False, max_retries=6, retry_delay=5)
         time.sleep(120)
-        if provider == "azure" and "installation.operator.tigera.io/default configured" in output:
-            restart_tigera_operator_manifest(provider, tigera_version)
         prepare_calico_kube_controller()
         if provider == "aws":
             prepare_calico_kube_controller()
