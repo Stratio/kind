@@ -1001,8 +1001,8 @@ def upgrade_chart(chart_name, chart_data):
         command = f"{kubectl} apply -f {repository_file} "
         run_command(command)
 
-        # We need to use --server-side flag to avoid metadata.resourceVersion conflicts
-        command = f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side"
+        # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
+        command = f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts"
         run_command(command)
         
         print("OK")
@@ -1263,9 +1263,6 @@ if __name__ == '__main__':
             env_vars += " EXP_MACHINE_POOL=true EXP_CAPG_GKE=true"
         env_vars += " GCP_B64ENCODED_CREDENTIALS=" + credentials
     if provider == "azure":
-        if config['user_assign_identity'] == "":
-            print("[ERROR] The flag --user-assign-identity must be indicated with azure provider")
-            sys.exit(1)
         namespace = "capz-system"
         version = CAPZ
         if managed:
