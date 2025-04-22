@@ -1151,7 +1151,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 			return errors.Wrap(err, "failed to update capa-manager-bootstrap-credentials secret")
 		}
 		// Step 5: Rollout restart capa-controller-manager
-		c = "kubectl -n capa-system rollout restart deployment capa-controller-manager"
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n capa-system rollout restart deploy capa-controller-manager"
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to restart capa-controller-manager")
