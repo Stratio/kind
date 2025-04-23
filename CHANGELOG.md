@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.5.10 (upcoming)
+
+* [PLT-2032] Fix default Helm repository management type during cloud-provisioner upgrade
+
 ## 0.17.0-0.5.9 (2025-03-24)
 
 * [PLT-1887] Dynamic region describe

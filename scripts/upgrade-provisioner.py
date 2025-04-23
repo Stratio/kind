@@ -781,7 +781,10 @@ if __name__ == '__main__':
 
     # Set helm repository
     helm_repo["url"] = keos_cluster["spec"]["helm_repository"]["url"]
-    helm_repo["type"] = keos_cluster["spec"]["helm_repository"]["type"]
+    if "type" in keos_cluster["spec"]["helm_repository"]:
+        helm_repo["type"] = keos_cluster["spec"]["helm_repository"]["type"]
+    else:
+        helm_repo["type"] = "generic"
     if "auth_required" in keos_cluster["spec"]["helm_repository"]:
         if keos_cluster["spec"]["helm_repository"]["auth_required"]:
             if "user" in data["secrets"]["helm_repository"] and "pass" in data["secrets"]["helm_repository"]:
