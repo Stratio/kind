@@ -44,8 +44,6 @@ var isAWSNodeImage = regexp.MustCompile(`^ami-\w+$`).MatchString
 var AWSNodeImageFormat = "ami-[IMAGE_ID]"
 
 func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error {
-	// Print the AWS credentials for debugging purposes
-	fmt.Printf("(aws.go)(validateAWS)AWS credentials: %v\n", providerSecrets)
 	var err error
 	var ctx = context.TODO()
 	deviceRegex := regexp.MustCompile(commons.DeviceNameRegex)

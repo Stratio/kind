@@ -23,8 +23,6 @@ import (
 	"time"
 	"unicode"
 
-	"fmt"
-
 	"os"
 	"strings"
 
@@ -315,8 +313,6 @@ func Contains(s []string, str string) bool {
 }
 
 func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, error) {
-	// Print secrets for debugging purposes
-	fmt.Println("(utils.go)(AWSGetConfig)AWS Secrets: ", secrets)
 	customProvider := credentials.NewStaticCredentialsProvider(
 		secrets["AccessKey"], secrets["SecretKey"], "",
 	)
@@ -335,9 +331,7 @@ func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, e
 	// Use assume role if RoleARN is provided for first checks as DescribeRegions, ...
 	if roleARN, ok := secrets["RoleARN"]; ok && roleARN != "false" {
 		stsSvc := sts.NewFromConfig(cfg)
-		// Print assume role for debugging purposes
-		fmt.Println("(utils.go)(AWSGetConfig)Assuming role: ", roleARN)
-		// Assume the role
+		// Using STS to assume the specified IAM role
 		assumeRoleOutput, err := stsSvc.AssumeRole(ctx, &sts.AssumeRoleInput{
 			RoleArn:         aws.String(roleARN),
 			RoleSessionName: aws.String("assume-role-session"),
