@@ -211,7 +211,7 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenciales en el descriptor del _cluster_ y eliminando previamente el _secrets.yml_.
 
-En el caso de AWS, si deseas utilizar "assume role" como método de autorización temporal, puedes especificarlo mediante el parámetro `role_arn`. Por ejemplo:
+En AWS, puedes usar el método de autorización temporal _assume role_ indicando el parámetro `role_arn`. Por ejemplo:
 
 [source,yaml]
 ----
