@@ -220,7 +220,7 @@ credentials:
     role_arn: arn:aws:iam::<accountID>:role/my-aws-role
 ----
 
-NOTE: The `role_arn` field is optional and this method will only be used if defined in the descriptor.
+NOTE: This parameter is optional. The _assume role_ method will only be used if `role_arn` is defined in the descriptor.
 
 === Helm repository
 
