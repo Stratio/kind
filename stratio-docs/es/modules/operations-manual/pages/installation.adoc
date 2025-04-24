@@ -211,6 +211,17 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenciales en el descriptor del _cluster_ y eliminando previamente el _secrets.yml_.
 
+En el caso de AWS, si deseas utilizar "assume role" como método de autorización temporal, puedes especificarlo mediante el parámetro `role_arn`. Por ejemplo:
+
+[source,yaml]
+----
+credentials:
+    aws:
+        role_arn: arn:aws:iam::<accountID>:role/my-aws-role
+----
+
+NOTE: El campo `role_arn` es opcional y solo se usará dicho método en caso de definirlo en el descriptor.
+
 === Repositorio de Helm
 
 Como prerrequisito de instalación, se debe indicar el repositorio Helm del que se pueda extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si se trata de un repositorio autenticado.
