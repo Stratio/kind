@@ -211,7 +211,7 @@ The following fields are considered provisioning secrets:
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
-In the case of AWS, if you want to use "assume role" as a temporary authorization method, you can specify it using the `role_arn` parameter. For example:
+In AWS, you can use the temporary authorization method _assume role_ by specifying the `role_arn` parameter. For example:
 
 [source,yaml]
 ----
