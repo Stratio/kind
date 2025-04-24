@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.0 (2025-04-21)
 
+* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
 * [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
 * [PLT-1971] Fix upgrade when using a non oci Helm repository
