@@ -18,6 +18,7 @@ package createworker
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
@@ -32,6 +33,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -936,7 +938,7 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	// Generate HelmRepository manifest
 	fluxHelmRepository, err := getManifest("common", templatePath, majorVersion, params)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate " + params.ChartName + " HelmRepository")
+		return errors.Wrap(err, "failed to generate "+params.ChartName+" HelmRepository")
 	}
 
 	// Write HelmRepository manifest to file
@@ -944,14 +946,14 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	c := "echo '" + fluxHelmRepository + "' > " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create " + params.ChartName + " Flux HelmRepository file")
+		return errors.Wrap(err, "failed to create "+params.ChartName+" Flux HelmRepository file")
 	}
 
 	// Apply HelmRepository
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy " + params.ChartName + " Flux HelmRepository")
+		return errors.Wrap(err, "failed to deploy "+params.ChartName+" Flux HelmRepository")
 	}
 	return nil
 }
@@ -966,7 +968,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 		"--from-file=values.yaml=" + valuesFile
 	_, err := commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease default configuration map")
+		return errors.Wrap(err, "failed to deploy "+params.HelmReleaseName+" HelmRelease default configuration map")
 	}
 
 	// Create override HelmRelease configmap
@@ -976,7 +978,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 		"--from-literal=values.yaml=\"\""
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease override configmap")
+		return errors.Wrap(err, "failed to deploy "+params.HelmReleaseName+" HelmRelease override configmap")
 	}
 
 	var defaultHelmReleaseInterval = "1m"
@@ -1018,7 +1020,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	// Generate HelmRelease manifest
 	fluxHelmHelmRelease, err := getManifest("common", templatePath, majorVersion, completedfluxHelmReleaseParams)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate " + params.HelmReleaseName + " HelmHelmRelease")
+		return errors.Wrap(err, "failed to generate "+params.HelmReleaseName+" HelmHelmRelease")
 	}
 
 	// Write HelmHelmRelease manifest to file
@@ -1026,14 +1028,14 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	c = "echo '" + fluxHelmHelmRelease + "' > " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create " + params.HelmReleaseName + " Flux HelmHelmRelease file")
+		return errors.Wrap(err, "failed to create "+params.HelmReleaseName+" Flux HelmHelmRelease file")
 	}
 
 	// Apply HelmHelmRelease
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " Flux HelmHelmRelease")
+		return errors.Wrap(err, "failed to deploy "+params.HelmReleaseName+" Flux HelmHelmRelease")
 	}
 	// Wait for HelmRelease to become ready
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
@@ -1041,7 +1043,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 		" --for=condition=ready --timeout=5m"
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to wait for " + params.HelmReleaseName + " HelmRelease to become ready")
+		return errors.Wrap(err, "failed to wait for "+params.HelmReleaseName+" HelmRelease to become ready")
 	}
 	return nil
 }
@@ -1309,7 +1311,7 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 }
 
 // installCAPXLocal installs CAPX in the local cluster
-func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterConfig) error {
+func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterConfig, providerParams ProviderParams) error {
 	var c string
 	var err error
 
@@ -1343,6 +1345,39 @@ func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterC
 	_, err = commons.ExecuteCommand(n, c, 5, 3, p.capxEnvVars)
 	if err != nil {
 		return errors.Wrap(err, "failed to install CAPX in local cluster")
+	}
+
+	// [EKS] If we are using assume role, update capa-manager-bootstrap-credentials secret
+	if providerParams.Credentials["RoleARN"] != "false" {
+		// Update secret capa-manager-bootstrap-credentials with new credentials
+		providerSecrets := providerParams.Credentials
+		var cfg aws.Config
+		var err error
+		// Step 1: Get AWS Config in order to retrieve new credentials with session token
+		cfg, err = commons.AWSGetConfig(context.TODO(), providerSecrets)
+		if err != nil {
+			return err
+		}
+		// Step 2: Retrieve new credentials
+		creds, err := cfg.Credentials.Retrieve(context.TODO())
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve new credentials")
+		}
+		// Step 3: Encode new credentials to base64
+		credentialsString := fmt.Sprintf("[default]\naws_access_key_id=%s\naws_secret_access_key=%s\naws_session_token=%s\n", creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+		credentialsString = base64.StdEncoding.EncodeToString([]byte(credentialsString))
+		// Step 4: Patch secret with new credentials
+		c = "kubectl -n capa-system patch secret capa-manager-bootstrap-credentials -p '{\"data\":{\"credentials\":\"" + credentialsString + "\"}}'"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to update capa-manager-bootstrap-credentials secret")
+		}
+		// Step 5: Rollout restart capa-controller-manager
+		c = "kubectl -n capa-system rollout restart deployment capa-controller-manager"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to restart capa-controller-manager")
+		}
 	}
 
 	return nil

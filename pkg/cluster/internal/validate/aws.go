@@ -44,11 +44,17 @@ var isAWSNodeImage = regexp.MustCompile(`^ami-\w+$`).MatchString
 var AWSNodeImageFormat = "ami-[IMAGE_ID]"
 
 func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error {
+	// Print the AWS credentials for debugging purposes
+	fmt.Printf("(aws.go)(validateAWS)AWS credentials: %v\n", providerSecrets)
 	var err error
 	var ctx = context.TODO()
 	deviceRegex := regexp.MustCompile(commons.DeviceNameRegex)
 
-	cfg, err := commons.AWSGetConfig(ctx, providerSecrets, spec.Region)
+	if err := validateAWSCredentials(spec); err != nil {
+		return err
+	}
+
+	cfg, err := commons.AWSGetConfig(ctx, providerSecrets)
 	if err != nil {
 		return err
 	}
@@ -227,6 +233,14 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 		}
 	}
 
+	return nil
+}
+
+func validateAWSCredentials(spec commons.KeosSpec) error {
+	var isAWSRoleARN = regexp.MustCompile(`^arn:aws:iam::\d{12}:role/[\w+=,.@-]+$`).MatchString
+	if spec.Credentials.AWS.RoleARN != "" && spec.Credentials.AWS.RoleARN != "false" && !isAWSRoleARN(spec.Credentials.AWS.RoleARN) {
+		return errors.New("spec.credentials.aws.roleARN: Invalid value: must have the format arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME")
+	}
 	return nil
 }
 

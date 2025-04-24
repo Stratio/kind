@@ -74,10 +74,15 @@ func (b *AWSBuilder) setCapx(managed bool, capx commons.CAPX) {
 
 func (b *AWSBuilder) setCapxEnvVars(p ProviderParams) {
 	awsCredentials := "[default]\naws_access_key_id = " + p.Credentials["AccessKey"] + "\naws_secret_access_key = " + p.Credentials["SecretKey"] + "\nregion = " + p.Region + "\n"
+	// Add ROLE_ARN to awsCredentials if present and not "false"
+	if p.Credentials["RoleARN"] != "" && p.Credentials["RoleARN"] != "false" {
+		awsCredentials += "role_arn = " + p.Credentials["RoleARN"] + "\n"
+	}
 	b.capxEnvVars = []string{
 		"AWS_REGION=" + p.Region,
 		"AWS_ACCESS_KEY_ID=" + p.Credentials["AccessKey"],
 		"AWS_SECRET_ACCESS_KEY=" + p.Credentials["SecretKey"],
+		// AWS_B64ENCODED_CREDENTIALS will be the content of secret "keoscluster-settings"
 		"AWS_B64ENCODED_CREDENTIALS=" + base64.StdEncoding.EncodeToString([]byte(awsCredentials)),
 		"CAPA_EKS_IAM=true",
 	}
@@ -357,7 +362,7 @@ func (b *AWSBuilder) internalNginx(p ProviderParams, networks commons.Networks) 
 	var err error
 	var ctx = context.TODO()
 
-	cfg, err := commons.AWSGetConfig(ctx, p.Credentials, p.Region)
+	cfg, err := commons.AWSGetConfig(ctx, p.Credentials)
 	if err != nil {
 		return false, err
 	}
@@ -382,8 +387,7 @@ func (b *AWSBuilder) getRegistryCredentials(p ProviderParams, u string) (string,
 	var registryPass string
 	var ctx = context.Background()
 
-	region := strings.Split(u, ".")[3]
-	cfg, err := commons.AWSGetConfig(ctx, p.Credentials, region)
+	cfg, err := commons.AWSGetConfig(ctx, p.Credentials)
 	if err != nil {
 		return "", "", err
 	}

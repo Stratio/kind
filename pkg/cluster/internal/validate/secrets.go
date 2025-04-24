@@ -30,6 +30,9 @@ import (
 )
 
 func validateCredentials(params ValidateParams) (commons.ClusterCredentials, error) {
+	// Print params for debugging purposes
+	fmt.Printf("(secrets.go) Params: %+v\n", params.KeosCluster)
+	// Aki se pasa RoleARN como false
 	var secrets commons.Secrets
 	var creds commons.ClusterCredentials
 
@@ -42,7 +45,10 @@ func validateCredentials(params ValidateParams) (commons.ClusterCredentials, err
 		}
 		secrets = secretsFile.Secrets
 	}
-
+	// Print flag passed for debugging purposes
+	fmt.Printf("Existe secrets file: %v\n", params.SecretsPath)
+	// Printamos dentro de params la parte de credential para reverficar que se le pasa el roleArn como false
+	fmt.Printf("RoleARN: %v\n", params.KeosCluster.Spec.Credentials.AWS.RoleARN)
 	creds.ProviderCredentials, err = validateProviderCredentials(secrets, params)
 	if err != nil {
 		return commons.ClusterCredentials{}, err
@@ -69,6 +75,8 @@ func validateCredentials(params ValidateParams) (commons.ClusterCredentials, err
 func validateProviderCredentials(secrets interface{}, params ValidateParams) (map[string]string, error) {
 	infraProvider := params.KeosCluster.Spec.InfraProvider
 	credentialsProvider, err := reflections.GetField(secrets, strings.ToUpper(infraProvider))
+	// print credentialsProvider for debugging purposes
+	fmt.Printf("(secrets.go(validateProviderCredentials)CredentialsProvider: %+v\n", credentialsProvider)
 	if err != nil || reflect.DeepEqual(credentialsProvider, reflect.Zero(reflect.TypeOf(credentialsProvider)).Interface()) {
 		credentialsProvider, err = reflections.GetField(params.KeosCluster.Spec.Credentials, strings.ToUpper(infraProvider))
 		if err != nil || reflect.DeepEqual(credentialsProvider, reflect.Zero(reflect.TypeOf(credentialsProvider)).Interface()) {
@@ -76,7 +84,36 @@ func validateProviderCredentials(secrets interface{}, params ValidateParams) (ma
 		}
 	} else {
 		credentialsProvider, _ = reflections.GetField(credentialsProvider, "Credentials")
+	}
 
+	// Print params roleARN for debugging purposes
+	fmt.Printf("RoleARN: %v\n", params.KeosCluster.Spec.Credentials.AWS.RoleARN)
+
+	// Ensure RoleARN is set to "false" if not provided in the secrets file or descriptor
+	if params.KeosCluster.Spec.Credentials.AWS.RoleARN == "false" {
+		// Print debug message we are here
+		fmt.Println("Setting RoleARN to false")
+		if roleARN, _ := reflections.GetField(credentialsProvider, "RoleARN"); roleARN == nil || roleARN == "" {
+			// Print debug message we are here
+			fmt.Println("RoleARN is nil or false")
+			// Ensure credentialsProvider is passed as a pointer
+			credentialsProviderValue := reflect.ValueOf(credentialsProvider)
+			if credentialsProviderValue.Kind() != reflect.Ptr {
+				credentialsProviderPtr := reflect.New(reflect.TypeOf(credentialsProvider))
+				credentialsProviderPtr.Elem().Set(credentialsProviderValue)
+				credentialsProvider = credentialsProviderPtr.Interface()
+			}
+			if err := reflections.SetField(credentialsProvider, "RoleARN", "false"); err != nil {
+				return nil, errors.Wrap(err, "failed to set RoleARN to false")
+			}
+		}
+	}
+
+	// Print check to this step for debugging purposes
+	fmt.Printf("Calling validateStruct with credentialsProvider: %+v\n", credentialsProvider)
+	// Ensure credentialsProvider is dereferenced if it's a pointer
+	if reflect.ValueOf(credentialsProvider).Kind() == reflect.Ptr {
+		credentialsProvider = reflect.ValueOf(credentialsProvider).Elem().Interface()
 	}
 	err = validateStruct(credentialsProvider)
 	if err != nil {

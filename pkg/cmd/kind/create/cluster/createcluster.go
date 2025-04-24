@@ -192,6 +192,13 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		runtime.GetDefault(logger),
 	)
 
+	// Check if "RoleARN" is nil or not set, and set the "RoleARN" field to "false"
+	if keosCluster.Spec.Credentials.AWS.RoleARN == "" {
+		logger.Warn("RoleARN is not set. Setting it to 'false'.")
+		keosCluster.Spec.Credentials.AWS.RoleARN = "false"
+	}
+
+	// Validate the cluster
 	clusterCredentials, err := provider.Validate(
 		*keosCluster,
 		clusterConfig,
@@ -199,6 +206,7 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		flags.VaultPassword,
 	)
 	if err != nil {
+		logger.Errorf("Validation failed: %v", err)
 		return errors.Wrap(err, "failed to validate cluster")
 	}
 

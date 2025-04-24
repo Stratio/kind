@@ -17,6 +17,8 @@ limitations under the License.
 package validate
 
 import (
+	"fmt"
+
 	"sigs.k8s.io/kind/pkg/commons"
 )
 
@@ -35,6 +37,8 @@ func Cluster(params *ValidateParams) (commons.ClusterCredentials, error) {
 	if err != nil {
 		return commons.ClusterCredentials{}, err
 	}
+	// Print creds for debugging purposes
+	fmt.Println("(validate.go)Cluster credentials: ", creds)
 	clusterConfigSpec := commons.ClusterConfigSpec{}
 	if params.ClusterConfig != nil {
 		clusterConfigSpec = params.ClusterConfig.Spec
