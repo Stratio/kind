@@ -677,6 +677,7 @@ metadata:
     name: gcp-prod-config
 spec:
     private_registry: true
+    private_helm_repo: true
     cluster_operator_version: 0.3.4
     cluster_operator_image_version: 0.3.4
 ----
