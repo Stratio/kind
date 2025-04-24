@@ -47,8 +47,8 @@ El despliegue de _Stratio KEOS_ en GKE debe realizarse mediante un _bastion_ que
 +
 Para aprovisionar en Azure no gestionado, necesitas una cuenta con todos los permisos requeridos, como en otros proveedores soportados. Además, debes definir:
 +
-** Un rol para los workers del cluster en `spec.security.nodes_identity`.
-** Un rol para el control-plane en `spec.security.control_plane_identity`.
+** Un rol para los _workers_ del _cluster_ en `spec.security.nodes_identity`.
+** Un rol para el _control-plane_ en `spec.security.control_plane_identity`.
 +
 Para el caso de permisos a nivel de suscripción, se recomienda:
 +
@@ -61,7 +61,7 @@ Para el caso de permisos a nivel de grupo de recursos, se recomienda:
 ** xref:attachment$stratio-azure-role-rg.json[Descargar permisos para usuario de despliegue de Azure].
 ** xref:attachment$stratio-azure-nodes-role-rg.json[Descargar permisos para _workers_ de Azure].
 ** xref:attachment$stratio-azure-cp-role-rg.json[Descargar permisos para _control-plane_ de Azure].
-** xref:attachment$stratio-azure-acr.json[Descargar permisos para usuario de despliegue, _workers_ y _control-plane_ de Azure]
+** xref:attachment$stratio-azure-acr.json[Descargar permisos para usuario de despliegue, _workers_ y _control-plane_ de Azure].
 ** Además, se deben asignar estos permisos a nivel de grupo de recursos:
 *** Usuario de despliegue: `Acrpull` en `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 *** _Control-plane_: `Acrpull` en `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
