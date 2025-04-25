@@ -85,12 +85,12 @@ aws_eks_charts = {
 
 azure_vm_charts = {
     "azuredisk-csi-driver": {
-        "version": "v1.31.2",
+        "version": "1.31.2",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "v1.31.2",
+        "version": "1.31.2",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
     },
