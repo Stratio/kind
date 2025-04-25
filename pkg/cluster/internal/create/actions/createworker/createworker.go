@@ -1128,24 +1128,25 @@ spec:
 			}
 
 			// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
-			// check awsmanagedcontrolplane exists if not wait till it exists
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				// wait for awsmanagedcontrolplane to be created
-				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+			if providerParams.Credentials["RoleARN"] != "" {
+				// check awsmanagedcontrolplane exists if not wait till it exists
+				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+					// wait for awsmanagedcontrolplane to be created
+					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+					}
+				}
+				// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
+				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
 				}
 			}
-			// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
-			}
-
 			ctx.Status.End(true) // End Moving the cluster-operator
 		}
 
