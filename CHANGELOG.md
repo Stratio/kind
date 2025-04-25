@@ -15,7 +15,7 @@
 * [PLT-1741] Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation
 * [PLT-1682] Improve kindest/node and stratio-capi-image management
 * [PLT-1317] Remove non-suported AKS, managed AWS and managed GCP references
-* [PLT-1628] Fix capz images registry and repository references. Replace cloud-provider-azure …
+* [PLT-1628] Fix capz images registry and repository references. Replace cloud-provider-azure
 * [PLT-1394] Bump Flux version to 2.14.1
 * [PLT-1393] Bump Tigera Operator version to v3.29.1
 * [PLT-1628] Fix coredns, cluster-api-gcp and kube-rbac-proxy image registry and repository references

@@ -95,7 +95,7 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
     },
     "cloud-provider-azure": {
-        "version": "v1.32.0",
+        "version": "1.32.0",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo"
     }
