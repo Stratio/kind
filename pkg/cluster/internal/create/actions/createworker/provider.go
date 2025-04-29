@@ -185,10 +185,11 @@ type fluxHelmRepositoryParams struct {
 }
 
 type fluxHelmReleaseParams struct {
-	ChartName      string
-	ChartNamespace string
-	ChartRepoRef   string
-	ChartVersion   string
+	HelmReleaseName string
+	ChartName       string
+	ChartNamespace  string
+	ChartRepoRef    string
+	ChartVersion    string
 }
 
 var scTemplate = DefaultStorageClass{
@@ -656,10 +657,11 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		}
 
 		clusterOperatorHelmReleaseParams := fluxHelmReleaseParams{
-			ChartName:      "cluster-operator",
-			ChartNamespace: "kube-system",
-			ChartRepoRef:   "keos",
-			ChartVersion:   chartVersion,
+			HelmReleaseName: "cluster-operator",
+			ChartName:       "cluster-operator",
+			ChartNamespace:  "kube-system",
+			ChartRepoRef:    "keos",
+			ChartVersion:    chartVersion,
 		}
 		// Create Helm release using the fluxHelmReleaseParams
 		if err := configureHelmRelease(n, kubeconfigPath, "flux2_helmrelease.tmpl", clusterOperatorHelmReleaseParams, privateParams.KeosCluster.Spec.HelmRepository); err != nil {
@@ -742,10 +744,11 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 	helmValuesCAFile := "/kind/cluster-autoscaler-helm-values.yaml"
 	clusterAutoscalerEntry := chartsList["cluster-autoscaler"]
 	clusterAutoscalerHelmReleaseParams := fluxHelmReleaseParams{
-		ChartRepoRef:   "keos",
-		ChartName:      "cluster-autoscaler",
-		ChartNamespace: clusterAutoscalerEntry.Namespace,
-		ChartVersion:   clusterAutoscalerEntry.Version,
+		HelmReleaseName: "cluster-autoscaler",
+		ChartRepoRef:    "keos",
+		ChartName:       "cluster-autoscaler",
+		ChartNamespace:  clusterAutoscalerEntry.Namespace,
+		ChartVersion:    clusterAutoscalerEntry.Version,
 	}
 	if !privateParams.HelmPrivate {
 		clusterAutoscalerHelmReleaseParams.ChartRepoRef = "cluster-autoscaler"
@@ -798,7 +801,7 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 	var c string
 	var err error
 
-	fluxTemplate := "/kind/flux2-helm-values.yaml"
+	fluxTemplate := "/kind/flux-helm-values.yaml"
 	keosChartRepoScheme := "default"
 	chartRepoScheme := "default"
 
@@ -836,7 +839,7 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		return errors.Wrap(err, "failed to create Flux Helm chart values file")
 	}
 
-	c = "helm install flux2 /stratio/helm/flux2" +
+	c = "helm install flux /stratio/helm/flux2" +
 		" --kubeconfig " + k +
 		" --namespace kube-system" +
 		" --create-namespace" +
@@ -911,6 +914,11 @@ func reconcileCharts(n nodes.Node, k string, privateParams PrivateParams, keosCl
 
 		// Adopt helm charts already deployed: tigera-operator and cloud-provider
 		if entry.Reconcile {
+			helmReleaseName := name
+			if name == "flux2" {
+				helmReleaseName = "flux"
+			}
+			fluxHelmReleaseParams.HelmReleaseName = helmReleaseName
 			fluxHelmReleaseParams.ChartName = name
 			fluxHelmReleaseParams.ChartNamespace = entry.Namespace
 			fluxHelmReleaseParams.ChartVersion = entry.Version
@@ -928,7 +936,7 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	// Generate HelmRepository manifest
 	fluxHelmRepository, err := getManifest("common", templatePath, majorVersion, params)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate "+params.ChartName+" HelmRepository")
+		return errors.Wrap(err, "failed to generate " + params.ChartName + " HelmRepository")
 	}
 
 	// Write HelmRepository manifest to file
@@ -936,39 +944,39 @@ func configureHelmRepository(n nodes.Node, k string, templatePath string, params
 	c := "echo '" + fluxHelmRepository + "' > " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create "+params.ChartName+" Flux HelmRepository file")
+		return errors.Wrap(err, "failed to create " + params.ChartName + " Flux HelmRepository file")
 	}
 
 	// Apply HelmRepository
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmRepositoryTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" Flux HelmRepository")
+		return errors.Wrap(err, "failed to deploy " + params.ChartName + " Flux HelmRepository")
 	}
 	return nil
 }
 
 func configureHelmRelease(n nodes.Node, k string, templatePath string, params fluxHelmReleaseParams, helmRepository commons.HelmRepository) error {
-	valuesFile := "/kind/" + params.ChartName + "-helm-values.yaml"
+	valuesFile := "/kind/" + params.HelmReleaseName + "-helm-values.yaml"
 
 	// Create default HelmRelease configmap
 	c := "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
-		"00-" + params.ChartName + "-helm-chart-default-values " +
+		"00-" + params.HelmReleaseName + "-helm-chart-default-values " +
 		"--from-file=values.yaml=" + valuesFile
 	_, err := commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" HelmRelease default configuration map")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease default configuration map")
 	}
 
 	// Create override HelmRelease configmap
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
-		"01-" + params.ChartName + "-helm-chart-override-values " +
+		"02-" + params.HelmReleaseName + "-helm-chart-override-values " +
 		"--from-literal=values.yaml=\"\""
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" HelmRelease override configmap")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " HelmRelease override configmap")
 	}
 
 	var defaultHelmReleaseInterval = "1m"
@@ -976,6 +984,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	var defaultHelmReleaseSourceInterval = "1m"
 
 	completedfluxHelmReleaseParams := struct {
+		HelmReleaseName           string
 		ChartName                 string
 		ChartNamespace            string
 		ChartRepoRef              string
@@ -984,6 +993,7 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 		HelmReleaseRetries        int
 		HelmReleaseSourceInterval string
 	}{
+		HelmReleaseName:           params.HelmReleaseName,
 		ChartName:                 params.ChartName,
 		ChartNamespace:            params.ChartNamespace,
 		ChartRepoRef:              params.ChartRepoRef,
@@ -1008,30 +1018,30 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	// Generate HelmRelease manifest
 	fluxHelmHelmRelease, err := getManifest("common", templatePath, majorVersion, completedfluxHelmReleaseParams)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate "+params.ChartName+" HelmHelmRelease")
+		return errors.Wrap(err, "failed to generate " + params.HelmReleaseName + " HelmHelmRelease")
 	}
 
 	// Write HelmHelmRelease manifest to file
-	fluxHelmHelmReleaseTemplate := "/kind/" + params.ChartName + "_helmrelease.yaml"
+	fluxHelmHelmReleaseTemplate := "/kind/" + params.HelmReleaseName + "_helmrelease.yaml"
 	c = "echo '" + fluxHelmHelmRelease + "' > " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to create "+params.ChartName+" Flux HelmHelmRelease file")
+		return errors.Wrap(err, "failed to create " + params.HelmReleaseName + " Flux HelmHelmRelease file")
 	}
 
 	// Apply HelmHelmRelease
 	c = "kubectl --kubeconfig " + k + " apply -f " + fluxHelmHelmReleaseTemplate
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to deploy "+params.ChartName+" Flux HelmHelmRelease")
+		return errors.Wrap(err, "failed to deploy " + params.HelmReleaseName + " Flux HelmHelmRelease")
 	}
 	// Wait for HelmRelease to become ready
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
-		"-n " + params.ChartNamespace + " wait helmrelease/" + params.ChartName +
+		"-n " + params.ChartNamespace + " wait helmrelease/" + params.HelmReleaseName +
 		" --for=condition=ready --timeout=5m"
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
-		return errors.Wrap(err, "failed to wait for "+params.ChartName+" HelmRelease to become ready")
+		return errors.Wrap(err, "failed to wait for " + params.HelmReleaseName + " HelmRelease to become ready")
 	}
 	return nil
 }

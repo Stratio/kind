@@ -1,0 +1,33 @@
+{
+    "roleName": "stratio-azure-nodes-role-rg",
+    "Id": "/subscriptions/<subscription-id>/providers/Microsoft.Authorization/roleDefinitions/<name>",
+    "IsCustom": true,
+    "Description": "Resource Group Worker role permissions",
+    "Actions": [
+      "Microsoft.Authorization/*/read",
+      "Microsoft.Compute/disks/read",
+      "Microsoft.Compute/disks/write",
+      "Microsoft.ContainerRegistry/registries/pull/read",
+      "Microsoft.Insights/alertRules/*",
+      "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
+      "Microsoft.ManagedIdentity/userAssignedIdentities/*/read",
+      "Microsoft.Resources/deployments/*",
+      "Microsoft.Resources/subscriptions/resourceGroups/read",
+      "Microsoft.Storage/storageAccounts/delete",
+      "Microsoft.Storage/storageAccounts/fileServices/shares/delete",
+      "Microsoft.Storage/storageAccounts/fileServices/shares/read",
+      "Microsoft.Storage/storageAccounts/fileServices/shares/write",
+      "Microsoft.Storage/storageAccounts/listKeys/action",
+      "Microsoft.Storage/storageAccounts/read",
+      "Microsoft.Storage/storageAccounts/write",
+      "Microsoft.Support/*",
+      "Microsoft.Compute/virtualMachines/read",
+      "Microsoft.Compute/virtualMachines/write"
+    ],
+    "NotActions": [
+      "Microsoft.Compute/galleries/share/action"
+    ],
+    "AssignableScopes": [
+      "/subscriptions/<subscription-id>/resourceGroups/<rg-name>"
+    ]
+}

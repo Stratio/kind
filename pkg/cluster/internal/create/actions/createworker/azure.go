@@ -69,9 +69,9 @@ var azureCharts = ChartsDictionary{
 		"31": {
 			"managed": {},
 			"unmanaged": {
-				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.31.2", Pull: false, Reconcile: false},
-				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.31.2", Pull: false, Reconcile: false},
-				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "v1.31.1", Pull: true, Reconcile: true},
+				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
+				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
+				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "1.31.1", Pull: true, Reconcile: true},
 				"cluster-autoscaler":   {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":      {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 			},
@@ -79,9 +79,9 @@ var azureCharts = ChartsDictionary{
 		"32": {
 			"managed": {},
 			"unmanaged": {
-				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.31.2", Pull: false, Reconcile: false},
-				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.31.2", Pull: false, Reconcile: false},
-				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "v1.32.0", Pull: true, Reconcile: true},
+				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
+				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
+				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "1.32.0", Pull: true, Reconcile: true},
 				"cluster-autoscaler":   {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":      {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 			},
@@ -302,10 +302,11 @@ func (b *AzureBuilder) installCSI(n nodes.Node, kubeconfigPath string, privatePa
 		csiValuesFile := "/kind/" + csiName + "-helm-values.yaml"
 		csiEntry := chartsList[csiName]
 		csiHelmReleaseParams := fluxHelmReleaseParams{
-			ChartRepoRef:   "keos",
-			ChartName:      csiName,
-			ChartNamespace: csiEntry.Namespace,
-			ChartVersion:   csiEntry.Version,
+			HelmReleaseName: csiName,
+			ChartRepoRef:    "keos",
+			ChartName:       csiName,
+			ChartNamespace:  csiEntry.Namespace,
+			ChartVersion:    csiEntry.Version,
 		}
 		if !privateParams.HelmPrivate {
 			csiHelmReleaseParams.ChartRepoRef = csiName

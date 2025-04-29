@@ -2,10 +2,10 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: {{ $.ChartName }}
+  name: {{ $.HelmReleaseName }}
   namespace: {{ $.ChartNamespace }}
 spec:
-  releaseName: {{ $.ChartName }}
+  releaseName: {{ $.HelmReleaseName }}
   chart:
     spec:
       chart: {{ $.ChartName }}
@@ -28,8 +28,8 @@ spec:
     force: false
   valuesFrom:
     - kind: ConfigMap
-      name: 00-{{ $.ChartName }}-helm-chart-default-values
+      name: 00-{{ $.HelmReleaseName }}-helm-chart-default-values
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: 01-{{ $.ChartName }}-helm-chart-override-values
+      name: 02-{{ $.HelmReleaseName }}-helm-chart-override-values
       valuesKey: values.yaml
