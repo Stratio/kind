@@ -11,7 +11,7 @@ Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
 ** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
 +
-Para el despliegue de EKS se deberá crear de forma manual el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
+Para el despliegue de EKS, se deberá crear de forma manual el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 
 * Sistemas operativos certificados
 +
@@ -45,17 +45,33 @@ El despliegue de _Stratio KEOS_ en GKE debe realizarse mediante un _bastion_ que
 
 * Permisos
 +
-Al igual que con otros proveedores soportados, el aprovisionamiento requiere una cuenta con todos los permisos solicitados, pero en este caso además se requiere un rol para los _workers_ del _cluster_ (indicado en el descriptor en `spec.security.nodes_identity`) y otro para el _control-plane_ (indicado en el descriptor en `spec.security.control_plane_identity`).
+Para aprovisionar en Azure no gestionado, necesitas una cuenta con todos los permisos requeridos, como en otros proveedores soportados. Además, debes definir:
 +
-** xref:attachment$stratio-azure-role.json[Descargar permisos para Azure].
+** Un rol para los _workers_ del _cluster_ en `spec.security.nodes_identity`.
+** Un rol para el _control-plane_ en `spec.security.control_plane_identity`.
++
+Para el caso de permisos a nivel de suscripción, se recomienda:
++
+** xref:attachment$stratio-azure-role.json[Descargar permisos para usuario de despliegue de Azure].
 ** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para _workers_ de Azure].
 ** xref:attachment$stratio-azure-cp-role.json[Descargar permisos para _control-plane_ de Azure].
-
++
+Para el caso de permisos a nivel de grupo de recursos, se recomienda:
++
+** xref:attachment$stratio-azure-role-rg.json[Descargar permisos para usuario de despliegue de Azure].
+** xref:attachment$stratio-azure-nodes-role-rg.json[Descargar permisos para _workers_ de Azure].
+** xref:attachment$stratio-azure-cp-role-rg.json[Descargar permisos para _control-plane_ de Azure].
+** xref:attachment$stratio-azure-acr.json[Descargar permisos para usuario de despliegue, _workers_ y _control-plane_ de Azure].
+** Además, se deben asignar estos permisos a nivel de grupo de recursos:
+*** Usuario de despliegue: `Acrpull` en `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+*** _Control-plane_: `Acrpull` en `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
+*** _Workers_: `Acrpull` en `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
++
 * Sistemas operativos certificados
 +
-En los entornos de Azure, se deben usar las imágenes proporcionadas por Stratio. Puedes consultarlas en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
+En entornos de Azure, se deben utilizar las imágenes proporcionadas por Stratio. Consulta la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__].
 +
-El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04, siendo el que crea por defecto el _controller_ de este proveedor _cloud_.
+El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por defecto en el _controller_ de Azure.
 
 === Consideraciones para imágenes
 
