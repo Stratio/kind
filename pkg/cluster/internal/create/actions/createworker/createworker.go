@@ -1128,7 +1128,7 @@ spec:
 			}
 
 			// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
-			if providerParams.Credentials["RoleARN"] != "" {
+			if providerParams.Credentials["RoleARN"] != "" && providerParams.Credentials["RoleARN"] != "false" {
 				// check awsmanagedcontrolplane exists if not wait till it exists
 				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
