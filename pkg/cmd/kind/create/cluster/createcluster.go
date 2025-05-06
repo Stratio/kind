@@ -193,8 +193,10 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 	)
 
 	// Check if "RoleARN" is nil or not set, and set the "RoleARN" field to "false"
-	if keosCluster.Spec.Credentials.AWS.RoleARN == "" {
-		keosCluster.Spec.Credentials.AWS.RoleARN = "false"
+	if keosCluster.Spec.InfraProvider == "aws" {
+		if keosCluster.Spec.Credentials.AWS.RoleARN == "" {
+			keosCluster.Spec.Credentials.AWS.RoleARN = "false"
+		}
 	}
 
 	// Validate the cluster
