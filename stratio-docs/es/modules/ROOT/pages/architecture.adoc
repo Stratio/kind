@@ -655,18 +655,6 @@ for ID in $INSTANCE_IDS; do
 done
 ----
 
-==== GKE (IMDSv2)
-
-En Google Kubernetes Engine (GKE), los nodos del clúster acceden al servidor de metadatos (`IMDS`) a través de la IP reservada `169.254.169.254`. Este servidor permite obtener credenciales mediante Application Default Credentials (ADC), que los _pods_ también pueden utilizar si no se restringe explícitamente.
-
-Dado que los _pods_ pueden impersonar al nodo donde se ejecutan accediendo directamente a `IMDS`, se utiliza una política de red global (`GlobalNetworkPolicy` de Calico) para impedir el acceso a este endpoint desde cualquier _pod_ que no pertenezca a componentes autorizados, como los controladores de infraestructura de Stratio KEOS.
-
-Esta política filtra el tráfico de salida (`egress`) hacia `169.254.169.254` mediante un selector de _labels_, limitando el acceso únicamente a los _pods_ que requieren interacción con las APIs de GCP y están adecuadamente identificados.
-
-==== Azure no gestionado
-
-
-
 === Acceso al _endpoint_ del _API Server_
 
 ==== EKS
@@ -680,10 +668,10 @@ Para comprobar la creación y el tipo de acceso del _endpoint_, se pueden utiliz
 [source,bash]
 ----
 # Comprobar la creaación del _endpoint_:
-aws eks describe-cluster --name <cluster_name> --query "cluster.endpoint" --output text | cat 
+aws eks describe-cluster --region <region> --name <cluster_name> --query "cluster.endpoint" --output text | cat 
 https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.gr7.eu-west-1.eks.amazonaws.com
 # Comprobar el tipo de acceso:
-aws eks describe-cluster --name eks-cl02 --query "cluster.resourcesVpcConfig" --output json | cat
+aws eks describe-cluster --region <region>  --name <cluster-name> --query "cluster.resourcesVpcConfig" --output json | cat
 
     "subnetIds": [
         "subnet-0cd582b2fc8f4667f",
@@ -909,7 +897,7 @@ spec:
 
 == Docker registries
 
-Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del _cluster_ (`keos_registry: true`). Deberá haber un (y sólo uno) Docker registry para _Stratio KEOS_, el resto se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
+Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del _cluster_ en 'spec.docker_registries.docker_registries.url' y deberá llevar la opción (`keos_registry: true`). Deberá haber un (y sólo uno) Docker registry para _Stratio KEOS_, el resto se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
 
 Actualmente, se soportan 3 tipos de Docker registries: _acr_, _ecr_, _gar_ y _generic_. Para el tipo _generic_, se deberá indicar si el _registry_ es autenticado o no (los tipos _ecr_, _acr_ y _gar_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y contraseña en la sección 'spec.credentials'.
 
