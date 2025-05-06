@@ -313,13 +313,16 @@ func Contains(s []string, str string) bool {
 }
 
 func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, error) {
-	customProvider := credentials.NewStaticCredentialsProvider(
-		secrets["AccessKey"], secrets["SecretKey"], "",
-	)
+	// Validar que la clave "Region" está presente
 	region, ok := secrets["Region"]
 	if !ok || region == "" {
 		return aws.Config{}, errors.New("AWS region is required but not provided in secrets")
 	}
+
+	customProvider := credentials.NewStaticCredentialsProvider(
+		secrets["AccessKey"], secrets["SecretKey"], "",
+	)
+
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(customProvider),
