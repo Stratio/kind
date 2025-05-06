@@ -31,7 +31,7 @@ from io import StringIO
 from urllib.parse import urlparse
 
 CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.5.0-5b15b8c"
+CLUSTER_OPERATOR = "0.5.0"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.4.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.6"
 
@@ -59,7 +59,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.5.0-5b15b8c",
+        "version": "0.5.0",
         "namespace": "kube-system",
         "repo": ""
     },
@@ -85,17 +85,17 @@ aws_eks_charts = {
 
 azure_vm_charts = {
     "azuredisk-csi-driver": {
-        "version": "v1.31.2",
+        "version": "1.31.2",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "v1.31.2",
+        "version": "1.31.2",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
     },
     "cloud-provider-azure": {
-        "version": "v1.32.0",
+        "version": "1.32.0",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo"
     }
