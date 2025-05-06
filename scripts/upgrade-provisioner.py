@@ -905,18 +905,18 @@ def install_flux(provider):
         command += f" {repository_name}/{chart_name}"
 
     try:
-        run_command(command)
         if provider == "azure":
-            install_azurePodIdentityException()
+            create_flux_azurePodIdentityException()
+        create_flux_netpol()
+        run_command(command)
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
         raise
     
-def install_azurePodIdentityException():
-    '''Install AzurePodIdentityException'''
-    
+def create_flux_azurePodIdentityException():
+    '''Create flux AzurePodIdentityException'''
     try:
         azurePodIdentityException = """
 ---
@@ -933,9 +933,50 @@ spec:
         output, err = run_command(command, allow_errors=True)
     except Exception as e:
         print("FAILED")
-        print(f"[ERROR] Error installing AzurePodIdentityException {e}.")
+        print(f"[ERROR] Error creating flux AzurePodIdentityException {e}.")
         raise
-    
+
+def create_flux_netpol():
+    '''Create flux NetworkPolicy'''
+    try:
+        netpol = """
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: flux-pods-ingress
+  namespace: kube-system
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - kube-system
+      podSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - helm-controller
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - source-controller
+  policyTypes:
+  - Ingress
+"""
+        command = f"cat <<EOF | {kubectl} apply -f -" + netpol + "EOF"
+        output, err = run_command(command, allow_errors=True)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error creating flux NetworkPolicy {e}.")
+        raise
+
 def update_allow_global_netpol(provider):
     '''Update the allow-traffic-to-aws-imds GlobalNetworkPolicy'''
     

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.6.6 (upcoming)
+
+* [PLT-2091] Ensure flux NetworkPolicy requirements during cloud-provisioner upgrade
+
 ## 0.17.0-0.6.5 (2025-04-25)
 
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
