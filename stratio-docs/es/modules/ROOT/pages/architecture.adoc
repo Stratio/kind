@@ -635,6 +635,26 @@ Dado que los _pods_ pueden impersonar al nodo donde se ejecutan simplemente inte
 
 A su vez, en EKS se habilita el proveedor OIDC para permitir el uso de roles de IAM para _Service Accounts_, asegurando el uso de políticas IAM con mínimos privilegios.
 
+Para verificar la configuración de IMDSv2, se puede utilizar el siguiente comando:
+
+[source,bash]
+----
+# Obtener los IDs de todas las instancias asociadas al cluster
+INSTANCE_IDS=$(aws ec2 describe-instances \
+  --filters "Name=tag:kubernetes.io/cluster/<cluster-name>,Values=owned" \
+  --query "Reservations[*].Instances[*].InstanceId" \
+  --output text)
+
+# Verificar la configuración de IMDSv2 para cada instancia
+for ID in $INSTANCE_IDS; do
+  echo "Verificando instancia $ID:"
+  aws ec2 describe-instances \
+    --instance-ids "$ID" \
+    --query "Reservations[*].Instances[*].MetadataOptions" \
+    --output json
+done
+----
+
 ==== GKE (IMDSv2)
 
 En Google Kubernetes Engine (GKE), los nodos del clúster acceden al servidor de metadatos (`IMDS`) a través de la IP reservada `169.254.169.254`. Este servidor permite obtener credenciales mediante Application Default Credentials (ADC), que los _pods_ también pueden utilizar si no se restringe explícitamente.
