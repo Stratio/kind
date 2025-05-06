@@ -1121,7 +1121,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster):
+def adopt_all_helm_charts(keos_cluster, charts_to_adopt):
     '''Adopt all Helm charts'''
     charts = get_installed_helm_charts()
     for chart in charts:
@@ -1131,8 +1131,11 @@ def adopt_all_helm_charts(keos_cluster):
                 chart['name'] = 'tigera-operator'
             if chart['name'] == 'flux':
                 chart['name'] = 'flux2'
-            chart['provider'] = keos_cluster["spec"]["infra_provider"]
-            adopt_helm_chart(chart)
+            if chart['name'] in charts_to_adopt.keys():
+                chart['provider'] = keos_cluster["spec"]["infra_provider"]
+                adopt_helm_chart(chart)
+            else:
+                print("SKIP")
                 
         except Exception as e:
             print("FAILED")
@@ -2261,7 +2264,7 @@ if __name__ == '__main__':
     
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster)
+    adopt_all_helm_charts(keos_cluster, chart_versions)
     install_cert_manager(provider)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
