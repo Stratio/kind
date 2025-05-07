@@ -302,7 +302,7 @@ def validate_k8s_version(validation, dry_run):
         return dry_run_version
     
 def get_kubernetes_version():
-    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
+    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | awk -F. '{print $1\".\"$2}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
