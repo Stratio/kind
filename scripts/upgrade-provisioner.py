@@ -348,7 +348,7 @@ def upgrade_k8s_version_desired_version(minor, tries):
 def get_kubernetes_version():
     '''Get the Kubernetes version'''
     
-    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
+    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | awk -F. '{print $1\".\"$2}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
@@ -905,18 +905,18 @@ def install_flux(provider):
         command += f" {repository_name}/{chart_name}"
 
     try:
-        run_command(command)
         if provider == "azure":
-            install_azurePodIdentityException()
+            create_flux_azurePodIdentityException()
+        create_flux_netpol()
+        run_command(command)
         print("OK")
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] {e}.")
         raise
     
-def install_azurePodIdentityException():
-    '''Install AzurePodIdentityException'''
-    
+def create_flux_azurePodIdentityException():
+    '''Create flux AzurePodIdentityException'''
     try:
         azurePodIdentityException = """
 ---
@@ -933,9 +933,50 @@ spec:
         output, err = run_command(command, allow_errors=True)
     except Exception as e:
         print("FAILED")
-        print(f"[ERROR] Error installing AzurePodIdentityException {e}.")
+        print(f"[ERROR] Error creating flux AzurePodIdentityException {e}.")
         raise
-    
+
+def create_flux_netpol():
+    '''Create flux NetworkPolicy'''
+    try:
+        netpol = """
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: flux-pods-ingress
+  namespace: kube-system
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - kube-system
+      podSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - helm-controller
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - source-controller
+  policyTypes:
+  - Ingress
+"""
+        command = f"cat <<EOF | {kubectl} apply -f -" + netpol + "EOF"
+        output, err = run_command(command, allow_errors=True)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error creating flux NetworkPolicy {e}.")
+        raise
+
 def update_allow_global_netpol(provider):
     '''Update the allow-traffic-to-aws-imds GlobalNetworkPolicy'''
     
@@ -1080,7 +1121,7 @@ def get_deploy_version(deploy, namespace, container):
     return output.split("@")[0]
 
 
-def adopt_all_helm_charts(keos_cluster):
+def adopt_all_helm_charts(keos_cluster, charts_to_adopt):
     '''Adopt all Helm charts'''
     charts = get_installed_helm_charts()
     for chart in charts:
@@ -1090,8 +1131,11 @@ def adopt_all_helm_charts(keos_cluster):
                 chart['name'] = 'tigera-operator'
             if chart['name'] == 'flux':
                 chart['name'] = 'flux2'
-            chart['provider'] = keos_cluster["spec"]["infra_provider"]
-            adopt_helm_chart(chart)
+            if chart['name'] in charts_to_adopt.keys():
+                chart['provider'] = keos_cluster["spec"]["infra_provider"]
+                adopt_helm_chart(chart)
+            else:
+                print("SKIP")
                 
         except Exception as e:
             print("FAILED")
@@ -2220,7 +2264,7 @@ if __name__ == '__main__':
     
     upgrade_capx(managed, provider, namespace, version, env_vars)
     
-    adopt_all_helm_charts(keos_cluster)
+    adopt_all_helm_charts(keos_cluster, chart_versions)
     install_cert_manager(provider)
     charts = update_chart_versions(keos_cluster, cluster_config, chart_versions)
     
