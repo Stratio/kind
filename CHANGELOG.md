@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.1 (upcoming)
+
+* [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
+
 ## 0.17.0-0.7.0 (2025-04-30)
 
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
