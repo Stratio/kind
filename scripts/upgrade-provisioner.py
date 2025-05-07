@@ -9,7 +9,7 @@
 #   - Azure VMs                                              #
 ##############################################################
 
-__version__ = "0.5.8"
+__version__ = "0.5.11"
 
 import argparse
 import os
@@ -302,7 +302,7 @@ def validate_k8s_version(validation, dry_run):
         return dry_run_version
     
 def get_kubernetes_version():
-    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
+    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | awk -F. '{print $1\".\"$2}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
@@ -558,7 +558,7 @@ def upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, clust
             print("DRY-RUN")
         else:
             command = (helm + " upgrade --reuse-values -n kube-system cluster-operator" +
-                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
+                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR + " --version " + CLUSTER_OPERATOR)
             if helm_repo["type"] == "generic":
                 command += " cluster-operator --repo " + helm_repo["url"]
             else:
