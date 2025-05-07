@@ -9,7 +9,7 @@
 #   - Azure VMs                                              #
 ##############################################################
 
-__version__ = "0.5.8"
+__version__ = "0.5.11"
 
 import argparse
 import os
@@ -558,7 +558,7 @@ def upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, clust
             print("DRY-RUN")
         else:
             command = (helm + " upgrade --reuse-values -n kube-system cluster-operator" +
-                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR)
+                " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR + " --version " + CLUSTER_OPERATOR)
             if helm_repo["type"] == "generic":
                 command += " cluster-operator --repo " + helm_repo["url"]
             else:

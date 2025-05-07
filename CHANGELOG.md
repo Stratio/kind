@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.5.11 (upcoming)
+
+* [PLT-2098] Fix cluste-operator version chart reference during cloud-provisioner upgrade
+
 ## 0.17.0-0.5.10 (2025-04-23)
 
 * [PLT-2032] Fix default Helm repository management type during cloud-provisioner upgrade
