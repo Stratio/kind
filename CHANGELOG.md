@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.1 (2025-05-07)
+
+* [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
+
 ## 0.17.0-0.7.0 (2025-04-30)
 
 * [PLT-1762] [EKS] Soportar instalaciones con Assume Role
