@@ -42,7 +42,6 @@ func validateCredentials(params ValidateParams) (commons.ClusterCredentials, err
 		}
 		secrets = secretsFile.Secrets
 	}
-
 	creds.ProviderCredentials, err = validateProviderCredentials(secrets, params)
 	if err != nil {
 		return commons.ClusterCredentials{}, err
@@ -76,7 +75,27 @@ func validateProviderCredentials(secrets interface{}, params ValidateParams) (ma
 		}
 	} else {
 		credentialsProvider, _ = reflections.GetField(credentialsProvider, "Credentials")
+	}
 
+	// Ensure RoleARN is set to "false" if not provided in the secrets file or descriptor
+	if params.KeosCluster.Spec.Credentials.AWS.RoleARN == "false" {
+		if roleARN, _ := reflections.GetField(credentialsProvider, "RoleARN"); roleARN == nil || roleARN == "" {
+			// Ensure credentialsProvider is passed as a pointer
+			credentialsProviderValue := reflect.ValueOf(credentialsProvider)
+			if credentialsProviderValue.Kind() != reflect.Ptr {
+				credentialsProviderPtr := reflect.New(reflect.TypeOf(credentialsProvider))
+				credentialsProviderPtr.Elem().Set(credentialsProviderValue)
+				credentialsProvider = credentialsProviderPtr.Interface()
+			}
+			if err := reflections.SetField(credentialsProvider, "RoleARN", "false"); err != nil {
+				return nil, errors.Wrap(err, "failed to set RoleARN to false")
+			}
+		}
+	}
+
+	// Ensure credentialsProvider is dereferenced if it's a pointer
+	if reflect.ValueOf(credentialsProvider).Kind() == reflect.Ptr {
+		credentialsProvider = reflect.ValueOf(credentialsProvider).Elem().Interface()
 	}
 	err = validateStruct(credentialsProvider)
 	if err != nil {

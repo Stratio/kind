@@ -227,6 +227,17 @@ The following fields are considered provisioning secrets:
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
+In AWS, you can use the temporary authorization method _assume role_ by specifying the `role_arn` parameter. For example:
+
+[source,yaml]
+----
+credentials:
+  aws:
+    role_arn: arn:aws:iam::<accountID>:role/my-aws-role
+----
+
+NOTE: This parameter is optional. The _assume role_ method will only be used if `role_arn` is defined in the descriptor.
+
 === Helm repository
 
 As an installation prerequisite, the Helm repository from which the _Cluster Operator_ chart can be extracted must be specified. This section allows you to specify the URL of the repository, its type and whether it is an authenticated repository.
