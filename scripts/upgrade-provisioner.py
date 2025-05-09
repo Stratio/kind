@@ -138,117 +138,64 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
             sys.exit(1)
         else:
             print("OK")
-    # Backup capsule files
-    print("[INFO] Backing up capsule files:", end =" ", flush=True)
-    if not dry_run:
-        os.makedirs(backup_dir + "/capsule", exist_ok=True)
-        command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
-        status, _ = subprocess.getstatusoutput(command)
-        if status == 0:
-            command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration -o yaml 2>/dev/null > " + backup_dir + "/capsule/capsule-mutating-webhook-configuration.yaml"
-            status, output = subprocess.getstatusoutput(command)
-            if status != 0:
-                print("FAILED")
-                print("[ERROR] Backing up capsule files failed:\n" + output)
-                sys.exit(1)
-        command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
-        status, output = subprocess.getstatusoutput(command)
-        if status == 0:
-            command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration -o yaml 2>/dev/null > " + backup_dir + "/capsule/capsule-validating-webhook-configuration.yaml"
-            status, output = subprocess.getstatusoutput(command)
-            if status != 0:
-                print("FAILED")
-                print("[ERROR] Backing up capsule files failed:\n" + output)
-                sys.exit(1)
-            else:
-                print("OK")
-        if "NotFound" in output:
-            print("SKIP")
-    else:
-        print("DRY-RUN")
 
-def prepare_capsule(dry_run):
-    '''Prepare capsule for the upgrade process'''
+def disable_capsule_webhooks(dry_run):
+    '''Disable the Capsule webhooks'''
     
-    print("[INFO] Preparing capsule-mutating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
-        command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
-        status, output = subprocess.getstatusoutput(command)
-        if status != 0:
-            if "NotFound" in output:
-                print("SKIP")
-            else:
-                print("FAILED")
-                print("[ERROR] Preparing capsule-mutating-webhook-configuration failed:\n" + output)
-                sys.exit(1)
-        else:
-            command = (kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration -o json | " +
-                    '''jq -r '.webhooks[0].objectSelector |= {"matchExpressions":[{"key":"name","operator":"NotIn","values":["kube-system","tigera-operator","calico-system","cert-manager","capi-system","''' +
-                    namespace + '''","capi-kubeadm-bootstrap-system","capi-kubeadm-control-plane-system"]},{"key":"kubernetes.io/metadata.name","operator":"NotIn","values":["kube-system","tigera-operator","calico-system","cert-manager","capi-system","''' +
-                    namespace + '''","capi-kubeadm-bootstrap-system","capi-kubeadm-control-plane-system"]}]}' | ''' + kubectl + " apply -f -")
-            execute_command(command, False)
+        try:
+            backup_capsule_webhooks()
+            print("[INFO] Disabling Capsule webhooks:", end =" ", flush=True)
+            
+            run_command(f"{kubectl} delete validatingwebhookconfiguration capsule-validating-webhook-configuration", allow_errors=True)
+            run_command(f"{kubectl} delete mutatingwebhookconfiguration capsule-mutating-webhook-configuration", allow_errors=True)
+            print("OK")
+        except Exception as e:
+            print("FAILED")
+            print(f"[ERROR] Error disabling Capsule webhooks: {e}")
+            raise e
     else:
         print("DRY-RUN")
 
-    print("[INFO] Preparing capsule-validating-webhook-configuration for the upgrade process:", end =" ", flush=True)
-    if not dry_run:
-        command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
-        status, _ = subprocess.getstatusoutput(command)
-        if status != 0:
-            if "NotFound" in output:
-                print("SKIP")
-            else:
-                print("FAILED")
-                print("[ERROR] Preparing capsule-validating-webhook-configuration failed:\n" + output)
-                sys.exit(1)
-        else:
-            command = (kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration -o json | " +
-                    '''jq -r '.webhooks[] |= (select(.name == "namespaces.capsule.clastix.io").objectSelector |= ({"matchExpressions":[{"key":"name","operator":"NotIn","values":["''' +
-                    namespace + '''","tigera-operator","calico-system"]},{"key":"kubernetes.io/metadata.name","operator":"NotIn","values":["''' +
-                    namespace + '''","tigera-operator","calico-system"]}]}))' | ''' + kubectl + " apply -f -")
-            execute_command(command, False)
-    else:
-        print("DRY-RUN")
 
-def restore_capsule(dry_run):
-    '''Restore capsule after the upgrade process'''
+def backup_capsule_webhooks():
+    '''Backup the Capsule webhooks'''
     
-    print("[INFO] Restoring capsule-mutating-webhook-configuration:", end =" ", flush=True)
-    if not dry_run:
-        command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
-        status, output = subprocess.getstatusoutput(command)
-        if status != 0:
-            if "NotFound" in output:
-                print("SKIP")
-            else:
-                print("FAILED")
-                print("[ERROR] Restoring capsule-mutating-webhook-configuration failed:\n" + output)
-                sys.exit(1)
-        else:
-            command = (kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration -o json | " +
-                    "jq -r '.webhooks[0].objectSelector |= {}' | " + kubectl + " apply -f -")
-            execute_command(command, False)
-    else:
-        print("DRY-RUN")
+    backup_file = backup_dir + "/capsule/capsule-webhooks.yaml"
+    try:
+        if not os.path.exists(os.path.dirname(backup_file)):
+            os.makedirs(os.path.dirname(backup_file))
+        print("[INFO] Backing up Capsule webhooks...")
+        print("[INFO] Backup of validation webhooks:", end =" ", flush=True)
+        command = f"{helm} get manifest -n capsule-system capsule"
+        command += f" | yq 'select(.kind == \"ValidatingWebhookConfiguration\" or .kind == \"MutatingWebhookConfiguration\")'"
+        command += f" > {backup_file}"
+        execute_command(command, False)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error backing up Capsule webhooks: {e}")
+        raise e
 
-    print("[INFO] Restoring capsule-validating-webhook-configuration:", end =" ", flush=True)
-    if not dry_run:
-        command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
-        status, _ = subprocess.getstatusoutput(command)
-        if status != 0:
-            if "NotFound" in output:
-                print("SKIP")
-            else:
-                print("FAILED")
-                print("[ERROR] Restoring capsule-validating-webhook-configuration failed:\n" + output)
-                sys.exit(1)
-        else:
-            command = (kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration -o json | " +
-                    """jq -r '.webhooks[] |= (select(.name == "namespaces.capsule.clastix.io").objectSelector |= {})' """ +
-                    "| " + kubectl + " apply -f -")
-            execute_command(command, False)
-    else:
-        print("DRY-RUN")
+def restore_capsule_webhooks(dry_run):
+    '''Restore the Capsule webhooks'''
+    backup_file = backup_dir + "/capsule/capsule-webhooks.yaml"
+    resources_webhooks = [
+        {"kind": "MutatingWebhookConfiguration", "name": "capsule-mutating-webhook-configuration", "namespace": "capsule-system"},
+        {"kind": "ValidatingWebhookConfiguration", "name": "capsule-validating-webhook-configuration", "namespace": "capsule-system"},
+    ]
+    try:
+        print("[INFO] Restoring Capsule webhooks from backup...")
+        run_command(f"{kubectl} create -f {backup_file}", allow_errors=True)
+
+        print("[INFO] Labeling and annotating webhooks...", end =" ", flush=True)
+        update_annotation_label("app.kubernetes.io/managed-by", "Helm", resources_webhooks, "label")
+        update_annotation_label("meta.helm.sh/release-name", "capsule", resources_webhooks)
+        update_annotation_label("meta.helm.sh/release-namespace", "capsule-system", resources_webhooks)
+        print("OK")
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Error restoring Capsule webhooks from backup: {e}")
+        raise e
 
 def patch_clusterrole_aws_node(dry_run):
     '''Patch aws-node ClusterRole'''
@@ -2247,7 +2194,7 @@ if __name__ == '__main__':
 
     # Prepare capsule
     if not config["disable_prepare_capsule"]:
-        prepare_capsule(config["dry_run"])
+        disable_capsule_webhooks(config["dry_run"])
 
     # Cluster Operator
     if provider == "azure":
@@ -2270,7 +2217,7 @@ if __name__ == '__main__':
     
     # Restore capsule
     if not config["disable_prepare_capsule"]:
-        restore_capsule(config["dry_run"])
+        restore_capsule_webhooks(config["dry_run"])
     
     networks = keos_cluster["spec"].get("networks", {})
     current_k8s_version = get_kubernetes_version()
