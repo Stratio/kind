@@ -5,6 +5,7 @@
 * [PLT-2091] Ensure flux NetworkPolicy requirements during cloud-provisioner upgrade
 * [PLT-2092] Avoid adopting non cloud-provisioner charts during cloud-provisioner upgrade
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
+* [PLT-2105] Ensure capsule webhook is disabled to avoid clusterctl issues during cloud-provisioner-upgrade
 
 ## 0.17.0-0.6.5 (2025-04-25)
 
