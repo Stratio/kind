@@ -24,7 +24,7 @@ core:
       cert-manager-ctl: v1.14.5
       cert-manager-startupapicheck: v1.14.5
       cert-manager-webhook: v1.14.5
-    cluster-autoscaler: v1.30.0
+    cluster-autoscaler: v1.32.0
     cluster-operator:
       cluster-operator: 0.5.0
       kube-rbac-proxy: v0.15.0
@@ -38,7 +38,7 @@ core:
     pause: v3.9
   charts:
     cert-manager: v1.14.5
-    cluster-autoscaler: 9.37.0
+    cluster-autoscaler: 9.46.6
     cluster-operator: 0.5.0
     flux: 2.14.1
     tigera-operator: v3.28.2

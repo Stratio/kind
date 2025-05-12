@@ -54,7 +54,7 @@ common_charts = {
         "repo": "https://charts.jetstack.io"
     },
     "cluster-autoscaler": {
-        "version": "9.46.0",
+        "version": "9.46.6",
         "namespace": "kube-system",
         "repo": "https://kubernetes.github.io/autoscaler"
     },
