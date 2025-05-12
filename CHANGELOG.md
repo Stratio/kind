@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.5.11 (2025-05-07)
 
+* [PLT-2099] Fix coredns PDB specification
 * [PLT-2098] Fix cluster-operator version chart reference during cloud-provisioner upgrade
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
 
