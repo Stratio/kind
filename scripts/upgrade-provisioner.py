@@ -307,8 +307,9 @@ def get_kubernetes_version():
 
     return output.strip()
 
-def wait_for_workers(cluster_name, desired_k8s_version):
+def wait_for_workers(cluster_name, k8s_version):
     print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
+    k8s_version_minor  = ".".join(k8s_version.split(".")[:-1])
     outdated_nodes = None
     while outdated_nodes != 0:
         command = kubectl + " get nodes -o json"
@@ -317,7 +318,7 @@ def wait_for_workers(cluster_name, desired_k8s_version):
         outdated_nodes_data = [
             node["metadata"]["name"]
             for node in nodes_data["items"]
-            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith(desired_k8s_version)
+            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith(k8s_version_minor)
         ]
         outdated_nodes = len(outdated_nodes_data)
         time.sleep(30)
@@ -486,7 +487,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             if provider == "aws" and managed:
                 patch_clusterrole_aws_node(dry_run)
 
-            wait_for_workers(cluster_name, desired_minor_version)
+            wait_for_workers(cluster_name, desired_k8s_version)
 
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
@@ -506,7 +507,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if provider == "aws" and managed:
             patch_clusterrole_aws_node(dry_run)
 
-        wait_for_workers(cluster_name, desired_minor_version)
+        wait_for_workers(cluster_name, desired_k8s_version)
 
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
