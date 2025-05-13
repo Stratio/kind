@@ -353,7 +353,7 @@ def get_kubernetes_version():
 
     return output.strip()
 
-def wait_for_workers(cluster_name, current_k8s_version):
+def wait_for_workers(cluster_name, k8s_version):
     '''Wait for the worker nodes to be updated'''
     
     k8s_version_minor  = ".".join(k8s_version.split(".")[:-1])
