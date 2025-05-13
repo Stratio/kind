@@ -257,6 +257,8 @@ To avoid this issue:
 . Ensure that deployments have more than one replica if the PDB requires at least one available.
 . Before updating the cluster, review this configuration to prevent blockages.
 . If the resource has only one replica, you can temporarily remove the PDB to allow the update.
+
+[to be translated]
 ====
 
 ==== Prerequisites

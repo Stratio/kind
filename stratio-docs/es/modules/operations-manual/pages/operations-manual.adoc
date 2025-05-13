@@ -1,4 +1,3 @@
-[to be translated]
 = Manual de operaciones
 
 == Generación de imágenes personalizadas
