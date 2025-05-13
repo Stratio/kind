@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.1 (2025-05-07)
 
+* [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
 * [PLT-2124] Bump cluster-autoscaler to v1.32.0 version and its chart version to 9.46.6
 
