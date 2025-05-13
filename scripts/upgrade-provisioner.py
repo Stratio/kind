@@ -559,8 +559,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
-        # If upgrade had failed previously, the cluster may have two different versions of Kubernetes
-        
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
         command = (
