@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.6.6 (2025-05-07)
 
+* [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
 * [PLT-2091] Ensure flux NetworkPolicy requirements during cloud-provisioner upgrade
 * [PLT-2092] Avoid adopting non cloud-provisioner charts during cloud-provisioner upgrade
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
