@@ -318,7 +318,7 @@ def wait_for_workers(cluster_name, k8s_version):
         outdated_nodes_data = [
             node["metadata"]["name"]
             for node in nodes_data["items"]
-            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith(k8s_version_minor)
+            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith("v{}".format(k8s_version_minor))
         ]
         outdated_nodes = len(outdated_nodes_data)
         time.sleep(30)
