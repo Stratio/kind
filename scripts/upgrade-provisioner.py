@@ -440,7 +440,6 @@ spec:
 
 def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s_version, provider, managed, backup_dir, dry_run):
     current_k8s_version = get_kubernetes_version()
-    current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
 
     if dry_run:
@@ -448,6 +447,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         return
 
     if len(current_k8s_version.splitlines()) == 1:
+        current_minor_version = int(current_k8s_version.split('.')[1])
         if current_minor_version < desired_minor_version:
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
 
