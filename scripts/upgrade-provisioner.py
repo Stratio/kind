@@ -480,7 +480,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
             command = (
                 f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
             )
             execute_command(command, False)
 
