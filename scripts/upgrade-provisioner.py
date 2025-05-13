@@ -309,14 +309,17 @@ def get_kubernetes_version():
 
 def wait_for_workers(cluster_name, current_k8s_version):
     print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
-    previous_node = 1
-    while previous_node != 0:
-        command = (
-            kubectl + " get nodes"
-            + " -ojsonpath='{range .items[?(@.status.nodeInfo.kubeletVersion==\"" + current_k8s_version + "\")]}{.metadata.name}{\"\\n\"}{end}'"
-        )
+    nodes_not_upgraded = None
+    while nodes_not_upgraded != 0:
+        command = kubectl + " get nodes -o json"
         output = execute_command(command, False, False)
-        previous_node = len(output.splitlines())
+        nodes_data = json.loads(output)
+        nodes_not_upgraded_data = [
+            node["metadata"]["name"]
+            for node in nodes_data["items"]
+            if node["status"]["nodeInfo"]["kubeletVersion"].startswith(current_k8s_version.splitlines()[0])
+        ]
+        nodes_not_upgraded = len(nodes_not_upgraded_data)
         time.sleep(30)
     command = kubectl + " wait --for=condition=Ready nodes --all --timeout 5m"
     execute_command(command, False, False)
