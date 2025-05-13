@@ -307,19 +307,19 @@ def get_kubernetes_version():
 
     return output.strip()
 
-def wait_for_workers(cluster_name, current_k8s_version):
+def wait_for_workers(cluster_name, desired_k8s_version):
     print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
-    nodes_not_upgraded = None
-    while nodes_not_upgraded != 0:
+    outdated_nodes = None
+    while outdated_nodes != 0:
         command = kubectl + " get nodes -o json"
         output = execute_command(command, False, False)
         nodes_data = json.loads(output)
-        nodes_not_upgraded_data = [
+        outdated_nodes_data = [
             node["metadata"]["name"]
             for node in nodes_data["items"]
-            if node["status"]["nodeInfo"]["kubeletVersion"].startswith(current_k8s_version.splitlines()[0])
+            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith(desired_k8s_version)
         ]
-        nodes_not_upgraded = len(nodes_not_upgraded_data)
+        outdated_nodes = len(outdated_nodes_data)
         time.sleep(30)
     command = kubectl + " wait --for=condition=Ready nodes --all --timeout 5m"
     execute_command(command, False, False)
@@ -349,21 +349,6 @@ def prompt_for_node_image(node_name, kubernetes_version):
         else:
             print("[ERROR] Invalid input. Please enter 'yes/y' or 'no/n'")
     
-
-def get_k8s_lower_version(versions):
-    # Extract the version numbers from the strings
-    version_1_num = versions.splitlines()[0].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    version_2_num = versions.splitlines()[1].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    
-    # Convert version strings to tuples of integers (e.g., "1.27.12" -> (1, 27, 12))
-    version_1_tuple = tuple(map(int, version_1_num.split('.')))
-    version_2_tuple = tuple(map(int, version_2_num.split('.')))
-
-    if version_1_tuple < version_2_tuple:
-        return versions.splitlines()[0]
-    else:
-        return versions.splitlines()[1]
-
 def cp_global_network_policy(action, networks, provider, backup_dir, dry_run):
     command = kubectl + " get GlobalNetworkPolicy allow-all-traffic-from-control-plane"
     status, _ = subprocess.getstatusoutput(command)
@@ -501,7 +486,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             if provider == "aws" and managed:
                 patch_clusterrole_aws_node(dry_run)
 
-            wait_for_workers(cluster_name, current_k8s_version)
+            wait_for_workers(cluster_name, desired_minor_version)
 
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
@@ -510,7 +495,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
-        lower_k8s_version = get_k8s_lower_version(current_k8s_version)
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
         command = (
@@ -522,7 +506,7 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if provider == "aws" and managed:
             patch_clusterrole_aws_node(dry_run)
 
-        wait_for_workers(cluster_name, lower_k8s_version)
+        wait_for_workers(cluster_name, desired_minor_version)
 
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
