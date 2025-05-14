@@ -2304,42 +2304,6 @@ if __name__ == '__main__':
     
     if not managed:
         cp_global_network_policy("patch", networks, provider, backup_dir, False)
-        
-    print("[INFO] Updating default volumes:", end =" ", flush=True)
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    if provider == "azure":
-        command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
-    if provider == "aws":
-        command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
-    output = execute_command(command, False, False)
-    i = len(output.splitlines())
-    if i != 0:
-        update_default_volumes(keos_cluster)
-        time.sleep(30)
-        
-        print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
-        command = (
-            f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
-        )
-        execute_command(command, False)
-        
-        print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
-        if provider == "azure":
-            command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
-        if provider == "aws":
-            command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
-
-        i = 1
-        while i !=0:
-            output = execute_command(command, False, False)
-            i = len(output.splitlines())
-            time.sleep(30)
-        print("OK")
-    else: 
-        print("SKIP")
-    if not managed:
-        cp_global_network_policy("restore", networks, provider, backup_dir, False)
     
     scale_cluster_autoscaler(2, config["dry_run"])
 
