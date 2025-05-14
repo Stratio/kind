@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.6.6 (2025-05-13)
+## 0.17.0-0.6.6 (2025-05-14)
 
 * [PLT-2099] Fix coredns PDB specification
 * [PLT-2132] Remove cri volumes managament from upgrade
