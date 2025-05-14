@@ -2297,6 +2297,9 @@ if __name__ == '__main__':
         if skip_k8s_intermediate_version:
             restore_keoscluster_webhooks()
 
+    if provider == "azure":
+        patch_kubeadm_controlplane("cluster-" + cluster_name)
+
     scale_cluster_autoscaler(2, config["dry_run"])
 
     end_time = time.time()
