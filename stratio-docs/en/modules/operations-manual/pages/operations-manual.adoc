@@ -255,8 +255,17 @@ A misconfigured Pod Disruption Budget (PDB) can block the removal of a pod. This
 To avoid this issue:
 
 . Ensure that deployments have more than one replica if the PDB requires at least one available.
-. Before updating the cluster, review this configuration to prevent blockages.
-. If the resource has only one replica, you can temporarily remove the PDB to allow the update.
+. Before upgrading the cluster, check the PDBs to avoid potential blocking issues.
+. If a resource has only one replica, you can temporarily delete the PDB to allow the upgrade.
+
+In EKS, for example, it is recommended to check if the `coredns` PDB exists in the `kube-system` namespace and delete it before upgrading the cluster:
+
+[source,bash]
+----
+kubectl -n kube-system get poddisruptionbudget coredns
+kubectl -n kube-system delete poddisruptionbudget coredns
+----
+
 ====
 
 ==== Prerequisites
