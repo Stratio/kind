@@ -35,6 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	vault "github.com/sosedoff/ansible-vault-go"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -311,10 +312,17 @@ func Contains(s []string, str string) bool {
 	return false
 }
 
-func AWSGetConfig(ctx context.Context, secrets map[string]string, region string) (aws.Config, error) {
+func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, error) {
+	// Validar que la clave "Region" está presente
+	region, ok := secrets["Region"]
+	if !ok || region == "" {
+		return aws.Config{}, errors.New("AWS region is required but not provided in secrets")
+	}
+
 	customProvider := credentials.NewStaticCredentialsProvider(
 		secrets["AccessKey"], secrets["SecretKey"], "",
 	)
+
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(customProvider),
@@ -322,6 +330,24 @@ func AWSGetConfig(ctx context.Context, secrets map[string]string, region string)
 	)
 	if err != nil {
 		return aws.Config{}, err
+	}
+	// Use assume role if RoleARN is provided for first checks as DescribeRegions, ...
+	if roleARN, ok := secrets["RoleARN"]; ok && roleARN != "false" {
+		stsSvc := sts.NewFromConfig(cfg)
+		// Using STS to assume the specified IAM role
+		assumeRoleOutput, err := stsSvc.AssumeRole(ctx, &sts.AssumeRoleInput{
+			RoleArn:         aws.String(roleARN),
+			RoleSessionName: aws.String("assume-role-session"),
+		})
+		if err != nil {
+			return aws.Config{}, err
+		}
+
+		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(
+			*assumeRoleOutput.Credentials.AccessKeyId,
+			*assumeRoleOutput.Credentials.SecretAccessKey,
+			*assumeRoleOutput.Credentials.SessionToken,
+		))
 	}
 	return cfg, nil
 }
