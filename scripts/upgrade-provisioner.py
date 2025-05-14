@@ -2159,6 +2159,8 @@ if __name__ == '__main__':
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
                     charts["cluster-operator"]["chart_version"] = cluster_operator_version
+    if not managed:
+        cp_global_network_policy("restore", networks, provider, backup_dir, False)
     
     scale_cluster_autoscaler(0, config["dry_run"])
     
