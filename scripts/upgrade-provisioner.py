@@ -1816,21 +1816,6 @@ def update_keoscluster(keos_cluster, provider):
         keos_cluster["spec"]["helm_repository"]["release_retries"] = 3
         keos_cluster["spec"]["helm_repository"]["release_source_interval"] = "1m"
         keos_cluster["spec"]["helm_repository"]["repository_interval"] = "10m"
-        if not managed_cluster:
-            if provider == "azure":
-                keos_cluster["spec"]["control_plane"]["cri_volume"] = {"enabled": True, "size": 128, "type": "Standard_LRS"}
-                keos_cluster["spec"]["control_plane"]["etcd_volume"] = {"enabled": True, "size": 8, "type": "Standard_LRS"}
-                if not keos_cluster["spec"]["control_plane"].get("root_volume"):
-                    keos_cluster["spec"]["control_plane"]["root_volume"] = {"size": 128, "type": "Standard_LRS"}
-        for wn in keos_cluster['spec']['worker_nodes']:
-            type_volume = ""
-            if provider == "aws":
-                type_volume = "gp3"
-            elif provider == "azure":
-                type_volume = "Standard_LRS"
-            wn["cri_volume"] = {"enabled": True, "size": 128, "type": type_volume}
-            if not wn.get("root_volume"):
-                wn["root_volume"] = {"size": 128, "type": "gp3"}
         
         keoscluster_json = json.dumps(keos_cluster)
         
@@ -1878,41 +1863,6 @@ def start_keoscluster_controller():
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error starting the KEOSCluster controller: {e}")
-
-        raise e
-
-def update_default_volumes(keos_cluster):
-    '''Update the default volumes'''
-    
-    try:
-        last_kc = keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"]
-        keoscluster_name = keos_cluster["metadata"]["name"]
-        keoscluster_namespace = keos_cluster["metadata"]["namespace"]
-        if '"cri_volume":{"enabled":false}' in last_kc:
-            print("SKIP")
-
-            return
-        disabled_cri_vol = disable_cri_etcd_volume(last_kc)
-        keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"] = disabled_cri_vol
-
-        keoscluster_json = json.dumps(keos_cluster)
-        
-
-        command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
-        output,err = run_command(command, allow_errors=True)
-        if "Operation cannot be fulfilled" in err:
-
-            keos_cluster, clusterconfig = get_keos_cluster_cluster_config()
-            update_default_volumes(keos_cluster)
-        command = (
-            kubectl + " wait --for=jsonpath=\"{.status.ready}\"=false KeosCluster "
-            + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
-        )
-        execute_command(command, False)
-
-    except Exception as e:
-        print("FAILED")
-        print(f"[ERROR] Error updating the keoscluster: {e}")
 
         raise e
 
