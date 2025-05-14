@@ -353,18 +353,22 @@ def get_kubernetes_version():
 
     return output.strip()
 
-def wait_for_workers(cluster_name, current_k8s_version):
+def wait_for_workers(cluster_name, k8s_version):
     '''Wait for the worker nodes to be updated'''
     
     print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
-    previous_node = 1
-    while previous_node != 0:
-        command = (
-            kubectl + " get nodes"
-            + " -ojsonpath='{range .items[?(@.status.nodeInfo.kubeletVersion==\"" + current_k8s_version + "\")]}{.metadata.name}{\"\\n\"}{end}'"
-        )
+    k8s_version_minor  = ".".join(k8s_version.split(".")[:-1])
+    outdated_nodes = None
+    while outdated_nodes != 0:
+        command = kubectl + " get nodes -o json"
         output = execute_command(command, False, False)
-        previous_node = len(output.splitlines())
+        nodes_data = json.loads(output)
+        outdated_nodes_data = [
+            node["metadata"]["name"]
+            for node in nodes_data["items"]
+            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith("v{}".format(k8s_version_minor))
+        ]
+        outdated_nodes = len(outdated_nodes_data)
         time.sleep(30)
     command = kubectl + " wait --for=condition=Ready nodes --all --timeout 5m"
     execute_command(command, False, False)
@@ -397,22 +401,6 @@ def prompt_for_node_image(node_name, kubernetes_version):
         else:
             print("[ERROR] Invalid input. Please enter 'yes/y' or 'no/n'")
     
-
-def get_k8s_lower_version(versions):
-    '''Get the lower version of the two Kubernetes versions'''
-    
-    # Extract the version numbers from the strings
-    version_1_num = versions.splitlines()[0].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    version_2_num = versions.splitlines()[1].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    
-    # Convert version strings to tuples of integers (e.g., "1.27.12" -> (1, 27, 12))
-    version_1_tuple = tuple(map(int, version_1_num.split('.')))
-    version_2_tuple = tuple(map(int, version_2_num.split('.')))
-
-    if version_1_tuple < version_2_tuple:
-        return versions.splitlines()[0]
-    else:
-        return versions.splitlines()[1]
 
 def cp_global_network_policy(action, networks, provider, backup_dir, dry_run):
     '''Patch or restore the allow control plane GlobalNetworkPolicy'''
@@ -508,13 +496,13 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
     '''Upgrade Kubernetes version'''
     
     current_k8s_version = get_kubernetes_version()
-    current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
     if dry_run:
         print(f"[INFO] Updating kubernetes to version {desired_k8s_version}: DRY-RUN", flush=True)
         return
     
     if len(current_k8s_version.splitlines()) == 1:
+        current_minor_version = int(current_k8s_version.split('.')[1])
         if current_minor_version < desired_minor_version:
             
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
@@ -556,14 +544,14 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             
             command = (
                 f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
             )
             execute_command(command, False)
 
             if provider == "aws" and managed:
                 patch_clusterrole_aws_node(dry_run)
                 
-            wait_for_workers(cluster_name, current_k8s_version)
+            wait_for_workers(cluster_name, desired_k8s_version)
 
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
@@ -572,24 +560,22 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
-        # If upgrade had failed previously, the cluster may have two different versions of Kubernetes
-        
-        lower_k8s_version = get_k8s_lower_version(current_k8s_version)
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
         command = (
             f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
         )
         execute_command(command, False)
 
         if provider == "aws" and managed:
             patch_clusterrole_aws_node(dry_run)
 
-        wait_for_workers(cluster_name, lower_k8s_version)
+        wait_for_workers(cluster_name, desired_k8s_version)
 
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
+
 
     else:
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
@@ -1815,6 +1801,21 @@ def update_keoscluster(keos_cluster, provider):
         keos_cluster["spec"]["helm_repository"]["release_retries"] = 3
         keos_cluster["spec"]["helm_repository"]["release_source_interval"] = "1m"
         keos_cluster["spec"]["helm_repository"]["repository_interval"] = "10m"
+        if not managed_cluster:
+            if provider == "azure":
+                keos_cluster["spec"]["control_plane"]["cri_volume"] = {"enabled": True, "size": 128, "type": "Standard_LRS"}
+                keos_cluster["spec"]["control_plane"]["etcd_volume"] = {"enabled": True, "size": 8, "type": "Standard_LRS"}
+                if not keos_cluster["spec"]["control_plane"].get("root_volume"):
+                    keos_cluster["spec"]["control_plane"]["root_volume"] = {"size": 128, "type": "Standard_LRS"}
+        for wn in keos_cluster['spec']['worker_nodes']:
+            type_volume = ""
+            if provider == "aws":
+                type_volume = "gp3"
+            elif provider == "azure":
+                type_volume = "Standard_LRS"
+            wn["cri_volume"] = {"enabled": True, "size": 128, "type": type_volume}
+            if not wn.get("root_volume"):
+                wn["root_volume"] = {"size": 128, "type": "gp3"}
         
         keoscluster_json = json.dumps(keos_cluster)
         
@@ -2158,9 +2159,9 @@ if __name__ == '__main__':
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
                     charts["cluster-operator"]["chart_version"] = cluster_operator_version
-
+    
     scale_cluster_autoscaler(0, config["dry_run"])
-
+    
     if provider == "aws":
         namespace = "capa-system"
         version = CAPA
@@ -2296,11 +2297,6 @@ if __name__ == '__main__':
         if skip_k8s_intermediate_version:
             restore_keoscluster_webhooks()
 
-    if provider == "azure":
-        patch_kubeadm_controlplane("cluster-" + cluster_name)
-    
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    
     scale_cluster_autoscaler(2, config["dry_run"])
 
     end_time = time.time()
