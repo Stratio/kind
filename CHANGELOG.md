@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.6.6 (2025-05-07)
+## 0.17.0-0.6.6 (2025-05-13)
 
 * [PLT-2132] Remove cri volumes managament from upgrade
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
