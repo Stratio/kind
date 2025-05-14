@@ -1866,41 +1866,6 @@ def start_keoscluster_controller():
 
         raise e
 
-def update_default_volumes(keos_cluster):
-    '''Update the default volumes'''
-    
-    try:
-        last_kc = keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"]
-        keoscluster_name = keos_cluster["metadata"]["name"]
-        keoscluster_namespace = keos_cluster["metadata"]["namespace"]
-        if '"cri_volume":{"enabled":false}' in last_kc:
-            print("SKIP")
-
-            return
-        disabled_cri_vol = disable_cri_etcd_volume(last_kc)
-        keos_cluster["metadata"]["annotations"]["cluster-operator.stratio.com/last-configuration"] = disabled_cri_vol
-
-        keoscluster_json = json.dumps(keos_cluster)
-        
-
-        command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
-        output,err = run_command(command, allow_errors=True)
-        if "Operation cannot be fulfilled" in err:
-
-            keos_cluster, clusterconfig = get_keos_cluster_cluster_config()
-            update_default_volumes(keos_cluster)
-        command = (
-            kubectl + " wait --for=jsonpath=\"{.status.ready}\"=false KeosCluster "
-            + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
-        )
-        execute_command(command, False)
-
-    except Exception as e:
-        print("FAILED")
-        print(f"[ERROR] Error updating the keoscluster: {e}")
-
-        raise e
-
 def create_and_apply_azure_secret(name, namespace, tenantId, subscriptionId, cluster_name, location, userAssignIdentity):
     '''Create and apply the Azure secret'''
     
@@ -2334,48 +2299,7 @@ if __name__ == '__main__':
 
     if provider == "azure":
         patch_kubeadm_controlplane("cluster-" + cluster_name)
-    
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    
-    if not managed:
-        cp_global_network_policy("patch", networks, provider, backup_dir, False)
-        
-    print("[INFO] Updating default volumes:", end =" ", flush=True)
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    if provider == "azure":
-        command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
-    if provider == "aws":
-        command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
-    output = execute_command(command, False, False)
-    i = len(output.splitlines())
-    if i != 0:
-        update_default_volumes(keos_cluster)
-        time.sleep(30)
-        
-        print("[INFO] Waiting for the CRI Volumes updating in Controlplane:", end =" ", flush=True)
-        command = (
-            f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
-        )
-        execute_command(command, False)
-        
-        print("[INFO] Waiting for the CRI Volumes updating in WorkerNodes:", end =" ", flush=True)
-        if provider == "azure":
-            command = f'kubectl get azuremachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.dataDisks == null) or (.spec.dataDisks | all(.nameSuffix != "cri_disk")) or .status.ready != true) | .metadata.name\''
-        if provider == "aws":
-            command = f'kubectl get awsmachines -o json -n cluster-{cluster_name} | jq \'.items[] | select((.spec.nonRootVolumes == null) or (.spec.nonRootVolumes | all(.deviceName != "/dev/xvdc")) or .status.ready != true) | .metadata.name\''
 
-        i = 1
-        while i !=0:
-            output = execute_command(command, False, False)
-            i = len(output.splitlines())
-            time.sleep(30)
-        print("OK")
-    else: 
-        print("SKIP")
-    if not managed:
-        cp_global_network_policy("restore", networks, provider, backup_dir, False)
-    
     scale_cluster_autoscaler(2, config["dry_run"])
 
     end_time = time.time()
