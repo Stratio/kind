@@ -591,7 +591,6 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
 
-
     else:
         print("[FAILED] More than two different versions of Kubernetes are in the cluster, which requires human action", flush=True)
         sys.exit(1)
@@ -2159,11 +2158,9 @@ if __name__ == '__main__':
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
                     charts["cluster-operator"]["chart_version"] = cluster_operator_version
-    if not managed:
-        cp_global_network_policy("restore", networks, provider, backup_dir, False)
-    
+
     scale_cluster_autoscaler(0, config["dry_run"])
-    
+
     if provider == "aws":
         namespace = "capa-system"
         version = CAPA
@@ -2303,9 +2300,6 @@ if __name__ == '__main__':
         patch_kubeadm_controlplane("cluster-" + cluster_name)
     
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    
-    if not managed:
-        cp_global_network_policy("patch", networks, provider, backup_dir, False)
     
     scale_cluster_autoscaler(2, config["dry_run"])
 
