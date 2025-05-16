@@ -6,7 +6,7 @@
 | Imagen | Versión
 
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.4.2
+| 0.4.3
 
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
