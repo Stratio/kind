@@ -545,7 +545,7 @@ def upgrade_cluster_operator(kubeconfig, helm_repo, provider, credentials, clust
         if dry_run:
             print("DRY-RUN")
         else:
-            command = (helm + " upgrade --reuse-values -n kube-system cluster-operator" +
+            command = (helm + " upgrade --reuse-values -n kube-system cluster-operator --wait" +
                 " --set app.containers.controllerManager.image.tag=" + CLUSTER_OPERATOR + " --version " + CLUSTER_OPERATOR)
             if helm_repo["type"] == "generic":
                 command += " cluster-operator --repo " + helm_repo["url"]
