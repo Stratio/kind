@@ -227,6 +227,155 @@ The following fields are considered provisioning secrets:
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
+Para habilitar el método de autorizacón _assume role_ en AWS poestriormente a la creación del _cluster_, debemos de realizar los siguientes pasos:
+
+==== Pre-requisitos:
+* IAM Role creado con permisos necesarios en AWS (e.g. `stratio-assume-role`).
+* Configuracón de la _Trust relationship_ del IAM Role para permitir el acceso al usuario de AWS que se utilizará para asumir el rol (e.g. `arn:aws:iam::123456789012:user/stratio-user`).
+====
+Ejemplo de _Trust relationship_:
+[source,yaml]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:user/stratio-user"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+----
+====
+* Asociar una política al usuario de AWS que permita asumir el rol creado anteriormente. Esta política debe incluir la acción `sts:AssumeRole` y el ARN del rol.
+====
+Ejemplo de política:
+[source,yaml]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::123456789012:role/stratio-assume-role"
+    }
+  ]
+}
+----
+====
+==== Pasos para habilitar el método de autorización _assume role_:
+
+* Crear el objeto `AWSClusterRoleIdentity`.
+[source,bash]
+-----
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSClusterRoleIdentity
+metadata:
+  name: eks-cl01-role-identity
+spec:
+  roleARN: arn:aws:iam::963353511234:role/capa-management-components
+  sessionName: eks-cl01-role-identity-session
+  durationSeconds: 3600
+  sourceIdentityRef:
+    kind: AWSClusterControllerIdentity
+    name: default
+  allowedNamespaces:
+    list:
+    - cluster-eks-cl01
+EOF
+-----
+
+* Asociar el objeto `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
+[source,bash]
+-----
+kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
+  -n cluster-eks-cl01 \
+  --type='merge' \
+  -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
+-----
+
+* Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
+[source,bash]
+-----
+kubectl rollout restart deployment capa-controller-manager -n capa-system
+-----
+
+* Configurar el _iam_role_ en el _configmap_ de `aws-auth` con un grupo de Kubernetes que tenga los permisos necesarios.
+[source,bash]
+-----
+kubectl patch configmap aws-auth -n kube-system --type merge -p '
+data:
+  mapRoles: |
+    - groups:
+      - system:bootstrappers
+      - system:nodes
+      rolearn: arn:aws:iam::963353511234:role/nodes.cluster-api-provider-aws.sigs.k8s.io
+      username: system:node:{{EC2PrivateDNSName}}
+    - groups:
+      - capa-manager
+      rolearn: arn:aws:iam::963353511234:role/capa-management-components
+      username: capa-management-components
+'
+-----
+
+* Crear ClusterRoleBinding para el grupo `capa-manager`
+[source,bash]
+-----
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: capa-manager-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: capa-manager-role
+subjects:
+- kind: Group
+  name: capa-manager
+  apiGroup: rbac.authorization.k8s.io
+EOF
+-----
+
+* Otorgar los siguientes permisos adicionales al grupo `capa-manager`:
+[source,bash]
+-----
+kubectl patch clusterrole capa-manager-role \
+  --type='json' \
+  -p='[
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":["apps"],"resources":["daemonsets"],"verbs":["get","list","watch","update"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods"],"verbs":["get","list","watch"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["nodes"],"verbs":["get","list","watch","patch"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods/eviction"],"verbs":["create"]}}
+  ]'
+-----
+
+* Realizar las siguientes comprobaciones:
+
+[source,bash]
+-----
+# Revisar los logs de capi/capa
+kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
+kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
+
+# Verificar permisos y configuración
+
+# Comprobar configuración y estado
+kubectl get awsclusterroleidentity
+kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
+kubectl get configmap aws-auth -n kube-system -o yaml
+
+# Verificar permisos del rol
+kubectl auth can-i get nodes --as=capa-management-components --as-group=capa-manager
+kubectl auth can-i list nodes --as=capa-management-components --as-group=capa-manager
+kubectl auth can-i list pods --as=capa-management-components --as-group=capa-manager
+kubectl auth can-i update daemonsets --as=capa-management-components --as-group=capa-manager
+-----
+
 === Helm repository
 
 As an installation prerequisite, the Helm repository from which the _Cluster Operator_ chart can be extracted must be specified. This section allows you to specify the URL of the repository, its type and whether it is an authenticated repository.
