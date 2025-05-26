@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.1 (2025-05-14)
 
+* [PLT-2108] Configurar Assume role (STS) de forma manual.
 * [PLT-2099] Fix coredns PDB specification
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
