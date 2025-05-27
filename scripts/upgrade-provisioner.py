@@ -1801,22 +1801,6 @@ def update_keoscluster(keos_cluster, provider):
         keos_cluster["spec"]["helm_repository"]["release_retries"] = 3
         keos_cluster["spec"]["helm_repository"]["release_source_interval"] = "1m"
         keos_cluster["spec"]["helm_repository"]["repository_interval"] = "10m"
-        if not managed_cluster:
-            if provider == "azure":
-                keos_cluster["spec"]["control_plane"]["cri_volume"] = {"enabled": True, "size": 128, "type": "Standard_LRS"}
-                keos_cluster["spec"]["control_plane"]["etcd_volume"] = {"enabled": True, "size": 8, "type": "Standard_LRS"}
-                if not keos_cluster["spec"]["control_plane"].get("root_volume"):
-                    keos_cluster["spec"]["control_plane"]["root_volume"] = {"size": 128, "type": "Standard_LRS"}
-        for wn in keos_cluster['spec']['worker_nodes']:
-            type_volume = ""
-            if provider == "aws":
-                type_volume = "gp3"
-            elif provider == "azure":
-                type_volume = "Standard_LRS"
-            wn["cri_volume"] = {"enabled": True, "size": 128, "type": type_volume}
-            if not wn.get("root_volume"):
-                wn["root_volume"] = {"size": 128, "type": "gp3"}
-        
         keoscluster_json = json.dumps(keos_cluster)
         
         command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
