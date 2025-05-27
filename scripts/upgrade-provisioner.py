@@ -1805,8 +1805,6 @@ def update_keoscluster(keos_cluster, provider):
         
         command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
         output, err = run_command(command)
-        if "no change" in output.lower() and "cri_volume" in command:
-            output, err = run_command(command)
         print("OK") 
     except Exception as e:
         print("FAILED")
@@ -1983,17 +1981,6 @@ def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remov
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the ConfigMap '{configmap_name}': {e}")
-
-def disable_cri_etcd_volume(last_kc):
-    '''Disable the CRI and etcd volumes'''
-    
-    regex_cri = re.compile(r'"cri_volume":\{[^}]*\}')
-    regex_etcd = re.compile(r'"etcd_volume":\{[^}]*\}')
-    
-    result = regex_cri.sub('"cri_volume":{"enabled":false}', last_kc)
-    result = regex_etcd.sub('"etcd_volume":{"enabled":false}', result)
-    
-    return result
 
 def configure_aws_credentials(vault_secrets_data):
     print(f"[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
