@@ -1801,28 +1801,10 @@ def update_keoscluster(keos_cluster, provider):
         keos_cluster["spec"]["helm_repository"]["release_retries"] = 3
         keos_cluster["spec"]["helm_repository"]["release_source_interval"] = "1m"
         keos_cluster["spec"]["helm_repository"]["repository_interval"] = "10m"
-        if not managed_cluster:
-            if provider == "azure":
-                keos_cluster["spec"]["control_plane"]["cri_volume"] = {"enabled": True, "size": 128, "type": "Standard_LRS"}
-                keos_cluster["spec"]["control_plane"]["etcd_volume"] = {"enabled": True, "size": 8, "type": "Standard_LRS"}
-                if not keos_cluster["spec"]["control_plane"].get("root_volume"):
-                    keos_cluster["spec"]["control_plane"]["root_volume"] = {"size": 128, "type": "Standard_LRS"}
-        for wn in keos_cluster['spec']['worker_nodes']:
-            type_volume = ""
-            if provider == "aws":
-                type_volume = "gp3"
-            elif provider == "azure":
-                type_volume = "Standard_LRS"
-            wn["cri_volume"] = {"enabled": True, "size": 128, "type": type_volume}
-            if not wn.get("root_volume"):
-                wn["root_volume"] = {"size": 128, "type": "gp3"}
-        
         keoscluster_json = json.dumps(keos_cluster)
         
         command = f"kubectl patch keoscluster {keoscluster_name} -n {keoscluster_namespace} --type merge -p '{keoscluster_json}'"
         output, err = run_command(command)
-        if "no change" in output.lower() and "cri_volume" in command:
-            output, err = run_command(command)
         print("OK") 
     except Exception as e:
         print("FAILED")
@@ -1999,17 +1981,6 @@ def update_configmap(namespace, configmap_name, key_to_update, yaml_key_to_remov
     except Exception as e:
         print("FAILED")
         print(f"[ERROR] Error updating the ConfigMap '{configmap_name}': {e}")
-
-def disable_cri_etcd_volume(last_kc):
-    '''Disable the CRI and etcd volumes'''
-    
-    regex_cri = re.compile(r'"cri_volume":\{[^}]*\}')
-    regex_etcd = re.compile(r'"etcd_volume":\{[^}]*\}')
-    
-    result = regex_cri.sub('"cri_volume":{"enabled":false}', last_kc)
-    result = regex_etcd.sub('"etcd_volume":{"enabled":false}', result)
-    
-    return result
 
 def configure_aws_credentials(vault_secrets_data):
     print(f"[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
