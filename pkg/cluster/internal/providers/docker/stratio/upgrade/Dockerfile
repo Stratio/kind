@@ -18,7 +18,7 @@ ARG HELM_VERSION=3.15.2
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 ARG CAPA=v2.5.2
-ARG CAPG=1.6.1-0.3.0
+ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
 ENV AWS_CONFIG_FILE=/upgrade/.aws/config
 ENV AWS_SHARED_CREDENTIALS_FILE=/upgrade/.aws/credentials
