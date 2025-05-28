@@ -25,5 +25,5 @@ NOTE: Es posible que se haga referencia a la imagen `gcr.io/kubebuilder/kube-rba
 | v1.27.0
 
 | docker.io/kindest/kindnetd
-| v20221004-44d545d1
+| v20230330-48f316cd
 |===
