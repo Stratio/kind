@@ -33,7 +33,7 @@ core:
       helm-controller: v0.37.2
       source-controller: v1.2.3
     kind:
-      kindnetd: v20221004-44d545d1
+      kindnetd: v20230330-48f316cd
       node: v1.27.0
       stratio-capi-image: v1.27.0
     pause: v3.9
