@@ -33,7 +33,7 @@ core:
       helm-controller: v0.37.2
       source-controller: v1.2.3
     kind:
-      kindnetd: v20221004-44d545d1
+      kindnetd: v20230330-48f316cd
       node: v1.27.0
       stratio-capi-image: v1.27.0
     pause: v3.9
@@ -100,8 +100,8 @@ gcp:
     images:
       cluster-api-gcp-controller: 1.6.1-0.3.1
     manifests:
-      metadata.yaml: 1.6.1-0.3.0
-      infrastructure-components.yaml: 1.6.1-0.3.0
+      metadata.yaml: 1.6.1-0.3.1
+      infrastructure-components.yaml: 1.6.1-0.3.1
   managed:
     images:
       coredns: v1.9.4
