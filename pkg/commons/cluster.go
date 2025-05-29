@@ -29,16 +29,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var EtcdVolumeSize = 8
-var CriVolumeSize = 128
-var RootVolumeDefaultSize = 128
-var RootVolumeManagedDefaultSize = 256
-var DeviceNameRegex = "^/dev/(sd[a-z]|xvd([a-d]|[a-d][a-z]|[e-z]))$"
-
-var AWSVolumeType = "gp3"
-var AzureVMsVolumeType = "Standard_LRS"
-var GCPVMsVolumeType = "pd-ssd"
-
 var (
 	capi_version = "v1.7.4"
 	capa_version = "v2.5.2"
@@ -170,9 +160,9 @@ type ControlPlane struct {
 	AWS             AWSCP               `yaml:"aws,omitempty"`
 	Azure           AzureCP             `yaml:"azure,omitempty"`
 	Gcp             GCPCP               `yaml:"gcp,omitempty"`
-	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"dive"`
-	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
-	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
+	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"omitempty,dive"`
+	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"omitempty,dive"`
 }
 
 type GCPCP struct {
@@ -290,7 +280,7 @@ type WorkerNodes []struct {
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
 	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
-	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"dive"`
+	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
 
@@ -577,106 +567,6 @@ func (s KeosSpec) Init() KeosSpec {
 	return s
 }
 
-func (s KeosSpec) InitVolumes() KeosSpec {
-	var volumeType string
-
-	switch s.InfraProvider {
-	case "aws":
-		volumeType = AWSVolumeType
-
-		if !s.ControlPlane.Managed {
-
-			if s.ControlPlane.CRIVolume.Enabled == nil || *s.ControlPlane.CRIVolume.Enabled {
-				s.ControlPlane.CRIVolume.Enabled = ToPtr(true)
-				s = initControlPlaneCRIVolume(s, volumeType)
-			}
-			if s.ControlPlane.ETCDVolume.Enabled == nil || *s.ControlPlane.ETCDVolume.Enabled {
-				s.ControlPlane.ETCDVolume.Enabled = ToPtr(true)
-				s = initControlPlaneETCDVolume(s, volumeType)
-			}
-			s = initControlPlaneRootVolume(s, volumeType, !*s.ControlPlane.CRIVolume.Enabled)
-		}
-
-		for i := range s.WorkerNodes {
-
-			if s.WorkerNodes[i].CRIVolume.Enabled == nil || *s.WorkerNodes[i].CRIVolume.Enabled {
-				s.WorkerNodes[i].CRIVolume.Enabled = ToPtr(true)
-				checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
-				checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-			} else {
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeManagedDefaultSize)
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-			}
-
-		}
-
-	case "gcp":
-		if !s.ControlPlane.Managed {
-			volumeType = GCPVMsVolumeType
-			if s.ControlPlane.CRIVolume.Enabled == nil || *s.ControlPlane.CRIVolume.Enabled {
-				s.ControlPlane.CRIVolume.Enabled = ToPtr(true)
-				s = initControlPlaneCRIVolume(s, volumeType)
-			}
-			if s.ControlPlane.ETCDVolume.Enabled == nil || *s.ControlPlane.ETCDVolume.Enabled {
-				s.ControlPlane.ETCDVolume.Enabled = ToPtr(true)
-				s = initControlPlaneETCDVolume(s, volumeType)
-			}
-			s = initControlPlaneRootVolume(s, volumeType, !*s.ControlPlane.CRIVolume.Enabled)
-		}
-		for i := range s.WorkerNodes {
-			if !s.ControlPlane.Managed {
-				if s.WorkerNodes[i].CRIVolume.Enabled == nil || *s.WorkerNodes[i].CRIVolume.Enabled {
-					s.WorkerNodes[i].CRIVolume.Enabled = ToPtr(true)
-					checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
-					checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
-					checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
-					checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-				}
-			} else {
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeManagedDefaultSize)
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-			}
-
-		}
-
-	case "azure":
-		if !s.ControlPlane.Managed {
-			volumeType = AzureVMsVolumeType
-			if s.ControlPlane.CRIVolume.Enabled == nil || *s.ControlPlane.CRIVolume.Enabled {
-				s.ControlPlane.CRIVolume.Enabled = ToPtr(true)
-				s = initControlPlaneCRIVolume(s, volumeType)
-			}
-			if s.ControlPlane.ETCDVolume.Enabled == nil || *s.ControlPlane.ETCDVolume.Enabled {
-				s.ControlPlane.ETCDVolume.Enabled = ToPtr(true)
-				s = initControlPlaneETCDVolume(s, volumeType)
-			}
-			s = initControlPlaneRootVolume(s, volumeType, !*s.ControlPlane.CRIVolume.Enabled)
-		}
-
-		for i := range s.WorkerNodes {
-
-			if !s.ControlPlane.Managed {
-				if s.WorkerNodes[i].CRIVolume.Enabled == nil || *s.WorkerNodes[i].CRIVolume.Enabled {
-					s.WorkerNodes[i].CRIVolume.Enabled = ToPtr(true)
-					checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
-					checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
-					checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
-					checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-				}
-			} else {
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeManagedDefaultSize)
-				checkAndFill(&s.WorkerNodes[i].RootVolume.Type, volumeType)
-			}
-		}
-
-	}
-
-	return s
-
-}
-
 // Read descriptor file
 func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, error) {
 	var keosCluster KeosCluster
@@ -715,11 +605,6 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 			case "KeosCluster":
 				keosCluster.Spec = new(KeosSpec).Init()
 				err = yaml.Unmarshal([]byte(manifest), &keosCluster)
-				if err != nil {
-					return nil, nil, err
-				}
-				keosCluster.Spec = keosCluster.Spec.InitVolumes()
-				err = validate.Struct(keosCluster)
 				if err != nil {
 					return nil, nil, err
 				}
