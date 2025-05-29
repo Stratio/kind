@@ -170,7 +170,7 @@ type ControlPlane struct {
 	AWS             AWSCP               `yaml:"aws,omitempty"`
 	Azure           AzureCP             `yaml:"azure,omitempty"`
 	Gcp             GCPCP               `yaml:"gcp,omitempty"`
-	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"dive"`
+	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
 	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
 	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
@@ -290,7 +290,7 @@ type WorkerNodes []struct {
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
 	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
-	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"dive"`
+	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
 
@@ -587,7 +587,6 @@ func (s KeosSpec) InitVolumes() KeosSpec {
 		if !s.ControlPlane.Managed {
 
 			if s.ControlPlane.CRIVolume.Enabled == nil || *s.ControlPlane.CRIVolume.Enabled {
-				s.ControlPlane.CRIVolume.Enabled = ToPtr(true)
 				s = initControlPlaneCRIVolume(s, volumeType)
 			}
 			if s.ControlPlane.ETCDVolume.Enabled == nil || *s.ControlPlane.ETCDVolume.Enabled {
@@ -599,8 +598,7 @@ func (s KeosSpec) InitVolumes() KeosSpec {
 
 		for i := range s.WorkerNodes {
 
-			if s.WorkerNodes[i].CRIVolume.Enabled == nil || *s.WorkerNodes[i].CRIVolume.Enabled {
-				s.WorkerNodes[i].CRIVolume.Enabled = ToPtr(true)
+			if s.WorkerNodes[i].CRIVolume.Enabled != nil && *s.WorkerNodes[i].CRIVolume.Enabled {
 				checkAndFill(&s.WorkerNodes[i].CRIVolume.Size, CriVolumeSize)
 				checkAndFill(&s.WorkerNodes[i].CRIVolume.Type, volumeType)
 				checkAndFill(&s.WorkerNodes[i].RootVolume.Size, RootVolumeDefaultSize)
