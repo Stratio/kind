@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.6.6 (2025-05-14)
 
+* [PLT-2244] Disable setting CRIVolume by default
 * [PLT-2099] Fix coredns PDB specification
 * [PLT-2132] Remove cri volumes managament from upgrade
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
