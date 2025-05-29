@@ -46,7 +46,7 @@ CAPZ = "v1.12.4"
 #Chart Versions
 eks_chart_versions = {
     "cluster-autoscaler": {"chart_version": "9.37.0"},
-    "cluster-operator": {"chart_version": "0.4.3-4f6c593"},
+    "cluster-operator": {"chart_version": "0.4.3-f2aca31"},
     "tigera-operator": {"chart_version": "v3.28.2"},
     "aws-load-balancer-controller": {"chart_version": "1.8.1"},
     "flux2": {"chart_version": "2.12.2"}
@@ -58,7 +58,7 @@ azure_vm_chart_versions = {
     "cloud-provider-azure": {"chart_version": "1.30.4"},
     "cluster-autoscaler": {"chart_version": "9.37.0"},
     "tigera-operator": {"chart_version": "v3.28.2"},
-    "cluster-operator": {"chart_version": "0.4.3-4f6c593"},
+    "cluster-operator": {"chart_version": "0.4.3-f2aca31"},
     "flux2": {"chart_version": "2.12.2"}
 }
 
@@ -2121,7 +2121,7 @@ if __name__ == '__main__':
         chart_versions = eks_chart_versions
     elif provider == "azure":
         chart_versions = azure_vm_chart_versions
-    if cluster_operator_version != "0.4.3-4f6c593":
+    if cluster_operator_version != "0.4.3-f2aca31":
         if provider == "aws":
             for version_key, charts in chart_versions.items():
                 if "cluster-operator" in charts.keys():
