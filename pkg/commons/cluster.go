@@ -161,8 +161,8 @@ type ControlPlane struct {
 	Azure           AzureCP             `yaml:"azure,omitempty"`
 	Gcp             GCPCP               `yaml:"gcp,omitempty"`
 	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
-	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"dive"`
-	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"dive"`
+	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"omitempty,dive"`
+	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"omitempty,dive"`
 }
 
 type GCPCP struct {
