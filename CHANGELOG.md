@@ -7,6 +7,7 @@
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
 * [PLT-2124] Bump cluster-autoscaler to v1.32.0 version and its chart version to 9.46.6
+* [PLT-2134] Bump cluster-operator to 0.5.1 version to fix Azure upgrade
 * [PLT-1496] Ensure CAPG provisioner version references are set to 1.6.1-0.3.1
 * [PLT-2204] Ensure referencing cloud-provisioner image release instead of prerelease version when creating a cluster
 
