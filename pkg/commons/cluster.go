@@ -264,6 +264,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
+	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
@@ -528,6 +529,10 @@ func (s KeosSpec) Init() KeosSpec {
 
 	// GKE
 	s.ControlPlane.Gcp.ReleaseChannel = "extended"
+	// Enable secure boot by default
+	if s.Security.EnableSecureBoot == nil {
+		s.Security.EnableSecureBoot = ToPtr(true)
+	}
 	if s.ControlPlane.Gcp.ClusterNetwork == nil {
 		s.ControlPlane.Gcp.ClusterNetwork = &ClusterNetwork{}
 	}

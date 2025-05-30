@@ -22,6 +22,7 @@
 * [PLT-1887] Dynamic region describe
 * [PLT-1849] Fix aws-load-balancer-controller annotation
 * [PLT-1621] Add kubernetes 1.32 support
+* [PLT-1549] -  Activate NodePool SecureBoot
 * [PLT-1741] Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation
 * [PLT-1682] Improve kindest/node and stratio-capi-image management
 * [PLT-1317] Remove non-suported AKS, managed AWS and managed GCP references
@@ -57,6 +58,3 @@
 * [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig 
 * [PLT-988] Uncouple CAPX from Dockerfile
 * [PLT-964] Add GKE Private Cluster Validations
-
-
-
