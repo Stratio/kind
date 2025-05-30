@@ -13,7 +13,7 @@ This Kubernetes object allows you to define the various configurations for the _
 | -
 | -
 
-| * `spec`* _ClusterConfigSpec_
+| *`spec`* _ClusterConfigSpec_
 | -
 | -
 | -
