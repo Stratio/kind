@@ -60,6 +60,7 @@ This object defines the desired state of _ClusterConfig_.
 | *`cluster_operator_version`* _string_
 | Specifies the chart version of the _cluster operator_ to be downloaded from the Helm repository specified in the _keoscluster_. By default, the latest version present in the Helm repository is downloaded.
 | -
+| -
 
 | *`cluster_operator_image_version`* _string_
 | Allows to overwrite the version of the image that will be displayed next to the chart. By default, the version indicated in the _values.yaml_ file of the chart is installed, but with this field, you can overwrite the default version.
