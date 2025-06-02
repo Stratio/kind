@@ -13,7 +13,7 @@ This Kubernetes object allows you to define the various configurations for the _
 | -
 | -
 
-| * `spec`* _ClusterConfigSpec_
+| *`spec`* _ClusterConfigSpec_
 | -
 | -
 | -
@@ -59,6 +59,7 @@ This object defines the desired state of _ClusterConfig_.
 
 | *`cluster_operator_version`* _string_
 | Specifies the chart version of the _cluster operator_ to be downloaded from the Helm repository specified in the _keoscluster_. By default, the latest version present in the Helm repository is downloaded.
+| -
 | -
 
 | *`cluster_operator_image_version`* _string_
