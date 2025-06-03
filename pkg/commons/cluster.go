@@ -480,7 +480,10 @@ type SCParameters struct {
 }
 
 func (s ClusterConfigSpec) Init() ClusterConfigSpec {
-	s.Private = false
+	// Set private registry and helm repository as true by default
+	s.Private = true
+	s.PrivateHelmRepo = true
+	// Set workers config max unhealthy to 100 by default
 	s.WorkersConfig.MaxUnhealthy = ToPtr[int](100)
 
 	return s
