@@ -9,7 +9,10 @@
 * [PLT-2091] Ensure flux NetworkPolicy requirements during cloud-provisioner upgrade
 * [PLT-2092] Avoid adopting non cloud-provisioner charts during cloud-provisioner upgrade
 * [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
-* [PLT-2134] Bump cluster-operator to 0.4.3 version to fix Azure upgrade
+* [PLT-2143] Bump cluster-operator to 0.4.3 version
+* [PLT-2244] Disable setting CRIVolume by default
+* [PLT-2176] Enabling ControlPlaneKubeletLocalMode feature gate to avoid upgrade issues in Azure
+* [PLT-2143] Support empty CRIVolume and ETCDVolume references in KubeadmControlPlane and AzureMachineTemplate templates
 * [PLT-1496] Ensure CAPG provisioner version references are set to 1.6.1-0.3.1
 
 ## 0.17.0-0.6.5 (2025-04-25)
