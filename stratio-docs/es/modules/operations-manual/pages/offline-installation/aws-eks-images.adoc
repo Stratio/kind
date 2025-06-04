@@ -134,14 +134,14 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en EKS, las im√
 | v1.14.5
 
 | *cluster-autoscaler*
-| *9.37.0*
+| *9.46.6*
 |
 |
 
 |
 |
 | registry.k8s.io/autoscaling/cluster-autoscaler
-| v1.30.0
+| v1.32.0
 
 | *cluster-operator*
 | *0.5.0*

@@ -39,6 +39,7 @@ const (
 	cidrSizeMin = 16
 )
 
+var DeviceNameRegex = "^/dev/(sd[a-z]|xvd([a-d]|[a-d][a-z]|[e-z]))$"
 var AWSVolumes = []string{"io1", "io2", "gp2", "gp3", "sc1", "st1", "standard", "sbp1", "sbg1"}
 var isAWSNodeImage = regexp.MustCompile(`^ami-\w+$`).MatchString
 var AWSNodeImageFormat = "ami-[IMAGE_ID]"
@@ -46,7 +47,7 @@ var AWSNodeImageFormat = "ami-[IMAGE_ID]"
 func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error {
 	var err error
 	var ctx = context.TODO()
-	deviceRegex := regexp.MustCompile(commons.DeviceNameRegex)
+	deviceRegex := regexp.MustCompile(DeviceNameRegex)
 
 	cfg, err := commons.AWSGetConfig(ctx, providerSecrets, spec.Region)
 	if err != nil {

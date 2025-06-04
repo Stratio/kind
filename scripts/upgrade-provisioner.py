@@ -31,7 +31,7 @@ from io import StringIO
 from urllib.parse import urlparse
 
 CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.5.0-5b15b8c"
+CLUSTER_OPERATOR = "0.5.0"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.4.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.6"
 
@@ -54,12 +54,12 @@ common_charts = {
         "repo": "https://charts.jetstack.io"
     },
     "cluster-autoscaler": {
-        "version": "9.46.0",
+        "version": "9.46.6",
         "namespace": "kube-system",
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.5.0-5b15b8c",
+        "version": "0.5.0",
         "namespace": "kube-system",
         "repo": ""
     },
@@ -358,23 +358,27 @@ def upgrade_k8s_version_desired_version(minor, tries):
 def get_kubernetes_version():
     '''Get the Kubernetes version'''
     
-    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
+    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | awk -F. '{print $1\".\"$2}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
 
-def wait_for_workers(cluster_name, current_k8s_version):
+def wait_for_workers(cluster_name, k8s_version):
     '''Wait for the worker nodes to be updated'''
     
-    print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)
-    previous_node = 1
-    while previous_node != 0:
-        command = (
-            kubectl + " get nodes"
-            + " -ojsonpath='{range .items[?(@.status.nodeInfo.kubeletVersion==\"" + current_k8s_version + "\")]}{.metadata.name}{\"\\n\"}{end}'"
-        )
+    print("[INFO] Waiting for the Kubernetes version upgrade - worker nodes:", end =" ", flush=True)    
+    k8s_version_minor  = ".".join(k8s_version.split(".")[:-1])
+    outdated_nodes = None
+    while outdated_nodes != 0:
+        command = kubectl + " get nodes -o json"
         output = execute_command(command, False, False)
-        previous_node = len(output.splitlines())
+        nodes_data = json.loads(output)
+        outdated_nodes_data = [
+            node["metadata"]["name"]
+            for node in nodes_data["items"]
+            if not node["status"]["nodeInfo"]["kubeletVersion"].startswith("v{}".format(k8s_version_minor))
+        ]
+        outdated_nodes = len(outdated_nodes_data)
         time.sleep(30)
     command = kubectl + " wait --for=condition=Ready nodes --all --timeout 5m"
     execute_command(command, False, False)
@@ -407,23 +411,6 @@ def prompt_for_node_image(node_name, kubernetes_version):
         else:
             print("[ERROR] Invalid input. Please enter 'yes/y' or 'no/n'")
     
-
-def get_k8s_lower_version(versions):
-    '''Get the lower version of the two Kubernetes versions'''
-    
-    # Extract the version numbers from the strings
-    version_1_num = versions.splitlines()[0].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    version_2_num = versions.splitlines()[1].split('-')[0][1:]  # Remove 'v' prefix and split at '-'
-    
-    # Convert version strings to tuples of integers (e.g., "1.27.12" -> (1, 27, 12))
-    version_1_tuple = tuple(map(int, version_1_num.split('.')))
-    version_2_tuple = tuple(map(int, version_2_num.split('.')))
-
-    if version_1_tuple < version_2_tuple:
-        return versions.splitlines()[0]
-    else:
-        return versions.splitlines()[1]
-
 def cp_global_network_policy(action, networks, provider, backup_dir, dry_run):
     '''Patch or restore the allow control plane GlobalNetworkPolicy'''
     
@@ -520,13 +507,13 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
     '''Upgrade Kubernetes version'''
 
     current_k8s_version = get_kubernetes_version()
-    current_minor_version = int(current_k8s_version.split('.')[1])
     desired_minor_version = int(desired_k8s_version.split('.')[1])
     if dry_run:
         print(f"[INFO] Updating kubernetes to version {desired_k8s_version}: DRY-RUN", flush=True)
         return
     
     if len(current_k8s_version.splitlines()) == 1:
+        current_minor_version = int(current_k8s_version.split('.')[1])
         if current_minor_version < desired_minor_version:
             
             print(f"[INFO] Initiating upgrade to kubernetes to version {desired_k8s_version}", flush=True)
@@ -568,14 +555,14 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             
             command = (
                 f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+                f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
             )
             execute_command(command, False)
 
             if provider == "aws" and managed:
                 patch_clusterrole_aws_node(dry_run)
                 
-            wait_for_workers(cluster_name, current_k8s_version)
+            wait_for_workers(cluster_name, desired_k8s_version)
 
             if not managed:
                 cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
@@ -584,21 +571,18 @@ def upgrade_k8s(cluster_name, control_plane, worker_nodes, networks, desired_k8s
             print(f"[INFO] Updating Kubernetes to version {desired_k8s_version}: SKIP", flush=True)
 
     elif len(current_k8s_version.splitlines()) == 2:
-        # If upgrade had failed previously, the cluster may have two different versions of Kubernetes
-        
-        lower_k8s_version = get_k8s_lower_version(current_k8s_version)
         print("[INFO] Waiting for the Kubernetes version upgrade - control plane:", end=" ", flush=True)
         
         command = (
             f"{kubectl} wait --for=jsonpath=\"{{.status.phase}}\"=\"Updating worker nodes\""
-            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=25m"
+            f" KeosCluster {cluster_name} --namespace=cluster-{cluster_name} --timeout=45m"
         )
         execute_command(command, False)
 
         if provider == "aws" and managed:
             patch_clusterrole_aws_node(dry_run)
 
-        wait_for_workers(cluster_name, lower_k8s_version)
+        wait_for_workers(cluster_name, desired_k8s_version)
 
         if not managed:
             cp_global_network_policy("restore", networks, provider, backup_dir, dry_run)
