@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-1922] Rename reference to aws-load-balancer-controller
 * [PLT-1887] Dynamic region describe
 
