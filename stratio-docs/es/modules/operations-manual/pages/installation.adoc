@@ -271,8 +271,8 @@ Ejemplo de política:
   ]
 }
 ----
-====
-==== Pasos para habilitar el método de autorización _assume role_:
+
+==== Pasos para habilitar _assume role_
 
 * Crear el objeto `AWSClusterRoleIdentity`.
 [source,bash]
