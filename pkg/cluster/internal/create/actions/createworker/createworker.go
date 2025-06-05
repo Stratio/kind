@@ -103,6 +103,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	var err error
 	var keosRegistry KeosRegistry
 	var helmRegistry HelmRegistry
+	var stopRefresher chan struct{}
 	majorVersion = strings.Split(a.keosCluster.Spec.K8SVersion, ".")[1]
 
 	// Get the target node
@@ -480,8 +481,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to save the workload cluster kubeconfig")
 		}
-
 		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
+
+		// Start kubeconfig refresher in background
+		stopRefresher = make(chan struct{})
+		go commons.StartKubeconfigRefresher(n, capiClustersNamespace, a.keosCluster.Metadata.Name, kubeconfigPath, stopRefresher)
 
 		// Install unmanaged cluster addons
 		if !a.keosCluster.Spec.ControlPlane.Managed {
@@ -1153,8 +1157,12 @@ spec:
 	if err != nil {
 		return err
 	}
-
 	ctx.Status.End(true) // End Generating KEOS descriptor
+
+	// Stop kubeconfig refresher if it was started
+	if !a.avoidCreation {
+		close(stopRefresher)
+	}
 
 	return nil
 }
