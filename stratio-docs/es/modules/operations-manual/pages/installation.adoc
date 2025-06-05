@@ -234,7 +234,7 @@ Para activar el método de autorización basado en _assume role_ en AWS una vez 
 Antes de empezar, asegúrate de cumplir con lo siguiente:
 
 * Tener un rol de IAM creado con los permisos necesarios (por ejemplo: _stratio-assume-role_).
-* Configuracón de la _Trust relationship_ del IAM Role para permitir el acceso al usuario de AWS que se utilizará para asumir el rol (e.g. `arn:aws:iam::123456789012:user/stratio-user`).
+* Configurar la _Trust Relationship_ del rol para permitir que un usuario de AWS pueda asumirlo (por ejemplo: _arn:aws:iam::123456789012:user/stratio-user_).
 ====
 Ejemplo de _Trust relationship_:
 [source,yaml]
