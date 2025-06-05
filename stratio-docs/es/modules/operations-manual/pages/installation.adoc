@@ -253,8 +253,8 @@ Ejemplo de _Trust Relationship_:
   ]
 }
 ----
-====
-* Asociar una política al usuario de AWS que permita asumir el rol creado anteriormente. Esta política debe incluir la acción `sts:AssumeRole` y el ARN del rol.
+
+* Asignar al usuario de AWS una política que le permita asumir ese rol, incluyendo la acción `sts:AssumeRole` y el ARN del rol correspondiente.
 ====
 Ejemplo de política:
 [source,yaml]
