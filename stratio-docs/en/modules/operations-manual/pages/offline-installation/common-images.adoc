@@ -6,7 +6,7 @@
 | Image | Version
 
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.5.0
+| 0.5.1
 
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
@@ -23,5 +23,5 @@ NOTE: The `gcr.io/kubebuilder/kube-rbac-proxy` image may be referenced from othe
 | v1.27.0
 
 | docker.io/kindest/kindnetd
-| v20221004-44d545d1
+| v20230330-48f316cd
 |===
