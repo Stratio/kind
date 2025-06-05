@@ -6,6 +6,7 @@
 
 ## 0.17.0-0.7.1 (2025-06-05)
 
+* [PLT-2226] Set private repository by default
 * [PLT-2244] Disable setting CRIVolume by default
 * [PLT-2099] Fix coredns PDB specification
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
