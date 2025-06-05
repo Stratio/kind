@@ -235,8 +235,9 @@ Antes de empezar, asegúrate de cumplir con lo siguiente:
 
 * Tener un rol de IAM creado con los permisos necesarios (por ejemplo: _stratio-assume-role_).
 * Configurar la _Trust Relationship_ del rol para permitir que un usuario de AWS pueda asumirlo (por ejemplo: _arn:aws:iam::123456789012:user/stratio-user_).
-====
-Ejemplo de _Trust relationship_:
++
+Ejemplo de _Trust Relationship_:
++
 [source,yaml]
 ----
 {
