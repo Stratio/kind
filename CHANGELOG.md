@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.2 (upcoming)
+
+* [PLT-2289] Add safe-to-evict annotations in Flux pods
+
 ## 0.17.0-0.7.1 (2025-06-05)
 
 * [PLT-2244] Disable setting CRIVolume by default
