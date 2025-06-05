@@ -362,8 +362,8 @@ kubectl patch clusterrole capa-manager-role \
   ]'
 -----
 
-* Realizar las siguientes comprobaciones:
-
+. Verificar la configuración y los permisos:
++
 [source,bash]
 -----
 # Revisar los logs de capi/capa
