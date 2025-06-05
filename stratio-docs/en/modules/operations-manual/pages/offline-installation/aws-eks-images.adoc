@@ -144,14 +144,14 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in EKS, the
 | v1.30.0
 
 | *cluster-operator*
-| *0.4.2*
+| *0.4.3*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.4.2
+| 0.4.3
 
 |
 |
