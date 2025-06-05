@@ -370,9 +370,7 @@ kubectl patch clusterrole capa-manager-role \
 kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
 kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
 
-# Verificar permisos y configuración
-
-# Comprobar configuración y estado
+# Comprobar estado y configuración
 kubectl get awsclusterroleidentity
 kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
 kubectl get configmap aws-auth -n kube-system -o yaml
