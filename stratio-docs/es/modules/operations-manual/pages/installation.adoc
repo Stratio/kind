@@ -347,7 +347,8 @@ subjects:
 EOF
 -----
 
-* Otorgar los siguientes permisos adicionales al grupo `capa-manager`:
+. Conceder permisos adicionales al grupo `capa-manager`:
++
 [source,bash]
 -----
 kubectl patch clusterrole capa-manager-role \
