@@ -327,7 +327,8 @@ data:
 '
 -----
 
-* Crear ClusterRoleBinding para el grupo `capa-manager`
+* Crear un `ClusterRoleBinding` para el grupo `capa-manager`.
++
 [source,bash]
 -----
 kubectl apply -f - <<EOF
