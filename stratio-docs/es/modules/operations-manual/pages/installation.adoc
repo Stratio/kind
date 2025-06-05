@@ -274,7 +274,8 @@ Ejemplo de política:
 
 ==== Pasos para habilitar _assume role_
 
-* Crear el objeto `AWSClusterRoleIdentity`.
+. Crear el objeto `AWSClusterRoleIdentity`.
++
 [source,bash]
 -----
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
