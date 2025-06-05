@@ -227,7 +227,7 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenciales en el descriptor del _cluster_ y eliminando previamente el _secrets.yml_.
 
-Para habilitar el método de autorizacón _assume role_ en AWS poestriormente a la creación del _cluster_, debemos de realizar los siguientes pasos:
+Para activar el método de autorización basado en _assume role_ en AWS una vez creado el _cluster_, sigue estos pasos:
 
 ==== Pre-requisitos:
 * IAM Role creado con permisos necesarios en AWS (e.g. `stratio-assume-role`).
