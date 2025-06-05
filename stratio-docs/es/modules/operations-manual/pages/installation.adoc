@@ -229,7 +229,10 @@ NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenci
 
 Para activar el método de autorización basado en _assume role_ en AWS una vez creado el _cluster_, sigue estos pasos:
 
-==== Pre-requisitos:
+==== Prerrequisitos
+
+Antes de empezar, asegúrate de cumplir con lo siguiente:
+
 * IAM Role creado con permisos necesarios en AWS (e.g. `stratio-assume-role`).
 * Configuracón de la _Trust relationship_ del IAM Role para permitir el acceso al usuario de AWS que se utilizará para asumir el rol (e.g. `arn:aws:iam::123456789012:user/stratio-user`).
 ====
