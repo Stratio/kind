@@ -39,12 +39,12 @@ This object defines the desired state of _ClusterConfig_.
 
 | * `private_registry`* _boolean_
 | Specifies the type of installation. If this field is enabled, images to be downloaded during the cluster installation process will be retrieved from the registry specified as _keos++_++registry_.
-| false
+| true
 | -
 
 | * `private_helm_repo`* _boolean_
 | Specifies the type of installation. If enabled, the charts required for the cluster installation will be downloaded from the repository specified as _helm++_++repository_.
-| false
+| true
 | -
 
 | *`controlplane_config`* _ControlplaneConfig_
