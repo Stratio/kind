@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.6.7 (upcoming)
+
+* [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
+
 ## 0.17.0-0.6.6 (2025-06-05)
 
 * [PLT-2244] Disable setting CRIVolume by default
