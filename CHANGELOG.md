@@ -2,11 +2,15 @@
 
 ## 0.17.0-0.7.2 (upcoming)
 
+* [PLT-2226] Set private repository by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
+
+### Major changes & deprecations
+
+* Docker registry and Helm repository are configured as `private` by default. They can be configured via `private_registry` and `private_helm_repo` in the cluster `ClusterConfig`
 
 ## 0.17.0-0.7.1 (2025-06-05)
 
-* [PLT-2226] Set private repository by default
 * [PLT-2244] Disable setting CRIVolume by default
 * [PLT-2099] Fix coredns PDB specification
 * [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
