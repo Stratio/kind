@@ -823,10 +823,10 @@ spec:
 			}
 
 			// Allow egress in calico-system namespace
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + "tigera-operator" + " apply -f " + allowCommonEgressNetPolPath
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + "calico-system" + " apply -f " + allowCommonEgressNetPolPath
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
-				return errors.Wrap(err, "failed to apply tigera-operator egress NetworkPolicy")
+				return errors.Wrap(err, "failed to apply calico-system egress NetworkPolicy")
 			}
 		}
 
