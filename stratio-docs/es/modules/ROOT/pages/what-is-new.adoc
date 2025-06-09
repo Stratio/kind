@@ -7,4 +7,4 @@ Las principales novedades de esta versión de _Stratio Cloud Provisioner_ son:
 
 == Ruptura de compatibilidad
 
-* El registry de Docker y el repositorio de Helm pasan a configurarse como `private` por defecto. Estos parámetros pueden configurarse a través de los atributos `private_registry` y `private_helm_repo` en el objeto `ClusterConfig` del clúster.
+* A partir de esta versión, el _registry_ de Docker y el repositorio de Helm se configuran como _private_ por defecto. Puedes modificar este comportamiento desde el objeto `ClusterConfig` del _cluster_, usando los atributos `private_registry` y `private_helm_repo`.
