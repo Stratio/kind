@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.2 (upcoming)
+
+* [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment 
+
 ## 0.17.0-0.7.1 (2025-05-28)
 
 * [PLT-2244] Disable setting CRIVolume by default
