@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.2 (upcoming)
 
+* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
 * [PLT-2226] Set private repository by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
@@ -26,7 +27,6 @@
 
 ## 0.17.0-0.7.0 (2025-04-30)
 
-* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
 * [PLT-1917] Support private registry during cloud-provisioner upgrades
 * [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
 * [PLT-1971] Fix upgrade when using a non oci Helm repository
