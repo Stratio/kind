@@ -231,7 +231,9 @@ Para habilitar el método de autorizacón _assume role_ en AWS poestriormente a 
 
 ==== Pre-requisitos:
 * IAM Role creado con permisos necesarios en AWS (e.g. `stratio-assume-role`).
-* Configuracón de la _Trust relationship_ del IAM Role para permitir el acceso al usuario de AWS que se utilizará para asumir el rol (e.g. `arn:aws:iam::123456789012:user/stratio-user`).
+. Tipo de role "AWS Account"
+. Los permisos son los referenciados en los pre-requisitos de EKS.
+* Configurar la _Trust Relationship_ del rol para permitir que el usuario con el que hemos desplegado el cluster pueda asumirlo (por ejemplo: _arn:aws:iam::123456789012:user/stratio-user_).
 ====
 Ejemplo de _Trust relationship_:
 [source,yaml]
@@ -267,7 +269,7 @@ Ejemplo de política:
 }
 ----
 
-Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.1.
+Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.2.
 
 ====
 ==== Pasos para habilitar el método de autorización _assume role_:
