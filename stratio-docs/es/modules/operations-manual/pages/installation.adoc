@@ -297,7 +297,8 @@ spec:
 EOF
 -----
 
-* Asociar el objeto `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
+. Asociar el `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
++
 [source,bash]
 -----
 kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
@@ -306,13 +307,15 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
   -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
 -----
 
-* Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
+. Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
++
 [source,bash]
 -----
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 -----
 
-* Configurar el _iam_role_ en el _configmap_ de `aws-auth` con un grupo de Kubernetes que tenga los permisos necesarios.
+. Configurar el `iam_role` en el _ConfigMap_ `aws-auth` con el grupo de Kubernetes correspondiente.
++
 [source,bash]
 -----
 kubectl patch configmap aws-auth -n kube-system --type merge -p '
