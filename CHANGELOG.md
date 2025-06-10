@@ -3,6 +3,7 @@
 ## 0.17.0-0.7.2 (upcoming)
 
 * [PLT-1549] Activate NodePool SecureBoot
+* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
 * [PLT-2226] Set private repository by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
