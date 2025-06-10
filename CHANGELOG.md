@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.2 (upcoming)
 
+* [PLT-1549] Activate NodePool SecureBoot
 * [PLT-2226] Set private repository by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
@@ -36,7 +37,6 @@
 * [PLT-1887] Dynamic region describe
 * [PLT-1849] Fix aws-load-balancer-controller annotation
 * [PLT-1621] Add kubernetes 1.32 support
-* [PLT-1549] -  Activate NodePool SecureBoot
 * [PLT-1741] Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation
 * [PLT-1682] Improve kindest/node and stratio-capi-image management
 * [PLT-1317] Remove non-suported AKS, managed AWS and managed GCP references
