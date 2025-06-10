@@ -272,6 +272,8 @@ Ejemplo de política:
 }
 ----
 
+Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.1.
+
 ==== Pasos para habilitar _assume role_
 
 . Crear el objeto `AWSClusterRoleIdentity`.
@@ -1015,7 +1017,7 @@ $ cat << EOF > trustpolicy.json
         }
     ]
 }
-EOF
+EOFAssume
 $ aws iam create-role --role-name ${AWS_IAM_ROLE_NAME} --assume-role-policy-document file://trustpolicy.json
 ----
 
@@ -1069,7 +1071,7 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DeleteTargetGroup",
 				"elasticloadbalancing:DeregisterTargets",
 				"elasticloadbalancing:ModifyLoadBalancerAttributes",
-				"elasticloadbalancing:ModifyTargetGroup",
+				"elasticloadbalancing:ModifyTargetGroup",Assume
 				"elasticloadbalancing:RegisterTargets"
 			],
 			"Effect": "Allow",
