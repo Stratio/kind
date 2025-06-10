@@ -276,7 +276,9 @@ Ejemplo de política:
 
 Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.2.
 
-==== Pasos para habilitar _assume role_
+==== Pasos para habilitar _assume role_ en el cluster de _EKS_:
+
+NOTE: Sustituye la cuenta, el nombre del cluster `eks-cl01` y el namespace `cluster-eks-cl01` por los correspondientes a tu instalación.
 
 . Crear el objeto `AWSClusterRoleIdentity`.
 +
@@ -287,7 +289,7 @@ kind: AWSClusterRoleIdentity
 metadata:
   name: eks-cl01-role-identity
 spec:
-  roleARN: arn:aws:iam::963353511234:role/capa-management-components
+  roleARN: arn:aws:iam::123456789012:role/stratio-assume-role
   sessionName: eks-cl01-role-identity-session
   durationSeconds: 3600
   sourceIdentityRef:
@@ -296,7 +298,6 @@ spec:
   allowedNamespaces:
     list:
     - cluster-eks-cl01
-EOF
 -----
 
 . Asociar el `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
@@ -326,12 +327,12 @@ data:
     - groups:
       - system:bootstrappers
       - system:nodes
-      rolearn: arn:aws:iam::963353511234:role/nodes.cluster-api-provider-aws.sigs.k8s.io
+      rolearn: arn:aws:iam::123456789012:role/nodes.cluster-api-provider-aws.sigs.k8s.io
       username: system:node:{{EC2PrivateDNSName}}
     - groups:
       - capa-manager
-      rolearn: arn:aws:iam::963353511234:role/capa-management-components
-      username: capa-management-components
+      rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
+      username: stratio-assume-role
 '
 -----
 
@@ -369,6 +370,17 @@ kubectl patch clusterrole capa-manager-role \
   ]'
 -----
 
+. Actualizar la versión del _cluster-operator_ a la versión 0.5.2 o superior.
++
+- Actualizar el _helmrelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
+- Actualizar el _configmap_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
+- Parchear el secreto  keoscluster-settings con el _role_arn_ del role que hemos creado
+[source,bash]
+------
+kubectl -n kube-system patch secret keoscluster-settings \
+  --type=json \
+  -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
+------
 . Verificar la configuración y los permisos:
 +
 [source,bash]
@@ -377,16 +389,19 @@ kubectl patch clusterrole capa-manager-role \
 kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
 kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
 
+# Revisar los logs del _cluster-operator_
+kubectl logs -f -n capa-system deployment/keoscluster-controller-manager (o el nombre del pod)
+
 # Comprobar estado y configuración
 kubectl get awsclusterroleidentity
 kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
 kubectl get configmap aws-auth -n kube-system -o yaml
 
 # Verificar permisos del rol
-kubectl auth can-i get nodes --as=capa-management-components --as-group=capa-manager
-kubectl auth can-i list nodes --as=capa-management-components --as-group=capa-manager
-kubectl auth can-i list pods --as=capa-management-components --as-group=capa-manager
-kubectl auth can-i update daemonsets --as=capa-management-components --as-group=capa-manager
+kubectl auth can-i get nodes --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
 -----
 
 === Repositorio de Helm
