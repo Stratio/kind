@@ -295,7 +295,8 @@ spec:
 EOF
 -----
 
-* Asociar el objeto `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
+. Asociar el `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
++
 [source,bash]
 -----
 kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
