@@ -305,7 +305,8 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
   -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
 -----
 
-* Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
+. Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
++
 [source,bash]
 -----
 kubectl rollout restart deployment capa-controller-manager -n capa-system
