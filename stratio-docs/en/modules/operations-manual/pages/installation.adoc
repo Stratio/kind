@@ -266,6 +266,9 @@ Ejemplo de política:
   ]
 }
 ----
+
+Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.1.
+
 ====
 ==== Pasos para habilitar el método de autorización _assume role_:
 
