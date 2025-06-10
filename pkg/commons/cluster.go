@@ -264,6 +264,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
+	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
@@ -356,6 +357,7 @@ type AWSCredentials struct {
 	SecretKey string `yaml:"secret_key"`
 	Region    string `yaml:"region"`
 	AccountID string `yaml:"account_id"`
+	RoleARN   string `yaml:"role_arn"`
 }
 
 type AzureCredentials struct {
@@ -480,7 +482,10 @@ type SCParameters struct {
 }
 
 func (s ClusterConfigSpec) Init() ClusterConfigSpec {
-	s.Private = false
+	// Set private registry and helm repository as true by default
+	s.Private = true
+	s.PrivateHelmRepo = true
+	// Set workers config max unhealthy to 100 by default
 	s.WorkersConfig.MaxUnhealthy = ToPtr[int](100)
 
 	return s
@@ -528,6 +533,10 @@ func (s KeosSpec) Init() KeosSpec {
 
 	// GKE
 	s.ControlPlane.Gcp.ReleaseChannel = "extended"
+	// Enable secure boot by default
+	if s.Security.EnableSecureBoot == nil {
+		s.Security.EnableSecureBoot = ToPtr(true)
+	}
 	if s.ControlPlane.Gcp.ClusterNetwork == nil {
 		s.ControlPlane.Gcp.ClusterNetwork = &ClusterNetwork{}
 	}

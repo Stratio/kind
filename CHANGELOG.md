@@ -3,8 +3,15 @@
 ## 0.17.0-0.7.2 (upcoming)
 
 * [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment
+* [PLT-1549] Activate NodePool SecureBoot
+* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
+* [PLT-2226] Set private repository by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
+
+### Major changes & deprecations
+
+* Docker registry and Helm repository are configured as `private` by default. They can be configured via `private_registry` and `private_helm_repo` in the cluster `ClusterConfig`
 
 ## 0.17.0-0.7.1 (2025-06-05)
 
@@ -67,6 +74,3 @@
 * [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig 
 * [PLT-988] Uncouple CAPX from Dockerfile
 * [PLT-964] Add GKE Private Cluster Validations
-
-
-

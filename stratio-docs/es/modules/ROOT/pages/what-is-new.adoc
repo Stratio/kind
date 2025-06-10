@@ -4,3 +4,7 @@ Las principales novedades de esta versión de _Stratio Cloud Provisioner_ son:
 
 * Se añade compatibilidad con Kubernetes 1.32.
 * Se actualizan _cluster-operator_ (v0.5.1), Flux (v2.14.1) y Tigera Operator (v3.29.1).
+
+== Ruptura de compatibilidad
+
+A partir de esta versión, el _registry_ de Docker y el repositorio de Helm se configuran como _private_ por defecto. Puedes modificar este comportamiento desde el objeto `ClusterConfig` del _cluster_, usando los atributos `private_registry` y `private_helm_repo`.
