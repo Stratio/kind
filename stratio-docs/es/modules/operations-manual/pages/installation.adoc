@@ -873,7 +873,7 @@ $ cat << EOF > trustpolicy.json
         }
     ]
 }
-EOFAssume
+EOF
 $ aws iam create-role --role-name ${AWS_IAM_ROLE_NAME} --assume-role-policy-document file://trustpolicy.json
 ----
 
@@ -927,7 +927,7 @@ $ cat << EOF > policy.json
 				"elasticloadbalancing:DeleteTargetGroup",
 				"elasticloadbalancing:DeregisterTargets",
 				"elasticloadbalancing:ModifyLoadBalancerAttributes",
-				"elasticloadbalancing:ModifyTargetGroup",Assume
+				"elasticloadbalancing:ModifyTargetGroup",
 				"elasticloadbalancing:RegisterTargets"
 			],
 			"Effect": "Allow",
