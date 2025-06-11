@@ -19,9 +19,9 @@ To ensure the functionality of the EKS managed _control-plane_, it is necessary 
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
-* CloudFormation
+* AWS CloudFormation
 +
-WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
+WARNING: Suppose you have not created the AWS CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
 
 === GKE
 
@@ -227,7 +227,9 @@ The following fields are considered provisioning secrets:
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
-In AWS, you can use the temporary authorization method _assume role_ by specifying the `role_arn` parameter. For example:
+=== Using `role_arn` in the credentials descriptor
+
+You can also define `role_arn` directly in the credentials descriptor to automatically use the _assume role_:
 
 [source,yaml]
 ----

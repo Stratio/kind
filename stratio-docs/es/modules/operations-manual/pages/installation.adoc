@@ -19,9 +19,9 @@ Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es ne
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
-* CloudFormation
+* AWS CloudFormation
 +
-WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
+WARNING: Si no has creado el _stack_ de AWS CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
 
 === GKE
 
@@ -227,7 +227,9 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenciales en el descriptor del _cluster_ y eliminando previamente el _secrets.yml_.
 
-En AWS, puedes usar el método de autorización _assume role_ indicando el parámetro `role_arn`. Por ejemplo:
+=== Uso de `role_arn` en el descriptor de credenciales
+
+También puedes definir el `role_arn` directamente en el descriptor de credenciales para usar automáticamente _assume role_:
 
 [source,yaml]
 ----
@@ -237,49 +239,6 @@ credentials:
 ----
 
 NOTE: Este parámetro es opcional. Solo se utilizará _assume role_ si `role_arn` está definido en el descriptor.
-
-==== Operaciones del cluster con assume role en AWS
-
-Para realizar el manejo del cluster a nivel de operación, sigue estos pasos:
-
-. *Instalación de AWS CLI*: Asegúrate de tener la última versión de AWS CLI instalada. Puedes verificarlo con el siguiente comando:
-+
-[source,bash]
-----
-aws --version
-----
-
-. Exporta el perfil de AWS:
-+
-[source,bash]
-----
-export AWS_PROFILE=<nombre-del-profile>
-----
-
-. Asume el rol directamente:
-+
-[source,bash]
-----
-aws sts assume-role \
-  --role-arn arn:aws:iam::<accountID>:role/<role-name> \
-  --role-session-name eks-session > creds.json
-----
-
-. Exporta las credenciales temporalmente:
-+
-[source,bash]
-----
-export AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' creds.json)
-export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' creds.json)
-export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' creds.json)
-----
-
-. Actualiza el kubeconfig para el cluster EKS:
-+
-[source,bash]
-----
-aws eks update-kubeconfig --region <region> --name <nombre-del-cluster>
-----
 
 === Repositorio de Helm
 

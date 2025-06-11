@@ -3,7 +3,40 @@
 ## 0.17.0-0.8.0 (upcoming)
 
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
+<<<<<<< HEAD
 * [PLT-1922] Rename reference to aws-load-balancer-controller
+=======
+* [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
+
+### Major changes & deprecations
+
+* Docker registry and Helm repository are configured as `private` by default. They can be configured via `private_registry` and `private_helm_repo` in the cluster `ClusterConfig`
+
+## 0.17.0-0.7.1 (2025-06-05)
+
+* [PLT-2244] Disable setting CRIVolume by default
+* [PLT-2108] Configurar Assume role (STS) de forma manual.
+* [PLT-2099] Fix coredns PDB specification
+* [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
+* [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
+* [PLT-2124] Bump cluster-autoscaler to v1.32.0 version and its chart version to 9.46.6
+* [PLT-2143] Bump cluster-operator to 0.5.1 version
+* [PLT-2143] Support empty CRIVolume and ETCDVolume references in KubeadmControlPlane and AzureMachineTemplate templates
+* [PLT-2244] Disable setting CRIVolume by default
+* [PLT-2176] Enabling ControlPlaneKubeletLocalMode feature gate to avoid upgrade issues in Azure
+* [PLT-1496] Ensure CAPG provisioner version references are set to 1.6.1-0.3.1
+* [PLT-2204] Ensure referencing cloud-provisioner image release instead of prerelease version when creating a cluster
+
+## 0.17.0-0.7.0 (2025-04-30)
+
+* [PLT-1917] Support private registry during cloud-provisioner upgrades
+* [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
+* [PLT-1971] Fix upgrade when using a non oci Helm repository
+* [PLT-1957] Fix aws-load-balancer-controller upgrade
+* [PLT-1956] Improve cluster-operator backup and restore management during upgrade
+* [PLT-1958] Improve aws-node ClusterRole patch exception handling during upgrade
+* [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
+>>>>>>> 781f82a0 ([PLT-2108] Configurar Assume role (STS) de forma manual (#785))
 * [PLT-1887] Dynamic region describe
 
 ## Previous development
