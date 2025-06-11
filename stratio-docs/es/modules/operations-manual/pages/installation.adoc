@@ -19,9 +19,9 @@ Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es ne
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
-* CloudFormation
+* AWS CloudFormation
 +
-WARNING: Si no has creado el _stack_ de CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
+WARNING: Si no has creado el _stack_ de AWS CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
 
 === GKE
 
@@ -227,20 +227,22 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 NOTE: Cualquier cambio en _spec.credentials_ debe hacerse con todas las credenciales en el descriptor del _cluster_ y eliminando previamente el _secrets.yml_.
 
-Para activar el método de autorización basado en _assume role_ en AWS una vez creado el _cluster_, sigue estos pasos:
+=== Activar autorización por _assume role_ en AWS para un _cluster_ EKS
+
+Este procedimiento describe cómo habilitar el método de autorización basado en _assume role_ en AWS para un _cluster_ de EKS una vez que ha sido creado.
 
 ==== Prerrequisitos
 
-Antes de empezar, asegúrate de cumplir con lo siguiente:
+Antes de comenzar, asegúrate de cumplir lo siguiente:
 
-* Tener un rol de IAM creado con los permisos necesarios (por ejemplo: _stratio-assume-role_).
-. Tipo de role "AWS Account"
-. Los permisos son los referenciados en los pre-requisitos de EKS.
-* Configurar la _Trust Relationship_ del rol para permitir que el usuario con el que hemos desplegado el cluster pueda asumirlo (por ejemplo: _arn:aws:iam::123456789012:user/stratio-user_).
+* Tener creado un rol de IAM con los permisos necesarios (por ejemplo: _stratio-assume-role_).
+** Tipo de role: _AWS Account_.
+** Permisos: los mismos que los descritos en los prerrequisitos de EKS.
+* Configurar la _Trust Relationship_ del rol para permitir que el usuario que desplegó el _cluster_ pueda asumirlo.
 +
 Ejemplo de _Trust Relationship_:
 +
-[source,yaml]
+[source,json]
 ----
 {
   "Version": "2012-10-17",
@@ -256,11 +258,11 @@ Ejemplo de _Trust Relationship_:
 }
 ----
 
-* Asignar al usuario de AWS una política que le permita asumir ese rol, incluyendo la acción `sts:AssumeRole` y el ARN del rol correspondiente.
+* Asignar al usuario una política que incluya la acción `sts:AssumeRole` sobre el rol correspondiente.
 +
 Ejemplo de política:
 +
-[source,yaml]
+[source,json]
 ----
 {
   "Version": "2012-10-17",
@@ -274,15 +276,15 @@ Ejemplo de política:
 }
 ----
 
-Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.2.
+NOTE: La versión mínima de _cluster-operator_ compatible con este método es la 0.5.2.
 
-==== Pasos para habilitar _assume role_ en el cluster de _EKS_:
+==== Configurar _assume role_ en el _cluster_ EKS
 
-NOTE: Sustituye la cuenta, el nombre del cluster `eks-cl01` y el namespace `cluster-eks-cl01` por los correspondientes a tu instalación.
+NOTE: Sustituye la cuenta, nombre del _cluster_ `eks-cl01` y el _namespace_ `cluster-eks-cl01` por los de tu entorno.
 
-. Crear el objeto `AWSClusterRoleIdentity`.
+. Crea el objeto `AWSClusterRoleIdentity`.
 +
-[source,bash]
+[source,yaml]
 -----
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSClusterRoleIdentity
@@ -300,7 +302,7 @@ spec:
     - cluster-eks-cl01
 -----
 
-. Asociar el `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
+. Asocia la identidad `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
 +
 [source,bash]
 -----
@@ -310,16 +312,16 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
   -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
 -----
 
-. Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
+. Reinicia el _deployment_ de `capa-controller-manager` para que los cambios surtan efecto.
 +
 [source,bash]
 -----
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 -----
 
-. Configurar el `iam_role` en el _ConfigMap_ `aws-auth` con el grupo de Kubernetes correspondiente.
+. Configura el `aws-auth` con el `iam_role`.
 +
-[source,bash]
+[source,yaml]
 -----
 kubectl patch configmap aws-auth -n kube-system --type merge -p '
 data:
@@ -336,9 +338,9 @@ data:
 '
 -----
 
-* Crear un `ClusterRoleBinding` para el grupo `capa-manager`.
+. Crea el `ClusterRoleBinding` para el grupo `capa-manager`.
 +
-[source,bash]
+[source,yaml]
 -----
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
@@ -356,7 +358,7 @@ subjects:
 EOF
 -----
 
-. Conceder permisos adicionales al grupo `capa-manager`:
+. Añade permisos al `ClusterRole` del grupo `capa-manager`.
 +
 [source,bash]
 -----
@@ -370,18 +372,19 @@ kubectl patch clusterrole capa-manager-role \
   ]'
 -----
 
-. Actualizar la versión del _cluster-operator_ a la versión 0.5.2 o superior.
+. Actualiza el _cluster-operator_.
+.. Actualiza el _helmrelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior.
+.. Actualiza el _ConfigMap_ correspondiente a esa versión.
+.. Parchea el secreto _keoscluster-settings_ para añadir el `role_arn`.
 +
-- Actualizar el _helmrelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
-- Actualizar el _configmap_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
-- Parchear el secreto  keoscluster-settings con el _role_arn_ del role que hemos creado
 [source,bash]
 ------
 kubectl -n kube-system patch secret keoscluster-settings \
   --type=json \
   -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
 ------
-. Verificar la configuración y los permisos:
+
+. Verifica la configuración y los permisos.
 +
 [source,bash]
 -----
@@ -403,8 +406,53 @@ kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
 -----
-=======
-En AWS, puedes usar el método de autorización _assume role_ indicando el parámetro `role_arn`. Por ejemplo:
+
+==== Operaciones del _cluster_ con _assume role_
+
+Una vez activado, también puedes gestionar el _cluster_ utilizando _assume role_ desde línea de comandos siguiendo estos pasos:
+
+. *Verifica AWS CLI*: asegúrate de tener la última versión instalada con este comando.
++
+[source,bash]
+----
+aws --version
+----
+
+. *Exporta el perfil de AWS*.
++
+[source,bash]
+----
+export AWS_PROFILE=<nombre-del-profile>
+----
+
+. *Asume el rol y guarda credenciales*.
++
+[source,bash]
+----
+aws sts assume-role \
+  --role-arn arn:aws:iam::<accountID>:role/<role-name> \
+  --role-session-name eks-session > creds.json
+----
+
+. *Exporta las credenciales temporales*.
++
+[source,bash]
+----
+export AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' creds.json)
+export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' creds.json)
+export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' creds.json)
+----
+
+. *Actualiza el _kubeconfig_*.
++
+[source,bash]
+----
+aws eks update-kubeconfig --region <region> --name <nombre-del-cluster>
+----
+
+=== Uso de `role_arn` en el descriptor de credenciales
+
+También puedes definir el `role_arn` directamente en el descriptor de credenciales para usar automáticamente _assume role_:
 
 [source,yaml]
 ----
@@ -414,49 +462,6 @@ credentials:
 ----
 
 NOTE: Este parámetro es opcional. Solo se utilizará _assume role_ si `role_arn` está definido en el descriptor.
-
-==== Operaciones del cluster con assume role en AWS
-
-Para realizar el manejo del cluster a nivel de operación, sigue estos pasos:
-
-. *Instalación de AWS CLI*: Asegúrate de tener la última versión de AWS CLI instalada. Puedes verificarlo con el siguiente comando:
-+
-[source,bash]
-----
-aws --version
-----
-
-. Exporta el perfil de AWS:
-+
-[source,bash]
-----
-export AWS_PROFILE=<nombre-del-profile>
-----
-
-. Asume el rol directamente:
-+
-[source,bash]
-----
-aws sts assume-role \
-  --role-arn arn:aws:iam::<accountID>:role/<role-name> \
-  --role-session-name eks-session > creds.json
-----
-
-. Exporta las credenciales temporalmente:
-+
-[source,bash]
-----
-export AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' creds.json)
-export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' creds.json)
-export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' creds.json)
-----
-
-. Actualiza el kubeconfig para el cluster EKS:
-+
-[source,bash]
-----
-aws eks update-kubeconfig --region <region> --name <nombre-del-cluster>
-----
 
 === Repositorio de Helm
 
