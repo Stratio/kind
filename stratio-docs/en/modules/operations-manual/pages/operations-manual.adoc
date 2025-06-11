@@ -57,6 +57,229 @@ data:
       username: kubernetes-admin
 ----
 
+== Enable _Assume Role_ authorization in AWS for an EKS cluster
+
+This procedure describes how to enable the _assume role_–based authorization method in AWS for an EKS cluster after it has been created.
+
+=== Prerequisites
+
+Before you begin, make sure of the following:
+
+* You have created an IAM role with the required permissions (e.g. _stratio-assume-role_).
+** Role type: _AWS Account_.
+** Permissions: the same as those described in the EKS prerequisites.
+* The role's _trust relationship_ is configured to allow the user who deployed the cluster to assume the role.
++
+Example _trust relationship_:
++
+[source,json]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:user/stratio-user"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+----
+
+* The user is assigned a policy that includes the `sts:AssumeRole` action for the corresponding role.
++
+Example policy:
++
+[source,json]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::123456789012:role/stratio-assume-role"
+    }
+  ]
+}
+----
+
+NOTE: The minimum supported version of _cluster-operator_ for this method is 0.5.2.
+
+=== Configure _assume role_ in the EKS cluster
+
+NOTE: Replace the account, cluster name `eks-cl01`, and namespace `cluster-eks-cl01` with the values used in your environment.
+
+. Create the `AWSClusterRoleIdentity` object.
++
+[source,yaml]
+----
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSClusterRoleIdentity
+metadata:
+  name: eks-cl01-role-identity
+spec:
+  roleARN: arn:aws:iam::123456789012:role/stratio-assume-role
+  sessionName: eks-cl01-role-identity-session
+  durationSeconds: 3600
+  sourceIdentityRef:
+    kind: AWSClusterControllerIdentity
+    name: default
+  allowedNamespaces:
+    list:
+    - cluster-eks-cl01
+----
+
+. Associate the `AWSClusterRoleIdentity` with the `AWSManagedControlPlane`.
++
+[source,bash]
+----
+kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
+  -n cluster-eks-cl01 \
+  --type='merge' \
+  -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
+----
+
+. Restart the `capa-controller-manager` deployment to apply the changes:
++
+[source,bash]
+----
+kubectl rollout restart deployment capa-controller-manager -n capa-system
+----
+
+. Configure `aws-auth` with the `iam_role`.
++
+[source,yaml]
+----
+kubectl patch configmap aws-auth -n kube-system --type merge -p '
+data:
+  mapRoles: |
+    - groups:
+      - system:bootstrappers
+      - system:nodes
+      rolearn: arn:aws:iam::123456789012:role/nodes.cluster-api-provider-aws.sigs.k8s.io
+      username: system:node:{{EC2PrivateDNSName}}
+    - groups:
+      - capa-manager
+      rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
+      username: stratio-assume-role
+'
+----
+
+. Create the `ClusterRoleBinding` for the `capa-manager` group.
++
+[source,yaml]
+----
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: capa-manager-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: capa-manager-role
+subjects:
+- kind: Group
+  name: capa-manager
+  apiGroup: rbac.authorization.k8s.io
+EOF
+----
+
+. Add permissions to the `ClusterRole` for the `capa-manager` group.
++
+[source,bash]
+----
+kubectl patch clusterrole capa-manager-role \
+  --type='json' \
+  -p='[
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":["apps"],"resources":["daemonsets"],"verbs":["get","list","watch","update"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods"],"verbs":["get","list","watch"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["nodes"],"verbs":["get","list","watch","patch"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods/eviction"],"verbs":["create"]}}
+  ]'
+----
+
+. Update the _cluster-operator_.
+.. Update the _helmrelease_ associated with _cluster-operator_ to version 0.5.2 or later.
+.. Update the corresponding _ConfigMap_ for that version.
+.. Patch the _keoscluster-settings_ secret to include the `role_arn`.
++
+[source,bash]
+-----
+kubectl -n kube-system patch secret keoscluster-settings \
+  --type=json \
+  -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
+-----
+
+. Verify the configuration and permissions:
++
+[source,bash]
+----
+# Check capi/capa logs
+kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
+kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
+
+# Check _cluster-operator_ logs
+kubectl logs -f -n capa-system deployment/keoscluster-controller-manager (o el nombre del pod)
+
+# Check status and configuration
+kubectl get awsclusterroleidentity
+kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
+kubectl get configmap aws-auth -n kube-system -o yaml
+
+# Verify role permissions
+kubectl auth can-i get nodes --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
+kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
+----
+
+=== Cluster operations using _assume role_
+
+Once _assume role_ is enabled, you can also manage the cluster from the command line by following these steps:
+
+. *Check AWS CLI version*: make sure you have the latest version installed.
++
+[source,bash]
+----
+aws --version
+----
+
+. *Export the AWS profile*:
++
+[source,bash]
+----
+export AWS_PROFILE=<profile-name>
+----
+
+. *Assume the role and save credentials*.
++
+[source,bash]
+----
+aws sts assume-role \
+  --role-arn arn:aws:iam::<accountID>:role/<role-name> \
+  --role-session-name eks-session > creds.json
+----
+
+. *Export the temporary credentials*.
++
+[source,bash]
+----
+export AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' creds.json)
+export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' creds.json)
+export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' creds.json)
+----
+
+. *Update the _kubeconfig_*.
++
+[source,bash]
+----
+aws eks update-kubeconfig --region <region> --name <cluster-name>
+----
+
 == Infrastructure operation
 
 image::controllers.png[]

@@ -19,9 +19,9 @@ To ensure the functionality of the EKS managed _control-plane_, it is necessary 
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
-* CloudFormation
+* AWS CloudFormation
 +
-WARNING: Suppose you have not created the CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
+WARNING: Suppose you have not created the AWS CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
 
 === GKE
 
@@ -227,174 +227,9 @@ The following fields are considered provisioning secrets:
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
-Para habilitar el método de autorizacón _assume role_ en AWS poestriormente a la creación del _cluster_, debemos de realizar los siguientes pasos:
+=== Using `role_arn` in the credentials descriptor
 
-==== Pre-requisitos:
-* IAM Role creado con permisos necesarios en AWS (e.g. `stratio-assume-role`).
-. Tipo de role "AWS Account"
-. Los permisos son los referenciados en los pre-requisitos de EKS.
-* Configurar la _Trust Relationship_ del rol para permitir que el usuario con el que hemos desplegado el cluster pueda asumirlo (por ejemplo: _arn:aws:iam::123456789012:user/stratio-user_).
-====
-Ejemplo de _Trust relationship_:
-[source,yaml]
-----
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "arn:aws:iam::123456789012:user/stratio-user"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-----
-====
-* Asociar una política al usuario de AWS que permita asumir el rol creado anteriormente. Esta política debe incluir la acción `sts:AssumeRole` y el ARN del rol.
-====
-Ejemplo de política:
-[source,yaml]
-----
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": "sts:AssumeRole",
-      "Resource": "arn:aws:iam::123456789012:role/stratio-assume-role"
-    }
-  ]
-}
-----
-
-Nota: La versión mínima de _cluster-operator_ necesaria para utilizar este método de autorización es la 0.5.2.
-
-====
-==== Pasos para habilitar _assume role_ en el cluster de _EKS_:
-
-NOTE: Sustituye la cuenta, el nombre del cluster `eks-cl01` y el namespace `cluster-eks-cl01` por los correspondientes a tu instalación.
-
-* Crear el objeto `AWSClusterRoleIdentity`.
-[source,bash]
------
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: AWSClusterRoleIdentity
-metadata:
-  name: eks-cl01-role-identity
-spec:
-  roleARN: arn:aws:iam::123456789012:role/stratio-assume-role
-  sessionName: eks-cl01-role-identity-session
-  durationSeconds: 3600
-  sourceIdentityRef:
-    kind: AWSClusterControllerIdentity
-    name: default
-  allowedNamespaces:
-    list:
-    - cluster-eks-cl01
------
-
-* Asociar el objeto `AWSClusterRoleIdentity` al `AWSManagedControlPlane`.
-[source,bash]
------
-kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
-  -n cluster-eks-cl01 \
-  --type='merge' \
-  -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
------
-
-* Reiniciar el _deployment_ del _capa-controller-manager_ para que los cambios surtan efecto.
-[source,bash]
------
-kubectl rollout restart deployment capa-controller-manager -n capa-system
------
-
-* Configurar el _iam_role_ en el _configmap_ de `aws-auth` con un grupo de Kubernetes que tenga los permisos necesarios.
-[source,bash]
------
-kubectl patch configmap aws-auth -n kube-system --type merge -p '
-data:
-  mapRoles: |
-    - groups:
-      - system:bootstrappers
-      - system:nodes
-      rolearn: arn:aws:iam::123456789012:role/nodes.cluster-api-provider-aws.sigs.k8s.io
-      username: system:node:{{EC2PrivateDNSName}}
-    - groups:
-      - capa-manager
-      rolearn: arn:aws:iam::123456789012:role/stratio-assume-role
-      username: stratio-assume-role
-'
------
-
-* Crear ClusterRoleBinding para el grupo `capa-manager`
-[source,bash]
------
-kubectl apply -f - <<EOF
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: capa-manager-access
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: capa-manager-role
-subjects:
-- kind: Group
-  name: capa-manager
-  apiGroup: rbac.authorization.k8s.io
-EOF
------
-
-* Otorgar los siguientes permisos adicionales al grupo `capa-manager`:
-[source,bash]
------
-kubectl patch clusterrole capa-manager-role \
-  --type='json' \
-  -p='[
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups":["apps"],"resources":["daemonsets"],"verbs":["get","list","watch","update"]}},
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods"],"verbs":["get","list","watch"]}},
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["nodes"],"verbs":["get","list","watch","patch"]}},
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups":[""],"resources":["pods/eviction"],"verbs":["create"]}}
-  ]'
------
-
-. Actualizar la versión del _cluster-operator_ a la versión 0.5.2 o superior.
-+
-- Actualizar el _helmrelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
-- Actualizar el _configmap_ asociado al _cluster-operator_ a la versión 0.5.2 o superior
-- Parchear el secreto  keoscluster-settings con el _role_arn_ del role que hemos creado
-[source,bash]
-------
-kubectl -n kube-system patch secret keoscluster-settings \
-  --type=json \
-  -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
-------
-. Verificar la configuración y los permisos:
-+
-[source,bash]
------
-# Revisar los logs de capi/capa
-kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
-kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
-
-# Revisar los logs del _cluster-operator_
-kubectl logs -f -n capa-system deployment/keoscluster-controller-manager (o el nombre del pod)
-
-# Comprobar estado y configuración
-kubectl get awsclusterroleidentity
-kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
-kubectl get configmap aws-auth -n kube-system -o yaml
-
-# Verificar permisos del rol
-kubectl auth can-i get nodes --as=stratio-assume-role --as-group=capa-manager
-kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
-kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
-kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
------
-=======
-In AWS, you can use the temporary authorization method _assume role_ by specifying the `role_arn` parameter. For example:
+You can also define `role_arn` directly in the credentials descriptor to automatically use the _assume role_:
 
 [source,yaml]
 ----
