@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.17.0-0.7.2 (upcoming)
+## 0.17.0-0.7.2 (2025-06-11)
 
+* [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment
 * [PLT-1549] Activate NodePool SecureBoot
 * [PLT-1762] [EKS] Soportar instalaciones con Assume Role
 * [PLT-2226] Set private repository by default
