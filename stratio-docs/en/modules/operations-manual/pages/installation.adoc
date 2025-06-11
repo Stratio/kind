@@ -393,6 +393,17 @@ kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
 -----
+=======
+In AWS, you can use the temporary authorization method _assume role_ by specifying the `role_arn` parameter. For example:
+
+[source,yaml]
+----
+credentials:
+  aws:
+    role_arn: arn:aws:iam::<accountID>:role/my-aws-role
+----
+
+NOTE: This parameter is optional. The _assume role_ method will only be used if `role_arn` is defined in the descriptor.
 
 === Helm repository
 
