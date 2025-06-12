@@ -3,9 +3,7 @@
 ## 0.17.0-0.8.0 (upcoming)
 
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
-<<<<<<< HEAD
 * [PLT-1922] Rename reference to aws-load-balancer-controller
-=======
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
 
 ### Major changes & deprecations
@@ -36,7 +34,7 @@
 * [PLT-1956] Improve cluster-operator backup and restore management during upgrade
 * [PLT-1958] Improve aws-node ClusterRole patch exception handling during upgrade
 * [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
->>>>>>> 781f82a0 ([PLT-2108] Configurar Assume role (STS) de forma manual (#785))
+* [PLT-2108] Configurar Assume role (STS) de forma manual (#785))
 * [PLT-1887] Dynamic region describe
 
 ## Previous development
