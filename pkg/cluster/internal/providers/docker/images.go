@@ -69,7 +69,7 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			// the release artifact contains the prerelease version (with hash) instead of the final release version.
 			// To ensure we always reference the release image when pulling from the registry, we remove the prerelease hash.
 			// If you want to test a prerelease image with a hash, use the --build-stratio-image or --use-local-stratio-image flags.
-            friendlyImageName = removePrereleaseHash(friendlyImageName)
+			friendlyImageName = removePrereleaseHash(friendlyImageName)
 			status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
 			if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
 				status.End(false)
