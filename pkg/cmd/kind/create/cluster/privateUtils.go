@@ -129,9 +129,10 @@ func getECRCredentials(clusterCredentials commons.ClusterCredentials, keosRegUrl
 		"Region":    clusterCredentials.ProviderCredentials["Region"],
 	}
 
-	if clusterCredentials.ProviderCredentials["RoleARN"] != "false" {
+	if clusterCredentials.ProviderCredentials["RoleARN"] != "" {
 		credentials["RoleARN"] = clusterCredentials.ProviderCredentials["RoleARN"]
 	}
+
 	cfg, err := commons.AWSGetConfig(ctx, credentials)
 	if err != nil {
 		return "", "", err

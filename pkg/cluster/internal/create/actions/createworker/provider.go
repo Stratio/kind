@@ -1348,7 +1348,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterC
 	}
 
 	// [EKS] If we are using assume role, update capa-manager-bootstrap-credentials secret
-	if p.capxProvider == "aws" && providerParams.Credentials["RoleARN"] != "false" {
+	if p.capxProvider == "aws" && providerParams.Credentials["RoleARN"] != "" {
 		// Update secret capa-manager-bootstrap-credentials with new credentials
 		providerSecrets := providerParams.Credentials
 		var cfg aws.Config

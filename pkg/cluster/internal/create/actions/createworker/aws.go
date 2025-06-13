@@ -75,7 +75,7 @@ func (b *AWSBuilder) setCapx(managed bool, capx commons.CAPX) {
 func (b *AWSBuilder) setCapxEnvVars(p ProviderParams) {
 	awsCredentials := "[default]\naws_access_key_id = " + p.Credentials["AccessKey"] + "\naws_secret_access_key = " + p.Credentials["SecretKey"] + "\nregion = " + p.Region + "\n"
 	// Add ROLE_ARN to awsCredentials if present and not "false"
-	if p.Credentials["RoleARN"] != "" && p.Credentials["RoleARN"] != "false" {
+	if p.Credentials["RoleARN"] != "" {
 		awsCredentials += "role_arn = " + p.Credentials["RoleARN"] + "\n"
 	}
 	b.capxEnvVars = []string{
