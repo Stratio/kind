@@ -67,9 +67,12 @@ func validateCredentials(params ValidateParams) (commons.ClusterCredentials, err
 
 func validateProviderCredentials(secrets interface{}, params ValidateParams) (map[string]string, error) {
 	infraProvider := params.KeosCluster.Spec.InfraProvider
+
 	credentialsProvider, err := reflections.GetField(secrets, strings.ToUpper(infraProvider))
+
 	if err != nil || reflect.DeepEqual(credentialsProvider, reflect.Zero(reflect.TypeOf(credentialsProvider)).Interface()) {
 		credentialsProvider, err = reflections.GetField(params.KeosCluster.Spec.Credentials, strings.ToUpper(infraProvider))
+
 		if err != nil || reflect.DeepEqual(credentialsProvider, reflect.Zero(reflect.TypeOf(credentialsProvider)).Interface()) {
 			return nil, errors.New("there is not " + infraProvider + " credentials in descriptor or secrets file")
 		}
@@ -77,32 +80,26 @@ func validateProviderCredentials(secrets interface{}, params ValidateParams) (ma
 		credentialsProvider, _ = reflections.GetField(credentialsProvider, "Credentials")
 	}
 
-	// Ensure RoleARN is set to "false" if not provided in the secrets file or descriptor
-	if params.KeosCluster.Spec.Credentials.AWS.RoleARN == "false" {
-		if roleARN, _ := reflections.GetField(credentialsProvider, "RoleARN"); roleARN == nil || roleARN == "" {
-			// Ensure credentialsProvider is passed as a pointer
-			credentialsProviderValue := reflect.ValueOf(credentialsProvider)
-			if credentialsProviderValue.Kind() != reflect.Ptr {
-				credentialsProviderPtr := reflect.New(reflect.TypeOf(credentialsProvider))
-				credentialsProviderPtr.Elem().Set(credentialsProviderValue)
-				credentialsProvider = credentialsProviderPtr.Interface()
-			}
-			if err := reflections.SetField(credentialsProvider, "RoleARN", "false"); err != nil {
-				return nil, errors.Wrap(err, "failed to set RoleARN to false")
-			}
-		}
-	}
-
 	// Ensure credentialsProvider is dereferenced if it's a pointer
 	if reflect.ValueOf(credentialsProvider).Kind() == reflect.Ptr {
 		credentialsProvider = reflect.ValueOf(credentialsProvider).Elem().Interface()
 	}
+
 	err = validateStruct(credentialsProvider)
 	if err != nil {
-		return nil, err
+		// Check if the error is specifically about RoleARN not being set
+		if strings.Contains(err.Error(), "RoleARN in not set") ||
+			strings.Contains(err.Error(), "RoleARN is not set") {
+			// Silently continue execution without logging any warning
+		} else {
+			return nil, err
+		}
 	}
+
 	resultCredsMap := structs.Map(credentialsProvider)
+
 	resultCreds := convertToMapStringString(resultCredsMap)
+
 	return resultCreds, nil
 }
 

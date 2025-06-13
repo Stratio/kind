@@ -357,7 +357,7 @@ type AWSCredentials struct {
 	SecretKey string `yaml:"secret_key"`
 	Region    string `yaml:"region"`
 	AccountID string `yaml:"account_id"`
-	RoleARN   string `yaml:"role_arn"`
+	RoleARN   string `yaml:"role_arn", omitempty`
 }
 
 type AzureCredentials struct {
@@ -534,7 +534,8 @@ func (s KeosSpec) Init() KeosSpec {
 	// GKE
 	s.ControlPlane.Gcp.ReleaseChannel = "extended"
 	// Enable secure boot by default
-	if s.Security.EnableSecureBoot == nil {
+	// Only enable secure boot by default for GCP
+	if s.InfraProvider == "gcp" && s.Security.EnableSecureBoot == nil {
 		s.Security.EnableSecureBoot = ToPtr(true)
 	}
 	if s.ControlPlane.Gcp.ClusterNetwork == nil {
