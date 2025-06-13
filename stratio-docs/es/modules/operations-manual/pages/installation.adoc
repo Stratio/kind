@@ -481,6 +481,7 @@ spec:
       access_key: AKIAT4..
       account_id: '3683675..'
       secret_key: wq3/Vsc..
+      role_arn: arn:aws:iam::3683675..:role/my-aws-role
     github_token: github_pat_11APW..
   k8s_version: v1.26.7
   region: eu-west-1
