@@ -332,7 +332,7 @@ func AWSGetConfig(ctx context.Context, secrets map[string]string) (aws.Config, e
 		return aws.Config{}, err
 	}
 	// Use assume role if RoleARN is provided for first checks as DescribeRegions, ...
-	if roleARN, ok := secrets["RoleARN"]; ok && roleARN != "false" {
+	if roleARN, ok := secrets["RoleARN"]; ok && roleARN != "" {
 		stsSvc := sts.NewFromConfig(cfg)
 		// Using STS to assume the specified IAM role
 		assumeRoleOutput, err := stsSvc.AssumeRole(ctx, &sts.AssumeRoleInput{

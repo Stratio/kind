@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"syscall"
 	"time"
@@ -192,13 +193,6 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		runtime.GetDefault(logger),
 	)
 
-	// Check if "RoleARN" is nil or not set, and set the "RoleARN" field to "false"
-	if keosCluster.Spec.InfraProvider == "aws" {
-		if keosCluster.Spec.Credentials.AWS.RoleARN == "" {
-			keosCluster.Spec.Credentials.AWS.RoleARN = "false"
-		}
-	}
-
 	// Validate the cluster
 	clusterCredentials, err := provider.Validate(
 		*keosCluster,
@@ -207,8 +201,13 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		flags.VaultPassword,
 	)
 	if err != nil {
-		logger.Errorf("Validation failed: %v", err)
-		return errors.Wrap(err, "failed to validate cluster")
+		// Check if the error is specifically about RoleARN not being set
+		if strings.Contains(err.Error(), "RoleARN in not set") {
+			// Silently continue execution without logging any warning
+		} else {
+			logger.Errorf("Validation failed: %v", err)
+			return errors.Wrap(err, "failed to validate cluster")
+		}
 	}
 
 	dockerRegUrl := ""

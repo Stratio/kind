@@ -20,6 +20,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/base64"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func (b *AWSBuilder) setCapx(managed bool, capx commons.CAPX) {
 func (b *AWSBuilder) setCapxEnvVars(p ProviderParams) {
 	awsCredentials := "[default]\naws_access_key_id = " + p.Credentials["AccessKey"] + "\naws_secret_access_key = " + p.Credentials["SecretKey"] + "\nregion = " + p.Region + "\n"
 	// Add ROLE_ARN to awsCredentials if present and not "false"
-	if p.Credentials["RoleARN"] != "" && p.Credentials["RoleARN"] != "false" {
+	if p.Credentials["RoleARN"] != "" {
 		awsCredentials += "role_arn = " + p.Credentials["RoleARN"] + "\n"
 	}
 	b.capxEnvVars = []string{
@@ -383,6 +384,14 @@ func (b *AWSBuilder) internalNginx(p ProviderParams, networks commons.Networks) 
 }
 
 func (b *AWSBuilder) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
+	if len(p.Credentials) == 0 {
+		fmt.Println("Credentials map is empty")
+	} else {
+		fmt.Println("Credentials map contains:")
+		for k, v := range p.Credentials {
+			fmt.Printf("  %s: %s\n", k, v)
+		}
+	}
 	var registryUser = "AWS"
 	var registryPass string
 	var ctx = context.Background()

@@ -237,7 +237,7 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 
 func validateAWSCredentials(spec commons.KeosSpec) error {
 	var isAWSRoleARN = regexp.MustCompile(`^arn:aws:iam::\d{12}:role/[\w+=,.@-]+$`).MatchString
-	if spec.Credentials.AWS.RoleARN != "" && spec.Credentials.AWS.RoleARN != "false" && !isAWSRoleARN(spec.Credentials.AWS.RoleARN) {
+	if spec.Credentials.AWS.RoleARN != "" && !isAWSRoleARN(spec.Credentials.AWS.RoleARN) {
 		return errors.New("spec.credentials.aws.roleARN: Invalid value: must have the format arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME")
 	}
 	return nil
