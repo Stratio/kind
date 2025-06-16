@@ -205,6 +205,7 @@ kubectl patch clusterrole capa-manager-role \
 . Update the _cluster-operator_.
 .. Update the _helmrelease_ associated with _cluster-operator_ to version 0.5.2 or later.
 .. Update the corresponding _ConfigMap_ for that version.
+... Modify `tag` on `00-cluster-operator-helm-chart-default-values` with the desired version, e.g. `0.5.2`.
 .. Patch the _keoscluster-settings_ secret to include the `role_arn`.
 +
 [source,bash]
