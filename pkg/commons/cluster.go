@@ -353,11 +353,11 @@ type Credentials struct {
 }
 
 type AWSCredentials struct {
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
-	Region    string `yaml:"region"`
-	AccountID string `yaml:"account_id"`
-	RoleARN   string `yaml:"role_arn", omitempty`
+	AccessKey string  `yaml:"access_key"`
+	SecretKey string  `yaml:"secret_key"`
+	Region    string  `yaml:"region"`
+	AccountID string  `yaml:"account_id"`
+	RoleARN   *string `yaml:"role_arn,omitempty"`
 }
 
 type AzureCredentials struct {

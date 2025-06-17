@@ -84,9 +84,16 @@ func EnsureSecretsFile(spec KeosSpec, vaultPassword string, clusterCredentials C
 			secretMap["github_token"] = github_token
 		}
 		if len(credentials) > 0 {
+			// Remove empty RoleARN if it exists
+			if val, ok := credentials["RoleARN"]; ok && strings.TrimSpace(val) == "" {
+				delete(credentials, "RoleARN")
+			}
 			creds := convertStringMapToInterfaceMap(credentials)
 			creds = ConvertMapKeysToSnakeCase(creds)
-			secretMap[spec.InfraProvider] = map[string]interface{}{"credentials": creds}
+
+			secretMap[spec.InfraProvider] = map[string]interface{}{
+				"credentials": creds,
+			}
 		}
 
 		if len(dockerRegistry) > 0 {
