@@ -53,7 +53,16 @@ func validateStruct(s interface{}) (err error) {
 func convertToMapStringString(m map[string]interface{}) map[string]string {
 	var m2 = map[string]string{}
 	for k, v := range m {
-		m2[k] = v.(string)
+		switch val := v.(type) {
+		case string:
+			m2[k] = val
+		case *string:
+			if val != nil {
+				m2[k] = *val
+			}
+		default:
+			m2[k] = fmt.Sprintf("%v", v) // fallback para otros tipos
+		}
 	}
 	return m2
 }
