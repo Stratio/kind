@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.7.2 (2025-06-13)
+## 0.17.0-0.7.2 (2025-06-17)
 
 * [PLT-2335] Fix `role_arn` configuration management when it is not enabled
 * [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment
