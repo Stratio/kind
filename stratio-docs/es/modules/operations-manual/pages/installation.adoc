@@ -240,7 +240,7 @@ credentials:
 
 NOTE: Este parámetro es opcional. Solo se utilizará _assume role_ si `role_arn` está definido en el descriptor.
 
-NOTE: Los pre-requisitos son los mismos que los descritos en la sección xref:operations-manual:operations-manual.adoc#_prerrequisitos[Activar autorización por _assume role_ en AWS para un _cluster_ EKS] del manual de operaciones.
+NOTE: Los prerrequisitos son los mismos que los que se indican en la sección xref:operations-manual:operations-manual.adoc#_prerrequisitos[Activar la autorización mediante _assume role_ en AWS para un _cluster_ EKS] del manual de operaciones.
 
 === Repositorio de Helm
 
