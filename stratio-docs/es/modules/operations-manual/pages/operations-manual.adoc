@@ -223,8 +223,8 @@ kubectl -n kube-system patch secret keoscluster-settings \
 kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
 kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
 
-# Revisar los logs del _cluster-operator_
-kubectl logs -f -n capa-system deployment/keoscluster-controller-manager (o el nombre del pod)
+# Revisar los logs del cluster-operator
+kubectl logs -f -n kube-system deployment/keoscluster-controller-manager (o el nombre del pod)
 
 # Comprobar estado y configuración
 kubectl get awsclusterroleidentity
