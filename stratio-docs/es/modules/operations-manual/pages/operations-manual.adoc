@@ -149,12 +149,10 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 ----
 
-. Configura el `aws-auth` con el `iam_role`.
+. Edita el _configmap_ `aws-auth` añadiendo el `iam_role`.
 +
 [source,yaml]
 ----
-kubectl patch configmap aws-auth -n kube-system --type merge -p '
-data:
   mapRoles: |
     - groups:
       - system:bootstrappers
@@ -165,7 +163,6 @@ data:
       - capa-manager
       rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
       username: stratio-assume-role
-'
 ----
 
 . Crea el `ClusterRoleBinding` para el grupo `capa-manager`.
