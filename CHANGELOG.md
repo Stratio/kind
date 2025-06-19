@@ -3,6 +3,7 @@
 ## 0.17.0-0.7.2 (2025-06-17)
 
 * [PLT-2335] Fix `role_arn` configuration management when it is not enabled
+* [PLT-2335] Bump cluster-operator to 0.5.2 version
 * [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment
 * [PLT-1549] Activate NodePool SecureBoot
 * [PLT-1762] [EKS] Soportar instalaciones con Assume Role

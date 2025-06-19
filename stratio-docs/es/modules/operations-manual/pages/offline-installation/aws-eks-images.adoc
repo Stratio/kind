@@ -144,14 +144,14 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en EKS, las im√
 | v1.32.0
 
 | *cluster-operator*
-| *0.5.1*
+| *0.5.2*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.5.1
+| 0.5.2
 
 |
 |
