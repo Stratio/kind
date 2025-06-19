@@ -149,12 +149,10 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 ----
 
-. Configure `aws-auth` with the `iam_role`.
+. Edit the `aws-auth` _ConfigMap_ adding the `iam_role`.
 +
 [source,yaml]
 ----
-kubectl patch configmap aws-auth -n kube-system --type merge -p '
-data:
   mapRoles: |
     - groups:
       - system:bootstrappers
@@ -165,7 +163,6 @@ data:
       - capa-manager
       rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
       username: stratio-assume-role
-'
 ----
 
 . Create the `ClusterRoleBinding` for the `capa-manager` group.
@@ -220,11 +217,11 @@ kubectl -n kube-system patch secret keoscluster-settings \
 [source,bash]
 ----
 # Check capi/capa logs
-kubectl logs -f -n capa-system deployment/capa-controller-manager (o el nombre del pod)
-kubectl logs -f -n capi-system deployment/capi-controller-manager (o el nombre del pod)
+kubectl logs -f -n capa-system deployment/capa-controller-manager (or the name of the pod)
+kubectl logs -f -n capi-system deployment/capi-controller-manager (or the name of the pod)
 
-# Check _cluster-operator_ logs
-kubectl logs -f -n capa-system deployment/keoscluster-controller-manager (o el nombre del pod)
+# Check cluster-operator logs
+kubectl logs -f -n kube-system deployment/keoscluster-controller-manager (or the name of the pod)
 
 # Check status and configuration
 kubectl get awsclusterroleidentity
