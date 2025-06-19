@@ -10,7 +10,7 @@
 #   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 import argparse
 import os
@@ -31,7 +31,7 @@ from io import StringIO
 from urllib.parse import urlparse
 
 CLOUD_PROVISIONER = "0.17.0-0.6"
-CLUSTER_OPERATOR = "0.5.0-5b15b8c"
+CLUSTER_OPERATOR = "0.5.2"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.4.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.6"
 
@@ -59,7 +59,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.5.0-5b15b8c",
+        "version": "0.5.2",
         "namespace": "kube-system",
         "repo": ""
     },
@@ -358,7 +358,7 @@ def upgrade_k8s_version_desired_version(minor, tries):
 def get_kubernetes_version():
     '''Get the Kubernetes version'''
     
-    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | sort | uniq"
+    command = kubectl + " get nodes -ojsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{\"\\n\"}{end}' | awk -F. '{print $1\".\"$2}' | sort | uniq"
     output = execute_command(command, False, False)
 
     return output.strip()
