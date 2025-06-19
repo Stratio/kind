@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.7.2 (2025-06-17)
+## 0.17.0-0.7.2 (2025-06-19)
 
 * [PLT-2335] Fix `role_arn` configuration management when it is not enabled
 * [PLT-2335] Bump cluster-operator to 0.5.2 version
