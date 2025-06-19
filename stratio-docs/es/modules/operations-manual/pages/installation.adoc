@@ -240,6 +240,8 @@ credentials:
 
 NOTE: Este parámetro es opcional. Solo se utilizará _assume role_ si `role_arn` está definido en el descriptor.
 
+NOTE: Los prerrequisitos son los mismos que los que se indican en la sección xref:operations-manual:operations-manual.adoc#_prerrequisitos[Activar la autorización mediante _assume role_ en AWS para un _cluster_ EKS] del manual de operaciones.
+
 === Repositorio de Helm
 
 Como prerrequisito de instalación, se debe indicar el repositorio Helm del que se pueda extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si se trata de un repositorio autenticado.
