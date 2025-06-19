@@ -149,7 +149,7 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 ----
 
-. Edit the `aws-auth` _configmap_ adding the `iam_role`.
+. Edit the `aws-auth` _ConfigMap_ adding the `iam_role`.
 +
 [source,yaml]
 ----
