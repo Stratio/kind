@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.3 (upcoming)
+
+* [PLT-2389] Fix `cloud-provisioner` image reference during cluster creation
+
 ## 0.17.0-0.7.2 (2025-06-19)
 
 * [PLT-2335] Fix `role_arn` configuration management when it is not enabled
