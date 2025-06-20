@@ -50,6 +50,11 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in EKS, the
 
 |
 |
+| ghcr.io/fluxcd/kustomize-controller
+| v1.4.0
+
+|
+|
 | ghcr.io/fluxcd/source-controller
 | v1.4.1
 

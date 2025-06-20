@@ -160,6 +160,11 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ en Azure no ges
 
 |
 |
+| ghcr.io/fluxcd/kustomize-controller
+| v1.4.0
+
+|
+|
 | ghcr.io/fluxcd/source-controller
 | v1.4.1
 

@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2376] Enable Flux kustomize controller by default
 * [PLT-2289] Add safe-to-evict annotations in Flux pods
 * [PLT-1922] Rename reference to aws-load-balancer-controller
 * [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida

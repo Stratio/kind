@@ -16,7 +16,10 @@ imageReflectionController:
   create: false
 
 kustomizeController:
-  create: false
+  image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/kustomize-controller
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: temp
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
 
 notificationController:
   create: false
