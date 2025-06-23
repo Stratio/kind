@@ -63,7 +63,7 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			}
 		} else {
 			if dockerRegUrl != "" {
-				friendlyImageName = strings.Join([]string{dockerRegUrl, friendlyImageName}, "/")
+				friendlyImageName = strings.Join([]string{dockerRegUrl, friendlyImageName}, "/stratio/")
 			}
 			// NOTE: In our CICD pipeline, when releasing a prerelease version, the compiled binary is simply retagged and
 			// the release artifact contains the prerelease version (with hash) instead of the final release version.
