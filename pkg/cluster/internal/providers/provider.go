@@ -35,7 +35,7 @@ type CAPX_Options struct {
 type Provider interface {
 	// Provision should create and start the nodes, just short of
 	// actually starting up Kubernetes, based on the given cluster config
-	Provision(status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool, buildStratioImage bool) error
+	Provision(status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool, LocalStratioImageVersion string, buildStratioImage bool) error
 	// ListClusters discovers the clusters that currently have resources
 	// under this providers
 	ListClusters() ([]string, error)

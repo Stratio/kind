@@ -42,20 +42,21 @@ import (
 )
 
 type flagpole struct {
-	Name                 string
-	Config               string
-	ImageName            string
-	Retain               bool
-	Wait                 time.Duration
-	Kubeconfig           string
-	VaultPassword        string
-	DescriptorPath       string
-	MoveManagement       bool
-	AvoidCreation        bool
-	ForceDelete          bool
-	ValidateOnly         bool
-	UseLocalStratioImage bool
-	BuildStratioImage    bool
+	Name                     string
+	Config                   string
+	ImageName                string
+	Retain                   bool
+	Wait                     time.Duration
+	Kubeconfig               string
+	VaultPassword            string
+	DescriptorPath           string
+	MoveManagement           bool
+	AvoidCreation            bool
+	ForceDelete              bool
+	ValidateOnly             bool
+	UseLocalStratioImage     bool
+	LocalStratioImageVersion string
+	BuildStratioImage        bool
 }
 
 const clusterDefaultPath = "./cluster.yaml"
@@ -155,6 +156,12 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		false,
 		"by setting this flag the Stratio cloud-provisioner image will not be build or pulled and the local one will be used",
 	)
+	cmd.Flags().StringVar(
+		&flags.LocalStratioImageVersion,
+		"local-stratio-image-version",
+		"",
+		"by setting this flag the Stratio cloud-provisioner image local version can be overridden when use-local-stratio-image flag is used",
+	)	
 	cmd.Flags().BoolVar(
 		&flags.BuildStratioImage,
 		"build-stratio-image",
@@ -243,6 +250,7 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		flags.MoveManagement,
 		flags.AvoidCreation,
 		flags.UseLocalStratioImage,
+		flags.LocalStratioImageVersion,
 		flags.BuildStratioImage,
 		dockerRegUrl,
 		clusterConfig,

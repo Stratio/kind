@@ -59,16 +59,17 @@ type ClusterOptions struct {
 	NameOverride string // overrides config.Name
 
 	// Stratio
-	VaultPassword        string
-	DescriptorPath       string
-	MoveManagement       bool
-	AvoidCreation        bool
-	UseLocalStratioImage bool
-	BuildStratioImage    bool
-	KeosCluster          commons.KeosCluster
-	ClusterConfig        *commons.ClusterConfig
-	ClusterCredentials   commons.ClusterCredentials
-	DockerRegUrl         string
+	VaultPassword            string
+	DescriptorPath           string
+	MoveManagement           bool
+	AvoidCreation            bool
+	UseLocalStratioImage     bool
+	LocalStratioImageVersion string
+	BuildStratioImage        bool
+	KeosCluster              commons.KeosCluster
+	ClusterConfig            *commons.ClusterConfig
+	ClusterCredentials       commons.ClusterCredentials
+	DockerRegUrl             string
 
 	// Force local container delete before creating the cluster if it already exists
 	ForceDelete bool
@@ -125,7 +126,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	Capx_opts = getCAPXVersion(opts.ClusterConfig.Spec.Capx)
 
 	// Create node containers implementing defined config Nodes
-	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage, opts.BuildStratioImage); err != nil {
+	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage, opts.LocalStratioImageVersion, opts.BuildStratioImage); err != nil {
 		// In case of errors nodes are deleted (except if retain is explicitly set)
 		if !opts.Retain {
 			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)

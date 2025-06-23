@@ -779,6 +779,7 @@ Currently, this binary includes the following options:
 - `--keep-mgmt`: creates the cluster worker but leaves its management in the cluster local (only for *non-productive* environments).
 - `--retain`: keeps the cluster local even without management.
 - `--use-local-stratio-image`: does not build or download the Stratio _cloud-provisioner_ image; instead, it uses the local image.
+- `--local-stratio-image-version`: overrides the Stratio _cloud-provisioner_ image version when _use-local-stratio-image_ is used.
 - `--build-stratio-image`: builds the Stratio _cloud-provisioner_ image and uses the built image (only for development purposes).
 
 To create a cluster, a simple command is enough (see the particularities of each provider in their quick start guides):

@@ -39,12 +39,15 @@ var stratioDockerfile []byte
 
 // ensureNodeImages ensures that the node images used by the create
 // configuration are present
-func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool, buildStratioImage bool) error {
+func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster, dockerRegUrl string, useLocalStratioImage bool, localStratioImageVersion string, buildStratioImage bool) error {
 	// pull each required image
 	for _, image := range common.RequiredNodeImages(cfg).List() {
 		// prints user friendly message
 		friendlyImageName, _ := sanitizeImage(image)
 		if useLocalStratioImage {
+			if localStratioImageVersion != "" {
+				friendlyImageName = changeImageVersion(friendlyImageName, localStratioImageVersion)
+			}
 			status.Start(fmt.Sprintf("Using local Stratio image (%s) 🖼", friendlyImageName))
 		} else if buildStratioImage {
 			// build the stratio image
@@ -171,6 +174,12 @@ func sanitizeImage(image string) (string, string) {
 	return image, image
 }
 
+// changeImageVersion replaces the version tag of a sanitized image string with the provided version.
+// Assumes the image string always contains a tag (e.g., repo/name:tag).
+func changeImageVersion(image, version string) string {
+	lastColon := strings.LastIndex(image, ":")
+	return image[:lastColon+1] + version
+}
 
 // removePrereleaseHash removes a final dash+hash (e.g., -8214d23) from the image tag,
 // leaving e.g. cloud-provisioner:0.17.0-0.7.0-8214d23 -> cloud-provisioner:0.17.0-0.7.0

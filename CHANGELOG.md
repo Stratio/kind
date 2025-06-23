@@ -3,6 +3,7 @@
 ## 0.17.0-0.7.3 (upcoming)
 
 * [PLT-2389] Fix `cloud-provisioner` image reference during cluster creation
+* [PLT-2398] Add `--local-stratio-image-version` flag to override image version when `--use-local-stratio-image` flag is used
 
 ## 0.17.0-0.7.2 (2025-06-19)
 
