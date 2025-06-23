@@ -105,7 +105,6 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
 
 # Copy the upgrade scripts and files
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
-COPY ${UPGRADE_DIR}/files /upgrade/files
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
