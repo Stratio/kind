@@ -779,7 +779,7 @@ Actualmente, este binario incluye las siguientes opciones:
 - `--keep-mgmt`: crea el _cluster_ _worker_ pero deja su gestión en el _cluster_ local (sólo para entornos *no productivos*).
 - `--retain`: permite mantener el _cluster_ local aún sin gestión.
 - `--use-local-stratio-image`: no se construye ni se descarga la imagen de Statio _cloud-provisioner_ y usa la imagen local.
-- `--local-stratio-image-version`: sobreescribe la version de la imagen de Statio _cloud-provisioner_ cuando se utiliza _--use-local-stratio-image_.
+- `--local-stratio-image-version`: permite indicar la versión de la imagen de _Stratio Cloud Provisioner_ que se quiere usar al activar la opción `--use-local-stratio-image`.
 - `--build-stratio-image`: se construye la imagen de Stratio _cloud-provisioner_ y usa la imagen construida (sólo para fines de desarrollo).
 
 Para crear un _cluster_, basta con un simple comando (consulta las particularidades de cada proveedor en sus guías de inicio rápido):
