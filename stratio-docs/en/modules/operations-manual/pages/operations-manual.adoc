@@ -2,7 +2,7 @@
 
 == Obtaining the _kubeconfig_
 
-To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which will be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
+To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which can be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
 
 * For EKS, it will be obtained as indicated by AWS:
 +
@@ -18,7 +18,7 @@ aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig 
 gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
 ----
 
-This command will generate the file containing the _kubeconfig_ in the location specified by the `KUBECONFIG` environment variable. By default, it will be `$HOME/.kube/config`.
+This command generates a file containing the _kubeconfig_ in the location specified by the `KUBECONFIG` environment variable. By default, it will be `$HOME/.kube/config`.
 
 * For unmanaged Azure, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
 
@@ -41,9 +41,9 @@ example-azure-control-plane-fgkcc Ready control-plane 63m v1.26.8
 
 == Authentication in EKS
 
-While not part of the _Stratio KEOS_ operation, it is important to highlight how to enable https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users in an EKS cluster] (the cluster creator user is authenticated by default).
+While not part of the _Stratio KEOS_ operation, it is essential to highlight how to enable https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users in an EKS cluster] (the cluster creator user is authenticated by default).
 
-To give Kubernetes-admin permissions on the cluster, the user's ARN will be added in the _ConfigMap_ given below.
+To grant Kubernetes-admin permissions on the cluster, the user's ARN will be added to the _ConfigMap_ given below.
 
 [source,bash]
 ----
@@ -237,11 +237,11 @@ kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-ma
 
 [NOTE]
 ====
-Si se actualiza el usuario que realiza el _assume role_, será necesario actualizar los siguientes secretos con las nuevas credenciales y, si aplica, con el nuevo rol ARN:
+If the user performing the _assume role_ operation is updated, the following secrets must also be updated with the new credentials and, if applicable, the new role ARN:
 
-* _capa-manager-bootstrap-credentials_ (para Capa).
-* _keoscluster-settings_ (para el _cluster-operator_).
- ====
+* _capa-manager-bootstrap-credentials_ (for Capa).
+* _keoscluster-settings_ (for the _cluster-operator_).
+====
 
 === Cluster operations using _assume role_
 
@@ -290,7 +290,7 @@ aws eks update-kubeconfig --region <region> --name <cluster-name>
 
 image::controllers.png[]
 
-_Stratio KEOS_ allows multiple advanced operations to be performed by interacting with the _Stratio Cluster Operator_ (infrastructure as code or IaC), which in its reconciliation cycle in turn interacts with the different providers to perform the requested operations.
+_Stratio KEOS_ enables multiple advanced operations to be performed by interacting with the _Stratio Cluster Operator_ (Infrastructure as Code, or IaC), which, in its reconciliation cycle, interacts with various providers to execute the requested operations.
 
 === Self-healing
 
@@ -319,11 +319,11 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control-plane_ and another for the _worker_ nodes, while managed ones (EKS, GKE) will only have the second one.
+NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control plane_ and another for the _worker_ nodes, whereas managed ones (EKS, GKE) will only have the latter.
 
 ==== Failover test on a node
 
-In case of failure in a node, it will be detected by a controller and it will be replaced by deleting it and recreating another one of the same group, which ensures the same characteristics.
+In the event of a node failure, it will be detected by the controller, and the node will be replaced by deleting it and recreating another one of the same group, ensuring the same characteristics.
 
 To simulate a VM failure, it will be deleted from the cloud provider's web console.
 
@@ -340,7 +340,7 @@ The recovery of the node comprises the following phases and estimated times (whi
 
 === Static scaling
 
-Although manual scaling of an existing node group is discouraged, these operations are provided for cases without autoscaling or new node groups.
+Although manual scaling of an existing node group is discouraged, these operations are provided for cases where autoscaling is not available or for new node groups.
 
 ==== Scaling a _workers_ group
 
@@ -372,7 +372,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Create a new workers group
 
-To create a new group of nodes just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
+To create a new group of nodes, just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
 
 [source,yaml]
 ----
@@ -419,9 +419,9 @@ spec:
 
 image::autoescalado.png[]
 
-For node autoscaling, _cluster-autoscaler_ is used, which will detect pods pending execution due to lack of resources and will scale groups of nodes according to the deployment filters.
+For node autoscaling, _cluster-autoscaler_ is used, which detects pods pending execution due to a lack of resources and scales groups of nodes according to the deployment filters.
 
-This operation is performed in the API Server, being the controllers in charge of creating the VMs in the cloud provider and adding them to the cluster as Kubernetes _worker_ nodes.
+This operation is performed in the API Server, with the controllers responsible for creating the VMs in the cloud provider and adding them to the cluster as Kubernetes _worker_ nodes.
 
 Since the autoscaling is based on the _cluster-autoscaler_, the minimum and maximum will be added in the node group in the _KeosCluster_ object:
 
@@ -463,7 +463,7 @@ kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-auto
 
 === Kubernetes upgrade
 
-The upgrade of the cluster to a higher version of Kubernetes will be performed in two parts within the same atomic process: first the _control-plane_ and, once this is on the new version, the _worker_ nodes, iterating through each group and upgrading them one by one.
+The upgrade of the cluster to a higher version of Kubernetes will be performed in two parts within the same atomic process: first, the _control-plane_, and once this is on the new version, the worker nodes, iterating through each group and upgrading them one by one.
 
 CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image has not been specified may involve an OS upgrade.
 
@@ -477,10 +477,10 @@ A misconfigured Pod Disruption Budget (PDB) can block the removal of a pod. This
 
 To avoid this issue:
 
-. Ensure that deployments have more than one replica if the PDB requires at least one available.
+. Please ensure that deployments have more than one replica if the PDB requires at least one replica to be available.
 . Before updating the cluster, review this configuration to prevent blockages.
 . If the resource has only one replica, you can temporarily remove the PDB to allow the update.
-. Before upgrading the cluster, check the PDBs to avoid potential blocking issues.
+. Before upgrading the cluster, please verify the PDBs to avoid potential blocking issues.
 . If a resource has only one replica, you can temporarily delete the PDB to allow the upgrade.
 
 In EKS, for example, it is recommended to check if the `coredns` PDB exists in the `kube-system` namespace and delete it before upgrading the cluster:
@@ -494,7 +494,7 @@ kubectl -n kube-system delete poddisruptionbudget coredns
 
 ==== Prerequisites
 
-The version upgrade of a cluster in productive environments and especially in unmanaged flavours must be done with extreme caution. In particular, before upgrading it is recommended to do a backup of the objects that manage the infrastructure with the following command:
+The version upgrade of a cluster in productive environments, and especially in unmanaged flavours, must be done with extreme caution. In particular, before upgrading, it is recommended to do a backup of the objects that manage the infrastructure with the following command:
 
 [source,bash]
 ----
@@ -505,7 +505,7 @@ In the case of a managed _control-plane_, it should be verified that the desired
 
 ===== EKS
 
-Prior to upgrading EKS you must make sure that the desired version is supported. To do this you can use the following command:
+Before upgrading EKS, ensure that the desired version is supported. To do this, you can use the following command:
 
 [source,bash]
 ----
@@ -531,7 +531,7 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ==== Initiate the upgrade
 
-To initiate the upgrade, once the prerequisites are satisfied a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
+To initiate the upgrade, once the prerequisites are satisfied, a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
 
 [source,bash]
 ----
@@ -560,9 +560,9 @@ e member remove <member-id>
 [NOTE]
 .Preliminary considerations
 ====
-Before deleting the cloud provider resources generated by _Stratio Cloud Provisioner_ you must delete those that have been created by the _keos-installer_ or any external automatism (for example, the _Services_ of type _LoadBalancer_).
+Before deleting the cloud provider resources generated by _Stratio Cloud Provisioner_, you must delete those that the _keos-installer_ has created or any external automation (for example, the _Services_ of type _LoadBalancer_).
 
-Also, you should note that the process requires the _clusterctl_ binary on the bastion machine (any computer with access to the _API Server_) on which it will run.
+Also, note that the process requires the _clusterctl_ binary on the bastion machine (any computer with access to the API Server) on which it will run.
 ====
 
 Run the following steps to perform the cluster removal:
@@ -581,7 +581,7 @@ Run the following steps to perform the cluster removal:
 [bastion]$ kubectl --kubeconfig $KUBECONFIG -n kube-system scale deployment keoscluster-controller-manager --replicas 0
 ----
 
-. Move the cluster _worker_ management to the local cluster using the corresponding _kubeconfig_ (note that for managed _control-planes_ the _kubeconfig_ of the provider will be needed). To ensure this step, look for the following text in the command output: "Moving Cluster API objects Clusters=1".
+. Move the cluster _worker_ management to the local cluster using the corresponding _kubeconfig_ (note that for managed _control-planes_, the provider's _kubeconfig_ will be needed). To ensure this step, look for the following text in the command output: "Moving Cluster API objects Clusters=1".
 +
 [source,bash]
 ----
@@ -607,8 +607,8 @@ root@<nombre_del_cluster>-plano-de-control:/#
 
 == Offline installation
 
-To learn how to perform an installation where the workloads images of the cluster come from repositories accessible from environments without internet access, see the xref:operations-manual:offline-installation.adoc[offline installation manual].
+To learn how to perform an installation where the workload images of the cluster come from repositories accessible from environments without internet access, see the xref:operations-manual:offline-installation.adoc[offline installation manual].
 
 == Credential management
 
-To manage the credentials configured in the cluster, please look at the xref:operations-manual:credentials.adoc[credential management documentation].
+To manage the credentials configured in the cluster, refer to the xref:operations-manual:credentials.adoc[credential management documentation].
