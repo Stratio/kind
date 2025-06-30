@@ -235,7 +235,12 @@ kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-manager
 ----
 
-NOTE: En caso de actualización del usuario que hace el _assume role_, se deberá actualizar el secreto _capa-manager-bootstrap-credentials_ (para capa) y el secreto _keoscluster-settings_ (para el cluster-operator) con las nuevas credenciales y su _role_arn_ si fuera necesario.
+[NOTE]
+====
+Si se actualiza el usuario que realiza el _assume role_, será necesario actualizar los siguientes secretos con las nuevas credenciales y, si aplica, con el nuevo rol ARN:
+* _capa-manager-bootstrap-credentials_ (para Capa).
+* _keoscluster-settings_ (para el _cluster-operator_).
+====
 
 === Operaciones del _cluster_ con _assume role_
 
