@@ -238,6 +238,7 @@ kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-ma
 [NOTE]
 ====
 Si se actualiza el usuario que realiza el _assume role_, será necesario actualizar los siguientes secretos con las nuevas credenciales y, si aplica, con el nuevo rol ARN:
+
 * _capa-manager-bootstrap-credentials_ (para Capa).
 * _keoscluster-settings_ (para el _cluster-operator_).
 ====
