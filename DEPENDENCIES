@@ -26,21 +26,21 @@ core:
       cert-manager-webhook: v1.14.5
     cluster-autoscaler: v1.30.0
     cluster-operator:
-      cluster-operator: 0.4.2
+      cluster-operator: 0.4.3
       kube-rbac-proxy: v0.15.0
     flux:
       flux-cli: v2.2.2
       helm-controller: v0.37.2
       source-controller: v1.2.3
     kind:
-      kindnetd: v20221004-44d545d1
+      kindnetd: v20230330-48f316cd
       node: v1.27.0
       stratio-capi-image: v1.27.0
     pause: v3.9
   charts:
     cert-manager: v1.14.5
     cluster-autoscaler: 9.37.0
-    cluster-operator: 0.4.2
+    cluster-operator: 0.4.3
     flux: 2.12.2
     tigera-operator: v3.28.2
 aws:
@@ -100,8 +100,8 @@ gcp:
     images:
       cluster-api-gcp-controller: 1.6.1-0.3.1
     manifests:
-      metadata.yaml: 1.6.1-0.3.0
-      infrastructure-components.yaml: 1.6.1-0.3.0
+      metadata.yaml: 1.6.1-0.3.1
+      infrastructure-components.yaml: 1.6.1-0.3.1
   managed:
     images:
       coredns: v1.9.4

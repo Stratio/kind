@@ -56,12 +56,6 @@ type HelmRegistry struct {
 	Type string
 }
 
-type CMHelmRelease struct {
-	CMName      string
-	CMNamespace string
-	CMValue     string
-}
-
 const (
 	kubeconfigPath           = "/kind/worker-cluster.kubeconfig"
 	workKubeconfigPath       = ".kube/config"
@@ -337,7 +331,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"  infrastructure-azure/nmi:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/oss/azure/aad-pod-identity\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cert-manager\" >> /root/.cluster-api/clusterctl.yaml "
+			"echo \"    repository: " + keosRegistry.url + "/jetstack\" >> /root/.cluster-api/clusterctl.yaml "
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to add private image registry clusterctl config")
@@ -825,10 +819,10 @@ spec:
 			}
 
 			// Allow egress in calico-system namespace
-			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + "tigera-operator" + " apply -f " + allowCommonEgressNetPolPath
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + "calico-system" + " apply -f " + allowCommonEgressNetPolPath
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
-				return errors.Wrap(err, "failed to apply tigera-operator egress NetworkPolicy")
+				return errors.Wrap(err, "failed to apply calico-system egress NetworkPolicy")
 			}
 		}
 

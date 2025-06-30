@@ -242,6 +242,27 @@ image::upgrade-cp.png[]
 
 image::upgrade-w.png[]
 
+[CAUTION]
+====
+Un _Pod Disruption Budget_ (PDB) mal configurado puede bloquear la eliminación de un _pod_. Esto ocurre si el PDB exige al menos una réplica disponible, pero el recurso solo tiene una desplegada. En ese caso, la réplica no puede eliminarse y el nodo no se puede drenar, lo que puede afectar a las actualizaciones.
+
+Para evitar este problema:
+
+. Asegúrate de que los despliegues tengan más de una réplica si el PDB requiere al menos una disponible.
+. Antes de actualizar el _cluster_, revisa esta configuración para evitar bloqueos.
+. Si el recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para permitir la actualización.
+. Antes de actualizar el _cluster_, revisa los PDB para evitar bloqueos.
+. Si un recurso solo tiene una réplica, puedes eliminar temporalmente el PDB para poder actualizar.
+
+En EKS, por ejemplo, es recomendable comprobar si existe el PDB `coredns` en el _namespace_ `kube-system` y eliminarlo antes de actualizar el _cluster_:
+
+[source,bash]
+----
+kubectl -n kube-system get poddisruptionbudget coredns
+kubectl -n kube-system delete poddisruptionbudget coredns
+----
+====
+
 ==== Prerrequisitos
 
 La actualización de versión de un _cluster_ en entornos productivos y especialmente en _flavours_ no gestionados deberá hacerse extremando todas las precauciones. En particular, antes de actualizar se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura con el siguiente comando:

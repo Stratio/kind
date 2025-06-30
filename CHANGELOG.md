@@ -1,8 +1,31 @@
 # Changelog
 
-## 0.17.0-0.6.5 (upcoming)
+## 0.17.0-0.6.7 (upcoming)
 
-* [PLT-1922] Rename reference to aws-load-balancer-controller
+* [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
+
+## 0.17.0-0.6.6 (2025-06-05)
+
+* [PLT-2244] Disable setting CRIVolume by default
+* [PLT-2099] Fix coredns PDB specification
+* [PLT-2132] Remove cri volumes managament from upgrade
+* [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
+* [PLT-2091] Ensure flux NetworkPolicy requirements during cloud-provisioner upgrade
+* [PLT-2092] Avoid adopting non cloud-provisioner charts during cloud-provisioner upgrade
+* [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
+* [PLT-2143] Bump cluster-operator to 0.4.3 version
+* [PLT-2143] Support empty CRIVolume and ETCDVolume references in KubeadmControlPlane and AzureMachineTemplate templates
+* [PLT-2244] Disable setting CRIVolume by default
+* [PLT-1496] Ensure CAPG provisioner version references are set to 1.6.1-0.3.1
+
+## 0.17.0-0.6.5 (2025-04-25)
+
+* [PLT-1917] Support private registry during cloud-provisioner upgrades
+* [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
+* [PLT-1971] Fix upgrade when using a non oci Helm repository
+* [PLT-1957] Fix aws-load-balancer-controller upgrade
+* [PLT-1956] Improve cluster-operator backup and restore management during upgrade
+* [PLT-1958] Improve aws-node ClusterRole patch exception handling during upgrade
 
 ## 0.17.0-0.6.4 (2025-03-24)
 

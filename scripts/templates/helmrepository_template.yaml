@@ -8,3 +8,16 @@ spec:
   interval: {{ interval }}
   type: {{ schema }}
   provider: {{ provider }}
+{%- if auth_required and repository_name == "keos" %}
+  secretRef:
+    name: {{ repository_name }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ repository_name }}
+  namespace: kube-system
+stringData:
+  username: {{ username }}
+  password: {{ password }}
+{%- endif %}
