@@ -117,74 +117,119 @@ The _metadata_ of the _KeosCluster_ consists of the following fields:
 
 The _spec_ of the _KeosCluster_ is composed of the following fields:
 
-[cols="1,4,2,1"]
+[cols="1,1,4,2,1,1"]
 |===
-^|Name ^|Description ^|Example ^|Optional
-
-|_infra++_++provider_
-|Name of the cloud provider (AWS, GCP or Azure).
-|aws
-|No
-
-|<<credentials, _credentials_>>
-|Set of cloud provider credentials used in provisioning.
-|See the <<descriptor_example, descriptor example>>.
-|Not in the first run.
-
-|_k8s++_++version_
-|Kubernetes version of the cluster. It must be aligned with both the cloud provider and _Stratio KEOS_. Note: EKS does not take the patch version into account.
-|v1.26.8
-|No
-
-|_docker++_++registries_
-|Docker registries accessible by the nodes.
-|-
-|No
-
-|_helm++_++repository_
-|Helm repository for the installation of Stratio charts.
-|-
-|No
-
-|_region_
-|Cloud provider region used for provisioning.
-|eu-west-1
-|No
-
-|_external++_++domain_
-|Domain external to the cluster.
-|domain.ext
-|No
-
-|<<keos, _keos_>>
-|Settings section for _Stratio KEOS_ installation.
-|See the <<descriptor_example, descriptor example>>.
-|No
-
-|_storageclass_
-|Configuration of the _StorageClass_ to be created by default in the cluster.
-|See the <<descriptor_example, descriptor example>>.
-|Yes
-
-|<<networks, _networks_>>
-|Identifiers of the previously created infrastructure.
-|See the <<descriptor_example, descriptor example>>.
-|Yes
+^|Nombre ^|Tipo ^|Descripción ^|Ejemplo ^|Opcional ^|Valor por defecto
 
 |<<control_plane, _control++_++plane_>>
-|Specifications for the Kubernetes _control-plane_.
-|See the <<descriptor_example, descriptor example>>.
+|Objeto
+|Especificaciones para el _control-plane_ de Kubernetes.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
+|-
+
+|<<credentials, _credentials_>>
+|Objeto
+|Set de credenciales del proveedor _cloud_ usadas en el aprovisionamiento.
+|Ver el <<ejemplo_de_descriptor,ejemplo de descriptor>>
+|No en 1ª ejecución.
+|-
+
+|<<deploy_autoscaler, _deploy++_++autoscaler_>>
+|Boolean
+|Indica si se debe desplegar el _cluster-autoscaler_ en el _cluster_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Sí.
+|_true_.
+
+|<<dns, _dns_>>
+|Objeto
+|Configuración external DNS para _keos_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Sí.
+|_manage_zone_ por defecto es _true_.
+
+|_docker++_++registries_
+|Array
+|_Registries_ de Docker accesibles por los nodos.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|No
+|-
+
+|_external++_++domain_
+|String
+|Dominio externo al _cluster_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|No
+|-
+
+|_helm++_++repository_
+|Objeto
+|Repositorio de Helm para la instalación de los _charts_ de Stratio.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|No
+|-
+
+|_infra++_++provider_
+|String
+|Nombre del proveedor _cloud_ (AWS, GCP o Azure).
+|aws
+|No
+|-
+
+|_k8s++_++version_
+|String
+|Versión de Kubernetes del _cluster_. Debe estar alineada tanto con el proveedor _cloud_ como con _Stratio KEOS_. Nota: EKS no tiene en cuenta la versión _patch_.
+|v1.26.8
+|No
+|-
+
+|<<keos, _keos_>>
+|Objeto
+|Sección de configuraciones para la instalación de _Stratio KEOS_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|No
+|-
+
+|<<networks, _networks_>>
+|Objeto
+|Identificadores de la infraestructura creada previamente.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Sí
+|-
+
+|_region_
+|String
+|Región del proveedor _cloud_ usada para el aprovisionamiento.
+|eu-west-1
+|No
+|-
+
+|<<security, _security_>>
+|Objeto
+|Centraliza la configuración de identidades y controles de acceso para los recursos del clúster, adaptándose a los distintos proveedores cloud.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Azure (No) AWS (Sí) GCP (Sí)
+|-
+
+|_storageclass_
+|Objeto
+|Configuración de la _StorageClass_ que se creará por defecto en el _cluster_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Sí
+|-
 
 |<<worker_nodes, _worker++_++nodes_>>
-|Specifications of worker-node groups.
-|See the <<descriptor_example, descriptor example>>.
+|Array
+|Especificaciones de los grupos de nodos _worker_.
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
+|-
 |===
 
 === Credentials
 
-On the first execution, the credentials for provisioning in the cloud provider will be indicated in this section.
+On the first execution, the credentials for provisioning in the cloud provider will be indicated in this section _creadentials_.
 
 These secrets are encrypted with a passphrase requested during provisioning and stored in the _secrets.yml_ file, removing the entire credentials section from the descriptor. In subsequent executions, the passphrase is simply requested to decrypt the secrets file, from which the credentials are read.
 
@@ -197,17 +242,17 @@ The following fields are considered provisioning secrets:
 |_aws_
 |Credentials for AWS access.
 |See the <<descriptor_example, descriptor example>>.
-|Not when _infra++_++provider=aws_.
+|No
 
 |_azure_
 |Credentials for Azure access.
 |See the <<descriptor_example, descriptor example>>.
-|Not when _infra++_++provider=azure_.
+|Not
 
 |_gke_
 |Credentials for GKE access.
 |See the <<descriptor_example, descriptor example>>.
-|Not when _infra++_++provider=gcp_.
+|No
 
 |_github++_++token_
 |GitHub token. You can use a _fine-grained_ or a _classic_ type token, and you don't need any permissions. To generate it, go to: 'Settings' → 'Developer settings' → 'Personal access tokens'.
@@ -223,6 +268,54 @@ The following fields are considered provisioning secrets:
 |Helm repository for the installation of Stratio charts.
 |See the <<descriptor_example, descriptor example>>.
 |Yes, for unauthenticated repositories.
+|===
+
+=== Credenciales para registros y repositorios
+
+Las credenciales para acceder a los registros Docker y repositorios Helm se deben proporcionar en caso de que éstos requieran autenticación.
+
+==== Credenciales para registros Docker
+
+[cols="1,4,2,1"]
+|===
+^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
+
+|_url_
+|URL del registro Docker que requiere autenticación.
+|registry.example.com/org/repo
+|No
+
+|_user_
+|Nombre de usuario para autenticarse en el registro Docker.
+|usuario
+|No
+
+|_pass_
+|Contraseña para autenticarse en el registro Docker.
+|contraseña
+|No
+|===
+
+==== Credenciales para repositorios Helm
+
+[cols="1,4,2,1"]
+|===
+^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
+
+|_url_
+|URL del repositorio Helm que requiere autenticación.
+|https://charts.example.com
+|No
+
+|_user_
+|Nombre de usuario para autenticarse en el repositorio Helm.
+|usuario
+|No
+
+|_pass_
+|Contraseña para autenticarse en el repositorio Helm.
+|contraseña
+|No
 |===
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
@@ -768,12 +861,18 @@ _Stratio Cloud Provisioner_ is a tool that facilitates the provisioning of the n
 
 Currently, this binary includes the following options:
 
-- `--descriptor`: indicates the path to the cluster descriptor.
-- `--vault-password`: specifies the passphrase for credentials encryption.
-- `--avoid-creation`: does not create the cluster worker, only the cluster local.
-- `--keep-mgmt`: creates the cluster worker but leaves its management in the cluster local (only for *non-productive* environments).
-- `--retain`: keeps the cluster local even without management.
-- `--use-local-stratio-image`: do not build the _stratio-capi-image_ and use the local image.
+- `--avoid-creation`: No se crea el _cluster_ _worker_, sólo el _cluster_ local.
+- `--build-stratio-image`: La imagen de _Stratio cloud-provisioner_ no se descargará sino que se construirá y utilizará. Esta opción está destinada solo para fines de desarrollo.
+- `--delete-previous`: Al establecer esta opción, el contenedor del _cluster_ local será eliminado.
+- `-d, --descriptor <string>`: Permite indicar el nombre del descriptor ubicado en el directorio actual u otro directorio. Por defecto: cluster.yaml.
+- `-h, --help`: Muestra la ayuda para este comando.
+- `--keep-mgmt`: Mantiene la gestión del _cluster_ en kind (sólo para entornos *no productivos*).
+- `--local-stratio-image-version <string>`: Permite sobrescribir la versión local de la imagen de _Stratio cloud-provisioner_ cuando se utiliza la opción use-local-stratio-image.
+- `-n, --name <string>`: Nombre del _cluster_, sobrescribe KIND_CLUSTER_NAME, config (por defecto: kind).
+- `--retain`: Mantiene los nodos para depuración cuando falla la creación del _cluster_.
+- `--use-local-stratio-image`: La imagen de _Stratio cloud-provisioner_ no se construirá ni descargará, y se utilizará la local.
+- `--validate-only`: Solo valida el descriptor y no crea el _cluster_.
+- `-p, --vault-password <string>`: Establece la contraseña de vault para cifrar los secretos.
 
 To create a cluster, a simple command is enough (see the particularities of each provider in their quick start guides):
 
