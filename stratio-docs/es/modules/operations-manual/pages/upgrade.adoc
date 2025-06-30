@@ -19,11 +19,7 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 
 === Permisos
 
-Revisar siempre la documentación para verificar que no se necesitan nuevos permisos en el _cluster_.
-+
-** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
-** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
-+
+Revisar siempre la documentación para verificar que no se necesitan nuevos permisos en el _cluster_ xref:operations-manual:installation.adoc[Prerequisitos].
 
 == Ejecución del _script_
 
