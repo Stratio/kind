@@ -131,7 +131,10 @@ En caso contrario, estos se crearán automáticamente durante el proceso:
 * Rol: `nodes.cluster-api-provider-aws.sigs.k8s.io`
 * Política: `nodes.cluster-api-provider-aws.sigs.k8s.io` y asociarla al rol `nodes.cluster-api-provider-aws.sigs.k8s.io`
 * Rol: `<cluster-name>-iam-service-role (controlplane)`
-* Política: `AmazonEKSClusterPolicy` y asociarla al rol `<cluster-name>-iam-service-role`
+* Política: `AmazonEKSClusterPolicy` (ya creada por Amazon) y asociarla al rol `<cluster-name>-iam-service-role`
++
+** xref:attachment$nodes-cluster-api-provider-aws-sigs-k8s-io.json[Descargar política de nodos EKS]
+** xref:attachment$nodes-trust-relationship.json[Descargar política de relación confianza de nodos EKS]
 ====
 
 === GKE (_cluster_ privado)

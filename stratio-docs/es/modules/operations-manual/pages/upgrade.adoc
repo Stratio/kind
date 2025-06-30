@@ -17,6 +17,14 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 * Archivo `secrets.yml` usado durante la creación del _cluster_.
 * Herramienta Docker, necesaria para ejecutar el contenedor.
 
+=== Permisos
+
+Revisar siempre la documentación para verificar que no se necesitan nuevos permisos en el _cluster_.
++
+** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
+** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
++
+
 == Ejecución del _script_
 
 === Construcción del contenedor
@@ -82,8 +90,6 @@ Opciones principales:
 | False
 | No
 |===
-
-====
 
 == Estructura necesaria
 
