@@ -15,7 +15,9 @@ For EKS deployment, you must manually create the AWSServiceRoleForAmazonEKS role
 
 * Certified operating systems
 +
-To ensure the functionality of the EKS managed _control-plane_, it is necessary to use the images provided by Stratio. These can be found in the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
+Para garantizar las funcionalidades de los _worker_ con el _control-plane_ gestionado de EKS, es necesario utilizar imágenes de sistema operativo adecuadamente configuradas. Se recomienda construir estas imágenes utilizando el https://github.com/kubernetes-sigs/image-builder[Image Builder de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes optimizadas para diferentes proveedores cloud. Para más información sobre cómo construir imágenes personalizadas, consulte la https://image-builder.sigs.k8s.io/[documentación oficial de Image Builder].
+
+NOTE: En su defecto, las imágenes públicas proporcionadas por AWS con el formato "amazon-eks-node-<k8s-version>-v<fecha>" son compatibles con EKS y cumplen con los requisitos necesarios para el despliegue de _Stratio KEOS_.
 +
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
@@ -69,7 +71,7 @@ For resource group-level permissions, the following are recommended:
 +
 * Certified operating systems
 +
-In Azure environments, you must use the images provided by Stratio. Refer to the xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section.
+Para garantizar las funcionalidades del _control-plane_ y los _worker_ en entornos no gestionados de Azure, es necesario utilizar imágenes de sistema operativo adecuadamente configuradas. Se recomienda construir estas imágenes utilizando el https://github.com/kubernetes-sigs/image-builder[Image Builder de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes optimizadas para diferentes proveedores cloud. Para más información sobre cómo construir imágenes personalizadas, consulte la https://image-builder.sigs.k8s.io/[documentación oficial de Image Builder].
 +
 The recommended operating system is Ubuntu 22.04, which is the default configuration for the Azure _controller_.
 

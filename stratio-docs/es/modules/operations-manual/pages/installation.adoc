@@ -15,7 +15,9 @@ Para el despliegue de EKS, se deberá crear de forma manual el rol "AWSServiceRo
 
 * Sistemas operativos certificados
 +
-Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
+Para garantizar las funcionalidades de los _worker_ con el _control-plane_ gestionado de EKS, es necesario utilizar imágenes de sistema operativo adecuadamente configuradas. Se recomienda construir estas imágenes utilizando el https://github.com/kubernetes-sigs/image-builder[Image Builder de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes optimizadas para diferentes proveedores cloud. Para más información sobre cómo construir imágenes personalizadas, consulte la https://image-builder.sigs.k8s.io/[documentación oficial de Image Builder].
+
+NOTE: En su defecto, las imágenes públicas proporcionadas por AWS con el formato "amazon-eks-node-<k8s-version>-v<fecha>" son compatibles con EKS y cumplen con los requisitos necesarios para el despliegue de _Stratio KEOS_.
 +
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
@@ -69,7 +71,7 @@ Para el caso de permisos a nivel de grupo de recursos, se recomienda:
 +
 * Sistemas operativos certificados
 +
-En entornos de Azure, se deben utilizar las imágenes proporcionadas por Stratio. Consulta la sección de xref:stratio-generative-ai-data-fabric:ROOT:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__].
+Para garantizar las funcionalidades del _control-plane_ y los _worker_ en entornos no gestionados de Azure, es necesario utilizar imágenes de sistema operativo adecuadamente configuradas. Se recomienda construir estas imágenes utilizando el https://github.com/kubernetes-sigs/image-builder[Image Builder de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes optimizadas para diferentes proveedores cloud. Para más información sobre cómo construir imágenes personalizadas, consulte la https://image-builder.sigs.k8s.io/[documentación oficial de Image Builder].
 +
 El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por defecto en el _controller_ de Azure.
 
