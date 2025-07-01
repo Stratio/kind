@@ -8,23 +8,19 @@ image::eks-reference-architecture.png[]
 
 image::arq-intro.png[]
 
-The _Stratio Cloud Provisioner_ is the initial phase for the creation of a _Stratio KEOS_ cluster in a cloud provider. This comprises the provisioning of the infrastructure (virtual machines, private network, load balancers, etc., in the cloud), the creation of a Kubernetes cluster, and its networking and storage.
+_Stratio Cloud Provisioner_ es la fase inicial para la creación de un _cluster_ de _Stratio KEOS_ en un proveedor _cloud_. Esta fase comprende el aprovisionamiento de la infraestructura (máquinas virtuales, redes privadas, balanceadores de carga, etc.), la creación de un _cluster_ de Kubernetes, su _networking_ y almacenamiento, todo ello en el proveedor seleccionado.
 
-To carry out the creation of the cluster, _Stratio Cloud Provisioner_ will create a Kubernetes _KeosCluster_ resource and the controller in charge of its lifecycle, _Stratio Cluster Operator_. This _KeosCluster_ will be in charge of generating the necessary resources for the creation and operation of the cluster.
+Durante esta fase, se genera un recurso de Kubernetes denominado _KeosCluster_, el cual define las características del _cluster_ y actúa como punto único de gestión de su ciclo de vida. A partir del descriptor de _cluster_ proporcionado, también se generan dos archivos: un descriptor (`keos.yaml`) y otro cifrado con las credenciales (`secrets.yml`) los cuales serán utilizados en la siguiente fase de instalación de _Stratio KEOS_.
 
-At the end of the creation of the cluster in this phase and according to an indicated cluster descriptor, a descriptor file (_keos.yaml_) and another encrypted credentials file (_secrets.yml_) will be created for the next phase, _Stratio KEOS_ installation.
-
-Once the installation is complete, all day 2 operations on the cloud infrastructure itself on which the various services are running must be performed by editing _KeosCluster_ to manage the cluster resources. These edits will be validated and applied by the _Stratio Cluster Operator_.
+Una vez completada la instalación, todas las operaciones de mantenimiento y gestión de la infraestructura _cloud_ (día 2) deberán realizarse exclusivamente mediante la edición del recurso _KeosCluster_, garantizando así una administración controlada por el _Stratio Cluster Operator_.
 
 == _KeosCluster_ object
 
-During the installation phase, after deploying the _Stratio Cluster Operator_ Helm chart and taking the cluster descriptor as a starting point, a _KeosCluster_ resource will be created by default, which will centralize the creation of the cluster and all the objects of the different cloud providers and the operations on these.
+Tras desplegar el _chart_ de Helm del _Stratio Cluster Operator_ y con base en el descriptor del _cluster_, se crea automáticamente un recurso _KeosCluster_. Este recurso centraliza la creación y administración del _cluster_ y los objetos específicos del proveedor _cloud_.
 
-=== Mitigation of human error
+=== Control de concurrencia y prevención de errores
 
-By centralizing all operations on the cluster and the various cloud resources, once an operation triggered by an edit of the _KeosCluster_ object is started the _Stratio Cluster Operator_ driver will deny any further requests until the previous operation has been completed.
-
-For this purpose, the _KeosCluster_ subresource is defined being a status that will report the type of operation it is doing in case it is.
+Para evitar conflictos y mitigar errores humanos, el _Stratio Cluster Operator_ deniega nuevas solicitudes si ya existe una operación en curso sobre el objeto _KeosCluster_. Esta situación se refleja mediante su subrecurso `status`, que informa del tipo de operación activa.
 
 == _ClusterConfig_ object
 
@@ -48,27 +44,75 @@ NOTE: In the case of choosing the default chart, it will not be necessary to ind
 
 == Cloud provider objects
 
-In a *default deployment*, the following objects are created in each cloud provider (in [silver]#gray# optional objects that will depend on what is specified in the cluster descriptor):
+En un *despliegue por defecto* se crean los siguientes objetos en cada proveedor _cloud_ (los objetos generados dependerán de lo especificado en el descriptor del _cluster_):
 
 === EKS
 
-* 1 Elastic Kubernetes Service (EKS) cluster with add-ons for EBS and CNI, logging (if specified) and an OIDC provider.
-** 2 EKS Security Groups for the _control-plane_ and the _Worker_ nodes.
-** 1 IAM role with AmazonEKSClusterPolicy policy.
-* [silver]#1 VPC.#
-* [silver]#6 subnets with their respective routing tables.#
-** [silver]#3 public subnets (one per AZ).#
-** [silver]#3 private subnets (also one per AZ).#
-* [silver]#1 NAT gateway for each public subnet.#
-* [silver]#1 Internet gateway for the VPC.#
-* [silver]#1 default route in the routing table of each public subnet to exit to the Internet through the NAT gateways.#
-* [silver]#1 default route in the routing table of each public subnet to exit to the Internet through the Internet Gateway.#
-* 1 IAM policy for the cluster nodes (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* 1 IAM role for cluster nodes (_nodes.cluster-api-provider-aws.sigs.k8s.io_).
-* VMs for _workers_ (according to cluster descriptor and auto-scaling).
-** 1 EBS volume for each persistent volume.
-* 1 network type load balancer for the exposure of load balancer type _Services_.
-** 1 listener per port for each service.
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
+
+| Cluster de Elastic Kubernetes Service (EKS)
+| 1
+
+| Add-ons gestionados por EKS (EBS CSI Driver, CoreDNS, kube-proxy, VPC CNI)
+| 1 conjunto
+
+| Add-on de logging (CloudWatch)
+| 1 (si se especifica)
+
+| Proveedor OIDC
+| 1
+
+| VPC*
+| 1
+
+| Subnets públicas (una por zona de disponibilidad)
+| 3
+
+| Subnets privadas (una por zona de disponibilidad)
+| 3
+
+| Internet Gateway*
+| 1
+
+| NAT Gateways (uno por subnet pública)
+| 3
+
+| Tablas de rutas con salida a Internet Gateway
+| 3
+
+| Tablas de rutas con salida a NAT Gateway
+| 3
+
+| Security Groups (control-plane y nodos _Worker_)
+| 2
+
+| IAM Role `<cluster-name>-iam-service-role` para el _control-plane_
+| 1
+
+| Asociar IAM Policy `AmazonEKSClusterPolicy` al rol `<cluster-name>-iam-service-role`
+| 1
+
+| IAM Role para _nodos del cluster_ `nodes.cluster-api-provider-aws.sigs.k8s.io`
+| 1
+
+| IAM Policy para nodos (`nodes.cluster-api-provider-aws.sigs.k8s.io`)
+| 1
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Volúmenes EBS persistentes
+| 1 por volumen solicitado
+
+| Balanceador de carga tipo _Network_
+| 1
+
+| Listeners (uno por puerto de cada _Service_)
+| Variable
+|===
 
 [IMPORTANT]
 .Dependencias según permisos del cliente
@@ -86,41 +130,112 @@ En caso contrario, estos se crearán automáticamente durante el proceso:
 ** xref:attachment$nodes-trust-relationship.json[Descargar política de relación confianza de nodos EKS]
 ====
 
-=== GKE (private cluster)
+=== GKE (_cluster_ privado)
 
-* 1 Google Kubernetes Engine (GKE) cluster: configured as VPC-native.
-* 1 VPC.
-* 1 subnet per region.
-** Primary CIDR block for the subnet (nodes).
-** Secondary CIDR block for the sub-network (pods and services).
-* 1 peering route: connection via _VPC Network peering_.
-* 2 routes: for secondary CIDRs for pods and services.
-* 1 VPC network peering.
-* 5 VPC firewall rules: (gke-<cluster-name>-<id>-[master, vms, exkubelet, inkubelet, all]).
-* Virtual machines for _workers_: configured according to cluster descriptor and autoscaling.
-* 1 persistent volume per virtual machine.
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
 
-=== Azure unmanaged
+| Cluster de Google Kubernetes Engine (GKE) configurado con VPC-nativa
+| 1
 
-* [silver]#1 resource group.
-* 1 virtual network.
-* 1 route table for workers.
-* 1 NAT gateway for workers.
-* 2 public IP addresses (API Server and NATgw for _workers_).
-* 2 network security groups (_control-plane_ and _workers_).
-* 1 public LB.
-* 1/3 VMs for the _control-plane_ (according to the cluster descriptor).
-** 1 block disk per VM.
-** 1 network interface per VM.
-* VMs for _workers_ (according to the cluster descriptor and auto-scaling).
-** 1 block disk per VM.
-** 1 network interface per VM.
-* 1 load balancer for the exposure of load balancer type _Services_.
-** 1 public IP address for each service.
-** 1 frontend IP config for each service.
-** 1 health probe for each service.
-** 1 load balancer rule for each service.
-* 1 block disk for each persistent volume.
+| VPC
+| 1
+
+| Subred por región
+| 1
+
+| Bloque CIDR principal para subred (nodos)
+| 1
+
+| Bloque CIDR secundario para subred (pods y servicios)
+| 1 por tipo
+
+| Ruta de peering (VPC Network Peering)
+| 1
+
+| Rutas para bloques CIDR secundarios (pods y servicios)
+| 2
+
+| Red de VPC peering
+| 1
+
+| Reglas de firewall de VPC  
+(gke-<nombre-cluster>-<id>-[master, vms, exkubelet, inkubelet, all])
+| 5
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Volúmenes persistentes
+| 1 por nodo
+|===
+
+=== Azure no gestionado
+
+[cols="2,1", options="header"]
+|===
+| Recurso
+| Cantidad
+
+| Resource Group
+| 1
+
+| Red virtual (Virtual Network)
+| 1
+
+| Route table para nodos _Worker_
+| 1
+
+| NAT Gateway para nodos _Worker_
+| 1
+
+| Direcciones IP públicas (API Server y NAT Gateway)
+| 2
+
+| Grupos de seguridad de red (NSG) para _control-plane_ y _workers_
+| 2
+
+| Balanceador de carga público para API Server
+| 1
+
+| Máquinas virtuales para _control-plane_
+| 1–3 (según descriptor)
+
+| Disco de bloque por máquina virtual de _control-plane_
+| 1 por VM
+
+| Interfaz de red por máquina virtual de _control-plane_
+| 1 por VM
+
+| Máquinas virtuales para nodos _Worker_
+| Según descriptor y autoescalado
+
+| Disco de bloque por máquina virtual de _Worker_
+| 1 por VM
+
+| Interfaz de red por máquina virtual de _Worker_
+| 1 por VM
+
+| Balanceador de carga para exposición de _Services_ tipo LoadBalancer
+| 1
+
+| Dirección IP pública por _Service_ expuesto
+| 1 por Service
+
+| Configuración de IP frontal (_Frontend IP config_) por _Service_
+| 1 por Service
+
+| _Health probe_ por _Service_
+| 1 por Service
+
+| Regla de balanceador de carga por _Service_
+| 1 por Service
+
+| Disco de bloque para volúmenes persistentes
+| 1 por volumen solicitado
+|===
 
 == Networking
 
@@ -132,23 +247,23 @@ The internal networking layer of the cluster is based on Calico, with the follow
 
 [.center,cols="1,1,1,1,1,1",center]
 |===
-^|Provider/flavour ^|Policy ^|IPAM ^|CNI ^|Overlay ^|Routing
+^|Provider ^|Policy ^|IPAM ^|CNI ^|Overlay ^|Routing
 
-^|EKS
+^|*EKS*
 ^|Calico
 ^|AWS
 ^|AWS
 ^|No
 ^|VPC-native
 
-^|GKE
+^|*GKE*
 ^|Calico
 ^|Calico
 ^|Calico
 ^|No
 ^|VPC-nativa
 
-^|Azure
+^|*Azure*
 ^|Calico
 ^|Calico
 ^|Calico
@@ -177,7 +292,7 @@ spec:
 
 === Pods network
 
-In most providers/flavours it is allowed to specify a specific CIDR for pods, with certain particularities described below.
+In most providers it is allowed to specify a specific CIDR for pods, with certain particularities described below.
 
 NOTE: The CIDR for pods must not overlap with the nodes' network or any other target network that the nodes need to access.
 
@@ -196,8 +311,11 @@ spec:
 
 In this case, 3 subnets will be created (1 per zone) with an 18-bit mask (/18) of the indicated range from which the IPs for the pods will be obtained:
 
-[.center,cols="1,2",width=40%]
+[.center,cols="1,2",width=40%, options="header"]
 |===
+^|**Zone**
+^|**CIDR**
+
 ^|zone-a
 ^|100.64.0.0/18
 
@@ -207,6 +325,8 @@ In this case, 3 subnets will be created (1 per zone) with an 18-bit mask (/18) o
 ^||zone-c
 ^|100.64.128.0/18
 |===
+
+NOTE: El CIDR secundario asignado al VPC para los _pods_ debe indicarse en el parámetro `spec.networks.pods_cidr` obligatoriamente.
 
 In the case of using custom infrastructure, the 3 subnets (one per zone) for the pods must be indicated together with those of the nodes in the cluster descriptor:
 
@@ -238,12 +358,47 @@ In this provider/flavor Calico is used as the IPAM of the CNI, this allows to be
 ----
 spec:
   [source,bash] networks:
-	  pods_cidr: 172.16.0.0/20
+	  pods_cidr: 100.64.0.0/10
 ----
+
+NOTE: Nuestra recomendación es usar bloques 100.64.0.0/10, 172.16.0.0/12, o 192.168.0.0/16 para pods_cidr si no se solapan con la VNet del _cluster_.
+El rango 100.64.0.0/10 es altamente recomendado para evitar conflictos con RFC1918.
 
 ==== GKE
 
 The pods network in GKE is automatically configured with the secondary CIDR for pods and services, obtained from the VPC network configuration when the cluster is deployed.
+
+Para especificar una red de _pods_ diferente, podremos hacerlo de 2 formas excluyentes entre sí:
+
+* Pre-creando los rangos CIDR en la subnet de la red VPC y especificando el CIDR en el descriptor del _cluster_.
+
+[source,bash]
+----
+spec:
+  control_plane:
+          managed: true
+          gcp:
+              ip_allocation_policy:
+                  cluster_secondary_range_name: "gkepods-europe-west4"
+                  services_secondary_range_name: "gkeservices-europe-west4"
+----
+
+* Indicando el CIDR en el descriptor del _cluster_ y dejando que GKE lo cree automáticamente.
+
+[source,bash]
+----
+spec:
+  control_plane:
+        managed: true
+        gcp:
+            ip_allocation_policy:
+                cluster_ipv4_cidr_block: 10.180.0.0/14
+                services_ipv4_cidr_block: 10.8.32.0/20
+----
+
+NOTE: La elección de un bloque CIDR para _pods_ y servicios en GKE es opcional, ya que si no se especifica, GKE asignará automáticamente un bloque CIDR a la red de _pods_ y otro a la de servicios.
+
+NOTE: El rango de _pods_ no debe solaparse con el bloque CIDR de la red VPC o cualquier otra red a la que los nodos deban acceder.
 
 == Security
 
@@ -255,16 +410,146 @@ These credentials can be viewed with the following commands:
 
 ==== EKS
 
-For this provider, the credentials are stored in a _Secret_ inside the Namespace of the controller with the format of the file `~/.aws/credentials`:
+Para este proveedor, las credenciales se almacenan en un _Secret_ dentro del _Namespace_ del _controller_ (capa-system/capi-system/kube-system) utilizando el formato estándar de configuración de credenciales de AWS (`~/.aws/credentials`), que sigue la especificación de perfiles de AWS CLI.
+
+A continuación se muestra una tabla con los controladores utilizados y la ubicación de sus credenciales:
+
+[cols="3,2,1,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+| Flujo de autenticación
+
+| `capa-controller-manager`
+| `capa-controller-manager`
+| `capa-manager-bootstrap-credentials`
+| Sí (base64)
+| Credenciales de AWS
+| OAuth2 Client Credentials
+
+| `capa-controller-manager`
+| `capa-controller-manager`
+| `capa-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-bootstrap-controller-manager`
+| `capi-kubeadm-bootstrap-manager`
+| `capi-kubeadm-bootstrap-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-control-plane-controller-manager`
+| `capi-kubeadm-control-plane-manager`
+| `capi-kubeadm-control-plane-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-controller-manager`
+| `capi-manager`
+| `capi-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `keoscluster-settings`
+| Sí (base64)
+| ClientID + Secret (Azure)
+| OAuth2 Client Credentials
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `webhook-server-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (ValidatingAdmissionWebhook)
+
+|===
+
+Para ver el contenido de las credenciales, se puede utilizar el siguiente comando a modo de ejemplo:
 
 [source,bash]
 ----
 k -n capa-system get secret capa-manager-bootstrap-credentials -o json | jq -r '.data.credentials' | base64 -d
+
+[default]
+aws_access_key_id = XXXXXXXXXXXXXXXXXXXXXXX
+aws_secret_access_key = XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+region = eu-west-1
 ----
 
 ==== GKE
 
-The GCP controller gets the credentials from a _Secret_ within the corresponding namespace, as for EKS.
+Los _controllers_ de GKE almacenan las credenciales en un _Secret_ dentro del _Namespace_ del _controller_ (capg-system/capi-system/kube-system) utilizando el formato estándar de configuración de credenciales de GCP (`~/.gcloud/config`), que sigue la especificación de perfiles de GCP.
+
+A continuación se muestra una tabla con los controladores utilizados y la ubicación de sus credenciales:
+
+[cols="3,2,1,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+| Flujo de autenticación
+
+| `capg-controller-manager`
+| `capg-manager`
+| `capg-manager-bootstrap-credentials`
+| Sí (base64)
+| Credenciales de GCP
+| OAuth2 Client Credentials
+
+| `capg-controller-manager`
+| `capg-manager`
+| `capg-webhook-service-cert`
+| Sí (base64)
+| kubernetes.io/tls
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-bootstrap-controller-manager`
+| `capi-kubeadm-bootstrap-manager`
+| `capi-kubeadm-bootstrap-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-control-plane-controller-manager`
+| `capi-kubeadm-control-plane-manager`
+| `capi-kubeadm-control-plane-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-controller-manager`
+| `capi-manager`
+| `capi-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `keoscluster-settings`
+| Sí (base64)
+| ClientID + Secret (Azure)
+| OAuth2 Client Credentials
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `webhook-server-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (ValidatingAdmissionWebhook)
+|===
 
 [source,bash]
 ----
@@ -273,29 +558,101 @@ $ k -n capg-system get secret capg-manager-bootstrap-credentials -o json | jq -r
 
 ==== Azure
 
-For Azure, the _client++_++id_ is stored in the _AzureIdentity_ object inside the Namespace of the controller, which also has the reference to the _Secret_ where the _client++_++secret_ is stored:
+Los _controllers_ de Azure almacenan las credenciales en un _Secret_ dentro del _Namespace_ del _controller_ (capz-system/capi-system/kube-system) utilizando el formato estándar de configuración de credenciales de Azure (`~/.azure/credentials`), que sigue la especificación de perfiles de Azure.
 
-*_client++_++id_*:
+[cols="3,2,1,1,1,1", options="header"]
+|===
+| Controlador
+| ServiceAccount
+| Nombre del Secret
+| Cifrado
+| Tipo de autenticación
+| Flujo de autenticación
+
+| `capz-controller-manager`
+| `capz-manager`
+| `cluster-identity-secret`
+| Sí (base64)
+| ClientID + Secret
+| OAuth2 Client Credentials
+
+| `capz-controller-manager`
+| `capz-manager`
+| `capz-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-bootstrap-controller-manager`
+| `capi-kubeadm-bootstrap-manager`
+| `capi-kubeadm-bootstrap-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-kubeadm-control-plane-controller-manager`
+| `capi-kubeadm-control-plane-manager`
+| `capi-kubeadm-control-plane-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `capi-controller-manager`
+| `capi-manager`
+| `capi-webhook-service-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (Mutating/Validating Admission)
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `keoscluster-settings`
+| Sí (base64)
+| ClientID + Secret (Azure)
+| OAuth2 Client Credentials
+
+| `keoscluster-controller-manager`
+| `keoscluster-controller-manager`
+| `webhook-server-cert`
+| Sí (base64)
+| Certificado TLS
+| Webhook TLS (ValidatingAdmissionWebhook)
+|===
+
+Para ver el contenido de las credenciales, se puede utilizar el siguiente comando a modo de ejemplo:
 
 [source,bash]
 ----
-$ k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientID
+k -n capz-system get secret cluster-identity-secret -o json | jq -r '.data["clientSecret"]' | base64 -d
 ----
 
-*_client++_++secret_*:
+NOTE: Para actualizar las credenciales del _keoscluster-controller-manager_ o de los controladores _capa_, _capg_ o _capz_, consulta la sección correspondiente en la guía de xref:operations-manual:credentials.adoc[Renovación de credenciales].
 
-[source,bash]
-----
-CLIENT_PASS_NAME=$(k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.name)
-CLIENT_PASS_NAMESPACE=$(k -n capz-system get azureidentity -o json | jq -r .items[0].spec.clientPassword.namespace)
-$ kubectl -n ${CLIENT_PASS_NAMESPACE} get secret ${CLIENT_PASS_NAME} -o json | jq -r .data.clientSecret | base64 -d; echo
-----
-
-=== IMDS access (for EKS)
+=== IMDS access
 
 Since pods can impersonate the node where they run by simply interacting with IMDS, a global network policy (Calico's _GlobalNetworkPolicy_) is used to prevent access to all pods in the cluster that are not part of _Stratio KEOS_.
 
 In turn, the EKS OIDC provider is enabled to allow the use of IAM roles for _Service Accounts_, ensuring the use of the IAM policies with minimal privileges.
+
+Para verificar la configuración de IMDSv2, se puede utilizar el siguiente comando:
+
+[source,bash]
+----
+# Obtener los IDs de todas las instancias asociadas al cluster
+INSTANCE_IDS=$(aws ec2 describe-instances \
+  --filters "Name=tag:kubernetes.io/cluster/<cluster-name>,Values=owned" \
+  --query "Reservations[*].Instances[*].InstanceId" \
+  --output text)
+
+# Verificar la configuración de IMDSv2 para cada instancia
+for ID in $INSTANCE_IDS; do
+  echo "Verificando instancia $ID:"
+  aws ec2 describe-instances \
+    --instance-ids "$ID" \
+    --query "Reservations[*].Instances[*].MetadataOptions" \
+    --output json
+done
+----
 
 === Access to the API Server endpoint
 
@@ -305,15 +662,76 @@ During the creation of the EKS cluster, an endpoint is created for the API Serve
 
 This endpoint is published to the internet, and its access is restricted with a combination of Amazon's Identity and Access Management (IAM) rules, and Kubernetes' native Role Based Access Control (RBAC).
 
+Para comprobar la creación y el tipo de acceso del _endpoint_, se pueden utilizar los siguientes comandos:
+
+[source,bash]
+----
+# Comprobar la creaación del _endpoint_:
+aws eks describe-cluster --region <region> --name <cluster_name> --query "cluster.endpoint" --output text | cat 
+https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.gr7.eu-west-1.eks.amazonaws.com
+# Comprobar el tipo de acceso:
+aws eks describe-cluster --region <region>  --name <cluster-name> --query "cluster.resourcesVpcConfig" --output json | cat
+
+    "subnetIds": [
+        "subnet-0cd582b2fc8f4667f",
+        "subnet-036599062ce4633b4",
+        "subnet-0ed8d484e85078953",
+        "subnet-0e33205cc1afeb1ae",
+        "subnet-01299725d68bc6a10",
+        "subnet-0764ad7f79ecee088"
+    ],
+    "securityGroupIds": [
+        "sg-XXXXXXXXXXXXXXXXX"
+    ],
+    "clusterSecurityGroupId": "sg-XXXXXXXXXXXXXXXXX",
+    "vpcId": "vpc-XXXXXXXXXXXXXXXXX",
+    "endpointPublicAccess": true,   # Acceso público habilitado
+    "endpointPrivateAccess": true,  # Acceso privado habilitado
+    "publicAccessCidrs": [
+        "0.0.0.0/0"
+    ]
+}
+
+----
+
 ==== GKE
 
 In this case, the _API Server_ is exposed only privately, so it can only be accessed from the IP assigned to the cluster's private endpoint. This IP belongs to the range specified in the cluster descriptor.
+
+Para comprobar la creación y el tipo de acceso del _endpoint_, se pueden utilizar los siguientes comandos:
+[source,bash]
+----
+# Comprobar la creación del _endpoint_:
+gcloud container clusters describe <cluster_name> --region <region> --format="get(privateClusterConfig.privateEndpoint)"
+172.16.16.2
+# Comprobar el tipo de acceso:
+gcloud container clusters describe <cluster_name> --region <region> --format="get(privateClusterConfig.enablePrivateEndpoint)"
+True
+----
 
 ==== Azure unmanaged
 
 For the API Server exposure, a load balancer is created with the name `<cluster_id>-public-lb` and port 6443 accessible by the public network (the assigned public IP is the same that resolves the _Kubeconfig_ URL) and a Backend pool with the _control-plane_ nodes.
 
 The health check of the service is done over TCP, but it is recommended to change to HTTPS with the `/healthz` path.
+
+Para validar la exposición del API Server en Azure, se pueden utilizar los siguientes comandos:
+
+[source,bash]
+----
+# Comprobar la creación del _endpoint_:
+az network lb list -g <resource_group> --query "[].{Name:name, PublicIP:frontendIpConfigurations[].publicIpAddress.id}" -o table
+Name
+----------------
+azure-public-lb
+# Comprobar la ip de exposición:
+az network public-ip list -g <resource_group> \
+  --query "[?ipConfiguration.id && contains(ipConfiguration.id, '<load_balancer_name>')].{Name:name, IP:ipAddress}" \
+  -o table
+Name                  IP
+--------------------  -------------
+pip-azure-apiserver  132.164.7.182
+----
 
 == Storage
 
@@ -453,24 +871,6 @@ a|
 
 Other non-default _StorageClasses_ are created in provisioning depending on the provider, but to use them workloads will need to specify them in their deployment.
 
-=== Amazon EFS
-
-In this release, if you want to use an EFS file system you must first create and pass the following data to the cluster descriptor:
-
-[source,bash]
-----
-spec:
-  storageclass:
-      efs:
-          name: fs-015ea5e2ba5fe7fa5
-          id: fs-015ea5e2ba5fe7fa5
-          permissions: 700
-----
-
-With this data, the _keos.yaml_ will be rendered so that in the execution of the _keos-installer_ the driver is displayed and the corresponding _StorageClass_ is configured.
-
-NOTE: This functionality is intended for customized infrastructure since the EFS file system must be associated with an existing VPC in its creation.
-
 == Tags in EKS
 
 All objects created in EKS contain by default the tag with key _keos.stratio.com/owner_ and as a value the name of the cluster. It is also allowed to add custom tags to all objects created in the cloud provider as follows:
@@ -497,11 +897,11 @@ spec:
 
 == Docker registries
 
-As a prerequisite to the installation of _Stratio KEOS_, the Docker images of all its components must reside in a Docker registry which will be indicated in the cluster descriptor (`keos_registry: true`). There should be one (and only one) Docker registry for _Stratio KEOS_, the rest will be configured on the nodes to be able to use their images in any deployment.
+Como prerrequisito a la instalación de _Stratio KEOS_, las imágenes Docker de todos sus componentes deberán residir en un Docker registry que se indicará en el descriptor del _cluster_ en 'spec.docker_registries.docker_registries.url' y deberá llevar la opción (`keos_registry: true`). Deberá haber un (y sólo uno) Docker registry para _Stratio KEOS_, el resto se configurarán en los nodos para poder utilizar sus imágenes en cualquier despliegue.
 
-Currently, 3 types of Docker registries are supported: _generic_, _ecr_ and _acr_. For the _generic_ type, you must indicate if the registry is authenticated or not (_ecr_ and _acr_ types cannot have authentication), and if it is, it is mandatory to indicate the user and password in the 'spec.credentials' section.
+Actualmente, se soportan 3 tipos de Docker registries: _acr_, _ecr_, _gar_ y _generic_. Para el tipo _generic_, se deberá indicar si el _registry_ es autenticado o no (los tipos _ecr_, _acr_ y _gar_ no pueden tener autenticación), y en caso de serlo, es obligatorio indicar usuario y contraseña en la sección 'spec.credentials'.
 
-The following table shows the supported registries by provider/flavor:
+La siguiente tabla muestra los _registries_ soportados según _proveedor_:
 
 [.center,cols="2,1",width=40%]
 |===

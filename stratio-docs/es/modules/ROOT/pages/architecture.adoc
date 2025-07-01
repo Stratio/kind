@@ -720,6 +720,7 @@ Para la exposición del _API Server_, se crea un balanceador de carga con nombre
 El _health check_ del servicio se hace por TCP, pero se recomienda cambiar a HTTPS con la ruta `/healthz`.
 
 Para validar la exposición del API Server en Azure, se pueden utilizar los siguientes comandos:
+
 [source,bash]
 ----
 # Comprobar la creación del _endpoint_:
