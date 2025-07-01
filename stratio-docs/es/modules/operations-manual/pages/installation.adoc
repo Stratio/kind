@@ -352,7 +352,13 @@ gke-node-sa@my-project-id.iam.gserviceaccount.com
 
 |_gcp.scopes_
 |Lista de _scopes_ (alcances) que estarán disponibles para la cuenta de servicio de los nodos, controlando los permisos de acceso a los servicios de GCP.
-|["https://www.googleapis.com/auth/cloud-platform"]
+a|
+[source,yaml]
+----
+scopes:
+  - https://www.googleapis.com/auth/userinfo.email
+  - https://www.googleapis.com/auth/cloud-platform
+----
 |Sí
 |GCP
 |===

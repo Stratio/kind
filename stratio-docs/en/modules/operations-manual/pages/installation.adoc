@@ -322,6 +322,76 @@ Las credenciales para acceder a los registros Docker y repositorios Helm se debe
 
 NOTE: Any changes to _spec.credentials_ must be made with all credentials in the cluster descriptor and removing the _secrets.yml_ beforehand.
 
+=== Seguridad
+
+El bloque `security` centraliza la configuración de identidades y controles de acceso para los recursos del clúster, adaptándose a los distintos proveedores cloud. Permite definir identidades para el plano de control y los nodos, así como opciones específicas para AWS y GCP.
+
+[cols="1,4,2,1,1"]
+|===
+^|Nombre ^|Descripción ^|Ejemplo ^|Opcional ^|Proveedor
+
+|_control_plane_identity_
+|Identidad (rol, cuenta de servicio, etc.) utilizada por el plano de control del clúster.
+|/subscriptions/6e2a38cd-../stratio-control-plane
+|No
+|Azure
+
+|_nodes_identity_
+|Identidad (rol, cuenta de servicio, etc.) utilizada por los nodos _worker_.
+Cuenta de servicio predeterminada para los nodos en GKE.
+|/subscriptions/6e2a38cd-../stratio-nodes / 
+gke-node-sa@my-project-id.iam.gserviceaccount.com
+|No / Sí
+|Azure / GCP
+
+|_aws.create_iam_
+|Indica si se deben crear recursos IAM específicos para el clúster durante el aprovisionamiento.
+|false
+|Sí (por defecto: false)
+|AWS
+
+|_gcp.scopes_
+|Lista de _scopes_ (alcances) que estarán disponibles para la cuenta de servicio de los nodos, controlando los permisos de acceso a los servicios de GCP.
+a|
+[source,yaml]
+----
+scopes:
+  - https://www.googleapis.com/auth/userinfo.email
+  - https://www.googleapis.com/auth/cloud-platform
+----
+|Sí
+|GCP
+|===
+
+=== Repositorios Docker
+
+Se deben indicar los repositorios Docker a los que se accederá durante la instalación. Este apartado permite configurar la URL del repositorio, su tipo y si se trata de un repositorio autenticado.
+
+[cols="1,4,2,1"]
+|===
+^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
+
+| _auth++_++required_
+| Indica si el repositorio requiere autenticación.
+| _false_
+| No.
+
+| _type_
+| Tipo del repositorio Docker.
+| acr, ecr, gar, gcr, generic
+| No
+
+| _url_
+| URL del repositorio.
+| AABBCC.dkr.ecr.eu-west-1.amazonaws.com/keos
+| No
+
+| _keos++_++registry_
+| Indica si este repositorio es utilizado para las imágenes de Keos.
+| _true_
+| No. Al menos un repositorio debe ser _keos_registry_.
+|===
+
 === Helm repository
 
 As an installation prerequisite, the Helm repository from which the _Cluster Operator_ chart can be extracted must be specified. This section allows you to specify the URL of the repository, its type and whether it is an authenticated repository.
