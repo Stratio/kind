@@ -1,7 +1,22 @@
-= Introducción
+== Introducción
+:icons: image
+:iconsdir: images/icons
+:icontype: svg
 
-_Stratio KEOS_ puede desplegarse en diferentes proveedores de _cloud_. Actualmente, de forma nativa, es compatible con:
+_cloud-provisioner_ es una herramienta diseñada para facilitar el despliegue y la gestión automatizada de *clústeres de Kubernetes* en múltiples proveedores de nube. Su objetivo es simplificar la infraestructura en la nube, proporcionando una experiencia unificada y eficiente para los usuarios que necesitan operar en entornos distribuidos.
 
-* xref:ROOT:architecture.adoc#_gcp[Google Cloud Platform (GCP)] en modo gestionado.
-* Amazon Web Services (AWS) en modo gestionado con xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
-* Azure en modo xref:ROOT:architecture.adoc#_azure[no gestionado].
+Actualmente, _cloud-provisioner_ es compatible con los siguientes entornos:
+
+* icon:eks[] link:https://aws.amazon.com/es/eks/[Amazon Web Services (AWS)] en modo gestionado con Elastic Kubernetes Service (EKS).
+* icon:azure[] link:https://azure.microsoft.com/[Microsoft Azure] en modo no gestionado.
+* icon:gke[] link:https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] en modo gestionado con Google Kubernetes Engine (GKE).
+
+== ¿Por qué usar _cloud-provisioner_?
+
+* *Automatización y eficiencia:* Reduce la complejidad del despliegue de _clústeres Kubernetes_ al automatizar procesos clave.
+* *Compatibilidad multicloud:* Permite trabajar en distintos proveedores sin depender de una única plataforma.
+* *Escalabilidad y resiliencia:* Facilita la adaptación de la infraestructura a diferentes cargas de trabajo.
+* *Consistencia operativa:* Garantiza una configuración uniforme y minimiza los errores.
+
+Con _cloud-provisioner_, los clientes pueden *simplificar* la gestión de sus _clústeres de Kubernetes_, *optimizar* el uso de recursos en la nube y *mejorar* la eficiencia operativa.
+

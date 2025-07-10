@@ -32,13 +32,33 @@ This object defines the desired state of _ClusterConfig_.
 |===
 | Parameter | Description | Default value | Validation
 
-| * `eks_lb_controller`* _boolean_
-| Enables the `aws-load-balancer-controller` operator to be installed.
-| false
+| *`capx`* _CAPX_
+| Permite definir las versiones de los componentes de Cluster API (CAPI, CAPA, CAPZ, CAPG) y sus imágenes asociadas para el despliegue del clúster. Útil para personalizar versiones de los controladores de infraestructura.
+| -
 | -
 
-| * `private_registry`* _boolean_
-| Specifies the type of installation. If this field is enabled, images to be downloaded during the cluster installation process will be retrieved from the registry specified as _keos++_++registry_.
+| *`charts`* _array[Chart]_
+| Permite especificar una lista de _charts_ que se instalarán en el clúster, indicando nombre y versión de cada uno.
+| -
+| -
+
+| *`cluster_operator_image_version`* _string_
+| Allows to overwrite the version of the image that will be displayed next to the chart. By default, the version indicated in the _values.yaml_ file of the chart is installed, but with this field, you can overwrite the default version.
+| -
+| -
+
+| *`cluster_operator_version`* _string_
+| Specifies the chart version of the _cluster operator_ to be downloaded from the Helm repository specified in the _keoscluster_. By default, the latest version present in the Helm repository is downloaded.
+| -
+| -
+
+| *`controlplane_config`* _ControlplaneConfig_
+| The _control-plane_ can be configured with different settings.
+| -
+| -
+
+| * `eks_lb_controller`* _boolean_
+| Enables the `aws-load-balancer-controller` operator to be installed.
 | false
 | -
 
@@ -47,22 +67,13 @@ This object defines the desired state of _ClusterConfig_.
 | false
 | -
 
-| *`controlplane_config`* _ControlplaneConfig_
-| The _control-plane_ can be configured with different settings.
-| -
+| * `private_registry`* _boolean_
+| Specifies the type of installation. If this field is enabled, images to be downloaded during the cluster installation process will be retrieved from the registry specified as _keos++_++registry_.
+| false
 | -
 
 | *`workers_config`* _WorkersConfig_
 | The different configurations for the _workers_ nodes can be specified.
-| -
-| -
-
-| *`cluster_operator_version`* _string_
-| Specifies the chart version of the _cluster operator_ to be downloaded from the Helm repository specified in the _keoscluster_. By default, the latest version present in the Helm repository is downloaded.
-| -
-
-| *`cluster_operator_image_version`* _string_
-| Allows to overwrite the version of the image that will be displayed next to the chart. By default, the version indicated in the _values.yaml_ file of the chart is installed, but with this field, you can overwrite the default version.
 | -
 | -
 |===

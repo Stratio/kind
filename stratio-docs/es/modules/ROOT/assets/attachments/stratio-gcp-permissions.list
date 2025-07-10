@@ -1,3 +1,17 @@
+artifactregistry.dockerimages.get
+artifactregistry.dockerimages.list
+artifactregistry.locations.get
+artifactregistry.locations.list
+artifactregistry.repositories.downloadArtifacts
+artifactregistry.repositories.get
+artifactregistry.repositories.list
+artifactregistry.repositories.listEffectiveTags
+artifactregistry.repositories.listTagBindings
+artifactregistry.repositories.readViaVirtualRepository
+artifactregistry.tags.get
+artifactregistry.tags.list
+artifactregistry.versions.get
+artifactregistry.versions.list
 compute.backendServices.create
 compute.backendServices.delete
 compute.backendServices.get
