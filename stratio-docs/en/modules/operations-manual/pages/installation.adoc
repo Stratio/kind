@@ -553,6 +553,7 @@ In this example you can see the following particularities:
 * Kubernetes version 1.28.x.
 * Use of a _Docker registry_ type _gar_.
 * Use of a Helm repository type _gar_.
+* _enable++_++secure++_++boot_ (enabled by default).
 * _nodes++_++identity_ (default service account for nodes) (only configurable at cluster creation time).
 * _scopes_ (list of scopes that will be available for this service account).
 * No DNS zone control (enabled by default).
@@ -606,6 +607,7 @@ spec:
       scopes:
         - "https://www.googleapis.com/auth/cloud-platform"
         - "https://www.googleapis.com/auth/userinfo.email"
+    enable_secure_boot: true
   k8s_version: v1.28.15
   region: europe-west4
   docker_registries:
