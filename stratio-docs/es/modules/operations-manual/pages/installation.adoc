@@ -553,7 +553,7 @@ En este ejemplo se pueden ver las siguientes particularidades:
 * Kubernetes versión 1.28.x.
 * Uso de un _Docker registry_ tipo _gar_.
 * Uso de un repositorio de Helm tipo _gar_.
-* _enable++_++secure++_++boot_ (enabled by default).
+* _enable++_++secure++_++boot_ (habilitado por defecto).
 * _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
 * _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
 * Sin control de la zona DNS (habilitado por defecto).
