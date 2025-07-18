@@ -22,7 +22,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -227,7 +226,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		// Set workloadpool to GCPCredentials ProjectID only if WorkloadIdentityConfig.Enabled is true
 		// Only the project's default workload pool is supported.
 		if a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil && a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled {
-			a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = fmt.Sprintf("%s.svc.id.goog", a.clusterCredentials.ProviderCredentials["ProjectID"])
+			a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = a.clusterCredentials.ProviderCredentials["ProjectID"] + ".svc.id.goog"
 		}
 	}
 
