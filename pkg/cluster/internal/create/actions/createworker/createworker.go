@@ -22,9 +22,11 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -220,6 +222,15 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	}
 
+	// Only apply WorkloadPool setting if GKE is enabled
+	if gcpGKEEnabled {
+		// Set workloadpool to GCPCredentials ProjectID only if WorkloadIdentityConfig.Enabled is true
+		// Only the project's default workload pool is supported.
+		if a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil && a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled {
+			a.keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = fmt.Sprintf("%s.svc.id.goog", a.clusterCredentials.ProviderCredentials["ProjectID"])
+		}
+	}
+
 	chartsList := infra.getProviderCharts(&a.clusterConfig.Spec, a.keosCluster.Spec)
 
 	ctx.Status.Start("Installing CAPx 🎖️")
@@ -395,6 +406,8 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to write the allow-all-egress network policy")
 	}
+
+	time.Sleep(30 * time.Second) // Wait for the namespace to be created
 
 	ctx.Status.Start("Installing keos cluster operator 💻")
 	defer ctx.Status.End(false)
