@@ -33,7 +33,7 @@ var (
 	capi_version = "v1.7.4"
 	capa_version = "v2.5.2"
 	capz_version = "v1.12.4"
-	capg_version = "1.6.1-0.3.1"
+	capg_version = "1.6.1-0.3.2"
 )
 
 type Resource struct {
@@ -173,6 +173,19 @@ type GCPCP struct {
 	LoggingConfig                  *LoggingConfig                  `yaml:"logging_config,omitempty"`
 	ClusterIpv4Cidr                string                          `yaml:"cluster_ipv4_cidr,omitempty"`
 	IPAllocationPolicy             IPAllocationPolicy              `yaml:"ip_allocation_policy,omitempty"`
+	ClusterSecurity                *ClusterSecurity                `yaml:"cluster_security,omitempty"`
+}
+
+type ClusterSecurity struct {
+	WorkloadIdentityConfig *WorkloadIdentityConfig `yaml:"workload_identity_config,omitempty"`
+}
+
+type WorkloadIdentityConfig struct {
+	// WorkloadPool is the workload pool to attach all Kubernetes service accounts to Google Cloud services.
+	// Only relevant when enabled is true
+	// +kubebuilder:validation:Required
+	WorkloadPool string `yaml:"workload_pool,omitempty"`
+	Enabled      bool   `yaml:"enabled"`
 }
 
 type ClusterNetwork struct {
@@ -575,6 +588,15 @@ func (s KeosSpec) Init() KeosSpec {
 	s.Dns.ManageZone = true
 
 	return s
+}
+
+func (s *KeosSpec) Finalize() {
+	// Set workloadpool to GCPCredentials ProjectID only if WorkloadIdentityConfig.Enabled is true
+	if s.ControlPlane.Gcp.ClusterSecurity != nil &&
+		s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil &&
+		s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled {
+		s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = fmt.Sprintf("%s.svc.id.goog", s.Credentials.GCP.ProjectID)
+	}
 }
 
 // Read descriptor file

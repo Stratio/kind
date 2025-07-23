@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* Upcoming changelog
+* [PLT-1548] [GKE] Activar Workload Identity
 
 ## 0.17.0-0.7.3 (2025-07-15)
 
