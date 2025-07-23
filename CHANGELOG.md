@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.8.0 (upcoming)
+
+* Upcoming changelog
+
 ## 0.17.0-0.7.3 (2025-07-15)
 
 * [PLT-2562] Fix `cluster-api-gcp` image reference during cluster creation
