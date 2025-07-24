@@ -150,6 +150,14 @@ func (b *GCPBuilder) getProvider() Provider {
 	}
 }
 
+func (b *GCPBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
+	return nil
+}
+
+func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams, providerParams ProviderParams, charstList map[string]commons.ChartEntry) error {
+	return nil
+}
+
 func (b *GCPBuilder) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {
 	var registryUser = "oauth2accesstoken"
 	var ctx = context.Background()

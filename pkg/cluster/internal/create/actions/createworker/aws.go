@@ -170,6 +170,14 @@ func (b *AWSBuilder) getProvider() Provider {
 	}
 }
 
+func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
+	return nil
+}
+
+func (b *AWSBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams, providerParams ProviderParams, chartsList map[string]commons.ChartEntry) error {
+	return nil
+}
+
 func installLBController(n nodes.Node, k string, privateParams PrivateParams, p ProviderParams, chartsList map[string]commons.ChartEntry) error {
 	lbControllerName := "aws-load-balancer-controller"
 	lbControllerValuesFile := "/kind/" + lbControllerName + "-helm-values.yaml"
