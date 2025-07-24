@@ -51,38 +51,11 @@ type GCPBuilder struct {
 
 var googleCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
-		"30": {
-			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
-			},
-			"unmanaged": {
-				// "default" repository defaults to the descriptor Helm repository
-				"gcp-cloud-controller-manager": {Repository: "default", Version: "1.30.0", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
-		"31": {
-			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
-			},
-			"unmanaged": {
-				// "default" repository defaults to the descriptor Helm repository
-				"gcp-cloud-controller-manager": {Repository: "default", Version: "1.30.0", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
 		"32": {
 			"managed": {
 				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
 			},
-			"unmanaged": {
-				// "default" repository defaults to the descriptor Helm repository
-				"gcp-cloud-controller-manager": {Repository: "default", Version: "1.30.0", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
+			"unmanaged": {},
 		},				
 	},
 }
@@ -175,73 +148,6 @@ func (b *GCPBuilder) getProvider() Provider {
 		scProvisioner:    b.scProvisioner,
 		csiNamespace:     b.csiNamespace,
 	}
-}
-
-func (b *GCPBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
-	var podsCidrBlock string
-	keosCluster := privateParams.KeosCluster
-	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
-		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
-	} else {
-		podsCidrBlock = "192.168.0.0/16"
-	}
-
-	cloudControllerManagerValuesFile := "/kind/gcp-cloud-controller-manager-helm-values.yaml"
-	cloudControllerManagerHelmParams := cloudControllerHelmParams{
-		ClusterName: privateParams.KeosCluster.Metadata.Name,
-		Private:     privateParams.Private,
-		KeosRegUrl:  privateParams.KeosRegUrl,
-		PodsCidr:    podsCidrBlock,
-	}
-
-	// Generate the CCM helm values
-	cloudControllerManagerHelmValues, err := getManifest(b.capxProvider, "gcp-cloud-controller-manager-helm-values.tmpl", majorVersion, cloudControllerManagerHelmParams)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
-	}
-	c := "echo '" + cloudControllerManagerHelmValues + "' > " + cloudControllerManagerValuesFile
-	_, err = commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
-	}
-
-	c = "helm install gcp-cloud-controller-manager /stratio/helm/gcp-cloud-controller-manager" +
-		" --kubeconfig " + k +
-		" --namespace kube-system" +
-		" --values " + cloudControllerManagerValuesFile
-	_, err = commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to deploy gcp-cloud-controller-manager Helm Chart")
-	}
-
-	return nil
-}
-
-func (b *GCPBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams, providerParams ProviderParams, charstList map[string]commons.ChartEntry) error {
-	var c string
-	var err error
-	var cmd exec.Cmd
-
-	// Create CSI secret in CSI namespace
-	secret, _ := b64.StdEncoding.DecodeString(strings.Split(b.capxEnvVars[0], "GCP_B64ENCODED_CREDENTIALS=")[1])
-	c = "kubectl --kubeconfig " + k + " -n " + b.csiNamespace + " create secret generic cloud-sa --from-literal=cloud-sa.json='" + string(secret) + "'"
-	_, err = commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to create CSI secret in CSI namespace")
-	}
-
-	csiManifests, err := getManifest(privateParams.KeosCluster.Spec.InfraProvider, "gcp-compute-persistent-disk-csi-driver.tmpl", majorVersion, privateParams)
-	if err != nil {
-		return errors.Wrap(err, "failed to get CSI driver manifests")
-	}
-
-	// Deploy CSI driver
-	cmd = n.Command("kubectl", "--kubeconfig", k, "apply", "-f", "-")
-	if err = cmd.SetStdin(strings.NewReader(csiManifests)).Run(); err != nil {
-		return errors.Wrap(err, "failed to deploy CSI driver")
-	}
-
-	return nil
 }
 
 func (b *GCPBuilder) getRegistryCredentials(p ProviderParams, u string) (string, string, error) {

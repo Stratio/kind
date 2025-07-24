@@ -1,1 +1,0 @@
-gcr.io/k8s-staging-cloud-provider-gcp/cloud-controller-manager:release-1.30

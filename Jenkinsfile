@@ -26,22 +26,6 @@ hose {
                     conf: config,
                     dockerfile: "pkg/cluster/internal/providers/docker/stratio/Dockerfile",
                     image:"cloud-provisioner"
-                ],
-                [
-                    conf: config,
-                    dockerfile: "pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile",
-                    image:"cloud-provisioner-upgrade",
-                    skipOnPR: false,
-                    buildargs: [
-                        "CLUSTERCTL=v1.7.4",
-                        "PYTHON_VERSION=3.12",
-                        "KUBECTL_VERSION=1.30.1",
-                        "HELM_VERSION=3.15.2",
-                        "CAPA=v2.5.2",
-                        "CAPG=1.6.1-0.3.1",
-                        "CAPZ=v1.12.4",
-                        "UPGRADE_DIR=CTS/resources/scripts",
-                    ]
                 ]
             ]
         )

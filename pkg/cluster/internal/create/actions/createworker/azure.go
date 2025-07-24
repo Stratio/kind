@@ -56,26 +56,6 @@ type AzureBuilder struct {
 
 var azureCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
-		"30": {
-			"managed": {},
-			"unmanaged": {
-				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.30.1", Pull: false, Reconcile: false},
-				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "v1.30.2", Pull: false, Reconcile: false},
-				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "1.30.4", Pull: true, Reconcile: true},
-				"cluster-autoscaler":   {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":      {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
-		"31": {
-			"managed": {},
-			"unmanaged": {
-				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
-				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "1.31.2", Pull: false, Reconcile: false},
-				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "1.31.1", Pull: true, Reconcile: true},
-				"cluster-autoscaler":   {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":      {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
 		"32": {
 			"managed": {},
 			"unmanaged": {
