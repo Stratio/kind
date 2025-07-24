@@ -115,44 +115,13 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 
 var awsCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
-		"30": {
-			"managed": {
-				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.8.1", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-			"unmanaged": {
-				"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.31.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.37.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
-		"31": {
-			"managed": {
-				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.11.0", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-			"unmanaged": {
-				"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.39.3", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
-		},
 		"32": {
 			"managed": {
 				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.11.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 			},
-			"unmanaged": {
-				"aws-cloud-controller-manager": {Repository: "https://kubernetes.github.io/cloud-provider-aws", Version: "0.0.8", Namespace: "kube-system", Pull: true, Reconcile: true},
-				"aws-ebs-csi-driver":           {Repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver", Version: "2.39.3", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
-			},
+			"unmanaged": {},
 		},
 	},
 }
@@ -202,73 +171,10 @@ func (b *AWSBuilder) getProvider() Provider {
 }
 
 func (b *AWSBuilder) installCloudProvider(n nodes.Node, k string, privateParams PrivateParams) error {
-	var podsCidrBlock string
-	keosCluster := privateParams.KeosCluster
-	if keosCluster.Spec.Networks.PodsCidrBlock != "" {
-		podsCidrBlock = keosCluster.Spec.Networks.PodsCidrBlock
-	} else {
-		podsCidrBlock = "192.168.0.0/16"
-	}
-
-	cloudControllerManagerValuesFile := "/kind/aws-cloud-controller-manager-helm-values.yaml"
-	cloudControllerManagerHelmParams := cloudControllerHelmParams{
-		ClusterName: privateParams.KeosCluster.Metadata.Name,
-		Private:     privateParams.Private,
-		KeosRegUrl:  privateParams.KeosRegUrl,
-		PodsCidr:    podsCidrBlock,
-	}
-
-	// Generate the CCM helm values
-	cloudControllerManagerHelmValues, err := getManifest(b.capxProvider, "aws-cloud-controller-manager-helm-values.tmpl", majorVersion, cloudControllerManagerHelmParams)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
-	}
-	c := "echo '" + cloudControllerManagerHelmValues + "' > " + cloudControllerManagerValuesFile
-	_, err = commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
-	}
-
-	c = "helm install aws-cloud-controller-manager /stratio/helm/aws-cloud-controller-manager" +
-		" --kubeconfig " + k +
-		" --namespace kube-system" +
-		" --values " + cloudControllerManagerValuesFile
-	_, err = commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to deploy aws-cloud-controller-manager Helm Chart")
-	}
-
 	return nil
 }
 
 func (b *AWSBuilder) installCSI(n nodes.Node, k string, privateParams PrivateParams, providerParams ProviderParams, chartsList map[string]commons.ChartEntry) error {
-	csiName := "aws-ebs-csi-driver"
-	csiValuesFile := "/kind/" + csiName + "-helm-values.yaml"
-	csiEntry := chartsList[csiName]
-	csiHelmReleaseParams := fluxHelmReleaseParams{
-		HelmReleaseName: csiName,
-		ChartRepoRef:    "keos",
-		ChartName:       csiName,
-		ChartNamespace:  csiEntry.Namespace,
-		ChartVersion:    csiEntry.Version,
-	}
-	if !privateParams.HelmPrivate {
-		csiHelmReleaseParams.ChartRepoRef = csiName
-	}
-	// Generate the csiName-csi helm values
-	csiHelmValues, getManifestErr := getManifest(privateParams.KeosCluster.Spec.InfraProvider, csiName+"-helm-values.tmpl", majorVersion, privateParams)
-	if getManifestErr != nil {
-		return errors.Wrap(getManifestErr, "failed to generate "+csiName+"-csi helm values")
-	}
-
-	c := "echo '" + csiHelmValues + "' > " + csiValuesFile
-	_, err := commons.ExecuteCommand(n, c, 5, 3)
-	if err != nil {
-		return errors.Wrap(err, "failed to create "+csiName+" Helm chart values file")
-	}
-	if err := configureHelmRelease(n, kubeconfigPath, "flux2_helmrelease.tmpl", csiHelmReleaseParams, privateParams.KeosCluster.Spec.HelmRepository); err != nil {
-		return err
-	}
 	return nil
 }
 
