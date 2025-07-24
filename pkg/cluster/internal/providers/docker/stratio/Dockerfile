@@ -15,8 +15,9 @@ ARG CAPA=v2.5.2
 ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
 
-# Install and update dependencies
+# Patch base system + install dependencies
 RUN apt-get update \
+    && apt-get dist-upgrade -y \
     && apt-get install -y curl \
                           git \
                           libc-bin \
