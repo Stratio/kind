@@ -1,6 +1,8 @@
 module sigs.k8s.io/kind
 
-go 1.20
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
@@ -22,8 +24,9 @@ require (
 	github.com/sosedoff/ansible-vault-go v0.1.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.19.0 // indirect
-	golang.org/x/term v0.17.0
+	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/term v0.33.0
 	google.golang.org/api v0.149.0
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.4.0
@@ -33,13 +36,14 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5 v5.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v3 v3.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi v1.2.0
-	github.com/aws/aws-sdk-go-v2 v1.19.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.105.1
+	github.com/aws/aws-sdk-go-v2 v1.36.6
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.235.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/oauth2 v0.14.0
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.4 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.1.9 // indirect
 	github.com/containers/storage v1.51.0 // indirect
@@ -51,7 +55,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -79,18 +83,18 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions v1.2.0
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.0 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.35 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.37 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.31 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.29 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.18 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.18.6 // indirect
-	github.com/aws/smithy-go v1.13.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.18.6
+	github.com/aws/smithy-go v1.22.4 // indirect
 	github.com/containers/common v0.57.4
 	github.com/containers/image/v5 v5.29.2
 	github.com/go-playground/locales v0.14.0 // indirect
-	github.com/go-playground/universal-translator v0.18.0 // indirect; indirect=
+	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.4.0 // indirect
@@ -102,9 +106,8 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/grpc v1.61.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
