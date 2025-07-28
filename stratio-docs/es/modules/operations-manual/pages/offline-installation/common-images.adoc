@@ -1,27 +1,186 @@
 = Imágenes comunes
 
-== Imágenes del _cluster-operator_
+Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los clústers, las imágenes necesarias son:
 
 |===
-| Imagen | Versión
+| _Chart_ | Versión | Imagen pública | Versión
 
+| *flux*
+| *2.14.1*
+|
+|
+
+|
+|
+| ghcr.io/fluxcd/flux-cli
+| v2.4.0
+
+|
+|
+| ghcr.io/fluxcd/helm-controller
+| v1.1.0
+
+|
+|
+| ghcr.io/fluxcd/kustomize-controller
+| v1.4.0
+
+|
+|
+| ghcr.io/fluxcd/source-controller
+| v1.4.1
+
+| *tigera-operator*
+| *3.29.1*
+|
+|
+
+|
+|
+| docker.io/calico/kube-controllers
+| 3.29.1
+
+|
+|
+| docker.io/calico/typha
+| 3.29.1
+
+|
+|
+| docker.io/calico/node
+| 3.29.1
+
+|
+|
+| docker.io/calico/csi
+| 3.29.1
+
+|
+|
+| docker.io/calico/node-driver-registrar
+| 3.29.1
+
+|
+|
+| docker.io/calico/ctl
+| 3.29.1
+
+|
+|
+| docker.io/calico/cni
+| 3.29.1
+
+|
+|
+| docker.io/calico/pod2daemon-flexvol
+| 3.29.1
+
+|
+|
+| quay.io/tigera/operator
+| v1.36.2
+
+| *cert-manager*
+| *v1.17.0*
+|
+|
+
+|
+|
+| quay.io/jetstack/cert-manager-controller
+| v1.17.0
+
+|
+|
+| quay.io/jetstack/cert-manager-cainjector
+| v1.17.0
+
+|
+|
+| quay.io/jetstack/cert-manager-webhook
+| v1.17.0
+
+|
+|
+| quay.io/jetstack/cert-manager-acmesolver
+| v1.17.0
+
+|
+|
+| quay.io/jetstack/cert-manager-startupapicheck
+| v1.17.0
+
+
+| *cluster-autoscaler*
+| *9.46.6*
+|
+|
+
+|
+|
+| registry.k8s.io/autoscaling/cluster-autoscaler
+| v1.32.0
+
+| *cluster-operator*
+| *0.5.2*
+|
+|
+
+|
+|
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
 | 0.5.2
 
+|
+|
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
+
+| *Installed by Cluster API - CAPI Component*
+| *v1.7.4*
+|
+|
+
+|
+|
+| registry.k8s.io/cluster-api/kubeadm-bootstrap-controller
+| v1.7.4
+
+|
+|
+| registry.k8s.io/cluster-api/kubeadm-control-plane-controller
+| v1.7.4
+
+|
+|
+| registry.k8s.io/cluster-api/cluster-api-controller
+| v1.7.4
 |===
 
-NOTE: Es posible que se haga referencia a la imagen `gcr.io/kubebuilder/kube-rbac-proxy` desde otros operadores instalados mediante _Stratio Cloud Provisioner_. En ese caso, esta imagen debería ser accesible desde 2 _tags_.
-
-== Otras imágenes
-
 |===
-| Imagen | Versión
+| Image | Version
 
-| docker.io/kindest/node
-| v1.27.0
+| stratio-releases.repo.stratio.com/stratio/cloud-provisioner
+| 0.17.0-0.7.4
 
 | docker.io/kindest/kindnetd
 | v20230330-48f316cd
+
+| registry.k8s.io/coredns/coredns
+| v1.10.1
+
+| registry.k8s.io/etcd
+| 3.5.7-0
+
+| registry.k8s.io/kube-apiserver
+| v1.27.0
+
+| registry.k8s.io/kube-controller-manager
+| v1.27.0
+
+| registry.k8s.io/kube-proxy
+| v1.27.0
+
+| registry.k8s.io/kube-scheduler
+| v1.27.0
 |===
