@@ -33,9 +33,14 @@ core:
       kustomize-controller: v1.4.0
       source-controller: v1.4.1
     kind:
+      cloud-provisioner: 0.17.0-0.8.0
+      coredns: v1.10.1
+      etcd: 3.5.7-0
       kindnetd: v20230330-48f316cd
-      cloud-provisioner: v1.27.0
-    pause: v3.9
+      kube-apiserver: v1.27.0
+      kube-controller-manager: v1.27.0
+      kube-proxy: v1.27.0
+      kube-scheduler: v1.27.0
   charts:
     cert-manager: v1.17.0
     cluster-autoscaler: 9.46.6
