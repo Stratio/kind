@@ -30,7 +30,6 @@ core:
     flux:
       flux-cli: v2.4.0
       helm-controller: v1.1.0
-      kustomize-controller: v1.4.0
       source-controller: v1.4.1
     kind:
       cloud-provisioner: 0.17.0-0.7.4
