@@ -5,7 +5,7 @@
 |===
 | _Chart_ | Versión | Imagen pública | Versión
 
-| *Installed by Cluster API - CAPA*
+| *Instalado por Cluster API - CAPA*
 | *v2.5.2*
 |
 |

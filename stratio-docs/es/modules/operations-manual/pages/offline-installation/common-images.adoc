@@ -136,7 +136,7 @@ Estas son las imágenes necesarias que se usan en los _charts_ instalados por _S
 | gcr.io/kubebuilder/kube-rbac-proxy
 | v0.15.0
 
-| *Installed by Cluster API - CAPI Component*
+| *Installado por Cluster API - CAPI Component*
 | *v1.7.4*
 |
 |
@@ -157,8 +157,10 @@ Estas son las imágenes necesarias que se usan en los _charts_ instalados por _S
 | v1.7.4
 |===
 
+== Otras imágenes
+
 |===
-| Image | Version
+| Imagen | Versión
 
 | stratio-releases.repo.stratio.com/stratio/cloud-provisioner
 | 0.17.0-0.7.4
