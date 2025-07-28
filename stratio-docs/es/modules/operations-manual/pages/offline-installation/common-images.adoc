@@ -1,6 +1,6 @@
 = Imágenes comunes
 
-Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los clústers, las imágenes necesarias son:
+Estas son las imágenes necesarias que se usan en los _charts_ instalados por _Stratio Cloud Provisioner_ en todos los _clusters_:
 
 |===
 | _Chart_ | Versión | Imagen pública | Versión

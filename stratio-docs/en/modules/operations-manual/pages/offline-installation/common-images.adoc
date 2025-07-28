@@ -1,6 +1,6 @@
 = Common images
 
-Associated with the charts that _Stratio Cloud Provisioner_ installs in all clusters, the required images are:
+These are the required images used in the charts installed by _Stratio Cloud Provisioner_ across all clusters:
 
 |===
 | Chart | Version | Public image | Version
