@@ -1,3 +1,0 @@
-docker.io/kindest/kindnetd:v20230330-48f316cd
-docker.io/kindest/node:v1.27.0
-stratio-releases.repo.stratio.com/stratio/cloud-provisioner:0.17.0-0.7.0

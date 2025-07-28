@@ -1,0 +1,7 @@
+mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi:v1.31.2
+mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:v2.12.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-provisioner:v5.1.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-resizer:v1.12.0
+mcr.microsoft.com/oss/kubernetes-csi/csi-snapshotter:v8.2.0
+mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:v2.14.0
+mcr.microsoft.com/oss/kubernetes-csi/snapshot-controller:v8.2.0
