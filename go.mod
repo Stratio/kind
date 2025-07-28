@@ -1,8 +1,6 @@
 module sigs.k8s.io/kind
 
-go 1.23.0
-
-toolchain go1.23.6
+go 1.23
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
