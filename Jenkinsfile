@@ -18,7 +18,6 @@ hose {
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
         doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'mkdir -p CTS/resources; tar zxvf bin/cloud-provisioner.tar.gz -C CTS/resources/; chmod -R 0700 CTS/resources/bin/cloud-provisioner'], stageName: "Extract binary")
-        doCustomStage(conf:config, buildToolOverride: [CUSTOM_COMMAND: 'cp -r scripts CTS/resources'], stageName: "prepare upgrade script files")
         doDockers(
             conf: config,
             dockerImages: [
