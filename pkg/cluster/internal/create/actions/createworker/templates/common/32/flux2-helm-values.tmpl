@@ -1,10 +1,10 @@
 cli:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/flux-cli
-
-# controllers
+  #tag: v2.4.0
 
 helmController:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/helm-controller
+  #tag: v1.1.0
   annotations:
     cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: temp
     cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
@@ -16,7 +16,8 @@ imageReflectionController:
   create: false
 
 kustomizeController:
-  create: false
+  image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/kustomize-controller
+  #tag: v1.4.0
 
 notificationController:
   create: false
@@ -26,6 +27,7 @@ policies:
   
 sourceController:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/source-controller
+  #tag: v1.4.1
   annotations:
     cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: data,tmp
     cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
