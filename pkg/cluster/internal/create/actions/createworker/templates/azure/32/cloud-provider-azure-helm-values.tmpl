@@ -13,5 +13,3 @@ cloudNodeManager:
   imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
   imageName: azure-cloud-node-manager
   #imageTag: v1.32.0
-  healthProbeProxyImage: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes/azure-health-probe-proxy:v1.29.0
-  healthProbeProxyImageWindows: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes/azure-health-probe-proxy:v1.29.0
