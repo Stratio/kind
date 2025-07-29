@@ -50,12 +50,12 @@ core:
 aws:
   capa:
     binaries:
-      clusterawsadm: v2.5.2
+      clusterawsadm: v2.8.4
     images:
-      cluster-api-aws-controller: v2.5.2
+      cluster-api-aws-controller: v2.8.4
     manifests:
-      metadata.yaml: v2.5.2
-      infrastructure-components.yaml: v2.5.2
+      metadata.yaml: v2.8.4
+      infrastructure-components.yaml: v2.8.4
   managed:
     addons:
       aws-ebs-csi-driver: v1.39.0-eksbuild.1
