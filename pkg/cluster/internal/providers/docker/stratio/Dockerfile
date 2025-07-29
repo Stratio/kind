@@ -6,12 +6,12 @@ ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
 # Tools versions
 ARG CLUSTERCTL=v1.7.4
-ENV CLUSTERAWSADM=v2.5.2
+ENV CLUSTERAWSADM=v2.8.4
 ENV HELM=v3.13.1
 
 # Cluster-api artifacts
 ENV CAPI_REPO=/root/.cluster-api/local-repository
-ARG CAPA=v2.5.2
+ARG CAPA=v2.8.4
 ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
 
