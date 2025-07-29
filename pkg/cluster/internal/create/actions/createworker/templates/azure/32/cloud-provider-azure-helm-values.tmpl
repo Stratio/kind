@@ -7,7 +7,5 @@ cloudControllerManager:
   replicas: 2
 cloudNodeManager:
   imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
-  healthProbeProxyImage: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes/azure-health-probe-proxy:v1.29.0
-  healthProbeProxyImageWindows: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes/azure-health-probe-proxy:v1.29.0
 infra:
   clusterName: {{ $.ClusterName }}
