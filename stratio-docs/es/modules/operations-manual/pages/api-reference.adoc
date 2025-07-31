@@ -2,7 +2,7 @@
 
 == _ClusterConfig_
 
-Este objeto de Kubernetes permite definir las distintas configuraciones para el _keoscluster_ junto al que se crea.
+Este recurso de Kubernetes permite definir las distintas configuraciones para el recurso _KeosCluster_ junto al que se crea.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
@@ -26,34 +26,34 @@ Este objeto de Kubernetes permite definir las distintas configuraciones para el 
 
 === _ClusterConfigSpec_
 
-Este objeto define el estado deseado de _ClusterConfig_.
+Este recurso define el estado deseado del recurso _ClusterConfig_.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Parámetro | Descripción | Valor por defecto | Validación
 
 | *`capx`* _CAPX_
-| Permite definir las versiones de los componentes de Cluster API (CAPI, CAPA, CAPZ, CAPG) y sus imágenes asociadas para el despliegue del clúster. Útil para personalizar versiones de los controladores de infraestructura.
+| Permite definir las versiones de los componentes de Cluster API (CAPI, CAPA, CAPZ, CAPG) y sus imágenes asociadas para desplegar el _cluster_. Es útil para personalizar las versiones de los controladores de infraestructura.
 | -
 | -
 
 | *`charts`* _array[Chart]_
-| Permite especificar una lista de _charts_ que se instalarán en el clúster, indicando nombre y versión de cada uno.
+| Permite especificar una lista de _charts_ que se instalarán en el _cluster_, especificando el nombre y la versión de cada uno.
 | -
 | -
 
 | *`cluster_operator_image_version`* _string_
-| Permite sobrescribir la versión de la imagen que se desplegará junto al _chart_. Por defecto, se instala la versión indicada en el fichero _values.yaml_ del _chart_, pero con este campo se puede sobrescribir la versión predeterminada.
+| Permite sobrescribir la versión de la imagen que se desplegará con el _chart_. Por defecto, se usa la versión definida en el archivo _values.yaml_ del _chart_, pero este campo permite sustituirla por una concreta.
 | -
 | -
 
 | *`cluster_operator_version`* _string_
-| Permite especificar la versión del _chart_ del _cluster operator_ que se descargará desde el repositorio de Helm indicado en el _keoscluster_. Por defecto, se descarga la última versión presente en el repositorio de Helm.
+| Versión del _chart_ del _cluster operator_ que se descargará desde el repositorio Helm configurado en el recurso _KeosCluster_. Si no se indica, se utilizará la última versión disponible.
 | -
 | -
 
 | *`controlplane_config`* _ControlplaneConfig_
-| Permite indicar las distintas configuraciones para el _control-plane_.
+| Permite indicar las configuraciones del _control-plane_.
 | -
 | -
 
@@ -63,24 +63,24 @@ Este objeto define el estado deseado de _ClusterConfig_.
 | -
 
 | *`private_helm_repo`* _boolean_
-| Permite especificar el tipo de instalación. Si se activa, los _charts_ necesarios para la instalación del _cluster_ se descargarán desde el repositorio indicado como _helm++_++repository_.
+| Define si la instalación usará un repositorio Helm privado. Si se activa, los _charts_ se descargarán del repositorio definido como _helm++_++repository_.
 | _false_
 | -
 
 | *`private_registry`* _boolean_
-| Permite especificar el tipo de instalación. En caso de habilitarse este campo, las imágenes que deban descargarse durante el proceso de instalación del _cluster_ se recuperarán del _registry_ indicado como _keos++_++registry_.
+| Define si la instalación utilizará un _registry_ privado. Si se activa, las imágenes necesarias se obtendrán del _registry_ definido como _keos++_++registry_.
 | _false_
 | -
 
 | *`workers_config`* _WorkersConfig_
-| Permite indicar las distintas configuraciones para los nodos _workers_.
+| Permite indicar las configuraciones de los nodos _workers_.
 | -
 | -
 |===
 
 === _ClusterConfigStatus_
 
-Define el estado observado de _ClusterConfig_.
+Define el estado observado del recurso _ClusterConfig_.
 
 == _ControlplaneConfig_
 
