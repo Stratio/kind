@@ -67,7 +67,7 @@ _Stratio KEOS_ permite realizar múltiples operaciones avanzadas interactuando c
 
 image::self-healing.png[]
 
-La capacidad de _self-healing_ del _cluster_ se gestiona por el objeto _MachineHealthCheck_:
+La capacidad de _self-healing_ del _cluster_ se gestiona por el recurso _MachineHealthCheck_:
 
 [source,bash]
 ----
@@ -117,7 +117,7 @@ Aunque se desaconseja el escalado manual de un grupo de nodos existente, se pres
 
 image::escalado-manual.png[]
 
-Para escalar manualmente un grupo de _workers_ se usa el objeto _KeosCluster_:
+Para escalar manualmente un grupo de _workers_ se usa el recurso _KeosCluster_:
 
 [source,bash]
 ----
@@ -134,7 +134,7 @@ spec:
       ...
 ----
 
-Verifica el cambio consultando el estado del objeto _KeosCluster_:
+Verifica el cambio consultando el estado del recurso _KeosCluster_:
 
 [source,bash]
 ----
@@ -143,7 +143,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Crear un nuevo grupo de _workers_
 
-Para crear un nuevo grupo de nodos basta con crear un nuevo elemento al _array_ _worker++_++nodes_ del objeto _KeosCluster_:
+Para crear un nuevo grupo de nodos basta con crear un nuevo elemento al _array_ _worker++_++nodes_ del recurso _KeosCluster_:
 
 [source,yaml]
 ----
@@ -165,7 +165,7 @@ spec:
       ssh_key: stg-key
 ----
 
-Nuevamente, verifica el cambio consultando el estado del objeto _KeosCluster_:
+Nuevamente, verifica el cambio consultando el estado del recurso _KeosCluster_:
 
 [source,bash]
 ----
@@ -174,7 +174,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Escalado vertical
 
-El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el objeto _KeosCluster_ correspondiente al grupo.
+El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el recurso _KeosCluster_ correspondiente al grupo.
 
 [source,yaml]
 ----
@@ -194,7 +194,7 @@ Para el autoescalado de nodos se utiliza _cluster-autoscaler_, quien detectará 
 
 Esta operación se realiza en el _API Server_, siendo los _controllers_ los encargados de crear las máquinas virtuales en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
 
-Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirá el mínimo y máximo en el grupo de nodos en el objeto _KeosCluster_:
+Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirá el mínimo y máximo en el grupo de nodos en el recurso _KeosCluster_:
 
 [source,yaml]
 ----
@@ -302,7 +302,7 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ==== Iniciar la actualización
 
-Para iniciar la actualización, una vez satisfechos los prerrequisitos se ejecutará un _patch_ de _spec.k8s++_++version_ en el objeto _KeosCluster_:
+Para iniciar la actualización, una vez satisfechos los prerrequisitos se ejecutará un _patch_ de _spec.k8s++_++version_ en el recurso _KeosCluster_:
 
 [source,bash]
 ----
@@ -338,7 +338,7 @@ Además, deberás tener en cuenta que el proceso requiere del binario del _clust
 
 Ejecuta los siguientes pasos para llevar a cabo la eliminación del _cluster_:
 
-. Crea un _cluster_ local indicando que no se genere ningún objeto en el proveedor _cloud_.
+. Crea un _cluster_ local indicando que no se genere ningún recurso en el proveedor _cloud_.
 +
 [source,bash]
 ----

@@ -15,7 +15,7 @@ Para el despliegue de EKS, se deberá crear de forma manual el rol "AWSServiceRo
 
 * Sistemas operativos certificados
 +
-Para garantizar la compatibilidad entre los nodos _worker_ y el _control-plane_ gestionado de EKS, es necesario usar imágenes de sistema operativo correctamente configuradas. Se recomienda generar estas imágenes con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], la herramienta oficial del proyecto Kubernetes para crear imágenes optimizadas para proveedores de nube. Puedes consultar la https://image-builder.sigs.k8s.io/[su documentación oficial] para más detalles sobre cómo construir imágenes personalizadas.
+Para garantizar la compatibilidad entre los nodos _worker_ y el _control-plane_ gestionado de EKS, es necesario usar imágenes de sistema operativo correctamente configuradas. Se recomienda generar estas imágenes con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], la herramienta oficial del proyecto Kubernetes para crear imágenes optimizadas para proveedores de nube. Puedes consultar la https://image-builder.sigs.k8s.io/[documentación oficial] para más detalles sobre cómo construir imágenes personalizadas.
 
 NOTE: Como alternativa, también son válidas las imágenes públicas proporcionadas por AWS con el formato `amazon-eks-node-<k8s-version>-v<fecha>`, que cumplen los requisitos para desplegar _Stratio KEOS_ en EKS.
 +
@@ -91,7 +91,7 @@ Las imágenes de Amazon Linux 2 *utilizadas por EKS* ya cuentan con este paráme
 
 == Descriptor del _cluster_
 
-Para indicar las particularidades del _cluster_ se utiliza el objeto _KeosCluster_ en un fichero _manifest_. La cabecera de este descriptor será la misma que la de cualquier objeto de Kubernetes:
+Para indicar las particularidades del _cluster_ se utiliza el recurso _KeosCluster_ en un fichero _manifest_. La cabecera de este descriptor será la misma que la de cualquier recurso de Kubernetes:
 
 [source,yaml]
 ----
@@ -103,7 +103,7 @@ spec:
 
 === _metadata_
 
-Los _metadata_ del _KeosCluster_ están compuestos por los siguientes campos:
+Los _metadata_ del recurso _KeosCluster_ están compuestos por los siguientes campos:
 
 [cols="1,4,2,1"]
 |===
@@ -117,7 +117,7 @@ Los _metadata_ del _KeosCluster_ están compuestos por los siguientes campos:
 
 === _spec_
 
-El campo _spec_ del objeto _KeosCluster_ incluye los siguientes parámetros:
+El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 
 [cols="1,1,4,2,1,1"]
 |===
@@ -999,11 +999,11 @@ Eventualmente, esto podría generar problemas en las peticiones en caso de fallo
 
 Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
 
-== Despliegue de _aws-load-balancer-controller_ (sólo EKS)
+== Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
 En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
 
-Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_: true en el objeto _ClusterConfig_ del descriptor del _cluster_.
+Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_ a "true" en el recurso _ClusterConfig_ del descriptor del _cluster_.
 
 Para autorizar el controlador se utilizarán https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[roles de IAM para cuentas de servicio], lo que implica crear los correspondientes objetos de IAM como se indica a continuación:
 

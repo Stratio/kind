@@ -22,19 +22,19 @@ Cuando se despliega el _chart_ de Helm del _Stratio Cluster Operator_ y se propo
 
 === Control de concurrencia y prevención de errores
 
-Para evitar conflictos y mitigar errores humanos, el _Stratio Cluster Operator_ bloquea nuevas operaciones si ya hay una en curso sobre el objeto _KeosCluster_. Esta situación se refleja en el subrecurso `status`, que indica el tipo de operación activa.
+Para evitar conflictos y mitigar errores humanos, el _Stratio Cluster Operator_ bloquea nuevas operaciones si ya hay una en curso sobre el recurso _KeosCluster_. Esta situación se refleja en el subrecurso `status`, que indica el tipo de operación activa.
 
 == Recurso _ClusterConfig_
 
 Junto con el recurso _KeosCluster_, puede definirse otro llamado _ClusterConfig_, que permite establecer configuraciones adicionales para el _cluster_.
 
-Este recurso debe declararse en el mismo archivo que el _KeosCluster_. Si no se especifica durante la instalación, se generará automáticamente con valores por defecto.
+Este recurso debe declararse en el mismo archivo que el recurso _KeosCluster_. Si no se especifica durante la instalación, se generará automáticamente con valores por defecto.
 
 TIP: Para más información, consulta la sección xref:operations-manual:api-reference.adoc[referencia API].
 
 === Selección del _Cluster Operator_
 
-Por defecto, se instalará la última versión del _chart_ disponible en el repositorio de Helm indicado en el objeto _KeosCluster_. Es posible modificar este comportamiento especificando manualmente la versión deseada en la configuración del _ClusterConfig_.
+Por defecto, se instalará la última versión del _chart_ disponible en el repositorio de Helm indicado en el recurso _KeosCluster_. Es posible modificar este comportamiento especificando manualmente la versión deseada en la configuración del recurso _ClusterConfig_.
 
 TIP: Para más información, consulta la sección xref:operations-manual:api-reference.adoc[referencia API].
 
@@ -47,11 +47,11 @@ La selección automática de la versión se basa en los siguientes criterios:
 
 Por ejemplo, se prioriza la versión `0.2.1` frente a `0.2.0`. En el caso de versiones _prerelease_ sin un orden claro, se elige la última publicada en el repositorio de Helm, según el esquema de nombres usado en Stratio.
 
-NOTE: Si se usa la selección por defecto, no es necesario indicar manualmente la versión. Esta quedará reflejada en el objeto creado dentro del _cluster_.
+NOTE: Si se usa la selección por defecto, no es necesario indicar manualmente la versión. Esta quedará reflejada en el recurso creado dentro del _cluster_.
 
 == Recursos generados por proveedor _cloud_
 
-En un *despliegue por defecto*, se crean los siguientes objetos en cada proveedor _cloud_. Los objetos concretos dependen del contenido del descriptor del _cluster_).
+En un *despliegue por defecto*, se crean los siguientes recursos en cada proveedor _cloud_. Los recursos concretos dependen del contenido del descriptor del _cluster_).
 
 === EKS
 
