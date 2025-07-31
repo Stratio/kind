@@ -13,9 +13,13 @@ Permite actualizar la versión del _cluster_ Kubernetes desde la versión instal
 
 === Generales
 
-* Archivo `kubeconfig` con acceso al _cluster_.
-* Archivo `secrets.yml` usado durante la creación del _cluster_.
-* Herramienta Docker, necesaria para ejecutar el contenedor.
+* Archivo _kubeconfig_ con acceso al _cluster_.
+* Archivo _secrets.yml_ utilizado durante la creación del _cluster_.
+* Herramienta Docker instalada, necesaria para ejecutar el contenedor.
+
+=== Permisos
+
+Es importante xref:operations-manual:installation.adoc[revisar la documentación] para asegurarse de que no se requieren permisos adicionales en el _cluster_.
 
 == Ejecución del _script_
 
@@ -82,8 +86,6 @@ Opciones principales:
 | False
 | No
 |===
-
-====
 
 == Estructura necesaria
 

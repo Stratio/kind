@@ -32,4 +32,4 @@ Las imágenes necesarias para una instalación _offline_ se componen de dos tipo
 
 NOTE: Las imágenes _core_ de Kubernetes están contenidas en las propias imágenes de los nodos. Es por ello que no se indican en ninguna de las referencias a las imágenes necesarias, ya que estarán disponibles en todas las imágenes construidas según la guía de construcción de imágenes a la que se hace referencia en el xref:operations-manual:operations-manual.adoc#_generación_de_imágenes_personalizadas[manual de operaciones].
 
-NOTE: Es también fundamental *disponer en el _keos registry_ de la imagen del _cluster-operator_*, ya sea la de la última _release_ o la específica para esa instalación indicada en el _ClusterConfig_.
+NOTE: Es también fundamental *disponer de la imagen del _cluster-operator_ en el _keos registry_*, ya sea la de la última _release_ o la específica para esa instalación indicada en el recurso _ClusterConfig_.
