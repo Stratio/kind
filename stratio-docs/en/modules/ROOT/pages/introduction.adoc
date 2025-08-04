@@ -1,21 +1,22 @@
-== Introduction
+= Introduction
+
 :icons: image
 :iconsdir: images/icons
 :icontype: svg
 
-_cloud-provisioner_ es una herramienta diseñada para facilitar el despliegue y la gestión automatizada de *clústeres de Kubernetes* en múltiples proveedores de nube. Su objetivo es simplificar la infraestructura en la nube, proporcionando una experiencia unificada y eficiente para los usuarios que necesitan operar en entornos distribuidos.
+_Stratio Cloud Provisioner_ is a tool designed to simplify the deployment and automated management of *Kubernetes clusters* across various cloud providers. Its goal is to streamline cloud infrastructure operations, offering a consistent and efficient experience for distributed environments.
 
-Actualmente, _cloud-provisioner_ es compatible con los siguientes entornos:
+It currently supports the following environments:
 
-* icon:eks[] link:https://aws.amazon.com/es/eks/[Amazon Web Services (AWS)] en modo gestionado con Elastic Kubernetes Service (EKS).
-* icon:azure[] link:https://azure.microsoft.com/[Microsoft Azure] en modo no gestionado.
-* icon:gke[] link:https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] en modo gestionado con Google Kubernetes Engine (GKE).
+* icon:eks https://aws.amazon.com/eks/[Amazon Web Services (AWS)] via Elastic Kubernetes Service (EKS), in managed mode.
+* icon:azure https://azure.microsoft.com/[Microsoft Azure] in unmanaged mode.
+* icon:gke https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] via Google Kubernetes Engine (GKE), in managed mode.
 
-== ¿Por qué usar _cloud-provisioner_?
+== Why use _Stratio Cloud Provisioner_?
 
-* *Automatización y eficiencia:* Reduce la complejidad del despliegue de _clústeres Kubernetes_ al automatizar procesos clave.
-* *Compatibilidad multicloud:* Permite trabajar en distintos proveedores sin depender de una única plataforma.
-* *Escalabilidad y resiliencia:* Facilita la adaptación de la infraestructura a diferentes cargas de trabajo.
-* *Consistencia operativa:* Garantiza una configuración uniforme y minimiza los errores.
+* *Automation and efficiency*: automates key tasks to reduce complexity in Kubernetes cluster deployments.
+* *Multicloud compatibility*: enables operations across multiple providers without vendor lock-in.
+* *Scalability and resilience*: supports dynamic infrastructure scaling based on workload demands.
+* *Operational consistency*: applies uniform configurations to minimize errors and discrepancies between environments.
 
-Con _cloud-provisioner_, los clientes pueden *simplificar* la gestión de sus _clústeres de Kubernetes_, *optimizar* el uso de recursos en la nube y *mejorar* la eficiencia operativa.
+With _Stratio Cloud Provisioner_, you can *simplify* Kubernetes cluster management, *optimize* cloud resource usage, and *enhance* operational efficiency.

@@ -371,7 +371,7 @@ En GKE, la red de _pods_ se configura automáticamente a partir del CIDR secunda
 Si necesitas establecer manualmente una red de _pods_, puedes hacerlo de dos formas (mutuamente excluyentes):
 
 * Precreando los rangos CIDR en la _subnet_ de la VPC y haciendo referencia a ellos en el descriptor del _cluster_.
-
++
 [source,bash]
 ----
 spec:
@@ -384,7 +384,7 @@ spec:
 ----
 
 * Indicando directamente los bloques CIDR en el descriptor del _cluster_, dejando que GKE los cree automáticamente:
-
++
 [source,bash]
 ----
 spec:

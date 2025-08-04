@@ -37,7 +37,7 @@ En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe con
 * Sistemas operativos certificados
 +
 Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
-+
+
 * Habilitar "Google Kubernetes Engine API" para GKE.
 * Bastion.
 +
@@ -1003,7 +1003,7 @@ Para evitar este problema, se deberá modificar el _health check_ del balanceado
 
 En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
 
-Dado que este despliegue no está habilitado por defecto, deberá indicarse con _spec.eks_lb_controller_ a "true" en el recurso _ClusterConfig_ del descriptor del _cluster_.
+Dado que este despliegue no está habilitado por defecto, deberá indicarse con `spec.eks_lb_controller` a "true" en el recurso _ClusterConfig_ del descriptor del _cluster_.
 
 Para autorizar el controlador se utilizarán https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[roles de IAM para cuentas de servicio], lo que implica crear los correspondientes objetos de IAM como se indica a continuación:
 

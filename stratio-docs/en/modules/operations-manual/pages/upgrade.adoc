@@ -13,13 +13,13 @@ It allows you to upgrade the Kubernetes cluster version from the version install
 
 === General
 
-* `kubeconfig` file with access to the cluster.
-* `secrets.yml` file used during cluster creation.
-* Docker tool, required to run the container.
+* _kubeconfig_ file with access to the cluster.
+* _secrets.yml_ file used during cluster creation.
+* Installed Docker tool, required to run the container.
 
-=== Permisos
+=== Permissions
 
-Revisar siempre la documentación para verificar que no se necesitan nuevos permisos en el _cluster_ xref:operations-manual:installation.adoc[Prerequisitos].
+It is essential to xref:operations-manual:installation.adoc[review the documentation] to ensure that no additional permissions are required in the cluster.
 
 == Running the script
 
