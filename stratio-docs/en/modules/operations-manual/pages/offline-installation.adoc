@@ -32,4 +32,4 @@ The images required for an offline installation are composed of two types: image
 
 NOTE: The Kubernetes core images are contained in the node images themselves. This is why they are not listed in any of the references to the required images, as they will be available in all images built according to the image building guide referenced in the xref:operations-manual:operations-manual.adoc#_generation_of_custom_images[operations manual].
 
-NOTE: It is also essential *to have in the _keos registry_ the _cluster-operator_ image*, either the one from the last release or the specific one for that installation indicated in the _ClusterConfig_.
+NOTE: It is also essential *to have the cluster-operator image available in the _keos registry_*, either the one from the latest release or the specific one for that installation, as indicated in the _ClusterConfig_ resource.

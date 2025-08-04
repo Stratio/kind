@@ -1,9 +1,8 @@
 = What's new
 
-The key updates in this version of _Stratio Cloud Provisioner_ are:
+The main new features in this version of _Stratio Cloud Provisioner_ are:
 
 * CoreDNS replicas are now distributed across different nodes to improve availability.
-* Default volumes are created for containerd, etcd, and the system root if they are not specified in the _keoscluster_ configuration.
-* Support for Kubernetes 1.30. Versions earlier than 1.28 are now deprecated.
-* Updated Tigera Operator to version 3.28.2.
-* Added the "use-local-stratio-image" option to reuse local images.
+* Support for Kubernetes 1.30. Versions older than 1.28 are now marked as deprecated.
+* Tigera Operator has been updated to version 3.28.2.
+* A new option, "use-local-stratio-image", has been added to allow reuse of local images.

@@ -1,7 +1,18 @@
 = Introduction
 
-_Stratio KEOS_ can be deployed on various cloud providers. Currently, it natively supports:
+_Stratio Cloud Provisioner_ is a tool designed to simplify the deployment and automated management of *Kubernetes clusters* across various cloud providers. Its goal is to streamline cloud infrastructure operations, offering a consistent and efficient experience for distributed environments.
 
-* xref:ROOT:architecture.adoc#_gcp[Google Cloud Platform (GCP)] in managed mode.
-* Amazon Web Services (AWS) in managed mode with xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
-* Azure in xref:ROOT:architecture.adoc#_azure[unmanaged mode].
+It currently supports the following environments:
+
+* image:icons/eks.svg[] https://aws.amazon.com/eks/[Amazon Web Services (AWS)] via Elastic Kubernetes Service (EKS), in managed mode.
+* image:icons/azure.svg[] https://azure.microsoft.com/[Microsoft Azure] in unmanaged mode.
+* image:icons/gke.svg[] https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] via Google Kubernetes Engine (GKE), in managed mode.
+
+== Why use _Stratio Cloud Provisioner_?
+
+* *Automation and efficiency*: automates key tasks to reduce complexity in Kubernetes cluster deployments.
+* *Multicloud compatibility*: enables operations across multiple providers without vendor lock-in.
+* *Scalability and resilience*: supports dynamic infrastructure scaling based on workload demands.
+* *Operational consistency*: applies uniform configurations to minimize errors and discrepancies between environments.
+
+With _Stratio Cloud Provisioner_, you can *simplify* Kubernetes cluster management, *optimize* cloud resource usage, and *enhance* operational efficiency.

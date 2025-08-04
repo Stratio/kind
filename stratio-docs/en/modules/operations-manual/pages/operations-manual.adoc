@@ -67,7 +67,7 @@ _Stratio KEOS_ allows multiple advanced operations to be performed by interactin
 
 image::self-healing.png[]
 
-The self-healing capability of the cluster is managed by the _MachineHealthCheck_ object:
+The cluster's self-healing capability is managed through the _MachineHealthCheck_ resource:
 
 [source,bash]
 ----
@@ -117,7 +117,7 @@ Although manual scaling of an existing node group is discouraged, these operatio
 
 image::escalado-manual.png[]
 
-To manually scale a group of _workers_ the _KeosCluster_ object is used:
+To manually scale a group of _workers_, use the _KeosCluster_ resource:
 
 [source,bash]
 ----
@@ -134,7 +134,7 @@ spec:
       ...
 ----
 
-Verify the change by querying the state of the _KeosCluster_ object:
+Verify the change by checking the status of the _KeosCluster_ resource:
 
 [source,bash]
 ----
@@ -143,7 +143,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Create a new workers group
 
-To create a new group of nodes just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
+To create a new node group, add a new element to the _worker++_++nodes_ array in the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -165,7 +165,7 @@ spec:
       ssh_key: stg-key
 ----
 
-Again, verify the change by querying the state of the _KeosCluster_ object:
+Again, verify the change by checking the status of the _KeosCluster_ resource:
 
 [source,bash]
 ----
@@ -174,7 +174,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Vertical scaling
 
-The vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ object corresponding to the group.
+Vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ resource corresponding to the group.
 
 [source,yaml]
 ----
@@ -194,7 +194,7 @@ For node autoscaling, _cluster-autoscaler_ is used, which will detect pods pendi
 
 This operation is performed in the API Server, being the controllers in charge of creating the VMs in the cloud provider and adding them to the cluster as Kubernetes _worker_ nodes.
 
-Since the autoscaling is based on the _cluster-autoscaler_, the minimum and maximum will be added in the node group in the _KeosCluster_ object:
+Since autoscaling is based on the _cluster-autoscaler_, the minimum and maximum will be added to the node group in the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -302,7 +302,7 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ==== Initiate the upgrade
 
-To initiate the upgrade, once the prerequisites are satisfied a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
+To initiate the upgrade, once the prerequisites are met, a patch to _spec.k8s++_++version_ will be applied to the _KeosCluster_ resource:
 
 [source,bash]
 ----
@@ -338,7 +338,7 @@ Also, you should note that the process requires the _clusterctl_ binary on the b
 
 Run the following steps to perform the cluster removal:
 
-. Create a local cluster indicating that no object is generated in the cloud provider.
+. Create a local cluster indicating that no resources should be created in the cloud provider.
 +
 [source,bash]
 ----

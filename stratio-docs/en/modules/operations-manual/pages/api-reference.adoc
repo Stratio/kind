@@ -2,7 +2,7 @@
 
 == _ClusterConfig_
 
-This Kubernetes object allows you to define the various configurations for the _keoscluster_ next to which it is created.
+This Kubernetes resource allows you to define the various configurations for the _keoscluster_ resource alongside which it is created.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
@@ -26,50 +26,61 @@ This Kubernetes object allows you to define the various configurations for the _
 
 === _ClusterConfigSpec_
 
-This object defines the desired state of _ClusterConfig_.
+This resource defines the desired state of the _ClusterConfig_ resource.
 
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Parameter | Description | Default value | Validation
 
-| * `eks_lb_controller`* _boolean_
-| Enables the `aws-load-balancer-controller` operator to be installed.
-| false
-| -
-
-| * `private_registry`* _boolean_
-| Specifies the type of installation. If this field is enabled, images to be downloaded during the cluster installation process will be retrieved from the registry specified as _keos++_++registry_.
-| false
-| -
-
-| * `private_helm_repo`* _boolean_
-| Specifies the type of installation. If enabled, the charts required for the cluster installation will be downloaded from the repository specified as _helm++_++repository_.
-| false
-| -
-
-| *`controlplane_config`* _ControlplaneConfig_
-| The _control-plane_ can be configured with different settings.
+| *`capx`* _CAPX_
+| Allows specifying the versions of Cluster API components (CAPI, CAPA, CAPZ, CAPG) and their associated images to deploy the cluster. Useful for customizing infrastructure controller versions.
 | -
 | -
 
-| *`workers_config`* _WorkersConfig_
-| The different configurations for the _workers_ nodes can be specified.
+| *`charts`* _array[Chart]_
+| Allows specifying a list of charts to be installed in the cluster, including the name and version of each.
+| -
+| -
+
+| *`cluster_operator_image_version`* _string_
+| Overrides the image version to be deployed with the chart. By default, the version defined in the chart's _values.yaml_ file is used, but this field allows setting a specific version instead.
 | -
 | -
 
 | *`cluster_operator_version`* _string_
-| Specifies the chart version of the _cluster operator_ to be downloaded from the Helm repository specified in the _keoscluster_. By default, the latest version present in the Helm repository is downloaded.
+| Version of the _cluster operator_ chart to be downloaded from the Helm repository configured in the _keoscluster_ resource. If not specified, the latest available version will be used.
+| -
 | -
 
-| *`cluster_operator_image_version`* _string_
-| Allows to overwrite the version of the image that will be displayed next to the chart. By default, the version indicated in the _values.yaml_ file of the chart is installed, but with this field, you can overwrite the default version.
+| *`controlplane_config`* _ControlplaneConfig_
+| Allows specifying configurations for the _control-plane_.
+| -
+| -
+
+| * `eks_lb_controller`* _boolean_
+| Enables the installation of the `aws-load-balancer-controller` operator.
+| false
+| -
+
+| * `private_helm_repo`* _boolean_
+| Specifies whether to use a private Helm repository during installation. If enabled, charts will be downloaded from the repository defined as _helm++_++repository_.
+| false
+| -
+
+| * `private_registry`* _boolean_
+| Specifies whether a private container registry will be used during installation. If enabled, images will be pulled from the registry defined as _keos++_++registry_.
+| false
+| -
+
+| *`workers_config`* _WorkersConfig_
+| Allows specifying configurations for the _worker_ nodes.
 | -
 | -
 |===
 
 === _ClusterConfigStatus_
 
-Defines the observed status of _ClusterConfig_.
+Defines the observed status of the _ClusterConfig_ resource.
 
 == _ControlplaneConfig_
 
