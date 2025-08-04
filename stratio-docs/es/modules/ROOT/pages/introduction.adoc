@@ -1,16 +1,12 @@
 = Introducción
 
-:icons: image
-:iconsdir: images/icons
-:icontype: svg
-
 _Stratio Cloud Provisioner_ es una herramienta diseñada para facilitar el despliegue y la gestión automatizada de *_clusters_ de Kubernetes* en diferentes proveedores de nube. Su finalidad es simplificar la gestión de la infraestructura cloud, ofreciendo una experiencia coherente y eficiente para entornos distribuidos.
 
 Actualmente, es compatible con los siguientes entornos:
 
-* icon:eks[] https://aws.amazon.com/es/eks/[Amazon Web Services (AWS)] mediante Elastic Kubernetes Service (EKS), en modo gestionado.
-* icon:azure[] https://azure.microsoft.com/[Microsoft Azure] en modo no gestionado.
-* icon:gke[] https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] mediante Google Kubernetes Engine (GKE), en modo gestionado.
+* image:icons/eks.svg[] https://aws.amazon.com/es/eks/[Amazon Web Services (AWS)] mediante Elastic Kubernetes Service (EKS), en modo gestionado.
+* image:icons/azure.svg[] https://azure.microsoft.com/[Microsoft Azure] en modo no gestionado.
+* image:icons/gke.svg[] https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] mediante Google Kubernetes Engine (GKE), en modo gestionado.
 
 == ¿Por qué usar _Stratio Cloud Provisioner_?
 

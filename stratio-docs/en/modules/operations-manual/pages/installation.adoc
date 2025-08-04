@@ -352,12 +352,14 @@ In GKE, this is the default node service account.
 |_gcp.scopes_
 |List of scopes available to the node service account, controlling access to GCP services.
 a|
+
 [source,yaml]
 ----
 scopes:
   - https://www.googleapis.com/auth/userinfo.email
   - https://www.googleapis.com/auth/cloud-platform
 ----
+
 |Yes
 |GCP
 |===

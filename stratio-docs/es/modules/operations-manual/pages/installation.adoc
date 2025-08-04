@@ -352,12 +352,14 @@ En GKE, se trata de la cuenta de servicio predeterminada de los nodos.
 |_gcp.scopes_
 |Lista de _scopes_ (alcances) disponibles para la cuenta de servicio de los nodos, que controlan los permisos de acceso a los servicios de GCP.
 a|
+
 [source,yaml]
 ----
 scopes:
   - https://www.googleapis.com/auth/userinfo.email
   - https://www.googleapis.com/auth/cloud-platform
 ----
+
 |Sí
 |GCP
 |===
