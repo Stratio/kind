@@ -1,4 +1,5 @@
 docker.io/kindest/kindnetd:v20230330-48f316cd
+docker.io/kindest/local-path-provisioner:v0.0.23-kind.0
 registry.k8s.io/coredns/coredns:v1.10.1
 registry.k8s.io/etcd:3.5.7-0
 registry.k8s.io/kube-apiserver:v1.27.0
