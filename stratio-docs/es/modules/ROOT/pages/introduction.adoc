@@ -1,7 +1,18 @@
 = Introducción
 
-_Stratio KEOS_ puede desplegarse en diferentes proveedores de _cloud_. Actualmente, de forma nativa, es compatible con:
+_Stratio Cloud Provisioner_ es una herramienta diseñada para facilitar el despliegue y la gestión automatizada de *_clusters_ de Kubernetes* en diferentes proveedores de nube. Su finalidad es simplificar la gestión de la infraestructura cloud, ofreciendo una experiencia coherente y eficiente para entornos distribuidos.
 
-* xref:ROOT:architecture.adoc#_gcp[Google Cloud Platform (GCP)] en modo gestionado.
-* Amazon Web Services (AWS) en modo gestionado con xref:ROOT:architecture.adoc#_eks[Elastic Kubernetes Service (EKS)].
-* Azure en modo xref:ROOT:architecture.adoc#_azure[no gestionado].
+Actualmente, es compatible con los siguientes entornos:
+
+* image:icons/eks.svg[] https://aws.amazon.com/es/eks/[Amazon Web Services (AWS)] mediante Elastic Kubernetes Service (EKS), en modo gestionado.
+* image:icons/azure.svg[] https://azure.microsoft.com/[Microsoft Azure] en modo no gestionado.
+* image:icons/gke.svg[] https://cloud.google.com/kubernetes-engine[Google Cloud Platform (GCP)] mediante Google Kubernetes Engine (GKE), en modo gestionado.
+
+== ¿Por qué usar _Stratio Cloud Provisioner_?
+
+* *Automatización y eficiencia:* automatiza tareas clave para reducir la complejidad en el despliegue de _clusters_ de Kubernetes.
+* *Compatibilidad _multicloud_:* permite operar con distintos proveedores sin quedar vinculado a uno solo.
+* *Escalabilidad y resiliencia:* facilita el ajuste dinámico de la infraestructura según las necesidades de carga.
+* *Consistencia operativa:* aplica una configuración homogénea, minimizando errores y diferencias entre entornos.
+
+Con _Stratio Cloud Provisioner_, es posible *simplificar* la administración de _clusters_ de Kubernetes, *optimizar* el uso de recursos en la nube y *mejorar* la eficiencia operativa.
