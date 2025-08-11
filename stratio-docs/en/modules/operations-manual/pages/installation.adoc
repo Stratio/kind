@@ -15,23 +15,15 @@ To deploy EKS, you must manually create the "AWSServiceRoleForAmazonEKS" role an
 
 * Certified operating systems
 +
-<<<<<<< HEAD
-To ensure the functionality of the EKS managed _control-plane_, it is necessary to use the images provided by Stratio. These can be found in the xref:stratio-generative-ai-data-fabric:operations-manual:stratio-generative-ai-data-fabric-artifacts.adoc#_images_for_cloud_environments[__Stratio Generative AI Data Fabric__ artifacts] section of the documentation.
-=======
 To ensure compatibility between the _worker_ nodes and the EKS-managed _control-plane_, properly configured OS images must be used. It is recommended to generate these images using the https://github.com/kubernetes-sigs/image-builder[Kubernetes Image Builder], the official tool from the Kubernetes project for building cloud-optimized images. You can refer to the https://image-builder.sigs.k8s.io/[official documentation] for more details on creating custom images.
 
 NOTE: Alternatively, AWS public images with the format `amazon-eks-node-<k8s-version>-v<date>` are also valid, and meet the requirements to deploy _Stratio KEOS_ on EKS.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
-+
+
 The currently recommended operating system for this provider is Ubuntu 22.04.
 
 * AWS CloudFormation
 +
-<<<<<<< HEAD
-WARNING: Suppose you have not created the AWS CloudFormation stack or manually created the IAM requirements previously in the account. In that case, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
-=======
 WARNING: If you haven’t created the CloudFormation stack or manually created the IAM prerequisites in the account, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 
 === GKE
 
