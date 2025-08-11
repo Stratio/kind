@@ -37,11 +37,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | -
 | -
 
-| *`charts`* _array[Chart]_
-| Allows specifying a list of charts to be installed in the cluster, including the name and version of each.
-| -
-| -
-
 | *`cluster_operator_image_version`* _string_
 | Overrides the image version to be deployed with the chart. By default, the version defined in the chart's _values.yaml_ file is used, but this field allows setting a specific version instead.
 | -
@@ -49,11 +44,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 
 | *`cluster_operator_version`* _string_
 | Version of the _cluster operator_ chart to be downloaded from the Helm repository configured in the _keoscluster_ resource. If not specified, the latest available version will be used.
-| -
-| -
-
-| *`controlplane_config`* _ControlplaneConfig_
-| Allows specifying configurations for the _control-plane_.
 | -
 | -
 
@@ -70,11 +60,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | * `private_registry`* _boolean_
 | Specifies whether a private container registry will be used during installation. If enabled, images will be pulled from the registry defined as _keos++_++registry_.
 | false
-| -
-
-| *`workers_config`* _WorkersConfig_
-| Allows specifying configurations for the _worker_ nodes.
-| -
 | -
 |===
 
