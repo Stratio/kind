@@ -1,8 +1,5 @@
 = Actualización de versión
 
-<<<<<<< HEAD
-TODO
-=======
 == Descripción
 
 El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ Kubernetes en los siguientes entornos:
@@ -100,4 +97,3 @@ Asegúrate de que el directorio de trabajo incluya:
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
 * `.kube/`: directorio con el archivo _kubeconfig_.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
