@@ -2,16 +2,9 @@
 
 Las principales novedades de esta versión de _Stratio Cloud Provisioner_ son:
 
-<<<<<<< HEAD
 * Se añade compatibilidad con Kubernetes 1.32.
 * Se actualizan _cluster-operator_ (v0.5.2), Flux (v2.14.1) y Tigera Operator (v3.29.1).
 
 == Ruptura de compatibilidad
 
 A partir de esta versión, el _registry_ de Docker y el repositorio de Helm se configuran como _private_ por defecto. Puedes modificar este comportamiento desde el objeto `ClusterConfig` del _cluster_, usando los atributos `private_registry` y `private_helm_repo`.
-=======
-* Las réplicas de CoreDNS ahora se distribuyen en nodos diferentes para mejorar la disponibilidad.
-* Compatibilidad con Kubernetes 1.30. Se han marcado como obsoletas las versiones anteriores a la 1.28.
-* Actualización de Tigera Operator a la versión 3.28.2.
-* Se ha añadido la opción "use-local-stratio-image" para reutilizar imágenes locales.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
