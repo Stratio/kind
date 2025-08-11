@@ -15,14 +15,10 @@ Para el despliegue de EKS, se deberá crear de forma manual el rol "AWSServiceRo
 
 * Sistemas operativos certificados
 +
-<<<<<<< HEAD
-Para garantizar las funcionalidades del _control-plane_ gestionado de EKS, es necesario usar las imágenes proporcionadas por Stratio. Estas se pueden consultar en la sección de xref:stratio-generative-ai-data-fabric:operations-manual:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__] de la documentación.
-=======
 Para garantizar la compatibilidad entre los nodos _worker_ y el _control-plane_ gestionado de EKS, es necesario usar imágenes de sistema operativo correctamente configuradas. Se recomienda generar estas imágenes con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], la herramienta oficial del proyecto Kubernetes para crear imágenes optimizadas para proveedores de nube. Puedes consultar la https://image-builder.sigs.k8s.io/[documentación oficial] para más detalles sobre cómo construir imágenes personalizadas.
 
 NOTE: Como alternativa, también son válidas las imágenes públicas proporcionadas por AWS con el formato `amazon-eks-node-<k8s-version>-v<fecha>`, que cumplen los requisitos para desplegar _Stratio KEOS_ en EKS.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
-+
+
 El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
 
 * AWS CloudFormation
@@ -75,12 +71,8 @@ Para el caso de permisos a nivel de grupo de recursos, se recomienda:
 
 * Sistemas operativos certificados
 +
-<<<<<<< HEAD
-En entornos de Azure, se deben utilizar las imágenes proporcionadas por Stratio. Consulta la sección de xref:stratio-generative-ai-data-fabric:operations-manual:stratio-generative-ai-data-fabric-artifacts.adoc#_imágenes_para_entornos_cloud[artefactos de __Stratio Generative AI Data Fabric__].
-=======
 Para garantizar las compatibilidad entre el _control-plane_ y los nodos _worker_ en entornos no gestionados de Azure, es necesario usar imágenes correctamente configuradas. Se recomienda generarlas con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes adaptadas a distintos proveedores de nube. Consulta la https://image-builder.sigs.k8s.io/[documentación oficial de _Image Builder_] para aprender a construir imágenes personalizadas.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
-+
+
 El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por defecto en el _controller_ de Azure.
 
 === Consideraciones para imágenes
@@ -952,15 +944,6 @@ _Stratio Cloud Provisioner_ es una herramienta que automatiza el aprovisionamien
 
 El binario ofrece actualmente las siguientes opciones:
 
-<<<<<<< HEAD
-- `--descriptor`: permite indicar la ruta al descriptor del _cluster_.
-- `--vault-password`: permite indicar la _passphrase_ de cifrado de las credenciales.
-- `--avoid-creation`: no se crea el _cluster_ _worker_, sólo el _cluster_ local.
-- `--keep-mgmt`: crea el _cluster_ _worker_ pero deja su gestión en el _cluster_ local (sólo para entornos *no productivos*).
-- `--retain`: permite mantener el _cluster_ local aún sin gestión.
-- `--use-local-stratio-image`: no se construye ni se descarga la imagen de Statio _cloud-provisioner_ y usa la imagen local.
-- `--build-stratio-image`: se construye la imagen de Stratio _cloud-provisioner_ y usa la imagen construida (sólo para fines de desarrollo).
-=======
 - `--avoid-creation`: no crea el _cluster_ _worker_, solo el _cluster_ local.
 - `--build-stratio-image`: en lugar de descargar la imagen de _Stratio Cloud Provisioner_, la construye localmente y la utiliza. Esta opción está pensada solo para desarrollo.
 - `--delete-previous`: elimina el contenedor del _cluster_ local si ya existe.
@@ -973,7 +956,6 @@ El binario ofrece actualmente las siguientes opciones:
 - `--use-local-stratio-image`: utiliza la imagen local de _Stratio Cloud Provisioner_ sin construirla ni descargarla.
 - `--validate-only`: valida el descriptor sin crear el _cluster_.
 - `-p, --vault-password <string>`: establece la contraseña de Vault para cifrar los secretos.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 
 Para crear un _cluster_, basta con un simple comando (consulta las particularidades de cada proveedor en sus guías de inicio rápido):
 
