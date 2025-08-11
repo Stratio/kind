@@ -45,7 +45,8 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | *`private_helm_repo`* _boolean_
 | Specifies the type of installation. If enabled, the charts required for the cluster installation will be downloaded from the repository specified as _helm++_++repository_.
 | true
-=======
+| -
+
 | *`capx`* _CAPX_
 | Allows specifying the versions of Cluster API components (CAPI, CAPA, CAPZ, CAPG) and their associated images to deploy the cluster. Useful for customizing infrastructure controller versions.
 | -
