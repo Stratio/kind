@@ -37,7 +37,6 @@ Este recurso define el estado deseado del recurso _ClusterConfig_.
 | -
 | -
 
-<<<<<<< HEAD
 | *`private_registry`* _boolean_
 | Permite especificar el tipo de instalación. En caso de habilitarse este campo, las imágenes que deban descargarse durante el proceso de instalación del _cluster_ se recuperarán del _registry_ indicado como _keos++_++registry_.
 | _true_
@@ -46,7 +45,8 @@ Este recurso define el estado deseado del recurso _ClusterConfig_.
 | *`private_helm_repo`* _boolean_
 | Permite especificar el tipo de instalación. Si se activa, los _charts_ necesarios para la instalación del _cluster_ se descargarán desde el repositorio indicado como _helm++_++repository_.
 | _true_
-=======
+| -
+
 | *`charts`* _array[Chart]_
 | Permite especificar una lista de _charts_ que se instalarán en el _cluster_, especificando el nombre y la versión de cada uno.
 | -
@@ -55,7 +55,6 @@ Este recurso define el estado deseado del recurso _ClusterConfig_.
 | *`cluster_operator_image_version`* _string_
 | Permite sobrescribir la versión de la imagen que se desplegará con el _chart_. Por defecto, se usa la versión definida en el archivo _values.yaml_ del _chart_, pero este campo permite sustituirla por una concreta.
 | -
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 | -
 
 | *`cluster_operator_version`* _string_
