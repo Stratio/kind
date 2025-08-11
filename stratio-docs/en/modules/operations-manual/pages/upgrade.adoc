@@ -87,8 +87,6 @@ Key options:
 | No
 |===
 
-====
-
 == Required structure
 
 Ensure that the working directory includes the following:
