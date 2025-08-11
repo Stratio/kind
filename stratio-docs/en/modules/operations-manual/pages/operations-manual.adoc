@@ -372,11 +372,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Create a new workers group
 
-<<<<<<< HEAD
-To create a new group of nodes, just create a new element to the array _worker++_++nodes_ of the _KeosCluster_ object:
-=======
 To create a new node group, add a new element to the _worker++_++nodes_ array in the _KeosCluster_ resource:
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 
 [source,yaml]
 ----
@@ -535,11 +531,7 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ==== Initiate the upgrade
 
-<<<<<<< HEAD
-To initiate the upgrade, once the prerequisites are satisfied, a patch of _spec.k8s++_++version_ will be run on the _KeosCluster_ object:
-=======
 To initiate the upgrade, once the prerequisites are met, a patch to _spec.k8s++_++version_ will be applied to the _KeosCluster_ resource:
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 
 [source,bash]
 ----
