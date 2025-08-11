@@ -32,7 +32,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 |===
 | Parameter | Description | Default value | Validation
 
-<<<<<<< HEAD
 | *`eks_lb_controller`* _boolean_
 | Enables the `aws-load-balancer-controller` operator to be installed.
 | false
@@ -65,7 +64,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | *`cluster_operator_version`* _string_
 | Version of the _cluster operator_ chart to be downloaded from the Helm repository configured in the _keoscluster_ resource. If not specified, the latest available version will be used.
 | -
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
 | -
 
 | *`controlplane_config`* _ControlplaneConfig_
