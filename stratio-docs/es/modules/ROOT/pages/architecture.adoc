@@ -8,7 +8,7 @@ image::eks-reference-architecture.png[]
 
 image::arq-intro.png[]
 
-== Introducción
+== Aprovisionamiento inicial de infraestructura
 
 _Stratio Cloud Provisioner_ es la primera fase para crear un _cluster_ de _Stratio KEOS_ en un proveedor _cloud_. Esta fase incluye el aprovisionamiento de la infraestructura (máquinas virtuales, redes, balanceadores de carga, etc.), la creación del _cluster_ de Kubernetes, su red y almacenamiento, todo ello en el proveedor _cloud_ que se haya elegido.
 

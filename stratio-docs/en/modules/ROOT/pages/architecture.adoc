@@ -8,7 +8,7 @@ image::eks-reference-architecture.png[]
 
 image::arq-intro.png[]
 
-== Introduction
+== Initial infrastructure provisioning
 
 _Stratio Cloud Provisioner_ is the first phase in creating a _Stratio KEOS_ cluster in a cloud provider. This phase includes provisioning infrastructure (virtual machines, networks, load balancers, etc.), making the Kubernetes cluster, its network, and storage—all within the selected cloud provider.
 
