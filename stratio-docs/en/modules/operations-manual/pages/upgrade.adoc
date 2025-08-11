@@ -1,8 +1,5 @@
 = Version upgrade
 
-<<<<<<< HEAD
-TODO
-=======
 == Description
 
 The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the following environments:
@@ -102,4 +99,3 @@ Ensure that the working directory includes the following:
 * `requirements.txt`: required dependencies.
 * `secrets.yml`: cluster credentials.
 * `.kube/`: directory containing the `kubeconfig` file.
->>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
