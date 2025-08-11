@@ -32,28 +32,8 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 |===
 | Parameter | Description | Default value | Validation
 
-| *`eks_lb_controller`* _boolean_
-| Enables the `aws-load-balancer-controller` operator to be installed.
-| false
-| -
-
-| *`private_registry`* _boolean_
-| Specifies the type of installation. If this field is enabled, images to be downloaded during the cluster installation process will be retrieved from the registry specified as _keos++_++registry_.
-| true
-| -
-
-| *`private_helm_repo`* _boolean_
-| Specifies the type of installation. If enabled, the charts required for the cluster installation will be downloaded from the repository specified as _helm++_++repository_.
-| true
-| -
-
 | *`capx`* _CAPX_
 | Allows specifying the versions of Cluster API components (CAPI, CAPA, CAPZ, CAPG) and their associated images to deploy the cluster. Useful for customizing infrastructure controller versions.
-| -
-| -
-
-| *`charts`* _array[Chart]_
-| Allows specifying a list of charts to be installed in the cluster, including the name and version of each.
 | -
 | -
 
@@ -64,11 +44,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 
 | *`cluster_operator_version`* _string_
 | Version of the _cluster operator_ chart to be downloaded from the Helm repository configured in the _keoscluster_ resource. If not specified, the latest available version will be used.
-| -
-| -
-
-| *`controlplane_config`* _ControlplaneConfig_
-| Allows specifying configurations for the _control-plane_.
 | -
 | -
 
@@ -85,11 +60,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | * `private_registry`* _boolean_
 | Specifies whether a private container registry will be used during installation. If enabled, images will be pulled from the registry defined as _keos++_++registry_.
 | false
-| -
-| -
-
-| *`workers_config`* _WorkersConfig_
-| Allows specifying configurations for the _worker_ nodes.
 | -
 | -
 |===
