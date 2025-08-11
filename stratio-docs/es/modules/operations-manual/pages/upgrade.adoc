@@ -1,3 +1,103 @@
 = Actualización de versión
 
+<<<<<<< HEAD
 TODO
+=======
+== Descripción
+
+El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ Kubernetes en los siguientes entornos:
+
+- *EKS* en AWS.
+- *Azure VMs*.
+
+Permite actualizar la versión del _cluster_ Kubernetes desde la versión instalada por `cloud-provisioner 0.5.X` hasta la proporcionada por `cloud-provisioner 0.6.X`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `stratio-cloud-provisioner-upgrade-image`, que incluye el _script_ de actualización y las dependencias necesarias.
+
+== Requisitos
+
+=== Generales
+
+* Archivo _kubeconfig_ con acceso al _cluster_.
+* Archivo _secrets.yml_ utilizado durante la creación del _cluster_.
+* Herramienta Docker instalada, necesaria para ejecutar el contenedor.
+
+=== Permisos
+
+Es importante xref:operations-manual:installation.adoc[revisar la documentación] para asegurarse de que no se requieren permisos adicionales en el _cluster_.
+
+== Ejecución del _script_
+
+=== Construcción del contenedor
+
+Ejecuta el contenedor Docker con la imagen de actualización de versión, montando los archivos necesarios:
+
+[source,bash]
+----
+docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:0.6.X
+----
+
+=== Uso del _script_ de actualización de versión
+
+==== Sintaxis
+
+[source,bash]
+----
+python3 upgrade-provisioner.py [OPTIONS]
+----
+
+Opciones principales:
+
+|===
+| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+
+| `-p`, `--vault-password`
+| Contraseña de Vault necesaria para descifrar secretos.
+|
+| Sí
+
+| `-y`, `--yes`
+| No requiere confirmación entre tareas (modo automático).
+| False
+| No
+
+| `-k`, `--kubeconfig`
+| Especifica el archivo de configuración de Kubectl a utilizar.
+| ~/.kube/config
+| No
+
+| `-s`, `--secrets`
+| Archivo de secretos cifrados.
+| secrets.yml
+| No
+
+| `--disable-backup`
+| Desactiva el respaldo antes de actualizar (habilitado por defecto).
+| False
+| No
+
+| `--disable-prepare-capsule`
+| Desactiva la preparación del entorno para el proceso de actualización.
+| False
+| No
+
+| `--skip-k8s-intermediate-version`
+| Salta la actualización de los _workers_ a la versión intermedia de Kubernetes. Esto solo es compatible con entornos EKS.
+| False
+| No
+
+| `--private`
+| Considera el _registry_ de Docker y el repositorio de Helm como privados.
+| False
+| No
+|===
+
+== Estructura necesaria
+
+Asegúrate de que el directorio de trabajo incluya:
+
+* `upgrade-provisioner.py`: _script_ principal.
+* `templates/`: plantillas Jinja2.
+* `files/`: archivos adicionales (configuraciones, Helm, etc.).
+* `requirements.txt`: dependencias necesarias.
+* `secrets.yml`: credenciales del _cluster_.
+* `.kube/`: directorio con el archivo _kubeconfig_.
+>>>>>>> ac219d93 ([PLT-1761][Clouds] Actualizar documentación 0.6.x (#811))
