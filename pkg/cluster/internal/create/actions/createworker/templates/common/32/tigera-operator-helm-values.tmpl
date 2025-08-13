@@ -9,7 +9,7 @@ calicoctl:
 {{- else }}
   image: docker.io/calico/ctl
 {{- end }}
-  #tag: 3.29.1
+  #tag: 3.30.2
 certs:
   node:
     cert:
@@ -83,7 +83,8 @@ tigeraOperator:
   registry: quay.io
 {{- end }}
   image: tigera/operator
-  #version: v1.36.2
+  # We need to set this version since tigera-operator chart point to an older one
+  version: v1.38.5
 # Tolerations for the tigera/operator pod.
 tolerations:
   - effect: NoExecute
