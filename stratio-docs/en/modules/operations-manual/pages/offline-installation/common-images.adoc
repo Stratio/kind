@@ -6,29 +6,29 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 | Chart | Version | Public image | Version
 
 | *flux*
-| *2.14.1*
+| *2.16.4*
 |
 |
 
 |
 |
 | ghcr.io/fluxcd/flux-cli
-| v2.4.0
+| v2.6.4
 
 |
 |
 | ghcr.io/fluxcd/helm-controller
-| v1.1.0
+| v1.3.0
 
 |
 |
 | ghcr.io/fluxcd/kustomize-controller
-| v1.4.0
+| v1.6.1
 
 |
 |
 | ghcr.io/fluxcd/source-controller
-| v1.4.1
+| v1.6.2
 
 | *tigera-operator*
 | *3.29.1*

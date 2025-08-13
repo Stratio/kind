@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2664] Bump Flux components
 * [PLT-2634] Bump CAPA version to v2.8.4
 
 ## 0.17.0-0.7.3 (2025-07-15)

@@ -215,11 +215,11 @@ var commonsCharts = ChartsDictionary{
 		"32": {
 			"managed": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.17.0", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.16.4", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
 				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.17.0", Namespace: "cert-manager", Pull: true, Reconcile: true},
-				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.14.1", Namespace: "kube-system", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.16.4", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 	},
