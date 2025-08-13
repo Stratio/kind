@@ -78,7 +78,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 |
 |
 | quay.io/tigera/operator
-| v1.36.2
+| v1.38.5
 
 | *cert-manager*
 | *v1.17.0*

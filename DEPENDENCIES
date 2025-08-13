@@ -4,15 +4,15 @@ core:
     helm: v3.13.1
   images:
     calico:
-      cni: v3.29.1
-      csi: v3.29.1
-      ctl: v3.29.1
-      kube-controllers: v3.29.1
-      node-driver-registrar: v3.29.1
-      node: v3.29.1
-      pod2daemon-flexvol: v3.29.1
-      tigera-operator: v1.36.2
-      typha: v3.29.1
+      cni: v3.30.2
+      csi: v3.30.2
+      ctl: v3.30.2
+      kube-controllers: v3.30.2
+      node-driver-registrar: v3.30.2
+      node: v3.30.2
+      pod2daemon-flexvol: v3.30.2
+      tigera-operator: v1.38.5
+      typha: v3.30.2
     capi:
       kubeadm-bootstrap-controller: v1.7.4
       kubeadm-control-plane-controller: v1.7.4
@@ -46,7 +46,7 @@ core:
     cluster-autoscaler: 9.46.6
     cluster-operator: 0.5.2
     flux: 2.14.1
-    tigera-operator: v3.29.1
+    tigera-operator: v3.30.2
 aws:
   capa:
     binaries:
