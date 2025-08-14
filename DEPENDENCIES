@@ -28,10 +28,10 @@ core:
       cluster-operator: 0.5.2
       kube-rbac-proxy: v0.15.0
     flux:
-      flux-cli: v2.4.0
-      helm-controller: v1.1.0
-      kustomize-controller: v1.4.0
-      source-controller: v1.4.1
+      flux-cli: v2.6.4
+      helm-controller: v1.3.0
+      kustomize-controller: v1.6.1
+      source-controller: v1.6.2
     kind:
       cloud-provisioner: 0.17.0-0.8.0
       coredns: v1.10.1
@@ -45,7 +45,7 @@ core:
     cert-manager: v1.18.1
     cluster-autoscaler: 9.46.6
     cluster-operator: 0.5.2
-    flux: 2.14.1
+    flux: 2.16.4
     tigera-operator: v3.29.1
 aws:
   capa:
