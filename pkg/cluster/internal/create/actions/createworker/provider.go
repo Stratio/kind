@@ -62,7 +62,7 @@ const (
 	CAPICoreProvider         = "cluster-api"
 	CAPIBootstrapProvider    = "kubeadm"
 	CAPIControlPlaneProvider = "kubeadm"
-	// CAPIVersion              = "v1.7.4"
+	// CAPIVersion              = "v1.10.4"
 
 	scName = "keos"
 
