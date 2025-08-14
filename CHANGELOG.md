@@ -2,6 +2,8 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2651] Bump cert-manager to v1.18.1
+* [PLT-2636] Bump cluster-api version to v1.10.4
 * [PLT-2664] Bump Flux components
 * [PLT-2634] Bump CAPA version to v2.8.4
 
