@@ -110,7 +110,6 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | quay.io/jetstack/cert-manager-startupapicheck
 | v1.17.0
 
-
 | *cluster-autoscaler*
 | *9.46.6*
 |
