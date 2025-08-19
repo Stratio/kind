@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2643] Bump aws-load-balancer-controller to v2.13.4
 * [PLT-2656] Bump Tigera Operator version to v3.30.2
 * [PLT-2656] Bump Calico version to v3.30.2
 * [PLT-2651] Bump cert-manager to v1.18.1
