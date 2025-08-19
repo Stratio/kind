@@ -78,7 +78,7 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 |
 |
 | quay.io/tigera/operator
-| v1.36.2
+| v1.38.5
 
 | *cert-manager*
 | *v1.18.1*

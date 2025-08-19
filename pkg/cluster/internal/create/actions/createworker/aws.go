@@ -119,7 +119,7 @@ var awsCharts = ChartsDictionary{
 			"managed": {
 				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.11.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.46.6", Namespace: "kube-system", Pull: false, Reconcile: false},
-				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.29.1", Namespace: "tigera-operator", Pull: true, Reconcile: true},
+				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.30.2", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {},
 		},
