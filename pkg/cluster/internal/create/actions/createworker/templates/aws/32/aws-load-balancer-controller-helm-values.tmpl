@@ -1,6 +1,6 @@
 image:
   repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks/aws-load-balancer-controller
-  #tag: v2.11.0
+  #tag: v2.13.4
 
 serviceAccount:
   create: true
