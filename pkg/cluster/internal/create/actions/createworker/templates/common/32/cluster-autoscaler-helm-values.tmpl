@@ -11,5 +11,5 @@ cloudProvider: clusterapi
 
 image:
   repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
-  #tag: v1.32.0
+  #tag: v1.33.0
 replicaCount: 2

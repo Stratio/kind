@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2124] Bump cluster-autoscaler to v1.33.0 version and its chart version to 9.50.1
 * [PLT-2643] Bump aws-load-balancer-controller to v2.13.4
 * [PLT-2656] Bump Tigera Operator version to v3.30.2
 * [PLT-2656] Bump Calico version to v3.30.2

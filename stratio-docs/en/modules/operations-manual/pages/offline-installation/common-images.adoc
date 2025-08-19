@@ -111,14 +111,14 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 | v1.18.1
 
 | *cluster-autoscaler*
-| *9.46.6*
+| *9.50.1*
 |
 |
 
 |
 |
 | registry.k8s.io/autoscaling/cluster-autoscaler
-| v1.32.0
+| v1.33.0
 
 | *cluster-operator*
 | *0.5.2*
