@@ -58,10 +58,10 @@ aws:
       infrastructure-components.yaml: v2.8.4
   managed:
     addons:
-      aws-ebs-csi-driver: v1.39.0-eksbuild.1
-      coredns: v1.11.4-eksbuild.2
-      kube-proxy: v1.32.0-eksbuild.2
-      vpc-cni: v1.19.2-eksbuild.5
+      aws-ebs-csi-driver: v1.47.0-eksbuild.1
+      coredns: v1.11.4-eksbuild.20
+      kube-proxy: v1.32.6-eksbuild.6
+      vpc-cni: v1.20.1-eksbuild.1
     charts:
       aws-load-balancer-controller: 1.13.4
     images:
