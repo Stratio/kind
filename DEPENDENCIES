@@ -82,8 +82,8 @@ azure:
       azurefile-csi-driver: 1.31.2
       cloud-provider-azure: 1.32.0
     images:
-      azure-cloud-controller-manager: v1.32.0
-      azure-cloud-node-manager: v1.32.0
+      azure-cloud-controller-manager: v1.33.2
+      azure-cloud-node-manager: v1.33.2
       azuredisk-csi: v1.31.2
       csi-attacher: v4.7.0
       csi-node-driver-registrar: v2.12.0
