@@ -7,9 +7,9 @@ cloudControllerManager:
   configureCloudRoutes: true
   imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
   imageName: azure-cloud-controller-manager
-  #imageTag: v1.33.2
+  imageTag: v1.33.2
   replicas: 2
 cloudNodeManager:
   imageRepository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}/oss/kubernetes
   imageName: azure-cloud-node-manager
-  #imageTag: v1.33.2
+  imageTag: v1.33.2
