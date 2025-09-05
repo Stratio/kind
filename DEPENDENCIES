@@ -80,7 +80,7 @@ azure:
     charts:
       azuredisk-csi-driver: 1.31.2
       azurefile-csi-driver: 1.31.2
-      cloud-provider-azure: 1.32.0
+      cloud-provider-azure: 1.33.2
     images:
       azure-cloud-controller-manager: v1.33.2
       azure-cloud-node-manager: v1.33.2
