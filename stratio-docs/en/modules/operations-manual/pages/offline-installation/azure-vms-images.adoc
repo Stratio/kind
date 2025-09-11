@@ -144,7 +144,7 @@
 |
 |
 | mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi
-| v1.33.4
+| v1.33.4-2
 
 | *cloud-provider-azure*
 | *1.33.2*

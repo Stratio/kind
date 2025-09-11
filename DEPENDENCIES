@@ -85,6 +85,7 @@ azure:
       azure-cloud-controller-manager: v1.33.2
       azure-cloud-node-manager: v1.33.2
       azuredisk-csi: v1.33.4
+      azurefile-csi: v1.33.4-2
       csi-attacher: v4.9.0
       csi-node-driver-registrar: v2.14.0
       csi-provisioner: v5.3.0
