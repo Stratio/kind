@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2660] Bump CSI Azure to version 1.33.4
 * [PLT-2646] Bump cloud-provider-azure, azure-cloud-controller-manager & azure-cloud-node-manager to v1.33.2
 * [PLT-2723] Bump aws-ebs-csi-driver, coredns, kube-proxy and vpc-cni addons versions
 * [PLT-2124] Bump cluster-autoscaler to v1.33.0 version and its chart version to 9.50.1

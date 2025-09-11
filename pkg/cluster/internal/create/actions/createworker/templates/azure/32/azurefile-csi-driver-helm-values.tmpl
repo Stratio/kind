@@ -6,25 +6,28 @@ image:
   baseRepo: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}
   azurefile:
     repository: /oss/kubernetes-csi/azurefile-csi
-    #tag: v1.31.2
+    #tag: v1.33.4-2
   csiProvisioner:
     repository: /oss/kubernetes-csi/csi-provisioner
-    #tag: v5.1.0
+    #tag: v5.3.0
   csiResizer:
     repository: /oss/kubernetes-csi/csi-resizer
-    #tag: v1.12.0
+    #tag: v1.14.0
+  csiAttacher:
+    repository: /oss/kubernetes-csi/csi-attacher
+    #tag: v4.9.0
   livenessProbe:
     repository: /oss/kubernetes-csi/livenessprobe
-    #tag: v2.14.0
+    #tag: v2.16.0
   nodeDriverRegistrar:
     repository: /oss/kubernetes-csi/csi-node-driver-registrar
-    #tag: v2.12.0
+    #tag: v2.14.0
 
 snapshot:
   image:
     csiSnapshotter:
       repository: /oss/kubernetes-csi/csi-snapshotter
-      #tag: v8.2.0
+      #tag: v8.3.0
     csiSnapshotController:
       repository: /oss/kubernetes-csi/snapshot-controller
-      #tag: v8.2.0
+      #tag: v8.3.0
