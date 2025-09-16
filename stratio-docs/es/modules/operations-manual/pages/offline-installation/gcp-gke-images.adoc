@@ -23,5 +23,5 @@
 |
 |
 | registry.k8s.io/coredns/coredns
-| v1.9.4
+| v1.12.4
 |===
