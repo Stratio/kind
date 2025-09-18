@@ -133,7 +133,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 |
 |
 | gcr.io/kubebuilder/kube-rbac-proxy
-| v0.15.0
+| v0.16.0
 
 | *Installado por Cluster API - CAPI Component*
 | *v1.10.4*

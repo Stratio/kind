@@ -25,8 +25,8 @@ core:
       cert-manager-webhook: v1.18.1
     cluster-autoscaler: v1.33.0
     cluster-operator:
-      cluster-operator: 0.5.2
-      kube-rbac-proxy: v0.15.0
+      cluster-operator: 0.6.0
+      kube-rbac-proxy: v0.16.0
     flux:
       flux-cli: v2.6.4
       helm-controller: v1.3.0
