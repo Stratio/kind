@@ -132,8 +132,8 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
-| v0.16.0
+| docker.io/bitnami/kube-rbac-proxy
+| v0.19.1
 
 | *Installed by Cluster API - CAPI Component*
 | *v1.10.4*
