@@ -68,42 +68,42 @@
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-provisioner
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-provisioner
 | v5.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-attacher
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-attacher
 | v4.9.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-node-driver-registrar
 | v2.14.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-snapshotter
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-snapshotter
 | v8.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-resizer
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-resizer
 | v1.14.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/livenessprobe
+| mcr.microsoft.com/oss/v2/kubernetes-csi/livenessprobe
 | v2.16.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/snapshot-controller
+| mcr.microsoft.com/oss/v2/kubernetes-csi/snapshot-controller
 | v8.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/azuredisk-csi
+| mcr.microsoft.com/oss/v2/kubernetes-csi/azuredisk-csi
 | v1.33.4
 
 | *azurefile-csi-driver*
@@ -112,38 +112,37 @@
 |
 
 |
-|
-| mcr.microsoft.com/oss/kubernetes-csi/csi-provisioner
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-provisioner
 | v5.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-node-driver-registrar
 | v2.14.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-snapshotter
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-snapshotter
 | v8.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/csi-resizer
+| mcr.microsoft.com/oss/v2/kubernetes-csi/csi-resizer
 | v1.14.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/livenessprobe
+| mcr.microsoft.com/oss/v2/kubernetes-csi/livenessprobe
 | v2.16.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/snapshot-controller
+| mcr.microsoft.com/oss/v2/kubernetes-csi/snapshot-controller
 | v8.3.0
 
 |
 |
-| mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi
+| mcr.microsoft.com/oss/v2/kubernetes-csi/azurefile-csi
 | v1.33.4-2
 
 | *cloud-provider-azure*
