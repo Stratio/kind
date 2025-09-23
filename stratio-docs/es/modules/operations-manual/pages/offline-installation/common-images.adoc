@@ -132,7 +132,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 
 |
 |
-| docker.io/bitnami/kube-rbac-proxy
+| docker.io/bitnamilegacy/kube-rbac-proxy
 | v0.19.1
 
 | *Installado por Cluster API - CAPI Component*
