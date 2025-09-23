@@ -35,7 +35,8 @@ TAG=$(shell git describe --exact-match --tags 2>/dev/null)
 # ========================= Setup Go With Gimme ================================
 # go version to use for build etc.
 # setup correct go version with gimme
-PATH:=$(shell . hack/build/setup-go.sh && echo "$${PATH}")
+#PATH:=$(shell . hack/build/setup-go.sh && echo "$${PATH}")
+export GOTOOLCHAIN=local
 # go1.9+ can autodetect GOROOT, but if some other tool sets it ...
 GOROOT:=
 # enable modules

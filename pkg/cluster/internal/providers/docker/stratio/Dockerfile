@@ -1,56 +1,31 @@
-FROM kindest/node:v1.27.0
+FROM kindest/node:v1.34.0
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
 ENV CLUSTERCTL_DISABLE_VERSIONCHECK=true
 
-# Tools versions
+# Core tool/version args
 ARG CLUSTERCTL=v1.10.4
 ENV CLUSTERAWSADM=v2.8.4
-ENV HELM=v3.13.1
-
-# Cluster-api artifacts
-ENV CAPI_REPO=/root/.cluster-api/local-repository
+ENV HELM=v3.19.0
+ENV AWSCLI_VERSION=2.30.6
 ARG CAPA=v2.8.4
 ARG CAPG=1.6.1-0.3.1
 ARG CAPZ=v1.12.4
+ENV CAPI_REPO=/root/.cluster-api/local-repository
 
-# Install and update dependencies
+## System packages (minimal, drop previous Python pip stack)
 RUN apt-get update \
-    && apt-get install -y curl \
-                          git \
-                          libc-bin \
-                          libnghttp2-14 \
-                          python3-pip \
-                          vim \
-                          python3-venv \
-                          gcc \
-                          libffi-dev \
+    && apt-get install -y --no-install-recommends \
+        curl ca-certificates tar gzip unzip less groff \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables
-ENV PYTHON_VENV=/opt/venv
-ENV PATH="${PYTHON_VENV}/bin:$PATH"
-
-# Create a virtual environment to isolate our package dependencies locally
-RUN python3 -m venv $PYTHON_VENV
-
-# Upgrade pip and install necessary Python tools
-RUN pip install --upgrade pip setuptools wheel
-
-# Install PyYAML, ensuring to use a version compatible with other awscli dependencies
-RUN pip install "PyYAML==6.0.2"
-
-# Install each dependency required by awscli explicitly to control the versions
-RUN pip install "botocore==1.29.22"
-RUN pip install "docutils<0.17"
-RUN pip install "s3transfer<0.7.0,>=0.6.0"
-RUN pip install "colorama<0.4.5,>=0.2.5"
-RUN pip install "rsa<4.8,>=3.1.2"
-
-# Install awscli without any dependencies to avoid conflicts
-RUN pip install --no-deps awscli==1.27.22
+## AWS CLI v2 (self-contained)
+RUN curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" -o /tmp/awscliv2.zip \
+    && unzip /tmp/awscliv2.zip -d /tmp/aws-install \
+    && /tmp/aws-install/aws/install --bin-dir /usr/local/bin --update \
+    && rm -rf /tmp/awscliv2.zip /tmp/aws-install
 
 # Add aliases
 RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
@@ -69,12 +44,26 @@ RUN curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${C
 RUN curl -L https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/download/${CLUSTERAWSADM}/clusterawsadm-linux-amd64 -o /usr/local/bin/clusterawsadm \
     && chmod +x /usr/local/bin/clusterawsadm
 
+## Layer cleanup: remove miscellaneous caches to reduce image size & potential vuln surface
+RUN rm -rf /root/.cache /tmp/* || true
+## TODO (follow-up): Evaluate removing docker CLI / legacy components if not required at runtime
+## TODO (follow-up): Consider multi-stage approach to further slim image
 # Download helm
-RUN curl -L https://get.helm.sh/helm-${HELM}-linux-amd64.tar.gz -o /root/helm.tar.gz \
-  && tar -xf /root/helm.tar.gz -C /root && mv /root/linux-amd64/helm /usr/local/bin/helm \
-  && rm -rf /root/linux-amd64 /root/helm.tar.gz \
-  && chmod +x /usr/local/bin/helm \
-  && helm plugin install https://github.com/hypnoglow/helm-s3.git
+## Install helm and plugin (git needed temporarily)
+RUN set -e pipefail \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && curl -L https://get.helm.sh/helm-${HELM}-linux-amd64.tar.gz -o /root/helm.tar.gz \
+    && tar -xf /root/helm.tar.gz -C /root \
+    && mv /root/linux-amd64/helm /usr/local/bin/helm \
+    && rm -rf /root/linux-amd64 /root/helm.tar.gz \
+    && chmod +x /usr/local/bin/helm \
+    && helm plugin install https://github.com/hypnoglow/helm-s3.git \
+    && helm plugin list \
+    && apt-get purge -y git \
+    && apt-get autoremove -y --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create helm charts directory
 RUN mkdir -p /stratio/helm 
