@@ -22,7 +22,7 @@
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
+| docker.io/bitnamilegacy/kube-rbac-proxy
 | v0.13.1
 
 |
