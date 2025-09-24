@@ -165,7 +165,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | 0.17.0-0.8.0
 
 | docker.io/kindest/kindnetd
-| v20230330-48f316cd
+| v20250512-df8de77b
 
 | registry.k8s.io/coredns/coredns
 | v1.10.1
