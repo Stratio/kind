@@ -27,14 +27,15 @@ RUN curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERS
     && /tmp/aws-install/aws/install --bin-dir /usr/local/bin --update \
     && rm -rf /tmp/awscliv2.zip /tmp/aws-install
 
-# Add aliases
-RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
-    && echo 'alias capi-logs="kubectl -n capi-system logs -f deploy/capi-controller-manager"' >> ~/.bash_aliases \
-    && echo 'alias capa-logs="kubectl -n capa-system logs -f deploy/capa-controller-manager"' >> ~/.bash_aliases \
-    && echo 'alias capg-logs="kubectl -n capg-system logs -f deploy/capg-controller-manager"' >> ~/.bash_aliases \
-    && echo 'alias capz-logs="kubectl -n capz-system logs -f deploy/capz-controller-manager"' >> ~/.bash_aliases \
-    && echo 'alias kc-logs="kubectl -n kube-system logs -f deploy/keoscluster-controller-manager"' >> ~/.bash_aliases \
-    && echo 'alias kw="kubectl --kubeconfig /kind/worker-cluster.kubeconfig"' >> ~/.bash_aliases
+## Add aliases
+RUN echo 'alias k="kubectl"' >> /root/.bash_aliases \
+    && echo 'alias capi-logs="kubectl -n capi-system logs -f deploy/capi-controller-manager"' >> /root/.bash_aliases \
+    && echo 'alias capa-logs="kubectl -n capa-system logs -f deploy/capa-controller-manager"' >> /root/.bash_aliases \
+    && echo 'alias capg-logs="kubectl -n capg-system logs -f deploy/capg-controller-manager"' >> /root/.bash_aliases \
+    && echo 'alias capz-logs="kubectl -n capz-system logs -f deploy/capz-controller-manager"' >> /root/.bash_aliases \
+    && echo 'alias kc-logs="kubectl -n kube-system logs -f deploy/keoscluster-controller-manager"' >> /root/.bash_aliases \
+    && echo 'alias kw="kubectl --kubeconfig /kind/worker-cluster.kubeconfig"' >> /root/.bash_aliases \
+    && echo 'if [ -f ~/.bash_aliases ]; then . ~/.bash_aliases; fi' >> /root/.bashrc
 
 # Download clusterctl
 RUN curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/clusterctl-linux-amd64 -o /usr/local/bin/clusterctl \
