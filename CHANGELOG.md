@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2587] Fix cloud-provisioner vulnerabilities
 * [PLT-2998] [Azure] Fix CSI deplyment with public repositories
 * [PLT-2655] Fix cluster-operator vulnerabilities and Bump kube-rbac-proxy version to v0.19.1
 * [PLT-2629] Bump CoreDNS to version 1.12.4

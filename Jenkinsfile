@@ -1,10 +1,11 @@
 @Library('libpipelines') _
 
 hose {
-    EMAIL = 'clouds-integration@stratio.com'
+    EMAIL = 'platform@stratio.com'
     BUILDTOOL = 'make'
     DEVTIMEOUT = 30
-    BUILDTOOL_IMAGE = 'golang:1.20'
+    // Fixed missing closing quote: use golang 1.25.1 image explicitly
+    BUILDTOOL_IMAGE = 'golang:1.25.1'
     VERSIONING_TYPE = 'stratioVersion-3-3'
     UPSTREAM_VERSION = '0.17.0'
     DEPLOYONPRS = true

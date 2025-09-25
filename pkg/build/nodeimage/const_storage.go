@@ -25,7 +25,9 @@ NOTE: we have customized it in the following ways:
 - install as the default storage class
 */
 
-const storageProvisionerImage = "docker.io/kindest/local-path-provisioner:v0.0.22-kind.0"
+// Updated to address vulnerabilities (PLT-2587): bump local-path-provisioner image
+// Previous: v0.0.22-kind.0 (runtime showed v0.0.23-kind.0). New tag: v20250214-acbabc1a
+const storageProvisionerImage = "docker.io/kindest/local-path-provisioner:v20250214-acbabc1a"
 const storageHelperImage = "docker.io/kindest/local-path-helper:v20220607-9a4d8d2a"
 
 // image we need to preload
