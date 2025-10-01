@@ -20,11 +20,6 @@
 | mcr.microsoft.com/k8s/azureserviceoperator
 | v2.4.0
 
-|
-|
-| mcr.microsoft.com/oss/azure/aad-pod-identity/nmi
-| v1.8.14
-
 | *Definidas en las _Node images_*
 | *v1.32.X*
 |
