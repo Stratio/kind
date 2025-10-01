@@ -22,11 +22,6 @@
 
 |
 |
-| docker.io/bitnamilegacy/kube-rbac-proxy
-| v0.13.1
-
-|
-|
 | mcr.microsoft.com/oss/azure/aad-pod-identity/nmi
 | v1.8.14
 
