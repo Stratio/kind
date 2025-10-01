@@ -815,10 +815,6 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		return errors.Wrap(err, "failed to deploy Flux Helm Chart")
 	}
 
-	//if err := configureFluxWorkloadIdentity(n, k, keosClusterSpec); err != nil {
-	//	return err
-	//}
-
 	// Set repository scheme for private case
 	if strings.HasPrefix(helmRepoCreds.URL, "oci://") {
 		keosChartRepoScheme = "oci"
