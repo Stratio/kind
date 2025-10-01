@@ -50,7 +50,6 @@
 | registry.k8s.io/etcd
 | v3.5.X
 
-
 | *azuredisk-csi-driver*
 | *v1.33.4*
 |
