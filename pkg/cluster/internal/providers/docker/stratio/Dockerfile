@@ -11,7 +11,7 @@ ENV HELM=v3.19.0
 ENV AWSCLI_VERSION=2.30.6
 ARG CAPA=v2.8.4
 ARG CAPG=1.6.1-0.3.1
-ARG CAPZ=v1.12.4
+ARG CAPZ=v1.21.0
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 
 ## System packages (minimal, drop previous Python pip stack)
