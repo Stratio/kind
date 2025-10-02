@@ -32,7 +32,7 @@ import (
 var (
 	capi_version = "v1.10.4"
 	capa_version = "v2.8.4"
-	capz_version = "v1.12.4"
+	capz_version = "v1.21.0"
 	capg_version = "1.6.1-0.3.1"
 )
 
@@ -264,7 +264,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
-	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
+	EnableSecureBoot *bool            `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
