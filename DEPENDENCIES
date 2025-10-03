@@ -70,12 +70,10 @@ azure:
   capz:
     images:
       azureserviceoperator: v2.4.0
-      cluster-api-azure-controller: v1.12.4
-      kube-rbac-proxy: v0.13.1
-      nmi: v1.8.14
+      cluster-api-azure-controller: v1.21.0
     manifests:
-      metadata.yaml: v1.12.4
-      infrastructure-components.yaml: v1.12.4
+      metadata.yaml: v1.21.0
+      infrastructure-components.yaml: v1.21.0
   unmanaged:
     charts:
       azuredisk-csi-driver: 1.33.4

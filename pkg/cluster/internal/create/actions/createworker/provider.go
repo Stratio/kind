@@ -792,22 +792,6 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		Private:    privateParams.Private,
 	}
 
-	// Make flux work after capz-nmi deployment in Azure
-	if keosClusterSpec.InfraProvider == "azure" {
-		azureFlux2PodIdentityExceptionPath := "/kind/flux2_azurepodidentityexception.yaml"
-		c := "echo \"" + azureFlux2PodIdentityException + "\" > " + azureFlux2PodIdentityExceptionPath
-		_, err := commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to write the flux2 azure pod identity exception")
-		}
-		// Apply HelmRepository
-		c = "kubectl --kubeconfig " + k + " apply -f " + azureFlux2PodIdentityExceptionPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to deploy Flux2 azure pod identity exception")
-		}
-	}
-
 	// Generate the flux helm values
 	fluxHelmValues, err := getManifest("common", "flux2-helm-values.tmpl", majorVersion, fluxHelmParams)
 
@@ -1225,20 +1209,6 @@ func (p *Provider) configCAPIWorker(n nodes.Node, keosCluster commons.KeosCluste
 			if err != nil {
 				return errors.Wrap(err, "failed to assigned priorityClass to "+deployment.name)
 			}
-		}
-	}
-
-	// Manually assign PriorityClass to nmi
-	if p.capxProvider == "azure" {
-		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system patch ds capz-nmi -p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}' --type=merge"
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to assigned priorityClass to nmi")
-		}
-		c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + p.capxName + "-system rollout status ds capz-nmi --timeout 90s"
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to check rollout status for nmi")
 		}
 	}
 
