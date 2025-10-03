@@ -62,6 +62,8 @@
                 "ecr:BatchCheckLayerAvailability",
                 "ecr:BatchGetImage",
                 "ecr:GetDownloadUrlForLayer",
+                "ecr:CreateRepository",
+                "ecr:BatchImportUpstreamImage",
                 "eks:DescribeCluster",
                 "eks:CreateAddon",
                 "eks:DeleteCluster",

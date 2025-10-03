@@ -16,7 +16,9 @@
                 "ecr:GetRepositoryPolicy",
                 "ecr:DescribeRepositories",
                 "ecr:ListImages",
-                "ecr:BatchGetImage"
+                "ecr:BatchGetImage",
+                "ecr:CreateRepository",
+                "ecr:BatchImportUpstreamImage"
             ],
             "Resource": [
                 "*"
