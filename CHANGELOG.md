@@ -2,7 +2,8 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* [PLT-2591] Bump cluster-api-provider-gcp to version v1.21.0
+* [PLT-2635] Bump cluster-api-provider-gcp to version v1.6.1-0.4.0
+* [PLT-2591] Bump cluster-api-provider-azure to version v1.21.0
 * [PLT-2587] Fix cloud-provisioner vulnerabilities
 * [PLT-2998] [Azure] Fix CSI deplyment with public repositories
 * [PLT-2655] Fix cluster-operator vulnerabilities and Bump kube-rbac-proxy version to v0.19.1
