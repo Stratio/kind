@@ -62,6 +62,8 @@
               "ecr:BatchGetImage",
               "ecr:ListImages",
               "ecr:GetDownloadUrlForLayer",
+              "ecr:CreateRepository",
+              "ecr:BatchImportUpstreamImage",
               "eks:DescribeCluster",
               "eks:CreateAddon",
               "eks:DeleteCluster",

@@ -13,6 +13,8 @@ Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en
 +
 Para el despliegue de EKS, se deberá crear de forma manual el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 
+NOTE: Los permisos ecr:CreateRepository y ecr:BatchImportUpstreamImage son necesarios solo si el ECR privado utiliza `pull through cache rules`.
+
 * Sistemas operativos certificados
 +
 Para garantizar la compatibilidad entre los nodos _worker_ y el _control-plane_ gestionado de EKS, es necesario usar imágenes de sistema operativo correctamente configuradas. Se recomienda generar estas imágenes con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], la herramienta oficial del proyecto Kubernetes para crear imágenes optimizadas para proveedores de nube. Puedes consultar la https://image-builder.sigs.k8s.io/[documentación oficial] para más detalles sobre cómo construir imágenes personalizadas.
