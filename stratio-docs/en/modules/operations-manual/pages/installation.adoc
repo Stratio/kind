@@ -13,8 +13,6 @@ For automated provisioning in EKS, actions must be performed across multiple ser
 +
 To deploy EKS, you must manually create the "AWSServiceRoleForAmazonEKS" role and attach the "AmazonEKSServiceRolePolicy" (created by default in AWS).
 
-NOTE: ecr:CreateRepository and ecr:BatchImportUpstreamImage permissions are only needed if the private ECR uses pull through cache rules.
-
 * Certified operating systems
 +
 To ensure compatibility between the _worker_ nodes and the EKS-managed _control-plane_, properly configured OS images must be used. It is recommended to generate these images using the https://github.com/kubernetes-sigs/image-builder[Kubernetes Image Builder], the official tool from the Kubernetes project for building cloud-optimized images. You can refer to the https://image-builder.sigs.k8s.io/[official documentation] for more details on creating custom images.
