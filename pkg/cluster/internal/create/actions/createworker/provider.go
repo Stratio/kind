@@ -575,9 +575,6 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if clusterOperatorImage != "" {
 			c += " --set app.containers.controllerManager.image.tag=" + clusterOperatorImage
 		}
-		if privateParams.Private {
-			c += " --set app.containers.kubeRbacProxy.image=" + keosRegistry.url + "/bitnamilegacy/kube-rbac-proxy:0.19.1"
-		}
 		if keosCluster.Spec.InfraProvider == "azure" {
 			c += " --set secrets.azure.clientIDBase64=" + strings.Split(p.capxEnvVars[1], "AZURE_CLIENT_ID_B64=")[1] +
 				" --set secrets.azure.clientSecretBase64=" + strings.Split(p.capxEnvVars[0], "AZURE_CLIENT_SECRET_B64=")[1] +

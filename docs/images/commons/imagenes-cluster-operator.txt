@@ -1,2 +1,1 @@
-docker.io/bitnamilegacy/kube-rbac-proxy:0.19.1
 stratio-releases.repo.stratio.com/stratio/cluster-operator:0.6.0
