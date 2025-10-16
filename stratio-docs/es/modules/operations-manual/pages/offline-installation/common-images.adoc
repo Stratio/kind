@@ -130,11 +130,6 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
 | 0.5.2
 
-|
-|
-| docker.io/bitnamilegacy/kube-rbac-proxy
-| v0.19.1
-
 | *Installado por Cluster API - CAPI Component*
 | *v1.10.4*
 |
