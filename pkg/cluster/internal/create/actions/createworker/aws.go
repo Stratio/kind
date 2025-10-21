@@ -107,8 +107,9 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 		}
 	}
 
+	// Enable encryption by default with aws/ebs (AWS managed key if no kmsKeyId provided)
+	b.scParameters.Encrypted = "true"
 	if p.StorageClass.EncryptionKey != "" {
-		b.scParameters.Encrypted = "true"
 		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
 	}
 }

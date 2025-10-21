@@ -773,6 +773,8 @@ spec:
     class: premium
 ----
 
+NOTE: On EKS, the `keos` StorageClass uses the CSI provisioner `ebs.csi.aws.com` and sets `encrypted: true` with the AWS-managed KMS key alias `aws/ebs` by default. To use a customer-managed key, set `spec.storageclass.encryption_key` in the cluster descriptor.
+
 The `class` parameter can be _premium_ or _standard_, this will depend on the cloud provider:
 
 [.center,cols=“1,2,2”,width=70%,center]
