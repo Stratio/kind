@@ -110,7 +110,11 @@ func (b *AWSBuilder) setSC(p ProviderParams) {
 	if p.StorageClass.EncryptionKey != "" {
 		b.scParameters.Encrypted = "true"
 		b.scParameters.KmsKeyId = p.StorageClass.EncryptionKey
-	}
+	} else {
+        // Habilitar cifrado por defecto con aws/ebs (AWS managed key)
+        // Al no especificar kmsKeyId, EBS CSI driver usará automáticamente aws/ebs
+        b.scParameters.Encrypted = "true"
+    }
 }
 
 var awsCharts = ChartsDictionary{
