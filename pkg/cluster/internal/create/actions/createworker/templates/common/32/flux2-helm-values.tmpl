@@ -8,6 +8,9 @@ helmController:
   annotations:
     cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: temp
     cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+  container:
+    additionalArgs:
+      - --concurrent=50
 
 imageAutomationController:
   create: false
@@ -18,13 +21,16 @@ imageReflectionController:
 kustomizeController:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/kustomize-controller
   #tag: v1.6.1
+  container:
+    additionalArgs:
+      - --concurrent=50
 
 notificationController:
   create: false
 
 policies:
   create: false
-  
+
 sourceController:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/source-controller
   #tag: v1.6.2
