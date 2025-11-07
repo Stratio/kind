@@ -166,17 +166,17 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | v1.10.1
 
 | registry.k8s.io/etcd
-| 3.5.7-0
+| 3.6.4-0
 
 | registry.k8s.io/kube-apiserver
-| v1.27.0
+| v1.34.0
 
 | registry.k8s.io/kube-controller-manager
-| v1.27.0
+| v1.34.0
 
 | registry.k8s.io/kube-proxy
-| v1.27.0
+| v1.34.0
 
 | registry.k8s.io/kube-scheduler
-| v1.27.0
+| v1.34.0
 |===
