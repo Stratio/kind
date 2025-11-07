@@ -16,12 +16,12 @@
 | v2.9.2
 
 | *aws-load-balancer-controller*
-| *1.13.4*
+| *1.14.1*
 |
 |
 
 |
 |
 | public.ecr.aws/eks/aws-load-balancer-controller
-| v2.13.4
+| v2.14.1
 |===

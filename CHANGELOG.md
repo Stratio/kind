@@ -2,7 +2,8 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* [PLT-2634] Bump CAPA version to v2.9.2
+* [PLT-3349] Bump aws-load-balancer-controller to v2.14.1
+* [PLT-3416] Bump CAPA version to v2.9.2
 * [PLT-3376] Bump Flux components
 * [PLT-3024] Remove use of kube-rbac-proxy form cluster-operator
 * [PLT-2635] Bump cluster-api-provider-gcp to version v1.6.1-0.4.0

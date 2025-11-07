@@ -118,7 +118,7 @@ var awsCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
 		"32": {
 			"managed": {
-				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.13.4", Namespace: "kube-system", Pull: false, Reconcile: false},
+				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "1.14.1", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.50.1", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.30.2", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 			},

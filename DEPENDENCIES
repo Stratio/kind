@@ -62,9 +62,9 @@ aws:
       kube-proxy: v1.32.6-eksbuild.6
       vpc-cni: v1.20.1-eksbuild.1
     charts:
-      aws-load-balancer-controller: 1.13.4
+      aws-load-balancer-controller: 1.14.1
     images:
-      aws-load-balancer-controller: v2.13.4
+      aws-load-balancer-controller: v2.14.1
 azure:
   capz:
     images:

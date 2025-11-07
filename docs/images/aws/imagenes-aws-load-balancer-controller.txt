@@ -1,1 +1,1 @@
-public.ecr.aws/eks/aws-load-balancer-controller:v2.13.4
+public.ecr.aws/eks/aws-load-balancer-controller:v2.14.1
