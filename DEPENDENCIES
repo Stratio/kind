@@ -33,13 +33,13 @@ core:
       source-controller: v1.7.3
     kind:
       cloud-provisioner: 0.17.0-0.8.0
-      coredns: v1.10.1
-      etcd: 3.5.7-0
+      coredns: v1.12.1
+      etcd: 3.6.4-0
   kindnetd: v20250512-df8de77b
-      kube-apiserver: v1.27.0
-      kube-controller-manager: v1.27.0
-      kube-proxy: v1.27.0
-      kube-scheduler: v1.27.0
+      kube-apiserver: v1.34.0
+      kube-controller-manager: v1.34.0
+      kube-proxy: v1.34.0
+      kube-scheduler: v1.34.0
   charts:
     cert-manager: v1.18.1
     cluster-autoscaler: 9.50.1
