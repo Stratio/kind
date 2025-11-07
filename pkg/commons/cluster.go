@@ -31,7 +31,7 @@ import (
 
 var (
 	capi_version = "v1.10.4"
-	capa_version = "v2.8.4"
+	capa_version = "v2.9.2"
 	capz_version = "v1.21.0"
 	capg_version = "1.6.1-0.3.1"
 )

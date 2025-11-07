@@ -6,14 +6,14 @@
 | Chart | Version | Public image | Version
 
 | *Installed by Cluster API - CAPA*
-| *v2.8.4*
+| *v2.9.2*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api-aws/cluster-api-aws-controller
-| v2.8.4
+| v2.9.2
 
 | *aws-load-balancer-controller*
 | *1.13.4*
