@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-2124] Bump cluster-autoscaler to v1.34.1 version and its chart version to 9.52.1
 * [PLT-3359] Bump aws-load-balancer-controller to v2.14.1
 * [PLT-3416] Bump CAPA version to v2.9.2
 * [PLT-3376] Bump Flux components
