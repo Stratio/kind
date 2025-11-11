@@ -81,34 +81,34 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | v1.38.5
 
 | *cert-manager*
-| *v1.18.1*
+| *v1.19.1*
 |
 |
 
 |
 |
 | quay.io/jetstack/cert-manager-controller
-| v1.18.1
+| v1.19.1
 
 |
 |
 | quay.io/jetstack/cert-manager-cainjector
-| v1.18.1
+| v1.19.1
 
 |
 |
 | quay.io/jetstack/cert-manager-webhook
-| v1.18.1
+| v1.19.1
 
 |
 |
 | quay.io/jetstack/cert-manager-acmesolver
-| v1.18.1
+| v1.19.1
 
 |
 |
 | quay.io/jetstack/cert-manager-startupapicheck
-| v1.18.1
+| v1.19.1
 
 | *cluster-autoscaler*
 | *9.52.1*
@@ -131,24 +131,24 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | 0.5.2
 
 | *Installado por Cluster API - CAPI Component*
-| *v1.10.4*
+| *v1.11.3*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api/kubeadm-bootstrap-controller
-| v1.10.4
+| v1.11.3
 
 |
 |
 | registry.k8s.io/cluster-api/kubeadm-control-plane-controller
-| v1.10.4
+| v1.11.3
 
 |
 |
 | registry.k8s.io/cluster-api/cluster-api-controller
-| v1.10.4
+| v1.11.3
 |===
 
 == Otras imágenes

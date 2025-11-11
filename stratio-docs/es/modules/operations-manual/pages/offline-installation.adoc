@@ -14,7 +14,7 @@ Para llevar a cabo una instalación _offline_ de forma satisfactoria, es necesar
 * _KeosCluster_:
 ** `spec.docker_registries`: en la sección de 'docker++_++registries' se debe indicar el _keos registry_ del que se descargarán las imágenes para el despliegue _offline_. Este _registry_ deberá contar con las imágenes necesarias para cada instalación.
 
-NOTE: Las imágenes deben estar disponibles en el repositorio definido como _keos registry_, manteniendo la misma ruta del nombre original. Por ejemplo, la imagen `registry.k8s.io/cluster-api/cluster-api-controller:v1.10.4` deberá descargarse desde `<keos_registry_url>/cluster-api/cluster-api-controller:v1.10.4`.
+NOTE: Las imágenes deben estar disponibles en el repositorio definido como _keos registry_, manteniendo la misma ruta del nombre original. Por ejemplo, la imagen `registry.k8s.io/cluster-api/cluster-api-controller:v1.11.3` deberá descargarse desde `<keos_registry_url>/cluster-api/cluster-api-controller:v1.11.3`.
 
 == Imágenes
 
