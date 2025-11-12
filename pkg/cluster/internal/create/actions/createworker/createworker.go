@@ -25,6 +25,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
