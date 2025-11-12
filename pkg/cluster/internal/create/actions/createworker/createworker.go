@@ -456,9 +456,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Get the workload cluster kubeconfig
 		c = "clusterctl -n " + capiClustersNamespace + " get kubeconfig " + a.keosCluster.Metadata.Name + " | tee " + kubeconfigPath
-		kubeconfig, err := commons.ExecuteCommand(n, c, 5, 3)
+
+		const (
+		    retries = 6                  // 6 reintentos
+		    delay   = 10 * time.Second // 10 segundos de espera
+		)
+
+		var kubeconfig string
+		var err error
+
+		for i := 0; i < retries; i++ {
+		    kubeconfig, err = commons.ExecuteCommand(n, c, 5, 3)
+		    if err == nil && kubeconfig != "" {
+		        break
+		    }
+		    time.Sleep(delay)
+		}
+
 		if err != nil || kubeconfig == "" {
-			return errors.Wrap(err, "failed to get workload cluster kubeconfig")
+		    return errors.Wrap(err, "failed to get workload cluster kubeconfig after multiple retries")
 		}
 
 		// Create worker-kubeconfig secret for keos cluster
