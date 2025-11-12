@@ -3,6 +3,7 @@ package commons
 import (
 	"encoding/base64"
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
@@ -53,13 +54,30 @@ func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath stri
 }
 
 func GetKubeconfigFromSecret(n nodes.Node, namespace, clusterName string) (string, error) {
+	const (
+		retries = 6                  // 6 retries
+		delay   = 10 * time.Second // 10 seconds delay
+	)
 	secretName := clusterName + "-kubeconfig"
 
 	// Command to read the kubeconfig secret
 	cmd := "kubectl -n " + namespace + " get secret " + secretName + " -o jsonpath='{.data.value}'"
-	output, err := ExecuteCommand(n, cmd, 5, 3)
+
+	var output string
+	var err error
+
+	for i := 0; i < retries; i++ {
+		output, err = ExecuteCommand(n, cmd, 5, 3)
+		if err == nil {
+			// Success, the secret was found
+			break
+		}
+		log.Printf("Attempt %d/%d: could not get kubeconfig secret for %s. Retrying in %v...", i+1, retries, clusterName, delay)
+		time.Sleep(delay)
+	}
+
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read kubeconfig secret")
+		return "", errors.Wrap(err, "failed to read kubeconfig secret after multiple retries")
 	}
 
 	output = strings.Trim(output, "'") // remove quotes
