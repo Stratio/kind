@@ -3,7 +3,6 @@ package commons
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 	"time"
@@ -72,7 +71,6 @@ func GetKubeconfigFromSecret(n nodes.Node, namespace, clusterName string) (strin
 			// Success, the secret was found
 			break
 		}
-		log.Printf("Attempt %d/%d: could not get kubeconfig secret for %s. Retrying in %v...", i+1, retries, clusterName, delay)
 		time.Sleep(delay)
 	}
 
