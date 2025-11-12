@@ -51,7 +51,7 @@
 | v3.5.X
 
 | *azuredisk-csi-driver*
-| *v1.33.4*
+| *v1.33.5*
 |
 |
 
@@ -63,12 +63,12 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/csi-attacher
-| v4.9.0
+| v4.10.0
 
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/csi-node-driver-registrar
-| v2.14.0
+| v2.15.0
 
 |
 |
@@ -83,7 +83,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/livenessprobe
-| v2.16.0
+| v2.17.0
 
 |
 |
@@ -93,10 +93,10 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/azuredisk-csi
-| v1.33.4
+| v1.33.5
 
 | *azurefile-csi-driver*
-| *v1.33.4*
+| *v1.33.5*
 |
 |
 
@@ -107,7 +107,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/csi-node-driver-registrar
-| v2.14.0
+| v2.15.0
 
 |
 |
@@ -122,7 +122,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/livenessprobe
-| v2.16.0
+| v2.17.0
 
 |
 |

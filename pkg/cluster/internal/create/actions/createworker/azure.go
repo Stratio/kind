@@ -59,7 +59,7 @@ var azureCharts = ChartsDictionary{
 		"32": {
 			"managed": {},
 			"unmanaged": {
-				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "1.33.4", Pull: false, Reconcile: false},
+				"azuredisk-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts", Namespace: "kube-system", Version: "1.33.5", Pull: false, Reconcile: false},
 				"azurefile-csi-driver": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts", Namespace: "kube-system", Version: "1.33.4", Pull: false, Reconcile: false},
 				"cloud-provider-azure": {Repository: "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo", Namespace: "kube-system", Version: "1.33.2", Pull: true, Reconcile: true},
 				"cluster-autoscaler":   {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.52.1", Namespace: "kube-system", Pull: false, Reconcile: false},
