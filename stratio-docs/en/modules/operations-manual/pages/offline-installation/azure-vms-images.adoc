@@ -95,7 +95,7 @@
 | v1.33.5
 
 | *azurefile-csi-driver*
-| *v1.33.5*
+| *v1.34.1*
 |
 |
 
@@ -132,7 +132,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/azurefile-csi
-| v1.33.4-2
+| v1.34.1
 
 | *cloud-provider-azure*
 | *1.33.2*
