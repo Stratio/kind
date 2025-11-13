@@ -1,6 +1,6 @@
 core:
   binaries:
-    clusterctl: v1.10.4
+    clusterctl: v1.10.8
     helm: v3.13.1
   images:
     calico:
@@ -14,15 +14,15 @@ core:
       tigera-operator: v1.38.5
       typha: v3.30.2
     capi:
-      kubeadm-bootstrap-controller: v1.10.4
-      kubeadm-control-plane-controller: v1.10.4
-      cluster-api-controller: v1.10.4
+      kubeadm-bootstrap-controller: v1.10.8
+      kubeadm-control-plane-controller: v1.10.8
+      cluster-api-controller: v1.10.8
     cert-manager:
-      cert-manager-acmesolver: v1.18.1
-      cert-manager-cainjector: v1.18.1
-      cert-manager-controller: v1.18.1
-      cert-manager-startupapicheck: v1.18.1
-      cert-manager-webhook: v1.18.1
+      cert-manager-acmesolver: v1.19.1
+      cert-manager-cainjector: v1.19.1
+      cert-manager-controller: v1.19.1
+      cert-manager-startupapicheck: v1.19.1
+      cert-manager-webhook: v1.19.1
     cluster-autoscaler: v1.34.1
     cluster-operator:
       cluster-operator: 0.6.0
@@ -41,7 +41,7 @@ core:
       kube-proxy: v1.34.0
       kube-scheduler: v1.34.0
   charts:
-    cert-manager: v1.18.1
+    cert-manager: v1.19.1
     cluster-autoscaler: 9.52.1
     cluster-operator: 0.5.2
     flux: 2.17.0

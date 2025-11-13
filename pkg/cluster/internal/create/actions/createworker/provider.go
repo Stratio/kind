@@ -62,7 +62,7 @@ const (
 	CAPICoreProvider         = "cluster-api"
 	CAPIBootstrapProvider    = "kubeadm"
 	CAPIControlPlaneProvider = "kubeadm"
-	// CAPIVersion              = "v1.10.4"
+	// CAPIVersion              = "v1.10.8"
 
 	scName = "keos"
 
@@ -214,11 +214,11 @@ var commonsCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
 		"32": {
 			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.18.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.19.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.0", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.18.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.19.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.0", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
