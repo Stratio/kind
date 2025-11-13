@@ -6,19 +6,19 @@
 | _Chart_ | Versión | Imagen pública | Versión
 
 | *Instalado por Cluster API - CAPZ*
-| *v1.21.0*
+| *v1.21.1*
 |
 |
 
 |
 |
 | registry.k8s.io/cluster-api-azure/cluster-api-azure-controller
-| v1.21.0
+| v1.21.1
 
 |
 |
 | mcr.microsoft.com/k8s/azureserviceoperator
-| v2.4.0
+| v2.11.0
 
 | *Definidas en las _Node images_*
 | *v1.32.X*
