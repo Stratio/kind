@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* [PLT-3365] Bump cloud-provider-azure  to version 1.34.2
+* [PLT-3365] Bump cloud-provider-azure to version 1.34.2
 * [PLT-3365] Bump capz to version 1.21.1 and azureserviceoperator to 2.11.0
 * [PLT-3360] Bump cert-manager version to version 1.19.1 and cluster-api version to version 1.10.8
 * [PLT-3362] bump azurefile-csi version to 1.34.1
