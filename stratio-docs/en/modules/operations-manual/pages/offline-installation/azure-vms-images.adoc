@@ -135,17 +135,17 @@
 | v1.34.1
 
 | *cloud-provider-azure*
-| *1.33.2*
+| *1.34.2*
 |
 |
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-controller-manager
-| v1.33.2
+| v1.34.2
 
 |
 |
 | mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager
-| v1.33.2
+| v1.34.2
 |===
