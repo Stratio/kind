@@ -17,6 +17,7 @@ limitations under the License.
 package commons
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -173,6 +174,7 @@ type GCPCP struct {
 	LoggingConfig                  *LoggingConfig                  `yaml:"logging_config,omitempty"`
 	ClusterIpv4Cidr                string                          `yaml:"cluster_ipv4_cidr,omitempty"`
 	IPAllocationPolicy             IPAllocationPolicy              `yaml:"ip_allocation_policy,omitempty"`
+	ClusterSecurity                *ClusterSecurity                `yaml:"cluster_security,omitempty"`
 }
 
 type ClusterNetwork struct {
@@ -218,6 +220,19 @@ type IPAllocationPolicy struct {
 	ServicesSecondaryRangeName string `yaml:"services_secondary_range_name,omitempty"`
 	ClusterIpv4CidrBlock       string `yaml:"cluster_ipv4_cidr_block,omitempty"`
 	ServicesIpv4CidrBlock      string `yaml:"services_ipv4_cidr_block,omitempty"`
+}
+
+type ClusterSecurity struct {
+	WorkloadIdentityConfig *WorkloadIdentityConfig `yaml:"workload_identity_config,omitempty"`
+}
+
+type WorkloadIdentityConfig struct {
+	// WorkloadPool is the workload pool to attach all Kubernetes service accounts to Google Cloud services.
+	// Only relevant when enabled is true
+	// +kubebuilder:validation:Required
+	WorkloadPool string `yaml:"workload_pool,omitempty"`
+	// +kubebuilder:default=true
+	Enabled *bool `yaml:"enabled,omitempty"`
 }
 
 type Keos struct {
@@ -531,7 +546,7 @@ func (s KeosSpec) Init() KeosSpec {
 	s.ControlPlane.AWS.Logging.ControllerManager = false
 	s.ControlPlane.AWS.Logging.Scheduler = false
 
-	// GKE
+	// INIT GKE
 	s.ControlPlane.Gcp.ReleaseChannel = "extended"
 	// Enable secure boot by default
 	// Only enable secure boot by default for GCP
@@ -566,6 +581,18 @@ func (s KeosSpec) Init() KeosSpec {
 		s.ControlPlane.Gcp.LoggingConfig.SystemComponents = ToPtr(false)
 		s.ControlPlane.Gcp.LoggingConfig.Workloads = ToPtr(false)
 	}
+	if s.ControlPlane.Gcp.ClusterSecurity == nil {
+		s.ControlPlane.Gcp.ClusterSecurity = &ClusterSecurity{}
+	}
+	// Set Workload identity default to true
+	s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig = &WorkloadIdentityConfig{}
+	s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled = ToPtr(true)
+
+	// DEBUG JANR
+	marshaled, _ := json.MarshalIndent(s, "", "  ")
+	fmt.Println("KeosSpec default values initialized: ", string(marshaled))
+
+	// END GKE
 
 	// Helm
 	s.HelmRepository.AuthRequired = false
@@ -615,6 +642,19 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 			case "KeosCluster":
 				keosCluster.Spec = new(KeosSpec).Init()
 				err = yaml.Unmarshal([]byte(manifest), &keosCluster)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				// If WorkloadPool is not set, use project_id as a fallback from credentials
+				if keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool == "" &&
+					keosCluster.Spec.Credentials.GCP.ProjectID != "" {
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = keosCluster.Spec.Credentials.GCP.ProjectID + ".svc.id.goog"
+				}
+
+				err = validate.Struct(keosCluster)
 				if err != nil {
 					return nil, nil, err
 				}
