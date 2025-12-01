@@ -1008,6 +1008,20 @@ Eventualmente, esto podría generar problemas en las peticiones en caso de fallo
 
 Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
 
+=== Etiquetas automáticas en GKE
+
+GKE aplica automáticamente varias etiquetas a los recursos del clúster, como instancias de VM de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
+
+- `goog-gke-node-pool-provisioning-model`: _Node pool_ de GKE.
+
+WARNING: Estas etiquetas automáticas pueden causar un bucle de reconciliación en el controlador `cluster-api-provider-gcp` (capg) en los _node pools_. Consulta la sección de xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más información.
+
+No debemos editar ni eliminar estas etiquetas automáticas, ya que GKE las reconciliará de forma automática recreando los nodos de los nodos asociados a los `node-pool` correspondientes.
+
+Para más información sobre las etiquetas automáticas aplicadas por GKE, consulta la documentación oficial de Google: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels?utm_source=chatgpt.com#automatically-applied-labels[Etiquetas automáticas en GKE].
+
+
+
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
 En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.

@@ -1006,6 +1006,18 @@ This may lead to request issues if a _control-plane_ node fails—since the load
 
 To avoid this, modify the load balancer health check to use HTTPS and the path _/readyz_, keeping the same port: 443 for GCP and 6443 for Azure.
 
+=== Automatic Labels in GKE
+
+GKE automatically applies several labels to cluster resources, such as Compute Engine VM instances, persistent disks, and accelerators (TPUs). Example:
+
+- `goog-gke-node-pool-provisioning-model`: GKE node pool.
+
+WARNING: These automatic labels can cause a reconciliation loop in the `cluster-api-provider-gcp` (capg) controller for node pools. See the xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Troubleshooting] section of the operations manual for more information.
+
+You must not edit or remove these automatic labels, as GKE will automatically reconcile them by recreating the nodes associated with the corresponding node pools.
+
+For more information about the automatic labels applied by GKE, refer to the official Google documentation: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels?utm_source=chatgpt.com#automatically-applied-labels[Automatic labels in GKE].
+
 == Deployment of _aws-load-balancer-controller_ (EKS only)
 
 In EKS clusters, you can deploy the _aws-load-balancer-controller_, which manages Elastic Load Balancer creation for objects like _Ingress_ and _Service_ of type _LoadBalancer_.
