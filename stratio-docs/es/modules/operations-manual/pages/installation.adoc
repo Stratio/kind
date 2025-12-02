@@ -1027,7 +1027,7 @@ Para evitar este problema, se deberá modificar el _health check_ del balanceado
 
 GKE aplica automáticamente varias etiquetas a los recursos del clúster, como instancias de VM de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
 
-- `goog-gke-node-pool-provisioning-model`: "on-demand". El modelo de aprovisionamiento del grupo de nodos.
+- `goog-gke-node-pool-provisioning-model`: "on-demand". Indica el modelo de aprovisionamiento del grupo de nodos (_node pool_).
 
 NOTE: Dependiendo del caso, puede que necesites añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` en el descriptor si tu configuración lo requiere en tiempo de desliegue del cluster para evitar bucles de reconciliación o a-posteriori modificando el objeto `keoscluster`. Los nodos pueden ser bajo demanda, por reserva o Spot VMs.
 
