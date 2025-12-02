@@ -1031,7 +1031,7 @@ GKE aplica automáticamente varias etiquetas a los recursos del _cluster_, como 
 
 NOTE: Según el caso, puede ser necesario añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` al descriptor al desplegar el _cluster_, si la configuración lo requiere, para evitar bucles de reconciliación. También se puede añadir a posteriori modificando el objeto `KeosCluster`. Los nodos pueden ser _on-demand_, reservados o de Spot VMs.
 
-WARNING: Estas etiquetas automáticas pueden causar un bucle de reconciliación en el controlador `cluster-api-provider-gcp` (capg) en los _node pools_. Consulta la sección de xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más información.
+WARNING: Estas etiquetas automáticas pueden generar un bucle de reconciliación en el controlador del `cluster-api-provider-gcp` (CAPG) en los _node pools_. Consulta la sección xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más detalles.
 
 No debemos editar ni eliminar estas etiquetas automáticas, ya que GKE las reconciliará de forma automática recreando los nodos de los nodos asociados a los `node-pool` correspondientes.
 
