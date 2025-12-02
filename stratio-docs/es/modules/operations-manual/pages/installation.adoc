@@ -1029,7 +1029,7 @@ GKE aplica automáticamente varias etiquetas a los recursos del clúster, como i
 
 - `goog-gke-node-pool-provisioning-model`: "on-demand". Indica el modelo de aprovisionamiento del grupo de nodos (_node pool_).
 
-NOTE: Dependiendo del caso, puede que necesites añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` en el descriptor si tu configuración lo requiere en tiempo de desliegue del cluster para evitar bucles de reconciliación o a-posteriori modificando el objeto `keoscluster`. Los nodos pueden ser bajo demanda, por reserva o Spot VMs.
+NOTE: Según el caso, puede ser necesario añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` al descriptor al desplegar el _cluster_, si la configuración lo requiere, para evitar bucles de reconciliación. También se puede añadir a posteriori modificando el objeto `KeosCluster`. Los nodos pueden ser _on-demand_, reservados o de Spot VMs.
 
 WARNING: Estas etiquetas automáticas pueden causar un bucle de reconciliación en el controlador `cluster-api-provider-gcp` (capg) en los _node pools_. Consulta la sección de xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más información.
 
