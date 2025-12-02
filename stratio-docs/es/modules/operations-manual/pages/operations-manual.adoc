@@ -621,7 +621,7 @@ En los _clusters_ gestionados con el Cluster API Provider GCP (CAPG), el control
 
 La causa principal es que Google Cloud GKE añade automáticamente etiquetas a los _node pools_ (por ejemplo, `goog-gke-node-pool-provisioning-model: on-demand`) que no están presentes por defecto en el recurso `GCPManagedMachinePool` generado por Cluster API. Este valor es solo un ejemplo: puede tratarse de cualquier etiqueta añadida por Google.
 
-Para solucionar este problema y detener el bucle, es necesario añadir manualmente dicha etiqueta en la configuración del `KeosCluster` para que coincida con la del proveedor.
+Para resolver este problema y detener el bucle, es necesario añadir manualmente la etiqueta en la configuración del `KeosCluster` para que coincida con la que aplica el proveedor. Puedes seguir estos pasos:
 
 . Edita el recurso `KeosCluster`:
 +
