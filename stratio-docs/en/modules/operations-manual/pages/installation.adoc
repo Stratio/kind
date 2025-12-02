@@ -569,6 +569,21 @@ labels:
 
 |Yes
 
+|_additional_labels_
+|Optional set of additional labels to be added to node groups (`node_pool`), in addition to the default labels. +
+This field is exclusive to GKE.
+a|
+
+[source,yaml]
+----
+additional_labels:
+  goog-gke-node-pool-provisioning-model: on-demand
+  environment: production
+  team: data
+----
+
+|Yes
+
 |_root++_++volume_
 |Volume specifics like size, type, and encryption.
 a|

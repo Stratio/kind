@@ -617,7 +617,7 @@ To manage the credentials configured in the cluster, refer to the xref:operation
 
 === Reconciliation Loop in GKE Due to Automatic Labels
 
-In clusters managed with Cluster API Provider GCP (CAPG), the CAPG controller responsible for the `GCPManagedMachinePool` resource can enter an infinite reconciliation loop if it detects discrepancies between the labels (`additional_labels`) defined in the object specification (or if they are not specified) and the labels actually present on the GKE `node-pool` node. This behavior can be observed in the logs with repeated messages such as "Node pool config update required" and "Node pool config updating in progress." This is a known issue in CAPG, related to label reconciliation in `node-pools` managed by the `GCPManagedMachinePool` object.
+In clusters managed with Cluster API Provider GCP (CAPG), the CAPG controller responsible for the `GCPManagedMachinePool` resource can enter an infinite reconciliation loop if it detects discrepancies between the labels (`additional_labels`) defined in the object specification (or if they are not specified) and the labels actually present on the GKE `node-pool`. This behavior can be observed in the logs with repeated messages such as "Node pool config update required" and "Node pool config updating in progress." This is a known issue in CAPG, related to label reconciliation in `node-pools` managed by the `GCPManagedMachinePool` object.
 
 The root cause is that Google Cloud GKE automatically adds labels to node pools (for example, `goog-gke-node-pool-provisioning-model: on-demand`) that are not present by default in the Cluster API `GCPManagedMachinePool` resource; this value is just an example and could be any other label added by Google.
 
