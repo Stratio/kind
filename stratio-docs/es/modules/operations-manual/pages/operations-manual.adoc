@@ -643,7 +643,4 @@ spec:
         "goog-gke-node-pool-provisioning-model": "on-demand"
 ----
 
-[CAUTION]
-====
-Modificar el campo `additional_labels` en los `worker_nodes` de un `KeosCluster` gestionado por CAPG provocará la recreación de los nodos asociados al _node pool_. Esto implica que los nodos actuales serán eliminados y sustituidos por otros nuevos con la configuración actualizada. Asegúrate de planificar esta operación para evitar problemas derivados.
-====
+CAUTION: Modificar el campo _additional++_++labels_ en los `worker_nodes` de un `KeosCluster` gestionado por CAPG provocará la recreación de los nodos asociados al _node pool_. Esto implica que los nodos actuales se eliminarán y se sustituirán por otros nuevos con la configuración actualizada. Se recomienda planificar esta operación para evitar interrupciones o afectaciones del servicio.
