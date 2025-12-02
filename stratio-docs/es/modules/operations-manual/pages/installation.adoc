@@ -1035,7 +1035,7 @@ WARNING: Estas etiquetas automáticas pueden generar un bucle de reconciliación
 
 No se deben editar ni eliminar estas etiquetas automáticas, ya que GKE las reconcilia automáticamente recreando los nodos asociados a los _node pools_ correspondientes.
 
-Para más información sobre las etiquetas automáticas aplicadas por GKE, consulta la documentación oficial de Google: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[Etiquetas automáticas en GKE].
+TIP: Consulta la documentación oficial de Google para más información sobre las https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[etiquetas automáticas aplicadas por GKE].
 
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
