@@ -1025,7 +1025,7 @@ Para evitar este problema, se deberá modificar el _health check_ del balanceado
 
 === Etiquetas automáticas en GKE
 
-GKE aplica automáticamente varias etiquetas a los recursos del clúster, como instancias de VM de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
+GKE aplica automáticamente varias etiquetas a los recursos del _cluster_, como instancias de máquinas virtuales de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
 
 - `goog-gke-node-pool-provisioning-model`: "on-demand". Indica el modelo de aprovisionamiento del grupo de nodos (_node pool_).
 
