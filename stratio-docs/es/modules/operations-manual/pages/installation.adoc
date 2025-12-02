@@ -1027,15 +1027,15 @@ Para evitar este problema, se deberá modificar el _health check_ del balanceado
 
 GKE aplica automáticamente varias etiquetas a los recursos del clúster, como instancias de VM de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
 
-- `goog-gke-node-pool-provisioning-model`: _Node pool_ de GKE.
+- `goog-gke-node-pool-provisioning-model`: "on-demand". El modelo de aprovisionamiento del grupo de nodos.
+
+NOTE: Dependiendo del caso, puede que necesites añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` en el descriptor si tu configuración lo requiere en tiempo de desliegue del cluster para evitar bucles de reconciliación o a-posteriori modificando el objeto `keoscluster`. Los nodos pueden ser bajo demanda, por reserva o Spot VMs.
 
 WARNING: Estas etiquetas automáticas pueden causar un bucle de reconciliación en el controlador `cluster-api-provider-gcp` (capg) en los _node pools_. Consulta la sección de xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más información.
 
 No debemos editar ni eliminar estas etiquetas automáticas, ya que GKE las reconciliará de forma automática recreando los nodos de los nodos asociados a los `node-pool` correspondientes.
 
-Para más información sobre las etiquetas automáticas aplicadas por GKE, consulta la documentación oficial de Google: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels?utm_source=chatgpt.com#automatically-applied-labels[Etiquetas automáticas en GKE].
-
-
+Para más información sobre las etiquetas automáticas aplicadas por GKE, consulta la documentación oficial de Google: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[Etiquetas automáticas en GKE].
 
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
