@@ -1033,7 +1033,7 @@ NOTE: Según el caso, puede ser necesario añadir manualmente la etiqueta `goog-
 
 WARNING: Estas etiquetas automáticas pueden generar un bucle de reconciliación en el controlador del `cluster-api-provider-gcp` (CAPG) en los _node pools_. Consulta la sección xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más detalles.
 
-No debemos editar ni eliminar estas etiquetas automáticas, ya que GKE las reconciliará de forma automática recreando los nodos de los nodos asociados a los `node-pool` correspondientes.
+No se deben editar ni eliminar estas etiquetas automáticas, ya que GKE las reconcilia automáticamente recreando los nodos asociados a los _node pools_ correspondientes.
 
 Para más información sobre las etiquetas automáticas aplicadas por GKE, consulta la documentación oficial de Google: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[Etiquetas automáticas en GKE].
 
