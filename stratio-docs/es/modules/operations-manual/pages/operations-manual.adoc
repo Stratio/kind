@@ -630,7 +630,7 @@ Para resolver este problema y detener el bucle, es necesario añadir manualmente
 kubectl edit keoscluster <cluster_name> -n <namespace>
 ----
 
-. Añade la etiqueta en el campo `additional_labels` de la definición de los `worker_nodes`:
+. Añade la etiqueta en el campo _additional++_++labels_ de la definición de los `worker_nodes`:
 +
 [source,yaml]
 ----
