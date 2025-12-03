@@ -1033,7 +1033,7 @@ WARNING: These automatic labels may create a reconciliation loop in the `cluster
 
 These automatic labels must not be edited or removed, since GKE will reconcile them automatically by recreating the nodes associated with the affected node pools.
 
-For more information about the automatic labels applied by GKE, refer to the official Google documentation: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[Automatic labels in GKE].
+TIP: Refer to the Google official documentation for more information on the https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[automatic labels applied by GKE].
 
 == Deployment of _aws-load-balancer-controller_ (EKS only)
 
