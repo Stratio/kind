@@ -1021,7 +1021,7 @@ This may lead to request issues if a _control-plane_ node fails—since the load
 
 To avoid this, modify the load balancer health check to use HTTPS and the path _/readyz_, keeping the same port: 443 for GCP and 6443 for Azure.
 
-=== Automatic Labels in GKE
+=== Automatic labels in GKE
 
 GKE automatically applies several labels to cluster resources, such as Compute Engine VM instances, persistent disks, and accelerators (TPUs). Example:
 
