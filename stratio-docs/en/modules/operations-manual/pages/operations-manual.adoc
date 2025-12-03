@@ -630,7 +630,7 @@ To solve this issue and stop the loop, the label must be manually added to the `
 kubectl edit keoscluster <cluster_name> -n <namespace>
 ----
 
-. Add the label in the `additional_labels` field of the `worker_nodes` definition:
+. Add the label under the _additional++_++labels_ field of the `worker_nodes` definition:
 +
 [source,yaml]
 ----
