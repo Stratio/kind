@@ -1027,7 +1027,7 @@ GKE automatically applies several labels to cluster resources, such as Compute E
 
 - `goog-gke-node-pool-provisioning-model`: "on-demand". Indicates the provisioning model of the node pool.
 
-NOTE: Depending on your case, you may need to manually add the `goog-gke-node-pool-provisioning-model` label in the descriptor if your configuration requires it at cluster deployment time to avoid reconciliation loops, or afterwards by modifying the `keoscluster` object. Nodes can be on-demand, reserved, or Spot VMs.
+NOTE: Depending on the case, it may be necessary to manually add the `goog-gke-node-pool-provisioning-model` label to the descriptor when deploying the cluster, if the configuration requires it, to avoid reconciliation loops. It can also be added afterward by modifying the `KeosCluster` object. Nodes can be on-demand, reserved, or Spot VMs.
 
 WARNING: These automatic labels can cause a reconciliation loop in the `cluster-api-provider-gcp` (capg) controller for node pools. See the xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Troubleshooting] section of the operations manual for more information.
 
