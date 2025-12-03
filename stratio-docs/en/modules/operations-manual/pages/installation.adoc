@@ -569,7 +569,7 @@ labels:
 
 |Yes
 
-|_additional_labels_
+|_additional++_++labels_
 |Optional set of additional labels to be added to node groups (`node_pool`), in addition to the default labels. +
 This field is exclusive to GKE.
 a|
