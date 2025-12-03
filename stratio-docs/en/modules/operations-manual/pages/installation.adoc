@@ -1025,7 +1025,7 @@ To avoid this, modify the load balancer health check to use HTTPS and the path _
 
 GKE automatically applies several labels to cluster resources, such as Compute Engine VM instances, persistent disks, and accelerators (TPUs). Example:
 
-- `goog-gke-node-pool-provisioning-model`: "on-demand". The provisioning model of the node pool. 
+- `goog-gke-node-pool-provisioning-model`: "on-demand". Indicates the provisioning model of the node pool.
 
 NOTE: Depending on your case, you may need to manually add the `goog-gke-node-pool-provisioning-model` label in the descriptor if your configuration requires it at cluster deployment time to avoid reconciliation loops, or afterwards by modifying the `keoscluster` object. Nodes can be on-demand, reserved, or Spot VMs.
 
