@@ -1029,7 +1029,7 @@ GKE automatically applies several labels to cluster resources, such as Compute E
 
 NOTE: Depending on the case, it may be necessary to manually add the `goog-gke-node-pool-provisioning-model` label to the descriptor when deploying the cluster, if the configuration requires it, to avoid reconciliation loops. It can also be added afterward by modifying the `KeosCluster` object. Nodes can be on-demand, reserved, or Spot VMs.
 
-WARNING: These automatic labels can cause a reconciliation loop in the `cluster-api-provider-gcp` (capg) controller for node pools. See the xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Troubleshooting] section of the operations manual for more information.
+WARNING: These automatic labels may create a reconciliation loop in the `cluster-api-provider-gcp` (CAPG) controller on node pools. Refer to the xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_ labels[Troubleshooting] section of the operations manual for more details.
 
 You must not edit or remove these automatic labels, as GKE will automatically reconcile them by recreating the nodes associated with the corresponding node pools.
 
