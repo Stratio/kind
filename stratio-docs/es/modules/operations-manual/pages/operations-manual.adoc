@@ -612,3 +612,35 @@ Para saber cómo llevar a cabo una instalación en la que las imágenes de los _
 == Gestión de credenciales
 
 Para administrar las credenciales configuradas en el _cluster_, consulta la xref:operations-manual:credentials.adoc[documentación de gestión de credenciales].
+
+== Resolución de problemas
+
+=== Bucle de reconciliación en GKE por etiquetas automáticas
+
+En los _clusters_ gestionados con el Cluster API Provider GCP (CAPG), el controlador de CAPG responsable del recurso `GCPManagedMachinePool` puede entrar en un bucle de reconciliación infinito si detecta discrepancias entre las etiquetas (`additional_labels`) definidas en la especificación del objeto (o no definidas) y las etiquetas efectivamente presentes en el _node pool_ de GKE. Este comportamiento se refleja en los registros, con mensajes repetidos como "Node pool config update required” y "Node pool config updating in progress". Se trata de un problema conocido en CAPG, relacionado con la reconciliación de etiquetas en los _node pools_ gestionados por el objeto `GCPManagedMachinePool`.
+
+La causa principal es que Google Cloud GKE añade automáticamente etiquetas a los _node pools_ (por ejemplo, `goog-gke-node-pool-provisioning-model: on-demand`) que no están presentes por defecto en el recurso `GCPManagedMachinePool` generado por Cluster API. Este valor es solo un ejemplo: puede tratarse de cualquier etiqueta añadida por Google.
+
+Para resolver este problema y detener el bucle, es necesario añadir manualmente la etiqueta en la configuración del `KeosCluster` para que coincida con la que aplica el proveedor. Puedes seguir estos pasos:
+
+. Edita el recurso `KeosCluster`:
++
+[source,bash]
+----
+kubectl edit keoscluster <cluster_name> -n <namespace>
+----
+
+. Añade la etiqueta en el campo _additional++_++labels_ de la definición de los `worker_nodes`:
++
+[source,yaml]
+----
+spec:
+  ...
+  worker_nodes:
+    - name: <node_pool_name>
+      ...
+      additional_labels:
+        "goog-gke-node-pool-provisioning-model": "on-demand"
+----
+
+CAUTION: Modificar el campo _additional++_++labels_ en los `worker_nodes` de un `KeosCluster` gestionado por CAPG provocará la recreación de los nodos asociados al _node pool_. Esto implica que los nodos actuales se eliminarán y se sustituirán por otros nuevos con la configuración actualizada. Se recomienda planificar esta operación para evitar interrupciones o afectaciones del servicio.
