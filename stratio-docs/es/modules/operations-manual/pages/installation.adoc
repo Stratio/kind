@@ -572,7 +572,7 @@ labels:
 
 |_additional++_++labels_
 |Conjunto opcional de etiquetas adicionales que se aplicarán a los grupos de nodos (_node pools_), además de las etiquetas configuradas por defecto. +
-Este campo es exclusivo de GKE.
+Este campo solo está disponible en despliegues sobre GKE.
 a|
 
 [source,yaml]
