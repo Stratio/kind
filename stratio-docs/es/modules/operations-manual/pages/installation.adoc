@@ -570,7 +570,7 @@ labels:
 
 |Sí
 
-|_additional_labels_
+|_additional++_++labels_
 |Conjunto opcional de etiquetas adicionales que se añadirán a los grupos de nodos (`node_pool`), además de las etiquetas aplicadas por defecto. +
 Este campo es exclusivo de GKE.
 a|
