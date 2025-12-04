@@ -17,7 +17,6 @@ limitations under the License.
 package commons
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -230,7 +229,7 @@ type WorkloadIdentityConfig struct {
 	// WorkloadPool is the workload pool to attach all Kubernetes service accounts to Google Cloud services.
 	// Only relevant when enabled is true
 	// +kubebuilder:validation:Required
-	WorkloadPool string `yaml:"workload_pool,omitempty"`
+	WorkloadPool string `yaml:"workload_pool,omitempty" validate:"omitempty,workloadpool"`
 	// +kubebuilder:default=true
 	Enabled *bool `yaml:"enabled,omitempty"`
 }
@@ -581,17 +580,6 @@ func (s KeosSpec) Init() KeosSpec {
 		s.ControlPlane.Gcp.LoggingConfig.SystemComponents = ToPtr(false)
 		s.ControlPlane.Gcp.LoggingConfig.Workloads = ToPtr(false)
 	}
-	if s.ControlPlane.Gcp.ClusterSecurity == nil {
-		s.ControlPlane.Gcp.ClusterSecurity = &ClusterSecurity{}
-	}
-	// Set Workload identity default to true
-	s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig = &WorkloadIdentityConfig{}
-	s.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled = ToPtr(true)
-
-	// DEBUG JANR
-	marshaled, _ := json.MarshalIndent(s, "", "  ")
-	fmt.Println("KeosSpec default values initialized: ", string(marshaled))
-
 	// END GKE
 
 	// Helm
@@ -602,6 +590,17 @@ func (s KeosSpec) Init() KeosSpec {
 	s.Dns.ManageZone = true
 
 	return s
+}
+
+// Validator for WorkloadPool field
+func workloadPoolValidator(fl validator.FieldLevel) bool {
+    value := fl.Field().String()
+    if value == "" {
+        return true // omitempty
+    }
+    // Must match "<projectid>.svc.id.goog"
+    parts := strings.Split(value, ".svc.id.goog")
+    return len(parts) == 2 && parts[0] != ""
 }
 
 // Read descriptor file
@@ -624,6 +623,7 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 	validate.RegisterValidation("gte_param_if_exists", gteParamIfExists)
 	validate.RegisterValidation("lte_param_if_exists", lteParamIfExists)
 	validate.RegisterValidation("required_if_for_bool", requiredIfForBool)
+	validate.RegisterValidation("workloadpool", workloadPoolValidator)
 
 	descriptorManifests := strings.Split(string(descriptorRAW), "---\n")
 	for _, manifest := range descriptorManifests {
@@ -646,16 +646,30 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 					return nil, nil, err
 				}
 
-				// If WorkloadPool is not set, use project_id as a fallback from credentials
+				// If WorkloadPool is not set, but workload identity is enabled, set default value based on GCP ProjectID from credentials
 				if keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
 					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil &&
 					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool == "" &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled != nil &&
+					*keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled &&
 					keosCluster.Spec.Credentials.GCP.ProjectID != "" {
+					// NOTE: We do not need to check if ProjectID is empty, because validation will fail if GCP credentials are not set properly
 					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = keosCluster.Spec.Credentials.GCP.ProjectID + ".svc.id.goog"
 				}
 
 				err = validate.Struct(keosCluster)
 				if err != nil {
+					// Si el error es por workload_pool, muestra un mensaje más claro
+					if validationErrors, ok := err.(validator.ValidationErrors); ok {
+						for _, ve := range validationErrors {
+							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
+							   ve.Tag() == "workloadpool" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: El campo 'workload_pool' en 'workload_identity_config' no es válido.\n" +
+									"Debe tener el formato: <projectid>.svc.id.goog (ejemplo: clusterapi-371111.svc.id.goog)\n")
+							}
+						}
+					}
 					return nil, nil, err
 				}
 
