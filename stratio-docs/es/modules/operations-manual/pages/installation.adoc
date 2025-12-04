@@ -570,6 +570,21 @@ labels:
 
 |Sí
 
+|_additional++_++labels_
+|Conjunto opcional de etiquetas adicionales que se aplicarán a los grupos de nodos (_node pools_), además de las etiquetas configuradas por defecto. +
+Este campo solo está disponible en despliegues sobre GKE.
+a|
+
+[source,yaml]
+----
+additional_labels:
+  goog-gke-node-pool-provisioning-model: on-demand
+  entorno: produccion
+  equipo: datos
+----
+
+|Sí
+
 |_root++_++volume_
 |Particularidades del volumen como tamaño, tipo y encriptación.
 a|
@@ -1007,6 +1022,20 @@ Debido a un error en los distintos _controllers_ (solucionado en ramas master pe
 Eventualmente, esto podría generar problemas en las peticiones en caso de fallo de alguno de los nodos del _control-plane_, dado que el balanceador de carga enviará peticiones a los nodos del _control-plane_ cuyo puerto responda pero no pueda atender peticiones.
 
 Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
+
+=== Etiquetas automáticas en GKE
+
+GKE aplica automáticamente varias etiquetas a los recursos del _cluster_, como instancias de máquinas virtuales de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
+
+- `goog-gke-node-pool-provisioning-model`: "on-demand". Indica el modelo de aprovisionamiento del grupo de nodos (_node pool_).
+
+NOTE: Según el caso, puede ser necesario añadir manualmente la etiqueta `goog-gke-node-pool-provisioning-model` al descriptor al desplegar el _cluster_, si la configuración lo requiere, para evitar bucles de reconciliación. También se puede añadir a posteriori modificando el objeto `KeosCluster`. Los nodos pueden ser _on-demand_, reservados o de Spot VMs.
+
+WARNING: Estas etiquetas automáticas pueden generar un bucle de reconciliación en el controlador del `cluster-api-provider-gcp` (CAPG) en los _node pools_. Consulta la sección xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Resolución de problemas] del manual de operaciones para más detalles.
+
+No se deben editar ni eliminar estas etiquetas automáticas, ya que GKE las reconcilia automáticamente recreando los nodos asociados a los _node pools_ correspondientes.
+
+TIP: Consulta la documentación oficial de Google para más información sobre las https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[etiquetas automáticas aplicadas por GKE].
 
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
