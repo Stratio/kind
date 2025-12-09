@@ -853,8 +853,8 @@ spec:
                     }
 
                     ctx.Status.End(true)
-                } else {
-                    fmt.Println("Flux service account not found in descriptor — skipping annotation")
+				} else {
+					// Flux service account not found in descriptor — skipping annotation
                 }
             }
         }

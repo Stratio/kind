@@ -222,7 +222,7 @@ type IPAllocationPolicy struct {
 }
 
 type ClusterSecurity struct {
-	WorkloadIdentityConfig *WorkloadIdentityConfig `yaml:"workload_identity_config,omitempty"`
+	WorkloadIdentityConfig *WorkloadIdentityConfig `yaml:"workload_identity_config,omitempty" validate:"required"`
 }
 
 type WorkloadIdentityConfig struct {
@@ -230,7 +230,7 @@ type WorkloadIdentityConfig struct {
 	// Only relevant when enabled is true
 	WorkloadPool string `yaml:"workload_pool,omitempty" validate:"omitempty,workloadpool"`
 	// +kubebuilder:default=true
-	Enabled *bool `yaml:"enabled,omitempty"`
+	Enabled *bool `yaml:"enabled,omitempty" validate:"eq=true"`
 	// Key: Kubernetes service account name
 	// Value: GCP service account email
 	ServiceAccounts map[string]string `yaml:"service_accounts,omitempty" validate:"required_if_enabled,gcp_service_accounts"`
@@ -759,6 +759,17 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
                                     "ERROR: El campo 'workload_pool' en 'workload_identity_config' no es válido.\n" +
                                         "Debe tener el formato: <projectid>.svc.id.goog (ejemplo: clusterapi-371111.svc.id.goog)\n")
                             }
+							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig" &&
+								ve.Tag() == "required" &&
+								keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil {
+								return nil, nil, fmt.Errorf(
+									"ERROR: Formato inválido en 'cluster_security'.\n" +
+										"Falta el campo 'workload_identity_config'. Asegúrate de que la estructura sea:\n" +
+										"cluster_security:\n" +
+										"  workload_identity_config:\n" +
+										"    enabled: true\n" +
+										"    ...\n")
+							}
                             if ve.Tag() == "gcp_service_accounts" {
                                 return nil, nil, fmt.Errorf(
                                     "ERROR: Las cuentas de servicio en 'service_accounts' no son válidas.\n" +
