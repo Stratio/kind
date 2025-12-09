@@ -26,6 +26,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"fmt"
+	"gopkg.in/yaml.v3"
+
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -807,6 +810,54 @@ spec:
 			return errors.Wrap(err, "failed to install Flux in workload cluster")
 		}
 		ctx.Status.End(true) // End Installing Flux in workload cluster
+
+		// Annotate Flux ServiceAccount for GCP Workload Identity
+		if gcpGKEEnabled {
+            // Leer service_accounts["flux"] directamente del descriptor YAML
+            descriptorRaw, err := os.ReadFile(a.descriptorPath)
+            if err != nil {
+                fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
+            } else {
+                manifests := strings.Split(string(descriptorRaw), "---\n")
+                fluxSAEmail := ""
+
+                for _, mf := range manifests {
+                    if strings.Contains(mf, "kind: KeosCluster") {
+                        var kc commons.KeosCluster
+                        if err := yaml.Unmarshal([]byte(mf), &kc); err == nil {
+                            if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+                               kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
+
+                                fluxSAEmail =
+                                    kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.
+                                        ServiceAccounts["flux"]
+                            }
+                        }
+                        break
+                    }
+                }
+
+                if fluxSAEmail != "" {
+                    ctx.Status.Start("Annotating Flux ServiceAccount for Workload Identity 🔐")
+
+					annotateCmd := fmt.Sprintf(
+						"kubectl --kubeconfig %s annotate serviceaccount source-controller --overwrite "+
+							"iam.gke.io/gcp-service-account=%s -n kube-system",
+						kubeconfigPath,
+						fluxSAEmail,
+					)
+
+                    _, err = commons.ExecuteCommand(n, annotateCmd, 5, 3)
+                    if err != nil {
+                        return errors.Wrap(err, "failed to annotate Flux serviceaccount for Workload Identity")
+                    }
+
+                    ctx.Status.End(true)
+                } else {
+                    fmt.Println("Flux service account not found in descriptor — skipping annotation")
+                }
+            }
+        }
 
 		ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
 		defer ctx.Status.End(false)
