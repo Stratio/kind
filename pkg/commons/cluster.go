@@ -294,6 +294,7 @@ type WorkerNodes []struct {
 	SSHKey           string            `yaml:"ssh_key,omitempty"`
 	Spot             bool              `yaml:"spot,omitempty" validate:"boolean"`
 	Labels           map[string]string `yaml:"labels,omitempty"`
+	AdditionalLabels map[string]string `yaml:"additional_labels,omitempty"`
 	Taints           []string          `yaml:"taints,omitempty"`
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
 	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`

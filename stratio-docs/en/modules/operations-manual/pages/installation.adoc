@@ -569,6 +569,21 @@ labels:
 
 |Yes
 
+|_additional++_++labels_
+|Optional set of additional labels that will be applied to the node pools, in addition to the labels configured by default. +
+This field is only available for deployments on GKE.
+a|
+
+[source,yaml]
+----
+additional_labels:
+  goog-gke-node-pool-provisioning-model: on-demand
+  environment: production
+  team: data
+----
+
+|Yes
+
 |_root++_++volume_
 |Volume specifics like size, type, and encryption.
 a|
@@ -1005,6 +1020,20 @@ Due to a bug in certain controllers (fixed in master branches but not yet releas
 This may lead to request issues if a _control-plane_ node fails—since the load balancer may route traffic to a node that responds on port but cannot process requests.
 
 To avoid this, modify the load balancer health check to use HTTPS and the path _/readyz_, keeping the same port: 443 for GCP and 6443 for Azure.
+
+=== Automatic labels in GKE
+
+GKE automatically applies several labels to cluster resources, such as Compute Engine VM instances, persistent disks, and accelerators (TPUs). Example:
+
+- `goog-gke-node-pool-provisioning-model`: "on-demand". Indicates the provisioning model of the node pool.
+
+NOTE: Depending on the case, it may be necessary to manually add the `goog-gke-node-pool-provisioning-model` label to the descriptor when deploying the cluster, if the configuration requires it, to avoid reconciliation loops. It can also be added afterward by modifying the `KeosCluster` object. Nodes can be on-demand, reserved, or Spot VMs.
+
+WARNING: These automatic labels may create a reconciliation loop in the `cluster-api-provider-gcp` (CAPG) controller on node pools. Refer to the xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_ labels[Troubleshooting] section of the operations manual for more details.
+
+These automatic labels must not be edited or removed, since GKE will reconcile them automatically by recreating the nodes associated with the affected node pools.
+
+TIP: Refer to the Google official documentation for more information on the https://docs.cloud.google.com/kubernetes-engine/docs/how-to/creating-managing-labels[automatic labels applied by GKE].
 
 == Deployment of _aws-load-balancer-controller_ (EKS only)
 
