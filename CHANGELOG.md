@@ -9,7 +9,7 @@
 * [PLT-3360] Bump cert-manager version to version 1.19.1 and cluster-api version to version 1.10.8
 * [PLT-3362] bump azurefile-csi version to 1.34.1
 * [PLT-3363] bump azuredisk-csi version to 1.33.5
-* [PLT-3427][Fix] Condición de Carrera en cloud-provisioner
+* [PLT-3427] Fix race condition in cloud-provisioner
 * [PLT-2124] Bump cluster-autoscaler to v1.34.1 version and its chart version to 9.52.1
 * [PLT-3359] Bump aws-load-balancer-controller to v2.14.1
 * [PLT-3416] Bump CAPA version to v2.9.2
