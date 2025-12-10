@@ -157,6 +157,63 @@ TIP: Se recomienda crear un bastión para proceder a la instalación.
 - Tener Docker instalado (versión 27.0.3 o superior).
 - Tener una imagen local: _cloud-provisioner:<version>_.
 
+==== Requisitos _workload_identity_
+
+Para permitir que los componentes del clúster (por ejemplo, el controlador de Flux) puedan autenticarse contra servicios de Google Cloud (como Artifact Registry) tras la activación de _Workload Identity_, es necesario configurar una cuenta de servicio de GCP y vincularla con la cuenta de servicio de Kubernetes (KSA) que utiliza el componente.
+
+A continuación se detallan los pasos necesarios para configurar una cuenta de servicio en GCP y vincularla con la cuenta de servicio de Kubernetes:
+
+. *Crear la cuenta de servicio de GCP*
++
+Si no existe, se debe crear una _Service Account_ en el proyecto de GCP que representará a la carga de trabajo.
++
+[source,console]
+----
+gcloud iam service-accounts create <gcp_sa_name> \
+  --project=<project_id> \
+  --display-name="Flux GCP Service Account"
+----
+
+. *Crear un rol personalizado con permisos mínimos*
++
+Es una buena práctica crear un rol específico que solo contenga los permisos necesarios (en este caso, descarga de artefactos).
++
+[source,console]
+----
+gcloud iam roles create <role_name> \
+  --project=<project_id> \
+  --title="Artifact Download Only" \
+  --permissions=artifactregistry.repositories.downloadArtifacts \
+  --stage=GA
+----
+
+. *Asignar el rol a la cuenta de servicio*
++
+Se vincula el rol creado en el paso anterior a la cuenta de servicio de GCP.
++
+[source,console]
+----
+gcloud projects add-iam-policy-binding <project_id> \
+  --member="serviceAccount:<gcp_sa_name>@<project_id>.iam.gserviceaccount.com" \
+  --role="projects/<project_id>/roles/<role_name>"
+----
+
+. *Permitir la suplantación de identidad (_Workload Identity_)*
++
+Este paso autoriza a la _Service Account_ de Kubernetes (KSA) a actuar como la _Service Account_ de GCP (GSA).
++
+[source,console]
+----
+gcloud iam service-accounts add-iam-policy-binding <gcp_sa_name>@<project_id>.iam.gserviceaccount.com \
+    --member="serviceAccount:<project_id>.svc.id.goog[<k8s_namespace>/<k8s_sa_name>]" \
+    --role="roles/iam.workloadIdentityUser"
+----
++
+Donde:
+* `<project_id>.svc.id.goog`: Es el _pool_ de identidades de carga de trabajo del clúster.
+* `<k8s_namespace>`: El _namespace_ donde reside el componente (`kube-system`).
+* `<k8s_sa_name>`: El nombre de la cuenta de servicio de Kubernetes (`source-controller`).
+
 ==== _control-plane_
 
 En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar que se trata de un *_control-plane_ gestionado* y se deben incluir las siguientes especificaciones:
@@ -188,6 +245,12 @@ NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo
 ** _workloads_ (por defecto: "false"): habilita el componente _workloads_ de _logging_.
 
 NOTE: Cualquier modificación de los parámetros anteriormente mencionados no tendrá efecto, sólo se aplican en tiempo de creación del _cluster_.
+
+* _cluster++_++network_ (opcional): Define la seguridad del cluster
+** _workload_++_++identity++_++config_(obligatorio): Permite que las cargas de trabajo en tus clústeres de GKE suplanten cuentas de servicio de Identity and Access Management (IAM) para acceder a los servicios de Google Cloud.
+*** _enabled_(obligatorio): Habilita la identidad de la carga de trabajo en el clúster.
+*** _workload++_++pool_ (obligatorio/por defecto: `spec.credentials.gcp.project_id`.svc.id.goog): Es el grupo de trabajo para adjuntar todas las cuentas de servicio de Kubernetes a los servicios de Google Cloud.
+*** _service++_++accounts_ (obligatorio: "flux"): Lista de cuentas de servicio de Google Cloud vinculadas a las cuentas de servicio de Kubernetes.
 
 ==== Nodos _worker_
 
@@ -255,6 +318,7 @@ Creating temporary cluster "example-gke" ...
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
  ✓ Installing StorageClass 💾
+ ✓ Pulling initial Helm Charts 🧭
  ✓ Installing Private CNI 🎖️
  ✓ Deleting local storage plugin 🎖️
  ✓ Installing CAPx 🎖️
@@ -265,18 +329,22 @@ Creating temporary cluster "example-gke" ...
  ✓ Preparing nodes in workload cluster 📦
  ✓ Enabling CoreDNS as DNS server 📡
  ✓ Installing CAPx in workload cluster 🎖️
- ✓ Installing StorageClass in workload cluster 💾
+ ✓ Configuring Flux in workload cluster 🧭
+ ✓ Annotating Flux ServiceAccount for Workload Identity 🔐
+ ✓ Reconciling the existing Helm charts in workload cluster 🧲
  ✓ Enabling workload cluster's self-healing 🏥
  ✓ Configuring Network Policy Engine in workload cluster 🚧
+ ✓ Installing StorageClass in workload cluster 💾
  ✓ Installing keos cluster operator in workload cluster 💻
+ ✓ Creating Kubernetes RBAC for internal loadbalancing 🔐
  ✓ Creating cloud-provisioner Objects backup 🗄️
  ✓ Moving the management role 🗝️
  ✓ Executing post-install steps 🎖️
  ✓ Generating the KEOS descriptor 📝
  ✓ Rotating and generating override_vars structure ⚒️
 The cluster has been installed successfully. Please refer to the documents below on how to proceed:
-1. Post-installation Stratio cloud-provisioner documentation.
-2. Stratio KEOS documentation.
+1. Post-installation Stratio cloud-provisioner documentation
+2. Stratio KEOS documentation
 ----
 
 === Siguientes pasos

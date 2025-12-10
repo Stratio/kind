@@ -501,6 +501,9 @@ ip_allocation_policy:
 monitoring_config:
 
 logging_config:
+
+cluster_security:
+  workload_identity_config:
 ----
 
 |Refer to the Quick Start guide for details.
@@ -842,6 +845,12 @@ spec:
       logging_config:
         system_components: false
         workloads: false
+      cluster_security:
+        workload_identity_config:
+          enabled: true
+          workload_pool: gcp-prod.svc.id.goog
+          service_accounts:
+            flux: flux-gke-sa@gcp-prod.iam.gserviceaccount.com
   worker_nodes:
     - name: gcp-prod-xlarge
       quantity: 6
