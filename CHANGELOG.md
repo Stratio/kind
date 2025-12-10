@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* [PLT-1548] [GKE] Activar Workload Identity
+* [PLT-1548] [GKE] Activate Workload Identity
 * [PLT-3524] [GKE] Add additional_labels feature 
 * [PLT-3365] Bump cloud-provider-azure to version 1.34.2
 * [PLT-3365] Bump capz to version 1.21.1 and azureserviceoperator to 2.11.0
