@@ -754,33 +754,33 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
                     // Si el error es por workload_pool, muestra un mensaje más claro
                     if validationErrors, ok := err.(validator.ValidationErrors); ok {
                         for _, ve := range validationErrors {
-                            if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
-                                ve.Tag() == "workloadpool" {
-                                return nil, nil, fmt.Errorf(
-                                    "ERROR: El campo 'workload_pool' en 'workload_identity_config' no es válido.\n" +
-                                        "Debe tener el formato: <projectid>.svc.id.goog (ejemplo: clusterapi-371111.svc.id.goog)\n")
-                            }
+							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
+								ve.Tag() == "workloadpool" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: The 'workload_pool' field in 'workload_identity_config' is invalid.\n" +
+										"It must have the format: <projectid>.svc.id.goog (example: clusterapi-371111.svc.id.goog)\n")
+							}
 							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig" &&
 								ve.Tag() == "required" &&
 								keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil {
 								return nil, nil, fmt.Errorf(
-									"ERROR: Formato inválido en 'cluster_security'.\n" +
-										"Falta el campo 'workload_identity_config'. Asegúrate de que la estructura sea:\n" +
+									"ERROR: Invalid format in 'cluster_security'.\n" +
+										"The 'workload_identity_config' field is missing. Ensure the structure is:\n" +
 										"cluster_security:\n" +
 										"  workload_identity_config:\n" +
 										"    enabled: true\n" +
 										"    ...\n")
 							}
-                            if ve.Tag() == "gcp_service_accounts" {
-                                return nil, nil, fmt.Errorf(
-                                    "ERROR: Las cuentas de servicio en 'service_accounts' no son válidas.\n" +
-                                        "Deben cumplir el formato: <name>@<project_id>.iam.gserviceaccount.com\n" +
-                                        "Y el <project_id> debe coincidir con el definido en 'workload_pool'.\n")
-                            }
+							if ve.Tag() == "gcp_service_accounts" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: The service accounts in 'service_accounts' are invalid.\n" +
+										"They must follow the format: <name>@<project_id>.iam.gserviceaccount.com\n" +
+										"And the <project_id> must match the one defined in 'workload_pool'.\n")
+							}
 							if ve.Tag() == "required_if_enabled" {
 								return nil, nil, fmt.Errorf(
-									"ERROR: 'service_accounts' es obligatorio cuando 'enabled' es true en 'workload_identity_config'.\n" +
-										"Añade al menos una cuenta de servicio GCP (formato: <name>@<project-id>.iam.gserviceaccount.com)\n")
+									"ERROR: 'service_accounts' is required when 'enabled' is true in 'workload_identity_config'.\n" +
+										"Add at least one GCP service account (format: <name>@<project-id>.iam.gserviceaccount.com)\n")
 							}
                         }
                     }
