@@ -36,7 +36,7 @@ En GKE, la cuenta de servicio con la que se aprovisionan los _clusters_ debe con
 
 * Sistemas operativos certificados
 +
-Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS), y no es necesario indicar ninguna imagen específica.
+Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS) y no es necesario indicar ninguna imagen específica.
 
 * Habilitar "Google Kubernetes Engine API" para GKE.
 * Bastion.
@@ -71,7 +71,7 @@ Para el caso de permisos a nivel de grupo de recursos, se recomienda:
 
 * Sistemas operativos certificados
 +
-Para garantizar las compatibilidad entre el _control-plane_ y los nodos _worker_ en entornos no gestionados de Azure, es necesario usar imágenes correctamente configuradas. Se recomienda generarlas con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes adaptadas a distintos proveedores de nube. Consulta la https://image-builder.sigs.k8s.io/[documentación oficial de _Image Builder_] para aprender a construir imágenes personalizadas.
+Para garantizar la compatibilidad entre el _control-plane_ y los nodos _worker_ en entornos no gestionados de Azure, es necesario usar imágenes correctamente configuradas. Se recomienda generarlas con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes adaptadas a distintos proveedores de nube. Consulta la https://image-builder.sigs.k8s.io/[documentación oficial de _Image Builder_] para aprender a construir imágenes personalizadas.
 
 El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por defecto en el _controller_ de Azure.
 
@@ -81,11 +81,11 @@ Refiriéndose al _control-plane_, en EKS y GKE no se podrá indicar una imagen, 
 
 Para los nodos _worker_, en Azure no gestionado es opcional indicar la imagen (al no indicarla, el _controller_ asigna una disponibilizada por el proveedor _cloud_).
 
-Al momento de crear la imagen para el _cluster_ se deberán tener en cuenta las necesidades de Sistema Operativo para las aplicaciones que lo requieran (_systemd units, DaemonSets_, etc.) y la versión de Kubernetes a utilizar.
+Al momento de crear la imagen para el _cluster_ se deberán tener en cuenta las necesidades del sistema operativo para las aplicaciones que lo requieran (_systemd units, DaemonSets_, etc.) y la versión de Kubernetes a utilizar.
 
 ==== Elasticsearch
 
-Para soportar los despliegues de Elasticsearch, el Sistema Operativo deberá contar con el parámetro `max_map_count = 262144` del _sysctl_ como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
+Para soportar los despliegues de Elasticsearch, el sistema operativo deberá contar con el parámetro `max_map_count = 262144` del _sysctl_, como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
 
 Las imágenes de Amazon Linux 2 *utilizadas por EKS* ya cuentan con este parámetro/valor.
 
@@ -233,7 +233,7 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 
 En la primera ejecución, las credenciales para el aprovisionamiento en el proveedor _cloud_ se indicarán en este apartado.
 
-Estos secretos se cifran con una _passphrase_ solicitada durante el aprovisionamiento en el fichero _secrets.yml_, eliminándose todo el apartado de credenciales del descriptor. En posteriores ejecuciones, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, de donde se leen las credenciales.
+Estos secretos se cifran con una _passphrase_ solicitada durante el aprovisionamiento en el fichero _secrets.yml_, eliminándose todo el apartado de credenciales del descriptor. En ejecuciones posteriores, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, donde se leen las credenciales.
 
 Los siguientes campos son considerados secretos del aprovisionamiento:
 
@@ -242,12 +242,12 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Credenciales para acceso a AWS.
+|Credenciales para el acceso a AWS.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 
 |_azure_
-|Credenciales para acceso a Azure.
+|Credenciales para el acceso a Azure.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 
@@ -262,7 +262,7 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 |Sí
 
 |_docker++_++registries_
-|_Registries_ de Docker accesibles por los nodos. Para EKS no hace falta autenticación, ya que se hace automáticamente con las credenciales del usuario.
+|_Registries_ de Docker accesibles por los nodos. Para EKS no es necesaria la autenticación, ya que se realiza automáticamente con las credenciales del usuario.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí, para _registries_ no autenticados.
 
@@ -274,7 +274,7 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 === Credenciales para registros y repositorios
 
-Es necesario proporcionar credenciales para acceder a los registros Docker y repositorios Helm cuando requieren autenticación.
+Es necesario proporcionar credenciales para acceder a los registros de Docker y a los repositorios de Helm cuando requieren autenticación.
 
 ==== Credenciales para registros Docker
 
@@ -324,7 +324,7 @@ NOTE: Cualquier cambio en _spec.credentials_ debe incluir todas las credenciales
 
 === Seguridad
 
-El bloque `security` centraliza la configuración de identidades y controles de acceso para los recursos del _cluster_, y se adapta a los distintos proveedores _cloud_. Permite definir identidades tanto para el _control-plane_ como para los nodos, e incluye opciones específicas para AWS y GCP.
+El bloque `security` centraliza la configuración de identidades y controles de acceso para los recursos del _cluster_ y se adapta a los distintos proveedores _cloud_. Permite definir identidades tanto para el _control-plane_ como para los nodos e incluye opciones específicas para AWS y GCP.
 
 [cols="1,4,2,1,1"]
 |===
@@ -344,7 +344,7 @@ En GKE, se trata de la cuenta de servicio predeterminada de los nodos.
 |Azure/GCP
 
 |_aws.create++_++iam_
-| Indica si deben crearse recursos IAM específicos para el _cluster_ durante el aprovisionamiento.
+|Indica si deben crearse recursos IAM específicos para el _cluster_ durante el aprovisionamiento.
 |false
 |Sí (valor por defecto: _false_)
 |AWS
@@ -406,11 +406,11 @@ credentials:
 
 NOTE: Este parámetro es opcional. Solo se utilizará _assume role_ si `role_arn` está definido en el descriptor.
 
-NOTE: Los prerrequisitos son los mismos que los que se indican en la sección xref:operations-manual:operations-manual.adoc#_prerrequisitos[Activar la autorización mediante _assume role_ en AWS para un _cluster_ EKS] del manual de operaciones.
+NOTE: Los prerrequisitos son los mismos que los indicados en la sección xref:operations-manual:operations-manual.adoc#_prerrequisitos[Activar la autorización mediante _assume role_ en AWS para un _cluster_ EKS] del manual de operaciones.
 
 === Repositorio de Helm
 
-Como prerrequisito de instalación, se debe indicar el repositorio Helm del que se pueda extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si se trata de un repositorio autenticado.
+Como prerrequisito de instalación, se debe indicar el repositorio Helm desde el que se pueda extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si es autenticado.
 
 [cols="1,4,2,1"]
 |===
@@ -433,15 +433,15 @@ Como prerrequisito de instalación, se debe indicar el repositorio Helm del que 
 | Sí. Por defecto: _generic_.
 |===
 
-NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca son autenticados. La autenticación se realizará mediante las credenciales utilizadas en el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios que se soportan en la versión a utilizar.
+NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca se autentican. La autenticación se realizará mediante las credenciales utilizadas en el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios que se soportan en la versión a utilizar.
 
 === Redes
 
-Como se ha mencionado anteriormente, el instalador permite utilizar elementos de red del proveedor _cloud_ creados con anterioridad (por ejemplo, por un equipo de seguridad de redes), posibilitando así las arquitecturas que mejor se adapten a las necesidades.
+Como se ha mencionado anteriormente, el instalador permite utilizar elementos de red del proveedor _cloud_ creados previamente (por ejemplo, por un equipo de seguridad de redes), lo que posibilita las arquitecturas que mejor se adapten a las necesidades.
 
-Tanto el VPC como las _subnets_ deberán estar creadas en el proveedor _cloud_. Las _subnets_ podrán ser privadas o públicas, pero en el último caso deberán contar con un _NAT gateway_ y un _Internet Gateway_ en el mismo VPC. En caso de indicar _subnets_ de ambos tipos, los nodos _worker_ se desplegarán en _subnets_ privadas.
+Tanto el VPC como las _subnets_ deberán estar creados en el proveedor de _cloud_. Las _subnets_ podrán ser privadas o públicas, pero en el último caso deberán contar con un _NAT gateway_ y un _Internet Gateway_ en el mismo VPC. En caso de indicar _subnets_ de ambos tipos, los nodos _worker_ se desplegarán en _subnets_ privadas.
 
-_Stratio KEOS_ no gestionará el ciclo de vida de los objetos creados previamente.
+_Stratio KEOS_ no gestionará el ciclo de vida de los objetos previamente creados.
 
 [cols="1,4,2,1"]
 |===
@@ -467,7 +467,7 @@ a|
 
 === _control-plane_
 
-En este apartado se indican las particularidades para el _control-plane_ de Kubernetes.
+En este apartado se indican las particularidades del _control-plane_ de Kubernetes.
 
 [cols="^1,4,3,^1"]
 |===
@@ -509,7 +509,7 @@ cluster_security:
 |Consulta la guía de inicio rápido para más información.
 
 |_managed_
-|Indica si el _control-plane_ es o no gestionado en el proveedor _cloud_.
+|Indica si el _control-plane_ es o no gestionado por el proveedor _cloud_.
 |true
 |No
 |===
@@ -607,7 +607,7 @@ root_volume:
 |Sí
 |===
 
-NOTE: Se ha implementado la opción de establecer un _min++_++size_ igual a cero, lo que permite que el autoescalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores ya que permite la definición de un grupo de _workers_ sin instanciar ningún recurso en el proveedor _cloud_ que no sea necesario.
+NOTE: Se ha implementado la opción de establecer un _min++_++size_ igual a cero, lo que permite que el autoescalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores, ya que permite la definición de un grupo de _workers_ sin instanciar ningún recurso en el proveedor _cloud_ que no sea necesario.
 
 === _Stratio KEOS_
 
@@ -618,7 +618,7 @@ Los parámetros para la fase del _keos-installer_ se indicarán en este apartado
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_flavour_
-|_Flavour_ de instalación que indica el tamaño del _cluster_ y resiliencia. Por defecto es "production".
+|_Flavour_ de instalación que indica el tamaño del _cluster_ y la resiliencia. Por defecto, es "production".
 |development
 |Sí
 
