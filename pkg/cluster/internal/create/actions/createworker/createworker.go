@@ -813,7 +813,7 @@ spec:
 
 		// Annotate Flux ServiceAccount for GCP Workload Identity
 		if gcpGKEEnabled {
-            // Leer service_accounts["flux"] directamente del descriptor YAML
+            // Read service_accounts["flux"] from YAML descriptor
             descriptorRaw, err := os.ReadFile(a.descriptorPath)
             if err != nil {
                 fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
