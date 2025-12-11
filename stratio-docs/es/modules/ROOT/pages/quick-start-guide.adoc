@@ -212,8 +212,8 @@ gcloud iam service-accounts add-iam-policy-binding <gcp_sa_name>@<project_id>.ia
 Donde:
 +
 * `<project_id>.svc.id.goog` es el _pool_ de identidades de carga de trabajo del _cluster_.
-* `<k8s_namespace>` es el _namespace_ donde reside el componente (por ejemplo, `kube-system`).
-* `<k8s_sa_name>` es el nombre de la cuenta de servicio de Kubernetes (por ejemplo, `source-controller`).
+* `<k8s_namespace>` es el _namespace_ donde reside el componente (`kube-system`).
+* `<k8s_sa_name>` es el nombre de la cuenta de servicio de Kubernetes (`source-controller`).
 
 ==== _control-plane_
 
