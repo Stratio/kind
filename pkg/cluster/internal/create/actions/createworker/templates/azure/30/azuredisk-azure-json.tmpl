@@ -11,14 +11,14 @@
     "vnetResourceGroup": "{{ $.Networks.ResourceGroup }}",
     {{- else }}
     "vnetResourceGroup": "{{ $.KeosClusterName }}",
-    {{- end}}
+    {{- end }}
     {{- if $.Networks }}
     "vnetName": {{- if ne $.Networks.VPCID "" }} "{{ $.Networks.VPCID }}", {{- else }} "{{ $.KeosClusterName }}-vnet", {{- end }}
     {{- if $.Networks.Subnets }}
     {{- $found := false }}
     {{- range $.Networks.Subnets }}
     {{- if and (not $found) (eq .Role "node") }}
-    "subnetName": "{{ $.SubnetId }}",
+    "subnetName": "{{ .SubnetID }}",
     {{- $found = true }}
     {{- end }}
     {{- end }}
