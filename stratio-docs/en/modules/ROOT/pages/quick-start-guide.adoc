@@ -157,15 +157,15 @@ TIP: It is recommended to create a bastion to proceed with the installation.
 - Have Docker installed (version 27.0.3 or higher).
 - Have a local image: _cloud-provisioner:<version>_.
 
-==== Requisitos _workload_identity_
+==== _Workload Identity_ requirements
 
-Para permitir que los componentes del clúster (por ejemplo, el controlador de Flux) puedan autenticarse contra servicios de Google Cloud (como Artifact Registry) tras la activación de _Workload Identity_, es necesario configurar una cuenta de servicio de GCP y vincularla con la cuenta de servicio de Kubernetes (KSA) que utiliza el componente.
+To allow cluster components (for example, the Flux controller) to authenticate against Google Cloud services (such as Artifact Registry) after enabling _Workload Identity_, you must configure a GCP service account and bind it to the Kubernetes Service Account (KSA) used by the component.
 
-A continuación se detallan los pasos necesarios para configurar una cuenta de servicio en GCP y vincularla con la cuenta de servicio de Kubernetes:
+The following steps describe how to create a GCP service account and link it to a Kubernetes service account:
 
-. *Crear la cuenta de servicio de GCP*
+. * Create the GCP service account*.
 +
-Si no existe, se debe crear una _Service Account_ en el proyecto de GCP que representará a la carga de trabajo.
+If it does not already exist, create a service account in the GCP project that will represent the workload.
 +
 [source,console]
 ----
@@ -174,9 +174,9 @@ gcloud iam service-accounts create <gcp_sa_name> \
   --display-name="Flux GCP Service Account"
 ----
 
-. *Crear un rol personalizado con permisos mínimos*
+. *Create a custom role with the minimum required permissions*.
 +
-Es una buena práctica crear un rol específico que solo contenga los permisos necesarios (en este caso, descarga de artefactos).
+Create a dedicated role with only the necessary permissions (e.g., artifact read/download).
 +
 [source,console]
 ----
@@ -187,9 +187,9 @@ gcloud iam roles create <role_name> \
   --stage=GA
 ----
 
-. *Asignar el rol a la cuenta de servicio*
+. *Assign the role to the service account*.
 +
-Se vincula el rol creado en el paso anterior a la cuenta de servicio de GCP.
+Bind the role created in the previous step to the GCP service account.
 +
 [source,console]
 ----
@@ -198,9 +198,9 @@ gcloud projects add-iam-policy-binding <project_id> \
   --role="projects/<project_id>/roles/<role_name>"
 ----
 
-. *Permitir la suplantación de identidad (_Workload Identity_)*
+. *Enable identity impersonation (_Workload Identity_)*.
 +
-Este paso autoriza a la _Service Account_ de Kubernetes (KSA) a actuar como la _Service Account_ de GCP (GSA).
+Authorize the Kubernetes Service Account (KSA) to act as the GCP Service Account (GSA).
 +
 [source,console]
 ----
@@ -209,10 +209,11 @@ gcloud iam service-accounts add-iam-policy-binding <gcp_sa_name>@<project_id>.ia
     --role="roles/iam.workloadIdentityUser"
 ----
 +
-Donde:
-* `<project_id>.svc.id.goog`: Es el _pool_ de identidades de carga de trabajo del clúster.
-* `<k8s_namespace>`: El _namespace_ donde reside el componente (`kube-system`).
-* `<k8s_sa_name>`: El nombre de la cuenta de servicio de Kubernetes (`source-controller`).
+Where:
++
+* `<project_id>.svc.id.goog` is the cluster’s workload identity pool.
+* `<k8s_namespace>` is the namespace where the component resides (`kube-system`).
+* `<k8s_sa_name>` is the Kubernetes service account name (`source-controller`).
 
 ==== _control-plane_
 
@@ -246,11 +247,11 @@ NOTE: Enabling the authorized networking configuration will prevent all external
 
 NOTE: Any modification of the above parameters will have no effect, they are only applied at cluster creation time.
 
-* _cluster++_++network_ (opcional): Define la seguridad del cluster
-** _workload_++_++identity++_++config_(obligatorio): Permite que las cargas de trabajo en tus clústeres de GKE suplanten cuentas de servicio de Identity and Access Management (IAM) para acceder a los servicios de Google Cloud.
-*** _enabled_(obligatorio): Habilita la identidad de la carga de trabajo en el clúster.
-*** _workload++_++pool_ (obligatorio/por defecto: `spec.credentials.gcp.project_id`.svc.id.goog): Es el grupo de trabajo para adjuntar todas las cuentas de servicio de Kubernetes a los servicios de Google Cloud.
-*** _service++_++accounts_ (obligatorio: "flux"): Lista de cuentas de servicio de Google Cloud vinculadas a las cuentas de servicio de Kubernetes.
+* _cluster++_++network_ (optional): defines the cluster security configuration.
+** _workload_++_++identity++_++config_ (required): allows GKE cluster workloads to impersonate Identity and Access Management (IAM) service accounts to access Google Cloud services.
+*** _enabled_ (required): enables _Workload Identity_ in the cluster.
+*** _workload++_++pool_ (required, default: `spec.credentials.gcp.project_id.svc.id.goog`):identity pool used to associate Kubernetes service accounts with Google Cloud services.
+*** _service++_++accounts_ (required: "flux"): list of Google Cloud service accounts linked to Kubernetes service accounts.
 
 ==== _Worker_ nodes
 
