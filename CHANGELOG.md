@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.7.4 (upcoming)
+## 0.17.0-0.7.4 (2025-12-15)
 
 * [PLT-3610] Fix Azure CSI deployment during cluster creation
 
