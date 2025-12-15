@@ -173,6 +173,7 @@ type GCPCP struct {
 	LoggingConfig                  *LoggingConfig                  `yaml:"logging_config,omitempty"`
 	ClusterIpv4Cidr                string                          `yaml:"cluster_ipv4_cidr,omitempty"`
 	IPAllocationPolicy             IPAllocationPolicy              `yaml:"ip_allocation_policy,omitempty"`
+	ClusterSecurity                *ClusterSecurity                `yaml:"cluster_security,omitempty"`
 }
 
 type ClusterNetwork struct {
@@ -219,6 +220,22 @@ type IPAllocationPolicy struct {
 	ClusterIpv4CidrBlock       string `yaml:"cluster_ipv4_cidr_block,omitempty"`
 	ServicesIpv4CidrBlock      string `yaml:"services_ipv4_cidr_block,omitempty"`
 }
+
+type ClusterSecurity struct {
+	WorkloadIdentityConfig *WorkloadIdentityConfig `yaml:"workload_identity_config,omitempty" validate:"required"`
+}
+
+type WorkloadIdentityConfig struct {
+	// WorkloadPool is the workload pool to attach all Kubernetes service accounts to Google Cloud services.
+	// Only relevant when enabled is true
+	WorkloadPool string `yaml:"workload_pool,omitempty" validate:"omitempty,workloadpool"`
+	// +kubebuilder:default=true
+	Enabled *bool `yaml:"enabled,omitempty" validate:"eq=true"`
+	// Key: Kubernetes service account name
+	// Value: GCP service account email
+	ServiceAccounts map[string]string `yaml:"service_accounts,omitempty" validate:"required_if_enabled,gcp_service_accounts"`
+}
+
 
 type Keos struct {
 	Flavour string `yaml:"flavour,omitempty"`
@@ -532,7 +549,7 @@ func (s KeosSpec) Init() KeosSpec {
 	s.ControlPlane.AWS.Logging.ControllerManager = false
 	s.ControlPlane.AWS.Logging.Scheduler = false
 
-	// GKE
+	// INIT GKE
 	s.ControlPlane.Gcp.ReleaseChannel = "extended"
 	// Enable secure boot by default
 	// Only enable secure boot by default for GCP
@@ -567,6 +584,7 @@ func (s KeosSpec) Init() KeosSpec {
 		s.ControlPlane.Gcp.LoggingConfig.SystemComponents = ToPtr(false)
 		s.ControlPlane.Gcp.LoggingConfig.Workloads = ToPtr(false)
 	}
+	// END GKE
 
 	// Helm
 	s.HelmRepository.AuthRequired = false
@@ -576,6 +594,103 @@ func (s KeosSpec) Init() KeosSpec {
 	s.Dns.ManageZone = true
 
 	return s
+}
+
+// Validator for WorkloadPool field
+func workloadPoolValidator(fl validator.FieldLevel) bool {
+    value := fl.Field().String()
+
+    if value == "" {
+        return true // omitempty
+    }
+
+    // Must match "<projectid>.svc.id.goog"
+    parts := strings.Split(value, ".svc.id.goog")
+    if len(parts) != 2 || parts[0] == "" {
+        fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
+        return false
+    }
+    return true
+}
+
+// Validator for required_if_enabled
+func requiredIfEnabledValidator(fl validator.FieldLevel) bool {
+	parent := fl.Parent()
+	enabledField := parent.FieldByName("Enabled")
+
+	if !enabledField.IsValid() || enabledField.IsNil() {
+		return true
+	}
+
+	enabled := enabledField.Elem().Bool()
+	if !enabled {
+		return true
+	}
+
+	field := fl.Field()
+
+	if !field.IsValid() || (field.Kind() == reflect.Ptr && field.IsNil()) {
+		return false
+	}
+
+	switch field.Kind() {
+	case reflect.String, reflect.Slice, reflect.Map, reflect.Array:
+		return field.Len() > 0
+	default:
+		return field.Interface() != reflect.Zero(field.Type()).Interface()
+	}
+}
+
+// Validator for ServiceAccounts field
+func gcpServiceAccountsValidator(fl validator.FieldLevel) bool {
+    serviceAccounts, ok := fl.Field().Interface().(map[string]string)
+    if !ok {
+        return false
+    }
+
+    // Get parent struct (WorkloadIdentityConfig)
+    parent := fl.Parent()
+    workloadPoolField := parent.FieldByName("WorkloadPool")
+    if !workloadPoolField.IsValid() {
+        return false
+    }
+    workloadPool := workloadPoolField.String()
+
+    var poolProjectID string
+    if workloadPool != "" {
+        parts := strings.Split(workloadPool, ".svc.id.goog")
+        if len(parts) == 2 && parts[0] != "" {
+            poolProjectID = parts[0]
+        }
+    }
+
+    for _, saEmail := range serviceAccounts {
+        // 1. Format check
+        if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
+            return false
+        }
+        parts := strings.Split(saEmail, "@")
+        if len(parts) != 2 {
+            return false
+        }
+
+        // 2. Consistency check
+        if poolProjectID != "" {
+            // Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
+            domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
+            if len(domainParts) < 1 {
+                return false
+            }
+            saProjectID := domainParts[0]
+
+            if saProjectID != poolProjectID {
+				fmt.Printf("ERROR: SA MISMATCH - saProjectID='%s' not equal to poolProjectID='%s'\n", saProjectID, poolProjectID)
+                return false
+            }
+        }
+    }
+
+    return true
 }
 
 // Read descriptor file
@@ -598,6 +713,9 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 	validate.RegisterValidation("gte_param_if_exists", gteParamIfExists)
 	validate.RegisterValidation("lte_param_if_exists", lteParamIfExists)
 	validate.RegisterValidation("required_if_for_bool", requiredIfForBool)
+	validate.RegisterValidation("required_if_enabled", requiredIfEnabledValidator)
+	validate.RegisterValidation("workloadpool", workloadPoolValidator)
+	validate.RegisterValidation("gcp_service_accounts", gcpServiceAccountsValidator)
 
 	descriptorManifests := strings.Split(string(descriptorRAW), "---\n")
 	for _, manifest := range descriptorManifests {
@@ -619,6 +737,55 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				if err != nil {
 					return nil, nil, err
 				}
+
+				// If WorkloadPool is not set, but workload identity is enabled, set default value based on GCP ProjectID from credentials
+				if keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool == "" &&
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled != nil &&
+					*keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.Enabled &&
+					keosCluster.Spec.Credentials.GCP.ProjectID != "" {
+					// NOTE: We do not need to check if ProjectID is empty, because validation will fail if GCP credentials are not set properly
+					keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool = keosCluster.Spec.Credentials.GCP.ProjectID + ".svc.id.goog"
+				}
+
+				err = validate.Struct(keosCluster)
+                if err != nil {
+                    // Si el error es por workload_pool, muestra un mensaje más claro
+                    if validationErrors, ok := err.(validator.ValidationErrors); ok {
+                        for _, ve := range validationErrors {
+							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
+								ve.Tag() == "workloadpool" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: The 'workload_pool' field in 'workload_identity_config' is invalid.\n" +
+										"It must have the format: <projectid>.svc.id.goog (example: clusterapi-371111.svc.id.goog)\n")
+							}
+							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig" &&
+								ve.Tag() == "required" &&
+								keosCluster.Spec.ControlPlane.Gcp.ClusterSecurity != nil {
+								return nil, nil, fmt.Errorf(
+									"ERROR: Invalid format in 'cluster_security'.\n" +
+										"The 'workload_identity_config' field is missing. Ensure the structure is:\n" +
+										"cluster_security:\n" +
+										"  workload_identity_config:\n" +
+										"    enabled: true\n" +
+										"    ...\n")
+							}
+							if ve.Tag() == "gcp_service_accounts" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: The service accounts in 'service_accounts' are invalid.\n" +
+										"They must follow the format: <name>@<project_id>.iam.gserviceaccount.com\n" +
+										"And the <project_id> must match the one defined in 'workload_pool'.\n")
+							}
+							if ve.Tag() == "required_if_enabled" {
+								return nil, nil, fmt.Errorf(
+									"ERROR: 'service_accounts' is required when 'enabled' is true in 'workload_identity_config'.\n" +
+										"Add at least one GCP service account (format: <name>@<project-id>.iam.gserviceaccount.com)\n")
+							}
+                        }
+                    }
+                    return nil, nil, err
+                }
 
 				keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 			case "ClusterConfig":
@@ -657,7 +824,19 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 
 	clusterConfig.Spec = clusterConfig.Spec.InitCapx()
 
+	// Clean unnecessary fields for keosCluster before processing
+	CleanKeosClusterBeforeInstall(&keosCluster)
+
 	return &keosCluster, &clusterConfig, nil
+}
+
+func CleanKeosClusterBeforeInstall(kc *KeosCluster) {
+	if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+		kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
+		kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.ServiceAccounts = nil
+	}
+
+	// Add more fields here if you need to clean others in the future
 }
 
 func DecryptFile(filePath string, vaultPassword string) (string, error) {

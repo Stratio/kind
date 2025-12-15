@@ -72,6 +72,7 @@ For resource group-level permissions, the recommendation is:
 * Certified operating systems
 +
 To ensure compatibility between the _control-plane_ and _worker_ nodes in unmanaged Azure environments, properly configured OS images must be used. It is recommended to generate them using the https://github.com/kubernetes-sigs/image-builder[Kubernetes Image Builder], the official tool from the Kubernetes project for creating cloud-optimized images. Refer to the https://image-builder.sigs.k8s.io/[official Image Builder documentation] to learn how to build custom images.
+
 The recommended OS is Ubuntu 22.04, which is set by default in the Azure controller.
 
 === Image considerations
@@ -501,6 +502,9 @@ ip_allocation_policy:
 monitoring_config:
 
 logging_config:
+
+cluster_security:
+  workload_identity_config:
 ----
 
 |Refer to the Quick Start guide for details.
@@ -842,6 +846,12 @@ spec:
       logging_config:
         system_components: false
         workloads: false
+      cluster_security:
+        workload_identity_config:
+          enabled: true
+          workload_pool: gcp-prod.svc.id.goog
+          service_accounts:
+            flux: flux-gke-sa@gcp-prod.iam.gserviceaccount.com
   worker_nodes:
     - name: gcp-prod-xlarge
       quantity: 6
