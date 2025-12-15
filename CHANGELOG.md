@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-3610] Fix Azure CSI deployment during cluster creation
 * [PLT-1548] [GKE] Activate Workload Identity
 * [PLT-3524] [GKE] Add additional_labels feature 
 * [PLT-3365] Bump cloud-provider-azure to version 1.34.2

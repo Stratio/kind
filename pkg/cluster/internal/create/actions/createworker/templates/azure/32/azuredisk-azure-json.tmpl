@@ -18,7 +18,7 @@
     {{- $found := false }}
     {{- range $.Networks.Subnets }}
     {{- if and (not $found) (eq .Role "node") }}
-    "subnetName": "{{ $.SubnetId }}",
+    "subnetName": "{{ .SubnetId }}",
     {{- $found = true }}
     {{- end }}
     {{- end }}
