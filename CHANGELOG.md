@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0-0.7.4 (upcoming)
+
+* [PLT-3610] Fix Azure CSI deployment during cluster creation
+
 ## 0.17.0-0.7.3 (2025-07-15)
 
 * [PLT-2562] Fix `cluster-api-gcp` image reference during cluster creation
