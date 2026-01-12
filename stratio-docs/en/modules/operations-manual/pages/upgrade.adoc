@@ -9,6 +9,8 @@ The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the
 
 It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.X` to that provided by `cloud-provisioner 0.6.X`. To ensure a reproducible runtime environment, the Docker image `stratio-cloud-provisioner-upgrade-image` has been created, which includes the upgrade script and all necessary dependencies.
 
+NOTE: The `upgrade-provisioner.py` script is not part of this repository. It is packaged within the `stratio-cloud-provisioner-upgrade-image` Docker image and is executed from within the container environment.
+
 == Requirements
 
 === General
