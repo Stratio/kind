@@ -998,6 +998,15 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy "+params.HelmReleaseName+" Flux HelmHelmRelease")
 	}
+
+	// Check that the HelmRelease resource exists (a short retry is handled by ExecuteCommand)
+	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
+		"-n " + params.ChartNamespace + " get helmrelease/" + params.HelmReleaseName
+	_, err = commons.ExecuteCommand(n, c, 1, 2)
+	if err != nil {
+		return errors.Wrap(err, "failed to wait for "+params.HelmReleaseName+" HelmRelease to be created")
+	}
+
 	// Wait for HelmRelease to become ready
 	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " wait helmrelease/" + params.HelmReleaseName +
