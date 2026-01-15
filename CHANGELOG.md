@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* Update cluster-api-provider-gcp version
 * [PLT-3697] Fix AWS Load Balancer wait condition
 * [PLT-3610] Fix Azure CSI deployment during cluster creation
 * [PLT-1548] [GKE] Activate Workload Identity
