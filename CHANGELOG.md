@@ -2,11 +2,12 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* [PLT-3770] Subir Flux a 2.7.5
 * Update cluster-api-provider-gcp version
 * [PLT-3697] Fix AWS Load Balancer wait condition
 * [PLT-3610] Fix Azure CSI deployment during cluster creation
 * [PLT-1548] [GKE] Activate Workload Identity
-* [PLT-3524] [GKE] Add additional_labels feature 
+* [PLT-3524] [GKE] Add additional_labels feature
 * [PLT-3365] Bump cloud-provider-azure to version 1.34.2
 * [PLT-3365] Bump capz to version 1.21.1 and azureserviceoperator to 2.11.0
 * [PLT-3360] Bump cert-manager version to version 1.19.1 and cluster-api version to version 1.10.8
@@ -114,6 +115,6 @@
 * [PLT-929] Removed calico installation as policy manager by helm chart in GKE
 * [PLT-911] Support for Disable External Endpoint in GKE
 * [PLT-923] Remove path /stratio from container image reference for kube-rbac-proxy image
-* [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig 
+* [PLT-992] Uncouple CAPX from cloud provisioner and allow to specify versions in clusterconfig
 * [PLT-988] Uncouple CAPX from Dockerfile
 * [PLT-964] Add GKE Private Cluster Validations
