@@ -13,22 +13,22 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 |
 |
 | ghcr.io/fluxcd/flux-cli
-| v2.7.3
+| v2.7.5
 
 |
 |
 | ghcr.io/fluxcd/helm-controller
-| v1.4.3
+| v1.4.5
 
 |
 |
 | ghcr.io/fluxcd/kustomize-controller
-| v1.7.2
+| v1.7.3
 
 |
 |
 | ghcr.io/fluxcd/source-controller
-| v1.7.3
+| v1.7.4
 
 | *tigera-operator*
 | *3.29.1*
