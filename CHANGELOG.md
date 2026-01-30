@@ -2,7 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
-* [PLT-3770] Subir Flux a 2.7.5
+* [PLT-3770] Bump Flux to 2.7.5
 * Update cluster-api-provider-gcp version
 * [PLT-3697] Fix AWS Load Balancer wait condition
 * [PLT-3610] Fix Azure CSI deployment during cluster creation
