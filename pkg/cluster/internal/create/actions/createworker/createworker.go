@@ -22,13 +22,13 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-	"fmt"
-	"gopkg.in/yaml.v3"
 
+	"gopkg.in/yaml.v3"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -47,10 +47,11 @@ type action struct {
 }
 
 type KeosRegistry struct {
-	url          string
-	user         string
-	pass         string
-	registryType string
+	url                  string
+	user                 string
+	pass                 string
+	registryType         string
+	awsCentralECREnabled bool
 }
 
 type HelmRegistry struct {
@@ -148,6 +149,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if registry.KeosRegistry {
 			keosRegistry.url = registry.URL
 			keosRegistry.registryType = registry.Type
+			// check if aws_central_ecr is set and enabled (default is false)
+			// and type is ecr
+			if registry.AWSCentralECREnabled && registry.Type == "ecr" {
+				keosRegistry.awsCentralECREnabled = true
+			}
 			continue
 		}
 	}
@@ -191,7 +197,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		c = `sed -i 's|docker.io|` + keosRegistry.url + `|g' /kind/manifests/default-cni.yaml`
+		c = `sed -i 's|docker.io|` + commons.GetPrefixedRegistryURL("docker.io", keosRegistry.url, keosRegistry.awsCentralECREnabled) + `|g' /kind/manifests/default-cni.yaml`
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -462,23 +468,23 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		c = "clusterctl -n " + capiClustersNamespace + " get kubeconfig " + a.keosCluster.Metadata.Name + " | tee " + kubeconfigPath
 
 		const (
-		    retries = 6                  // 6 reintentos
-		    delay   = 10 * time.Second // 10 segundos de espera
+			retries = 6                // 6 reintentos
+			delay   = 10 * time.Second // 10 segundos de espera
 		)
 
 		var kubeconfig string
 		var err error
 
 		for i := 0; i < retries; i++ {
-		    kubeconfig, err = commons.ExecuteCommand(n, c, 5, 3)
-		    if err == nil && kubeconfig != "" {
-		        break
-		    }
-		    time.Sleep(delay)
+			kubeconfig, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err == nil && kubeconfig != "" {
+				break
+			}
+			time.Sleep(delay)
 		}
 
 		if err != nil || kubeconfig == "" {
-		    return errors.Wrap(err, "failed to get workload cluster kubeconfig after multiple retries")
+			return errors.Wrap(err, "failed to get workload cluster kubeconfig after multiple retries")
 		}
 
 		// Create worker-kubeconfig secret for keos cluster
@@ -813,32 +819,32 @@ spec:
 
 		// Annotate Flux ServiceAccount for GCP Workload Identity
 		if gcpGKEEnabled {
-            // Read service_accounts["flux"] from YAML descriptor
-            descriptorRaw, err := os.ReadFile(a.descriptorPath)
-            if err != nil {
-                fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
-            } else {
-                manifests := strings.Split(string(descriptorRaw), "---\n")
-                fluxSAEmail := ""
+			// Read service_accounts["flux"] from YAML descriptor
+			descriptorRaw, err := os.ReadFile(a.descriptorPath)
+			if err != nil {
+				fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
+			} else {
+				manifests := strings.Split(string(descriptorRaw), "---\n")
+				fluxSAEmail := ""
 
-                for _, mf := range manifests {
-                    if strings.Contains(mf, "kind: KeosCluster") {
-                        var kc commons.KeosCluster
-                        if err := yaml.Unmarshal([]byte(mf), &kc); err == nil {
-                            if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
-                               kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
+				for _, mf := range manifests {
+					if strings.Contains(mf, "kind: KeosCluster") {
+						var kc commons.KeosCluster
+						if err := yaml.Unmarshal([]byte(mf), &kc); err == nil {
+							if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+								kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
 
-                                fluxSAEmail =
-                                    kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.
-                                        ServiceAccounts["flux"]
-                            }
-                        }
-                        break
-                    }
-                }
+								fluxSAEmail =
+									kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.
+										ServiceAccounts["flux"]
+							}
+						}
+						break
+					}
+				}
 
-                if fluxSAEmail != "" {
-                    ctx.Status.Start("Annotating Flux ServiceAccount for Workload Identity 🔐")
+				if fluxSAEmail != "" {
+					ctx.Status.Start("Annotating Flux ServiceAccount for Workload Identity 🔐")
 
 					annotateCmd := fmt.Sprintf(
 						"kubectl --kubeconfig %s annotate serviceaccount source-controller --overwrite "+
@@ -847,17 +853,17 @@ spec:
 						fluxSAEmail,
 					)
 
-                    _, err = commons.ExecuteCommand(n, annotateCmd, 5, 3)
-                    if err != nil {
-                        return errors.Wrap(err, "failed to annotate Flux serviceaccount for Workload Identity")
-                    }
+					_, err = commons.ExecuteCommand(n, annotateCmd, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to annotate Flux serviceaccount for Workload Identity")
+					}
 
-                    ctx.Status.End(true)
+					ctx.Status.End(true)
 				} else {
 					// Flux service account not found in descriptor — skipping annotation
-                }
-            }
-        }
+				}
+			}
+		}
 
 		ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
 		defer ctx.Status.End(false)

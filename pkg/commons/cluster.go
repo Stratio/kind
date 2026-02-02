@@ -32,8 +32,16 @@ import (
 var (
 	capi_version = "v1.10.8"
 	capa_version = "v2.9.2"
-	capz_version = "v1.21.1"
 	capg_version = "1.6.1-0.4.0"
+	capz_version = "v1.21.1"
+)
+
+const (
+	DefaultDockerhubPrefix = "/dockerhub"
+	DefaultEcrpublicPrefix = "/ecrpublic"
+	DefaultGhcrPrefix      = "/ghcr"
+	DefaultK8sPrefix       = "/k8s"
+	DefaultQuayPrefix      = "/quay"
 )
 
 type Resource struct {
@@ -236,7 +244,6 @@ type WorkloadIdentityConfig struct {
 	ServiceAccounts map[string]string `yaml:"service_accounts,omitempty" validate:"required_if_enabled,gcp_service_accounts"`
 }
 
-
 type Keos struct {
 	Flavour string `yaml:"flavour,omitempty"`
 }
@@ -281,7 +288,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
-	EnableSecureBoot *bool            `yaml:"enable_secure_boot,omitempty"`
+	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
@@ -400,10 +407,11 @@ type DockerRegistryCredentials struct {
 }
 
 type DockerRegistry struct {
-	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
-	Type         string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
-	URL          string `yaml:"url" validate:"required"`
-	KeosRegistry bool   `yaml:"keos_registry" validate:"boolean"`
+	AuthRequired         bool   `yaml:"auth_required" validate:"boolean"`
+	Type                 string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
+	URL                  string `yaml:"url" validate:"required"`
+	KeosRegistry         bool   `yaml:"keos_registry" validate:"boolean"`
+	AWSCentralECREnabled bool   `yaml:"aws_central_ecr_enabled" validate:"boolean"`
 }
 
 type HelmRepositoryCredentials struct {
@@ -596,21 +604,44 @@ func (s KeosSpec) Init() KeosSpec {
 	return s
 }
 
+// GetPrefixedRegistryURL returns the registry URL with prefix if appropriate
+func GetPrefixedRegistryURL(originalRegistry string, baseRegistryURL string, awsCentralECREnabled bool) string {
+	if !awsCentralECREnabled || baseRegistryURL == "" {
+		return baseRegistryURL
+	}
+
+	prefix := ""
+	switch {
+	case strings.Contains(originalRegistry, "docker.io"):
+		prefix = DefaultDockerhubPrefix
+	case strings.Contains(originalRegistry, "public.ecr.aws"):
+		prefix = DefaultEcrpublicPrefix
+	case strings.Contains(originalRegistry, "ghcr.io"):
+		prefix = DefaultGhcrPrefix
+	case strings.Contains(originalRegistry, "quay.io"):
+		prefix = DefaultQuayPrefix
+	case strings.Contains(originalRegistry, "gcr.io") || strings.Contains(originalRegistry, "k8s.io"):
+		prefix = DefaultK8sPrefix
+	}
+
+	return baseRegistryURL + prefix
+}
+
 // Validator for WorkloadPool field
 func workloadPoolValidator(fl validator.FieldLevel) bool {
-    value := fl.Field().String()
+	value := fl.Field().String()
 
-    if value == "" {
-        return true // omitempty
-    }
+	if value == "" {
+		return true // omitempty
+	}
 
-    // Must match "<projectid>.svc.id.goog"
-    parts := strings.Split(value, ".svc.id.goog")
-    if len(parts) != 2 || parts[0] == "" {
-        fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
-        return false
-    }
-    return true
+	// Must match "<projectid>.svc.id.goog"
+	parts := strings.Split(value, ".svc.id.goog")
+	if len(parts) != 2 || parts[0] == "" {
+		fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
+		return false
+	}
+	return true
 }
 
 // Validator for required_if_enabled
@@ -643,54 +674,54 @@ func requiredIfEnabledValidator(fl validator.FieldLevel) bool {
 
 // Validator for ServiceAccounts field
 func gcpServiceAccountsValidator(fl validator.FieldLevel) bool {
-    serviceAccounts, ok := fl.Field().Interface().(map[string]string)
-    if !ok {
-        return false
-    }
+	serviceAccounts, ok := fl.Field().Interface().(map[string]string)
+	if !ok {
+		return false
+	}
 
-    // Get parent struct (WorkloadIdentityConfig)
-    parent := fl.Parent()
-    workloadPoolField := parent.FieldByName("WorkloadPool")
-    if !workloadPoolField.IsValid() {
-        return false
-    }
-    workloadPool := workloadPoolField.String()
+	// Get parent struct (WorkloadIdentityConfig)
+	parent := fl.Parent()
+	workloadPoolField := parent.FieldByName("WorkloadPool")
+	if !workloadPoolField.IsValid() {
+		return false
+	}
+	workloadPool := workloadPoolField.String()
 
-    var poolProjectID string
-    if workloadPool != "" {
-        parts := strings.Split(workloadPool, ".svc.id.goog")
-        if len(parts) == 2 && parts[0] != "" {
-            poolProjectID = parts[0]
-        }
-    }
+	var poolProjectID string
+	if workloadPool != "" {
+		parts := strings.Split(workloadPool, ".svc.id.goog")
+		if len(parts) == 2 && parts[0] != "" {
+			poolProjectID = parts[0]
+		}
+	}
 
-    for _, saEmail := range serviceAccounts {
-        // 1. Format check
-        if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
-            return false
-        }
-        parts := strings.Split(saEmail, "@")
-        if len(parts) != 2 {
-            return false
-        }
+	for _, saEmail := range serviceAccounts {
+		// 1. Format check
+		if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
+			return false
+		}
+		parts := strings.Split(saEmail, "@")
+		if len(parts) != 2 {
+			return false
+		}
 
-        // 2. Consistency check
-        if poolProjectID != "" {
-            // Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
-            domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
-            if len(domainParts) < 1 {
-                return false
-            }
-            saProjectID := domainParts[0]
+		// 2. Consistency check
+		if poolProjectID != "" {
+			// Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
+			domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
+			if len(domainParts) < 1 {
+				return false
+			}
+			saProjectID := domainParts[0]
 
-            if saProjectID != poolProjectID {
+			if saProjectID != poolProjectID {
 				fmt.Printf("ERROR: SA MISMATCH - saProjectID='%s' not equal to poolProjectID='%s'\n", saProjectID, poolProjectID)
-                return false
-            }
-        }
-    }
+				return false
+			}
+		}
+	}
 
-    return true
+	return true
 }
 
 // Read descriptor file
@@ -750,10 +781,10 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				}
 
 				err = validate.Struct(keosCluster)
-                if err != nil {
-                    // Si el error es por workload_pool, muestra un mensaje más claro
-                    if validationErrors, ok := err.(validator.ValidationErrors); ok {
-                        for _, ve := range validationErrors {
+				if err != nil {
+					// Si el error es por workload_pool, muestra un mensaje más claro
+					if validationErrors, ok := err.(validator.ValidationErrors); ok {
+						for _, ve := range validationErrors {
 							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
 								ve.Tag() == "workloadpool" {
 								return nil, nil, fmt.Errorf(
@@ -782,10 +813,10 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 									"ERROR: 'service_accounts' is required when 'enabled' is true in 'workload_identity_config'.\n" +
 										"Add at least one GCP service account (format: <name>@<project-id>.iam.gserviceaccount.com)\n")
 							}
-                        }
-                    }
-                    return nil, nil, err
-                }
+						}
+					}
+					return nil, nil, err
+				}
 
 				keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 			case "ClusterConfig":
