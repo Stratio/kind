@@ -427,7 +427,7 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 
 	// if central ecr is enabled add suffix to the image
 	if privateParams.CentralECR {
-		certManagerHelmParams.KeosRegUrl = commons.GetPrefixedRegistryURL("docker.io", privateParams.KeosRegUrl, privateParams.CentralECR)
+		certManagerHelmParams.KeosRegUrl = commons.GetPrefixedRegistryURL("quay.io", privateParams.KeosRegUrl, privateParams.CentralECR)
 	}
 	certManagerHelmValues, err := getManifest("common", "cert-manager-helm-values.tmpl", majorVersion, certManagerHelmParams)
 	if err != nil {

@@ -620,7 +620,7 @@ func GetPrefixedRegistryURL(originalRegistry string, baseRegistryURL string, aws
 		prefix = DefaultGhcrPrefix
 	case strings.Contains(originalRegistry, "quay.io"):
 		prefix = DefaultQuayPrefix
-	case strings.Contains(originalRegistry, "gcr.io") || strings.Contains(originalRegistry, "k8s.io"):
+	case strings.Contains(originalRegistry, "k8s.io"):
 		prefix = DefaultK8sPrefix
 	}
 
