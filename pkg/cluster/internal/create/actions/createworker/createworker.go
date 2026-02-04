@@ -178,6 +178,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			KeosCluster: a.keosCluster,
 			KeosRegUrl:  keosRegistry.url,
 			Private:     a.clusterConfig.Spec.Private,
+			CentralECR:  keosRegistry.awsCentralECREnabled,
 			HelmPrivate: a.clusterConfig.Spec.PrivateHelmRepo,
 		}
 	} else {
@@ -185,6 +186,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			KeosCluster: a.keosCluster,
 			KeosRegUrl:  keosRegistry.url,
 			Private:     false,
+			CentralECR:  keosRegistry.awsCentralECREnabled,
 		}
 	}
 
