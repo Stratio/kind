@@ -74,6 +74,7 @@ type ClusterConfigSpec struct {
 	PrivateHelmRepo             bool               `yaml:"private_helm_repo"`
 	Charts                      []Chart            `yaml:"charts,omitempty"`
 	Capx                        CAPX               `yaml:"capx,omitempty"`
+	GitOpsEnabled               bool               `yaml:"gitops_enabled"`
 }
 
 type CAPX struct {
@@ -236,7 +237,6 @@ type WorkloadIdentityConfig struct {
 	ServiceAccounts map[string]string `yaml:"service_accounts,omitempty" validate:"required_if_enabled,gcp_service_accounts"`
 }
 
-
 type Keos struct {
 	Flavour string `yaml:"flavour,omitempty"`
 }
@@ -281,7 +281,7 @@ type Security struct {
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
 	} `yaml:"gcp,omitempty"`
-	EnableSecureBoot *bool            `yaml:"enable_secure_boot,omitempty"`
+	EnableSecureBoot *bool `yaml:"enable_secure_boot,omitempty"`
 }
 
 type WorkerNodes []struct {
@@ -505,6 +505,8 @@ func (s ClusterConfigSpec) Init() ClusterConfigSpec {
 	s.PrivateHelmRepo = true
 	// Set workers config max unhealthy to 100 by default
 	s.WorkersConfig.MaxUnhealthy = ToPtr[int](100)
+	// Set Git Ops as false by default
+	s.GitOpsEnabled = false
 
 	return s
 }
@@ -598,19 +600,19 @@ func (s KeosSpec) Init() KeosSpec {
 
 // Validator for WorkloadPool field
 func workloadPoolValidator(fl validator.FieldLevel) bool {
-    value := fl.Field().String()
+	value := fl.Field().String()
 
-    if value == "" {
-        return true // omitempty
-    }
+	if value == "" {
+		return true // omitempty
+	}
 
-    // Must match "<projectid>.svc.id.goog"
-    parts := strings.Split(value, ".svc.id.goog")
-    if len(parts) != 2 || parts[0] == "" {
-        fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
-        return false
-    }
-    return true
+	// Must match "<projectid>.svc.id.goog"
+	parts := strings.Split(value, ".svc.id.goog")
+	if len(parts) != 2 || parts[0] == "" {
+		fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
+		return false
+	}
+	return true
 }
 
 // Validator for required_if_enabled
@@ -643,54 +645,54 @@ func requiredIfEnabledValidator(fl validator.FieldLevel) bool {
 
 // Validator for ServiceAccounts field
 func gcpServiceAccountsValidator(fl validator.FieldLevel) bool {
-    serviceAccounts, ok := fl.Field().Interface().(map[string]string)
-    if !ok {
-        return false
-    }
+	serviceAccounts, ok := fl.Field().Interface().(map[string]string)
+	if !ok {
+		return false
+	}
 
-    // Get parent struct (WorkloadIdentityConfig)
-    parent := fl.Parent()
-    workloadPoolField := parent.FieldByName("WorkloadPool")
-    if !workloadPoolField.IsValid() {
-        return false
-    }
-    workloadPool := workloadPoolField.String()
+	// Get parent struct (WorkloadIdentityConfig)
+	parent := fl.Parent()
+	workloadPoolField := parent.FieldByName("WorkloadPool")
+	if !workloadPoolField.IsValid() {
+		return false
+	}
+	workloadPool := workloadPoolField.String()
 
-    var poolProjectID string
-    if workloadPool != "" {
-        parts := strings.Split(workloadPool, ".svc.id.goog")
-        if len(parts) == 2 && parts[0] != "" {
-            poolProjectID = parts[0]
-        }
-    }
+	var poolProjectID string
+	if workloadPool != "" {
+		parts := strings.Split(workloadPool, ".svc.id.goog")
+		if len(parts) == 2 && parts[0] != "" {
+			poolProjectID = parts[0]
+		}
+	}
 
-    for _, saEmail := range serviceAccounts {
-        // 1. Format check
-        if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
-            return false
-        }
-        parts := strings.Split(saEmail, "@")
-        if len(parts) != 2 {
-            return false
-        }
+	for _, saEmail := range serviceAccounts {
+		// 1. Format check
+		if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
+			return false
+		}
+		parts := strings.Split(saEmail, "@")
+		if len(parts) != 2 {
+			return false
+		}
 
-        // 2. Consistency check
-        if poolProjectID != "" {
-            // Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
-            domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
-            if len(domainParts) < 1 {
-                return false
-            }
-            saProjectID := domainParts[0]
+		// 2. Consistency check
+		if poolProjectID != "" {
+			// Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
+			domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
+			if len(domainParts) < 1 {
+				return false
+			}
+			saProjectID := domainParts[0]
 
-            if saProjectID != poolProjectID {
+			if saProjectID != poolProjectID {
 				fmt.Printf("ERROR: SA MISMATCH - saProjectID='%s' not equal to poolProjectID='%s'\n", saProjectID, poolProjectID)
-                return false
-            }
-        }
-    }
+				return false
+			}
+		}
+	}
 
-    return true
+	return true
 }
 
 // Read descriptor file
@@ -750,10 +752,10 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 				}
 
 				err = validate.Struct(keosCluster)
-                if err != nil {
-                    // Si el error es por workload_pool, muestra un mensaje más claro
-                    if validationErrors, ok := err.(validator.ValidationErrors); ok {
-                        for _, ve := range validationErrors {
+				if err != nil {
+					// Si el error es por workload_pool, muestra un mensaje más claro
+					if validationErrors, ok := err.(validator.ValidationErrors); ok {
+						for _, ve := range validationErrors {
 							if ve.StructNamespace() == "KeosCluster.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.WorkloadPool" &&
 								ve.Tag() == "workloadpool" {
 								return nil, nil, fmt.Errorf(
@@ -782,10 +784,10 @@ func GetClusterDescriptor(descriptorPath string) (*KeosCluster, *ClusterConfig, 
 									"ERROR: 'service_accounts' is required when 'enabled' is true in 'workload_identity_config'.\n" +
 										"Add at least one GCP service account (format: <name>@<project-id>.iam.gserviceaccount.com)\n")
 							}
-                        }
-                    }
-                    return nil, nil, err
-                }
+						}
+					}
+					return nil, nil, err
+				}
 
 				keosCluster.Metadata.Namespace = "cluster-" + keosCluster.Metadata.Name
 			case "ClusterConfig":

@@ -35,6 +35,7 @@
 * [PLT-2636] Bump cluster-api version to v1.10.4
 * [PLT-2634] Bump CAPA version to v2.8.4
 * [PLT-3777] Feature: Adaptate to Semantic Versioning
+* [PLT-3794] Feature: Add gitops-enabled flag to avoid FluxCD deployments and asssociated helmreleases
 
 * KinD upstream version: 0.17.0
 
