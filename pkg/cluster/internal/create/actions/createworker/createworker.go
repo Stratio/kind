@@ -801,7 +801,7 @@ spec:
 		}
 		ctx.Status.End(true) // End Installing CAPx in workload cluster
 
-		if !a.clusterConfig.Spec.GitOpsEnabled {
+		if a.clusterConfig.Spec.GitOpsEnabled {
 			ctx.Status.Start("Configuring Flux in workload cluster 🧭")
 			defer ctx.Status.End(false)
 
