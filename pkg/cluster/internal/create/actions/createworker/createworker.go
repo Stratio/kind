@@ -1008,27 +1008,29 @@ spec:
 		}
 		ctx.Status.End(true) // End Installing StorageClass in workload cluster
 
-		if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
-			ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
-			defer ctx.Status.End(false)
+		if !a.clusterConfig.Spec.GitOpsEnabled {
+			if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
+				ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
+				defer ctx.Status.End(false)
 
-			err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
-			if err != nil {
-				return errors.Wrap(err, "failed to install cluster-autoscaler in workload cluster")
+				err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
+				if err != nil {
+					return errors.Wrap(err, "failed to install cluster-autoscaler in workload cluster")
+				}
+
+				ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
 			}
 
-			ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
+			ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
+			defer ctx.Status.End(false)
+
+			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
+			}
+
+			ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 		}
-
-		ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
-		defer ctx.Status.End(false)
-
-		err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
-		if err != nil {
-			return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
-		}
-
-		ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 
 		// Apply custom CoreDNS configuration
 		if len(a.keosCluster.Spec.Dns.Forwarders) > 0 && (!awsEKSEnabled || !gcpGKEEnabled) {
@@ -1072,15 +1074,17 @@ spec:
 			ctx.Status.End(true) // End Creating Kubernetes RBAC for internal loadbalancing
 		}
 
-		if awsEKSEnabled && a.clusterConfig.Spec.EKSLBController {
-			ctx.Status.Start("Installing AWS LB controller in workload cluster ⚖️")
-			defer ctx.Status.End(false)
-			err = installLBController(n, kubeconfigPath, privateParams, providerParams, chartsList)
+		if !a.clusterConfig.Spec.GitOpsEnabled {
+			if awsEKSEnabled && a.clusterConfig.Spec.EKSLBController {
+				ctx.Status.Start("Installing AWS LB controller in workload cluster ⚖️")
+				defer ctx.Status.End(false)
+				err = installLBController(n, kubeconfigPath, privateParams, providerParams, chartsList)
 
-			if err != nil {
-				return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
+				if err != nil {
+					return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
+				}
+				ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
 			}
-			ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
 		}
 
 		// Create cloud-provisioner Objects backup
