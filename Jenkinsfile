@@ -15,6 +15,8 @@ hose {
     BUILDTOOL_MEMORY_REQUEST = "1024Mi"
     BUILDTOOL_MEMORY_LIMIT = "4096Mi"
 
+    VERSIONING_TYPE = "semver"
+
     DEV = { config ->
         doPackage(conf: config, parameters: "GOCACHE=/tmp")
         doDeploy(conf: config)
