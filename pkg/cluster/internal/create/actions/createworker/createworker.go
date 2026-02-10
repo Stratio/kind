@@ -1010,7 +1010,7 @@ spec:
 
 		if !a.clusterConfig.Spec.GitOpsEnabled {
 			if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
-				ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
+				ctx.Status.Start("Installing cluster-autoscaler in workload cluster 💻")
 				defer ctx.Status.End(false)
 
 				err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
