@@ -1,14 +1,11 @@
 # Changelog
 
+## 0.17.0-0.7.5 (upcoming)
+
+* Remove DoAT on jenkinsfile
+
 ## 0.17.0-0.7.4 (2025-12-15)
 
-<<<<<<< HEAD
-=======
-* Remove DoAT on jenkinsfile
-* [PLT-3770] Bump Flux to 2.7.5
-* Update cluster-api-provider-gcp version
-* [PLT-3697] Fix AWS Load Balancer wait condition
->>>>>>> 9aa0fa10 (Remove DoaT from Jenkinsfile (#878))
 * [PLT-3610] Fix Azure CSI deployment during cluster creation
 
 ## 0.17.0-0.7.3 (2025-07-15)
