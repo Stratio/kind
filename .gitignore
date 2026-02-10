@@ -32,3 +32,7 @@ deploy-recorder.lst
 /scripts/secrets.yml
 
 .codegpt
+
+# Test outputs
+/bin/all-junit.xml
+/bin/gotestsum
