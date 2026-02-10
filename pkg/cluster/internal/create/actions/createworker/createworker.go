@@ -1020,17 +1020,17 @@ spec:
 
 				ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
 			}
+
+			ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
+			defer ctx.Status.End(false)
+
+			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
+			}
+
+			ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 		}
-
-		ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
-		defer ctx.Status.End(false)
-
-		err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
-		if err != nil {
-			return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
-		}
-
-		ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 
 		// Apply custom CoreDNS configuration
 		if len(a.keosCluster.Spec.Dns.Forwarders) > 0 && (!awsEKSEnabled || !gcpGKEEnabled) {
