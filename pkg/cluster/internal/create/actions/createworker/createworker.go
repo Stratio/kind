@@ -1147,80 +1147,82 @@ spec:
 				return errors.Wrap(err, "failed to pivot management role to worker cluster")
 			}
 
-			// Wait for keoscluster-controller-manager deployment to be ready
-			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to wait for keoscluster controller ready")
-			}
-
-			if a.clusterConfig != nil {
-
-				c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
+			if !a.clusterConfig.Spec.GitOpsEnabled {
+				// Wait for keoscluster-controller-manager deployment to be ready
+				c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
+					return errors.Wrap(err, "failed to wait for keoscluster controller ready")
 				}
 
-				// Move clusterConfig to workload cluster
-				c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
-				}
+				if a.clusterConfig != nil {
 
-				// Delete clusterconfig in management cluster
-				c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
-				}
-
-			}
-
-			// Move keoscluster to workload cluster
-			c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to move keoscluster to workload cluster")
-			}
-
-			c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
-			}
-
-			// Delete keoscluster in management cluster
-			c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to delete keoscluster in management cluster")
-			}
-
-			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", false, helmRegistry)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy cluster operator")
-			}
-
-			// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
-			if providerParams.Credentials["RoleARN"] != "" {
-				// check awsmanagedcontrolplane exists if not wait till it exists
-				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					// wait for awsmanagedcontrolplane to be created
-					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+					c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
 					_, err = commons.ExecuteCommand(n, c, 5, 3)
 					if err != nil {
-						return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+						return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
 					}
+
+					// Move clusterConfig to workload cluster
+					c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
+					}
+
+					// Delete clusterconfig in management cluster
+					c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
+					}
+
 				}
-				// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
-				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+
+				// Move keoscluster to workload cluster
+				c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
+					return errors.Wrap(err, "failed to move keoscluster to workload cluster")
+				}
+
+				c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
+				}
+
+				// Delete keoscluster in management cluster
+				c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to delete keoscluster in management cluster")
+				}
+
+				err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", false, helmRegistry)
+				if err != nil {
+					return errors.Wrap(err, "failed to deploy cluster operator")
+				}
+
+				// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
+				if providerParams.Credentials["RoleARN"] != "" {
+					// check awsmanagedcontrolplane exists if not wait till it exists
+					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						// wait for awsmanagedcontrolplane to be created
+						c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+						_, err = commons.ExecuteCommand(n, c, 5, 3)
+						if err != nil {
+							return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+						}
+					}
+					// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
+					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
+					}
 				}
 			}
 			ctx.Status.End(true) // End Moving the cluster-operator
