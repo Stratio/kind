@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.8.0 (upcoming)
 
+* Support semver chart && update Chart Flux version
 * Remove DoAT on jenkinsfile
 * [PLT-3770] Bump Flux to 2.7.5
 * Update cluster-api-provider-gcp version
