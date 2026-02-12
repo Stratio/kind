@@ -22,14 +22,13 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-	"fmt"
+
 	"gopkg.in/yaml.v3"
-
-
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -462,23 +461,23 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		c = "clusterctl -n " + capiClustersNamespace + " get kubeconfig " + a.keosCluster.Metadata.Name + " | tee " + kubeconfigPath
 
 		const (
-		    retries = 6                  // 6 reintentos
-		    delay   = 10 * time.Second // 10 segundos de espera
+			retries = 6                // 6 reintentos
+			delay   = 10 * time.Second // 10 segundos de espera
 		)
 
 		var kubeconfig string
 		var err error
 
 		for i := 0; i < retries; i++ {
-		    kubeconfig, err = commons.ExecuteCommand(n, c, 5, 3)
-		    if err == nil && kubeconfig != "" {
-		        break
-		    }
-		    time.Sleep(delay)
+			kubeconfig, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err == nil && kubeconfig != "" {
+				break
+			}
+			time.Sleep(delay)
 		}
 
 		if err != nil || kubeconfig == "" {
-		    return errors.Wrap(err, "failed to get workload cluster kubeconfig after multiple retries")
+			return errors.Wrap(err, "failed to get workload cluster kubeconfig after multiple retries")
 		}
 
 		// Create worker-kubeconfig secret for keos cluster
@@ -802,71 +801,73 @@ spec:
 		}
 		ctx.Status.End(true) // End Installing CAPx in workload cluster
 
-		ctx.Status.Start("Configuring Flux in workload cluster 🧭")
-		defer ctx.Status.End(false)
+		if !a.clusterConfig.Spec.GitOpsEnabled {
+			ctx.Status.Start("Configuring Flux in workload cluster 🧭")
+			defer ctx.Status.End(false)
 
-		err = configureFlux(n, kubeconfigPath, privateParams, helmRegistry, a.keosCluster.Spec, chartsList)
-		if err != nil {
-			return errors.Wrap(err, "failed to install Flux in workload cluster")
-		}
-		ctx.Status.End(true) // End Installing Flux in workload cluster
+			err = configureFlux(n, kubeconfigPath, privateParams, helmRegistry, a.keosCluster.Spec, chartsList)
+			if err != nil {
+				return errors.Wrap(err, "failed to install Flux in workload cluster")
+			}
+			ctx.Status.End(true) // End Installing Flux in workload cluster
 
-		// Annotate Flux ServiceAccount for GCP Workload Identity
-		if gcpGKEEnabled {
-            // Read service_accounts["flux"] from YAML descriptor
-            descriptorRaw, err := os.ReadFile(a.descriptorPath)
-            if err != nil {
-                fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
-            } else {
-                manifests := strings.Split(string(descriptorRaw), "---\n")
-                fluxSAEmail := ""
-
-                for _, mf := range manifests {
-                    if strings.Contains(mf, "kind: KeosCluster") {
-                        var kc commons.KeosCluster
-                        if err := yaml.Unmarshal([]byte(mf), &kc); err == nil {
-                            if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
-                               kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
-
-                                fluxSAEmail =
-                                    kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.
-                                        ServiceAccounts["flux"]
-                            }
-                        }
-                        break
-                    }
-                }
-
-                if fluxSAEmail != "" {
-                    ctx.Status.Start("Annotating Flux ServiceAccount for Workload Identity 🔐")
-
-					annotateCmd := fmt.Sprintf(
-						"kubectl --kubeconfig %s annotate serviceaccount source-controller --overwrite "+
-							"iam.gke.io/gcp-service-account=%s -n kube-system",
-						kubeconfigPath,
-						fluxSAEmail,
-					)
-
-                    _, err = commons.ExecuteCommand(n, annotateCmd, 5, 3)
-                    if err != nil {
-                        return errors.Wrap(err, "failed to annotate Flux serviceaccount for Workload Identity")
-                    }
-
-                    ctx.Status.End(true)
+			// Annotate Flux ServiceAccount for GCP Workload Identity
+			if gcpGKEEnabled {
+				// Read service_accounts["flux"] from YAML descriptor
+				descriptorRaw, err := os.ReadFile(a.descriptorPath)
+				if err != nil {
+					fmt.Println("WARNING: Could not read descriptor for WI Flux annotation:", err)
 				} else {
-					// Flux service account not found in descriptor — skipping annotation
-                }
-            }
-        }
+					manifests := strings.Split(string(descriptorRaw), "---\n")
+					fluxSAEmail := ""
 
-		ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
-		defer ctx.Status.End(false)
+					for _, mf := range manifests {
+						if strings.Contains(mf, "kind: KeosCluster") {
+							var kc commons.KeosCluster
+							if err := yaml.Unmarshal([]byte(mf), &kc); err == nil {
+								if kc.Spec.ControlPlane.Gcp.ClusterSecurity != nil &&
+									kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig != nil {
 
-		err = reconcileCharts(n, kubeconfigPath, privateParams, a.keosCluster.Spec, chartsList)
-		if err != nil {
-			return errors.Wrap(err, "failed to reconcile with Flux the existing Helm charts in workload cluster")
+									fluxSAEmail =
+										kc.Spec.ControlPlane.Gcp.ClusterSecurity.WorkloadIdentityConfig.
+											ServiceAccounts["flux"]
+								}
+							}
+							break
+						}
+					}
+
+					if fluxSAEmail != "" {
+						ctx.Status.Start("Annotating Flux ServiceAccount for Workload Identity 🔐")
+
+						annotateCmd := fmt.Sprintf(
+							"kubectl --kubeconfig %s annotate serviceaccount source-controller --overwrite "+
+								"iam.gke.io/gcp-service-account=%s -n kube-system",
+							kubeconfigPath,
+							fluxSAEmail,
+						)
+
+						_, err = commons.ExecuteCommand(n, annotateCmd, 5, 3)
+						if err != nil {
+							return errors.Wrap(err, "failed to annotate Flux serviceaccount for Workload Identity")
+						}
+
+						ctx.Status.End(true)
+					} else {
+						// Flux service account not found in descriptor — skipping annotation
+					}
+				}
+			}
+
+			ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
+			defer ctx.Status.End(false)
+
+			err = reconcileCharts(n, kubeconfigPath, privateParams, a.keosCluster.Spec, chartsList)
+			if err != nil {
+				return errors.Wrap(err, "failed to reconcile with Flux the existing Helm charts in workload cluster")
+			}
+			ctx.Status.End(true) // End Installing Flux in workload cluster
 		}
-		ctx.Status.End(true) // End Installing Flux in workload cluster
 
 		ctx.Status.Start("Enabling workload cluster's self-healing 🏥")
 		defer ctx.Status.End(false)
@@ -1007,27 +1008,29 @@ spec:
 		}
 		ctx.Status.End(true) // End Installing StorageClass in workload cluster
 
-		if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
-			ctx.Status.Start("Installing cluster-autoscaler in workload cluster 🗚")
-			defer ctx.Status.End(false)
+		if !a.clusterConfig.Spec.GitOpsEnabled {
+			if a.keosCluster.Spec.DeployAutoscaler && !isMachinePool {
+				ctx.Status.Start("Installing cluster-autoscaler in workload cluster 💻")
+				defer ctx.Status.End(false)
 
-			err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
-			if err != nil {
-				return errors.Wrap(err, "failed to install cluster-autoscaler in workload cluster")
+				err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
+				if err != nil {
+					return errors.Wrap(err, "failed to install cluster-autoscaler in workload cluster")
+				}
+
+				ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
 			}
 
-			ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
+			ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
+			defer ctx.Status.End(false)
+
+			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
+			}
+
+			ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 		}
-
-		ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
-		defer ctx.Status.End(false)
-
-		err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
-		if err != nil {
-			return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
-		}
-
-		ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 
 		// Apply custom CoreDNS configuration
 		if len(a.keosCluster.Spec.Dns.Forwarders) > 0 && (!awsEKSEnabled || !gcpGKEEnabled) {
@@ -1071,15 +1074,17 @@ spec:
 			ctx.Status.End(true) // End Creating Kubernetes RBAC for internal loadbalancing
 		}
 
-		if awsEKSEnabled && a.clusterConfig.Spec.EKSLBController {
-			ctx.Status.Start("Installing AWS LB controller in workload cluster ⚖️")
-			defer ctx.Status.End(false)
-			err = installLBController(n, kubeconfigPath, privateParams, providerParams, chartsList)
+		if !a.clusterConfig.Spec.GitOpsEnabled {
+			if awsEKSEnabled && a.clusterConfig.Spec.EKSLBController {
+				ctx.Status.Start("Installing AWS LB controller in workload cluster ⚖️")
+				defer ctx.Status.End(false)
+				err = installLBController(n, kubeconfigPath, privateParams, providerParams, chartsList)
 
-			if err != nil {
-				return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
+				if err != nil {
+					return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
+				}
+				ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
 			}
-			ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
 		}
 
 		// Create cloud-provisioner Objects backup
@@ -1142,80 +1147,82 @@ spec:
 				return errors.Wrap(err, "failed to pivot management role to worker cluster")
 			}
 
-			// Wait for keoscluster-controller-manager deployment to be ready
-			c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to wait for keoscluster controller ready")
-			}
-
-			if a.clusterConfig != nil {
-
-				c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
+			if !a.clusterConfig.Spec.GitOpsEnabled {
+				// Wait for keoscluster-controller-manager deployment to be ready
+				c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
+					return errors.Wrap(err, "failed to wait for keoscluster controller ready")
 				}
 
-				// Move clusterConfig to workload cluster
-				c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
-				}
+				if a.clusterConfig != nil {
 
-				// Delete clusterconfig in management cluster
-				c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
-				}
-
-			}
-
-			// Move keoscluster to workload cluster
-			c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to move keoscluster to workload cluster")
-			}
-
-			c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
-			}
-
-			// Delete keoscluster in management cluster
-			c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
-			if err != nil {
-				return errors.Wrap(err, "failed to delete keoscluster in management cluster")
-			}
-
-			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", false, helmRegistry)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy cluster operator")
-			}
-
-			// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
-			if providerParams.Credentials["RoleARN"] != "" {
-				// check awsmanagedcontrolplane exists if not wait till it exists
-				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					// wait for awsmanagedcontrolplane to be created
-					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+					c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
 					_, err = commons.ExecuteCommand(n, c, 5, 3)
 					if err != nil {
-						return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+						return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
 					}
+
+					// Move clusterConfig to workload cluster
+					c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
+					}
+
+					// Delete clusterconfig in management cluster
+					c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
+					}
+
 				}
-				// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
-				c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+
+				// Move keoscluster to workload cluster
+				c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
+					return errors.Wrap(err, "failed to move keoscluster to workload cluster")
+				}
+
+				c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
+				}
+
+				// Delete keoscluster in management cluster
+				c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
+				_, err = commons.ExecuteCommand(n, c, 5, 3)
+				if err != nil {
+					return errors.Wrap(err, "failed to delete keoscluster in management cluster")
+				}
+
+				err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", false, helmRegistry)
+				if err != nil {
+					return errors.Wrap(err, "failed to deploy cluster operator")
+				}
+
+				// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
+				if providerParams.Credentials["RoleARN"] != "" {
+					// check awsmanagedcontrolplane exists if not wait till it exists
+					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						// wait for awsmanagedcontrolplane to be created
+						c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+						_, err = commons.ExecuteCommand(n, c, 5, 3)
+						if err != nil {
+							return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+						}
+					}
+					// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
+					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
+					}
 				}
 			}
 			ctx.Status.End(true) // End Moving the cluster-operator
