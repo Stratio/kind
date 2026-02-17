@@ -2,14 +2,12 @@
 
 == Descripción
 
-El script `upgrade-provisioner.py` automatiza la actualización de clústeres de Kubernetes en los siguientes entornos:
+El _script_ `upgrade-provisioner.py` automatiza la actualización de clústeres de Kubernetes en los siguientes entornos:
 
-- *EKS* en AWS (gestionado).
-- *Azure VMs* (no gestionado).
+* *EKS* en AWS (gestionado)
+* *Azure VMs* (no gestionado)
 
-Permite actualizar el clúster de Kubernetes desde `cloud-provisioner 0.7.X` a `cloud-provisioner 0.8.0` (versión `0.17.0-0.8`). Esta actualización se centra principalmente en actualizar cluster-operator de `0.5.X` a `0.6.0`, junto con los componentes de Cluster API y los _charts_ específicos de la plataforma.
-
-Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.0`, que incluye el script de actualización y todas las dependencias necesarias.
+Permite actualizar la versión del clúster de Kubernetes desde la versión instalada por `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.8.0`. Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.0`, que incluye el _script_ de actualización y todas las dependencias necesarias.
 
 === Qué se actualiza
 
@@ -33,7 +31,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 * *CAPZ (Azure):* `v1.21.1`
 * *CAPG (GCP):* `1.6.1-0.4.0` _(aún no probado)_
 
-==== _Charts_ específicos de plataforma
+==== Charts específicos de plataforma
 
 *EKS (si está instalado):*
 
@@ -49,10 +47,10 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 
 === Requisitos técnicos
 
-* Docker instalado en el sistema.
-* Archivo _kubeconfig_ con acceso al clúster.
-* Archivo _secrets.yml_ (Ansible Vault) utilizado durante la creación del clúster.
-* Directorio local para copias de seguridad (se montará en el contenedor).
+* Docker instalado en el sistema
+* Archivo `kubeconfig` con acceso al clúster
+* Archivo `secrets.yml` (Ansible Vault) utilizado durante la creación del clúster
+* Directorio local para copias de seguridad (se montará en el contenedor)
 
 === Requisitos funcionales
 
@@ -77,7 +75,7 @@ kubectl get keosclusters.installer.stratio.com -A
 kubectl get nodes
 ----
 
-*Esperado:* Todos los nodos con `STATUS = Ready`
+*Esperado:* todos los nodos con `STATUS = Ready`
 
 ==== Máquinas en ejecución
 
@@ -86,7 +84,7 @@ kubectl get nodes
 kubectl get machines -A
 ----
 
-*Esperado:* Todas con `PHASE = Running`
+*Esperado:* todas con `PHASE = Running`
 
 ==== MachineDeployments saludables
 
@@ -108,7 +106,7 @@ kubectl get pods -n capi-system
 kubectl get pods -n capa-system   # o capz-system / capg-system
 ----
 
-*Esperado:* Todos los pods en estado `Running` y registros sin errores
+*Esperado:* todos los pods en estado `Running` y registros sin errores
 
 ==== Cluster-Operator listo
 
@@ -129,7 +127,7 @@ Crea un directorio local para copias de seguridad:
 
 [source,bash]
 ----
-mkdir -p backup
+mkdir -p /ruta/local/backup
 ----
 
 NOTE: Este directorio debe montarse dentro del contenedor en `/upgrade/backup`
@@ -138,16 +136,16 @@ NOTE: Este directorio debe montarse dentro del contenedor en `/upgrade/backup`
 
 Asegúrate de que el directorio de trabajo incluya:
 
-* `upgrade-provisioner.py`: _script_ principal.
-* `templates/`: plantillas Jinja2.
-* `files/`: archivos adicionales (configuraciones, Helm, etc.).
-* `requirements.txt`: dependencias necesarias.
-* `secrets.yml`: credenciales del _cluster_.
-* `.kube/`: directorio con el archivo _kubeconfig_.
+* `upgrade-provisioner.py`: _script_ principal
+* `templates/`: plantillas Jinja2
+* `files/`: archivos adicionales (configuraciones, Helm, etc.)
+* `requirements.txt`: dependencias necesarias
+* `secrets.yml`: credenciales del clúster
+* `.kube/`: directorio con el archivo `kubeconfig`
 
 == Notas importantes
 
-=== Configuración del _registry_
+=== Configuración del registro
 
 [%header,cols="1,2"]
 |===
@@ -156,11 +154,14 @@ Asegúrate de que el directorio de trabajo incluya:
 | Sin el _flag_ `--private`
 | Clusterctl usa imágenes de `registry.k8s.io`
 
-| Solo _registry_ privado
+| Solo registro privado
 | *DEBE* usar el _flag_ `--private`
 |===
 
-WARNING: Si tu clúster solo puede acceder a un _registry_ privado, el _flag_ `--private` es *obligatorio*.
+[WARNING]
+====
+Si tu clúster solo puede acceder a un registro privado, el _flag_ `--private` es *obligatorio*.
+====
 
 == Uso del script de actualización
 
@@ -182,8 +183,9 @@ python3 upgrade-provisioner.py --help
 
 Opciones principales:
 
+[%header,cols="1,2,1,1"]
 |===
-| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+| Flag | Descripción | Valor predeterminado | Obligatoria
 
 | `-p`, `--vault-password`
 | Contraseña de Vault necesaria para descifrar secretos.
@@ -231,13 +233,13 @@ Opciones principales:
 [source,bash]
 ----
 docker run \
-    --name cloud-provisioner-upgrade-0.8.0 \
-    --net host \
-    -it \
-    -v <ruta>/secrets.yml:/upgrade/secrets.yml \
-    -v <ruta>/.kube/config:/upgrade/.kube/config \
-    -v <ruta>/backup:/upgrade/backup \
-    cloud-provisioner-upgrade:0.17.0-0.8.0
+  --name cloud-provisioner-upgrade-0.8.0 \
+  --net host \
+  -it \
+  -v /ruta/local/secrets.yml:/upgrade/secrets.yml \
+  -v /ruta/local/.kube/config:/upgrade/.kube/config \
+  -v /ruta/local/backup:/upgrade/backup \
+  cloud-provisioner-upgrade:0.17.0-0.8.0
 ----
 
 === Uso del script de actualización de versión
@@ -251,8 +253,9 @@ python3 upgrade-provisioner.py [OPCIONES]
 
 Opciones clave:
 
+[%header,cols="1,2,1,1"]
 |===
-| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+| Flag | Descripción | Valor predeterminado | Obligatoria
 
 | `-p`, `--vault-password`
 | Especifica la contraseña de Vault necesaria para descifrar secretos.
@@ -264,18 +267,14 @@ Opciones clave:
 | False
 | No
 
-| `--dry-run`
-| No actualiza componentes. Esto invalida todas las demás opciones.
-| False
-| No
 |===
 
 == Descripción general del proceso de actualización
 
-El script ejecuta el siguiente flujo de trabajo:
+El _script_ ejecuta el siguiente flujo de trabajo:
 
 . *Validación*
-** Valida kubeconfig y secretos
+** Valida `kubeconfig` y secretos
 ** Configura credenciales de la nube
 
 . *Pre-actualización*
@@ -289,7 +288,7 @@ El script ejecuta el siguiente flujo de trabajo:
 ** *Modifica los _webhooks_ de Capsule* para excluir espacios de nombres críticos de la validación/mutación
 ** Asegura que el aislamiento de inquilinos no bloquee las actualizaciones de componentes
 
-. *Actualización de _charts_*
+. *Actualización de charts*
 ** Actualiza _charts_ base (cert-manager, flux2, tigera-operator, etc.)
 ** Actualiza _charts_ específicos del proveedor (aws-load-balancer-controller, controladores CSI de Azure)
 ** *Restaura los _webhooks_ de Capsule* a la configuración original
@@ -305,9 +304,9 @@ El script ejecuta el siguiente flujo de trabajo:
 [source,bash]
 ----
 clusterctl upgrade apply \
-    --core cluster-api:v1.10.8 \
-    --infrastructure <proveedor>:<versión> \
-    --wait-providers
+  --core cluster-api:v1.10.8 \
+  --infrastructure <proveedor>:<versión> \
+  --wait-providers
 ----
 
 . *Post-actualización*
@@ -349,12 +348,12 @@ watch -n2 kubectl get helmreleases -A
 ----
 kubectl get pods -A -o json \
 | jq -r '
-    .items[]
-    | (
-            [.spec.containers[]?.image] +
-            [.spec.initContainers[]?.image]
-        )
-    | .[]
+  .items[]
+  | (
+      [.spec.containers[]?.image] +
+      [.spec.initContainers[]?.image]
+    )
+  | .[]
 ' \
 | sort -u
 ----
@@ -372,8 +371,8 @@ kubectl get pods -A -o json \
 ----
 kubectl get hr -A -o json \
 | jq -r '
-    .items[]
-    | "\(.metadata.namespace)/\(.metadata.name) -> \(.spec.chart.spec.chart)@\(.spec.chart.spec.version)"
+  .items[]
+  | "\(.metadata.namespace)/\(.metadata.name) -> \(.spec.chart.spec.chart)@\(.spec.chart.spec.version)"
 ' \
 | sort -u
 ----
