@@ -1,0 +1,5 @@
+ansible-vault==4.1.0
+jinja2==3.1.6
+PyYAML==6.0.3
+ruamel.yaml==0.19.1
+ruamel.yaml.clib==0.2.15
