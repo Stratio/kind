@@ -28,7 +28,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 * *Proveedores de infraestructura* específicos de plataforma:
 ** CAPA (AWS): `v2.9.2`
 ** CAPZ (Azure): `v1.21.1`
-** CAPG (GCP): `1.6.1-0.4.0` _(aún no probado)_
+** CAPG (GCP): `1.6.1-0.4.0` *(aún no probado)*
 
 * *Charts* específicos de plataforma:
 ** EKS (si está instalado):
@@ -102,7 +102,7 @@ kubectl get pods -n capa-system   # o capz-system / capg-system
 +
 *Esperado:* todos los _pods_ en estado `Running` y sin errores en los _logs_.
 
-** _Cluster-Operator_ listo
+** _Cluster-Operator_ listo:
 +
 [source,bash]
 ----
@@ -145,10 +145,10 @@ Asegúrate de que el directorio de trabajo incluya:
 |===
 | Escenario | Acción requerida
 
-| Sin el _flag_ `--private`
+| Sin el _flag_ `--private`.
 | `Clusterctl` utilizará imágenes de `registry.k8s.io`.
 
-| Solo registro privado
+| Solo registro privado.
 | *Debe* usar el _flag_ `--private`.
 |===
 
@@ -306,7 +306,7 @@ watch -n2 kubectl get helmreleases -A
 
 == Verificación final
 
-* Verificar imágenes de contenedor
+* Verificar imágenes de contenedor.
 +
 [source,bash]
 ----
@@ -329,7 +329,7 @@ kubectl get pods -A -o json \
 ** CAPG → `1.6.1-0.4.0`
 ** CAPZ → `v1.21.1`
 
-* Verificar versiones de _charts_
+* Verificar versiones de _charts_.
 +
 [source,bash]
 ----
@@ -341,7 +341,7 @@ kubectl get hr -A -o json \
 | sort -u
 ----
 
-* Verificación del estado final
+* Verificación del estado final.
 +
 [source,bash]
 ----
