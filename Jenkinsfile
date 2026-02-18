@@ -26,10 +26,15 @@ hose {
                     conf: config,
                     dockerfile: "pkg/cluster/internal/providers/docker/stratio/Dockerfile",
                     image:"cloud-provisioner"
+                ],
+                [
+                    conf: config,
+                    dockerfile: "pkg/cluster/internal/providers/docker/stratio/upgrade/Dockerfile",
+                    image:"cloud-provisioner-upgrade",
+                    skipOnPR: false,
                 ]
             ]
         )
-        doPushDockerECR(conf: config,AWS_CREDENTIALS_ID: 'AWS_CREDENTIALS_ECR_TEST',AWS_REGION: 'us-east-1')
         doGrypeScan(conf: config, artifactsList: [[path: 'CTS/resources/bin/cloud-provisioner', name: 'cloud-provisioner']])
         //doAT(conf: config, buildToolOverride: ['BUILDTOOL_IMAGE': 'stratio/cloud-testing-suite:0.1.0-SNAPSHOT', 'BUILDTOOL_PRIVILEGED': true, 'BUILDTOOL_RUNASUSER': "0"],  configFiles: [[fileId: "clouds-credentials.yaml", variable: "credentials"]], runOnPR: true)
     }
