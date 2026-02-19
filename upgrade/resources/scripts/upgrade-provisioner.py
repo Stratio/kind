@@ -40,6 +40,8 @@ AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.11.0"
 CLUSTERCTL = "v1.10.8"
 
 CAPI = "v1.10.8"
+CAPI_KUBEADM_BOOTSTRAP = "v1.10.8"
+CAPI_KUBEADM_CONTROL_PLANE = "v1.10.8"
 CAPA = "v2.9.2"
 CAPG = "1.6.1-0.4.0"
 CAPZ = "v1.21.1"
@@ -884,6 +886,13 @@ def upgrade_cluster_api_providers(provider):
         f"--kubeconfig {kubeconfig} "
         f"--core cluster-api:{CAPI} "
     )
+
+    # Add bootstrap and control-plane flags only for Azure
+    if provider == "azure":
+        command += (
+            f"--bootstrap kubeadm:{CAPI_KUBEADM_BOOTSTRAP} "
+            f"--control-plane kubeadm:{CAPI_KUBEADM_CONTROL_PLANE} "
+        )
 
     if provider == "aws":
         command += f"--infrastructure aws:{CAPA} "
