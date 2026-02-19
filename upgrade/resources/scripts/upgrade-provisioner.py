@@ -885,9 +885,14 @@ def upgrade_cluster_api_providers(provider):
         f"{env_vars} clusterctl upgrade apply "
         f"--kubeconfig {kubeconfig} "
         f"--core cluster-api:{CAPI} "
-        f"--bootstrap kubeadm:{CAPI_KUBEADM_BOOTSTRAP} "
-        f"--control-plane kubeadm:{CAPI_KUBEADM_CONTROL_PLANE} "
     )
+
+    # Add bootstrap and control-plane flags only for Azure
+    if provider == "azure":
+        command += (
+            f"--bootstrap kubeadm:{CAPI_KUBEADM_BOOTSTRAP} "
+            f"--control-plane kubeadm:{CAPI_KUBEADM_CONTROL_PLANE} "
+        )
 
     if provider == "aws":
         command += f"--infrastructure aws:{CAPA} "
