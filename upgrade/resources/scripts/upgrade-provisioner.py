@@ -1150,8 +1150,12 @@ if __name__ == '__main__':
             
         elif provider == "azure":
             print("[ERROR] kubectl access failed")
-            print("[HINT] For Azure, refresh credentials with:")
-            print(f"  az aks get-credentials --name <cluster-name> --resource-group <rg-name> --file {kubeconfig} --overwrite-existing")
+            print("[HINT] For Azure, refresh upgrade credentials:")
+            print("[HINT] For Azure, refresh credentials by updating the kubeconfig file:")
+            print(f"  1. Locate your kubeconfig at: {kubeconfig}")
+            print(f"  2. Update the authentication credentials manually in the file")
+            print(f"  3. Ensure the user credentials or service principal tokens are valid")
+            print("[ACTION REQUIRED] After updating the credentials in the kubeconfig file, please re-run this script")
             sys.exit(1)
             
         elif provider == "gcp":
