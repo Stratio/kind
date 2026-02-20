@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.0 (upcoming)
+## 0.17.0-0.9.0 (upcoming)
 
 * Pending changelog
 
