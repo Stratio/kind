@@ -1,107 +1,85 @@
 # Changelog
 
-## 0.17.0-0.8.0 (upcoming)
+All notable changes to this project will be documented in this file.
 
-* [PLT-3691[PLT-3872][Azure] cloud-provisioner upgrade
-* [PLT-3691][PLT-3859][EKS] cloud-provisioner upgrade
-* Support semver chart && update Chart Flux version
-* Remove DoAT on jenkinsfile
-* [PLT-3770] Bump Flux to 2.7.5
-* Update cluster-api-provider-gcp version
-* [PLT-3697] Fix AWS Load Balancer wait condition
-* [PLT-3610] Fix Azure CSI deployment during cluster creation
-* [PLT-1548] [GKE] Activate Workload Identity
-* [PLT-3524] [GKE] Add additional_labels feature
-* [PLT-3365] Bump cloud-provider-azure to version 1.34.2
-* [PLT-3365] Bump capz to version 1.21.1 and azureserviceoperator to 2.11.0
-* [PLT-3360] Bump cert-manager version to version 1.19.1 and cluster-api version to version 1.10.8
-* [PLT-3362] bump azurefile-csi version to 1.34.1
-* [PLT-3363] bump azuredisk-csi version to 1.33.5
-* [PLT-3427] Fix race condition in cloud-provisioner
-* [PLT-2124] Bump cluster-autoscaler to v1.34.1 version and its chart version to 9.52.1
-* [PLT-3359] Bump aws-load-balancer-controller to v2.14.1
-* [PLT-3416] Bump CAPA version to v2.9.2
-* [PLT-3376] Bump Flux components
-* [PLT-3024] Remove use of kube-rbac-proxy form cluster-operator
-* [PLT-2635] Bump cluster-api-provider-gcp to version v1.6.1-0.4.0
-* [PLT-2591] Bump cluster-api-provider-azure to version v1.21.0
-* [PLT-2587] Fix cloud-provisioner vulnerabilities
-* [PLT-2998] [Azure] Fix CSI deplyment with public repositories
-* [PLT-2655] Fix cluster-operator vulnerabilities and Bump kube-rbac-proxy version to v0.19.1
-* [PLT-2629] Bump CoreDNS to version 1.12.4
-* [PLT-2660] Bump CSI Azure to version 1.33.4
-* [PLT-2646] Bump cloud-provider-azure, azure-cloud-controller-manager & azure-cloud-node-manager to v1.33.2
-* [PLT-2723] Bump aws-ebs-csi-driver, coredns, kube-proxy and vpc-cni addons versions
-* [PLT-2124] Bump cluster-autoscaler to v1.33.0 version and its chart version to 9.50.1
-* [PLT-2643] Bump aws-load-balancer-controller to v2.13.4
-* [PLT-2656] Bump Tigera Operator version to v3.30.2
-* [PLT-2656] Bump Calico version to v3.30.2
-* [PLT-2651] Bump cert-manager to v1.18.1
-* [PLT-2636] Bump cluster-api version to v1.10.4
-* [PLT-2634] Bump CAPA version to v2.8.4
-* [PLT-3794] Feature: Add gitops-enabled flag to avoid FluxCD deployments and asssociated helmreleases
+## 0.8.0 (upcoming)
 
-## 0.17.0-0.7.3 (2025-07-15)
-
-* [PLT-2562] Fix `cluster-api-gcp` image reference during cluster creation
-* [PLT-2389] Fix `cloud-provisioner` image reference during cluster creation
-
-## 0.17.0-0.7.2 (2025-06-19)
-
-* [PLT-2335] Fix `role_arn` configuration management when it is not enabled
-* [PLT-2335] Bump cluster-operator to 0.5.2 version
-* [PLT-2259] Refresh kubeconfig on cloud-provisioner deployment
-* [PLT-1549] Activate NodePool SecureBoot
-* [PLT-1762] [EKS] Soportar instalaciones con Assume Role
-* [PLT-2226] Set private repository by default
-* [PLT-2289] Add safe-to-evict annotations in Flux pods
-* [PLT-2305][EKS] Asegurar la creación de la política de red en el namespace calico-system para permitir su salida
-
-### Major changes & deprecations
-
-* Docker registry and Helm repository are configured as `private` by default. They can be configured via `private_registry` and `private_helm_repo` in the cluster `ClusterConfig`
-
-## 0.17.0-0.7.1 (2025-06-05)
-
-* [PLT-2244] Disable setting CRIVolume by default
-* [PLT-2108] Configurar Assume role (STS) de forma manual.
-* [PLT-2099] Fix coredns PDB specification
-* [PLT-2131] Improve workers checks during cloud-provisioner upgrade to avoid timeouts
-* [PLT-2098] Improve kubernetes version checks during cloud-provisioner-upgrade
-* [PLT-2124] Bump cluster-autoscaler to v1.32.0 version and its chart version to 9.46.6
-* [PLT-2143] Bump cluster-operator to 0.5.1 version
-* [PLT-2143] Support empty CRIVolume and ETCDVolume references in KubeadmControlPlane and AzureMachineTemplate templates
-* [PLT-2244] Disable setting CRIVolume by default
-* [PLT-2176] Enabling ControlPlaneKubeletLocalMode feature gate to avoid upgrade issues in Azure
-* [PLT-1496] Ensure CAPG provisioner version references are set to 1.6.1-0.3.1
-* [PLT-2204] Ensure referencing cloud-provisioner image release instead of prerelease version when creating a cluster
-
-## 0.17.0-0.7.0 (2025-04-30)
-
-* [PLT-1917] Support private registry during cloud-provisioner upgrades
-* [PLT-1968] Fix cert-manager chart upgrade when using and oci Helm repository
-* [PLT-1971] Fix upgrade when using a non oci Helm repository
-* [PLT-1957] Fix aws-load-balancer-controller upgrade
-* [PLT-1956] Improve cluster-operator backup and restore management during upgrade
-* [PLT-1958] Improve aws-node ClusterRole patch exception handling during upgrade
-* [PLT-1652] Allow skipping kubernetes intermediate version during upgrade
-* [PLT-1887] Dynamic region describe
-* [PLT-1849] Fix aws-load-balancer-controller annotation
-* [PLT-1621] Add kubernetes 1.32 support
-* [PLT-1741] Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation
-* [PLT-1682] Improve kindest/node and stratio-capi-image management
-* [PLT-1317] Remove non-suported AKS, managed AWS and managed GCP references
-* [PLT-1628] Fix capz images registry and repository references. Replace cloud-provider-azure
-* [PLT-1394] Bump Flux version to 2.14.1
-* [PLT-1393] Bump Tigera Operator version to v3.29.1
-* [PLT-1628] Fix coredns, cluster-api-gcp and kube-rbac-proxy image registry and repository references
-* [PLT-1332] [GKE] Validaciones parámetros GKE
-* [PLT-1330] CMEK, SA & CIDRs
-* [PLT-964] Validaciones nuevos parámetros GKE
-* [PLT-1156] Add deny-all-egress-imds_gnetpol
-* [PLT-1309] Update docker images requirements documentation. Include stratio-capi-image to cicd flow
-* [PLT-719] Doc 0.5 to master
-* [PLT-1178] fix aws-load-balancer-controller
+ * [PLT-3794] -  Feature: Add gitops-enabled in keoscluster to avoid FluxCD deployments and asssociated helmreleases  - [`#876`](https://github.com/Stratio/kind/pull/876)
+* [PLT-3770] -  Subir Flux a 2.7.5  - [`#873`](https://github.com/Stratio/kind/pull/873)
+* [PLT-3777] -  Feature: Adaptate to Semantic Versioning  - [`#875`](https://github.com/Stratio/kind/pull/875)
+* [PLT-3697] -  [EKS] Fallo al desplegar "AWS LB controller"  - [`#871`](https://github.com/Stratio/kind/pull/871)
+* [PLT-1548] -  [GKE] Activar Workload Identity  - [`#867`](https://github.com/Stratio/kind/pull/867)
+* [PLT-3524] -  [GKE] Gestion metadata.labesl en los node-pools  - [`#866`](https://github.com/Stratio/kind/pull/866)
+* [PLT-3368] -  Bump cloud-node/controller-manager to version 1.34.2  - [`#864`](https://github.com/Stratio/kind/pull/864)
+* [PLT-3365] -  Bump CAPZ to version 1.21.1 & azureserviceoperator to 2.11.0  - [`#863`](https://github.com/Stratio/kind/pull/863)
+* [PLT-3360] -  Solucionar vulnerabilidades en las imágenes de cert-manager (cluster-api)  - [`#859`](https://github.com/Stratio/kind/pull/859)
+* [PLT-3362] -  bump azurefile csi to version v1.34.1  - [`#862`](https://github.com/Stratio/kind/pull/862)
+* [PLT-3363] -  bump azuredisk csi to version v1.33.5  - [`#861`](https://github.com/Stratio/kind/pull/861)
+* [PLT-3427] -  [Fix] Condición de Carrera en cloud-provisioner Causa Fallo al Obtener el Kubeconfig del Clúster  - [`#860`](https://github.com/Stratio/kind/pull/860)
+* [PLT-3359] -  Bump aws-load-balancer-controller to version 1.14.1  - [`#855`](https://github.com/Stratio/kind/pull/855)
+* [PLT-2587] -  [Clouds] Solucionar vulnerabilidades en cloud-provisioner 0.7  - [`#853`](https://github.com/Stratio/kind/pull/853)
+* [PLT-3376] -  Bump Flux components  - [`#852`](https://github.com/Stratio/kind/pull/852)
+* [PLT-3038] -  Adaptar estructura para soportar multitenant  - [`#847`](https://github.com/Stratio/kind/pull/847)
+* [PLT-2887] -  Configuración de cifrado por defecto para EBS  - [`#846`](https://github.com/Stratio/kind/pull/846)
+* [PLT-3024] -  Remove use of kube-rbac-proxy form `cluster-operator`  - [`#845`](https://github.com/Stratio/kind/pull/845)
+* [PLT-3080] -  Adaptar cloud-provisioner para soportar ECR central  - [`#840`](https://github.com/Stratio/kind/pull/840)
+* [PLT-2591] -  Bump CAPZ version to v1.21.0  - [`#839`](https://github.com/Stratio/kind/pull/839)
+* [PLT-2587] -  Fix cloud-provisioner vulnerabilities & update components  - [`#838`](https://github.com/Stratio/kind/pull/838)
+* [PLT-2953] -  Fix renewal credentials docs  - [`#834`](https://github.com/Stratio/kind/pull/834)
+* [PLT-2655] -  Update kube-rbac-proxy repository  - [`#837`](https://github.com/Stratio/kind/pull/837)
+* [PLT-2998] -  [Azure] Fix CSI deployment with public repositories  - [`#836`](https://github.com/Stratio/kind/pull/836)
+* [PLT-2655] -  Fix cluster-operator & kube-rbac-proxy vulnerabilities  - [`#835`](https://github.com/Stratio/kind/pull/835)
+* [PLT-2660] -  Bump CSI Azure to version 1.33.4  - [`#832`](https://github.com/Stratio/kind/pull/832)
+* [PLT-2723] -  Bump aws-ebs-csi-driver, coredns, kube-proxy and vpc-cni addons versions  - [`#829`](https://github.com/Stratio/kind/pull/829)
+* [PLT-2653] -  Bump cluster-autoscaler version to v1.33.0  - [`#828`](https://github.com/Stratio/kind/pull/828)
+* [PLT-2643] -  Bump aws-load-balancer controller version to v2.13.4  - [`#827`](https://github.com/Stratio/kind/pull/827)
+* [PLT-2656] -  Bump Tigera Operator version to v3.30.2  - [`#825`](https://github.com/Stratio/kind/pull/825)
+* [PLT-2636] -  [Clouds] Solucionar vulnerabilidades en (cluster-api-controller:v1.7.4) ClusterAPI  - [`#826`](https://github.com/Stratio/kind/pull/826)
+* [PLT-2664] -  Bump Flux components  - [`#824`](https://github.com/Stratio/kind/pull/824)
+* [PLT-2634] -  Bump CAPA version to v2.8.4  - [`#820`](https://github.com/Stratio/kind/pull/820)
+* [PLT-2583] -  Clean dependencies to improve vulnerabilities management  - [`#817`](https://github.com/Stratio/kind/pull/817)
+* [PLT-2562] -  Fix  image reference during cluster creation  - [`#815`](https://github.com/Stratio/kind/pull/815)
+* [PLT-2389] -  Fix  image reference during cluster creation  - [`#808`](https://github.com/Stratio/kind/pull/808)
+* [PLT-2379] -  Fix namespace reference  - [`#804`](https://github.com/Stratio/kind/pull/804)
+* [PLT-2335] -  Bump cluster-operator to 0.5.2 version  - [`#805`](https://github.com/Stratio/kind/pull/805)
+* [PLT-2335] -  No levanta docker keos-installer con parámetro role_arn:'false'  - [`#800`](https://github.com/Stratio/kind/pull/800)
+* [PLT-2108] -  Configurar Assume role (STS) de forma manual  - [`#785`](https://github.com/Stratio/kind/pull/785)
+* [PLT-2259] -  Revisar la creación del kubeconfig para EKS durante la instalación con cloud-provisioner  - [`#796`](https://github.com/Stratio/kind/pull/796)
+* [PLT-1549] -  Activar NodePool SecureBoot  - [`#748`](https://github.com/Stratio/kind/pull/748)
+* [PLT-1762] -  [EKS] Soportar instalaciones con Assume Role  - [`#756`](https://github.com/Stratio/kind/pull/756)
+* [PLT-2226] -  [cloud-provisioner] Usar repo privado por defecto  - [`#794`](https://github.com/Stratio/kind/pull/794)
+* [PLT-2289] -  Add safe-to-evict annotations in Flux pods  - [`#795`](https://github.com/Stratio/kind/pull/795)
+* [PLT-2244] -  Bump cluster-operator to 0.5.1 version to upgrade issues  - [`#783`](https://github.com/Stratio/kind/pull/783)
+* [PLT-2204] -  Ensure referencing cloud-provisioner image release instead of prerelease version when creating a cluster  - [`#787`](https://github.com/Stratio/kind/pull/787)
+* [PLT-2244] -  Deshabilitar CriVolume por defecto en instalación y en operación del cluster  - [`#789`](https://github.com/Stratio/kind/pull/789)
+* [PLT-1496] -  Ensure CAPG provisioner version references are set to 1.6.1-0.3.1  - [`#788`](https://github.com/Stratio/kind/pull/788)
+* [PLT-2099] -  [Upgrade] Problemas actualización Add-On CoreDNS en actualización de EKS  - [`#777`](https://github.com/Stratio/kind/pull/777)
+* [PLT-2139] -  Fix cloud-provisioner upgrade issue when retrying upgrade …  - [`#780`](https://github.com/Stratio/kind/pull/780)
+* [PLT-2124] -  Bump cluster-autoscaler to v1.32.0 version and its chart version to 9.46.6  - [`#776`](https://github.com/Stratio/kind/pull/776)
+* [PLT-2098] -  Improve kubernetes version checks during cloud-provisioner-upgrade  - [`#772`](https://github.com/Stratio/kind/pull/772)
+* [PLT-2052] -  Fix Azure charts versions references  - [`#768`](https://github.com/Stratio/kind/pull/768)
+* [PLT-1910] -  Instalar en Azure con infra creada  - [`#758`](https://github.com/Stratio/kind/pull/758)
+* [PLT-1958] -  Improve …  - [`#752`](https://github.com/Stratio/kind/pull/752)
+* [PLT-1823] -  Improve Clouds credentials management documentation (#707)  - [`#736`](https://github.com/Stratio/kind/pull/736)
+* [PLT-1849] -  Fix aws-load-balancer-controller annotation  - [`#732`](https://github.com/Stratio/kind/pull/732)
+* [PLT-1652] -  Allow skipping kubernetes intermediate version during upgrade  - [`#718`](https://github.com/Stratio/kind/pull/718)
+* [PLT-1849] -  Error 403 sts:AssumeRoleWithWebIdentity en ingress-nginx-controller  - [`#720`](https://github.com/Stratio/kind/pull/720)
+* [PLT-1887] -  Dynamic region describe  - [`#714`](https://github.com/Stratio/kind/pull/714)
+* [PLT-1621] -  Add kubernetes 1.32 support  - [`#689`](https://github.com/Stratio/kind/pull/689)
+* [PLT-1741] -  Bump cluster-operator references to 0.5.0 version. Update EKS addons dependencies documentation  - [`#701`](https://github.com/Stratio/kind/pull/701)
+* [PLT-1682] -  Improve kindest/node and stratio-capi-image management  - [`#685`](https://github.com/Stratio/kind/pull/685)
+* [PLT-1317] -  Remove non-suported AKS, managed AWS and managed GCP references  - [`#692`](https://github.com/Stratio/kind/pull/692)
+* [PLT-1628] -  Fix capz images registry and repository references. Replace cloud-provider-azure …  - [`#686`](https://github.com/Stratio/kind/pull/686)
+* [PLT-1394] -  Bump Flux version to 2.14.1  - [`#662`](https://github.com/Stratio/kind/pull/662)
+* [PLT-1393] -  Bump Tigera Operator version to v3.29.1  - [`#661`](https://github.com/Stratio/kind/pull/661)
+* [PLT-1628] -  Fix coredns, cluster-api-gcp and kube-rbac-proxy image registry and repository references  - [`#675`](https://github.com/Stratio/kind/pull/675)
+* [PLT-1332] -  [GKE] Validaciones parámetros GKE  - [`#657`](https://github.com/Stratio/kind/pull/657)
+* [PLT-1330] -  CMEK, SA & CIDRs  - [`#642`](https://github.com/Stratio/kind/pull/642)
+* [PLT-964] -  Validaciones nuevos parámetros GKE  - [`#626`](https://github.com/Stratio/kind/pull/626)
+* [PLT-1156] -  Add deny-all-egress-imds_gnetpol  - [`#629`](https://github.com/Stratio/kind/pull/629)
+* [PLT-1309] -  Update docker images requirements documentation. Include stratio-capi-image to cicd flow  - [`#663`](https://github.com/Stratio/kind/pull/663)
+* [PLT-719] -  Doc 0.5 to master  - [`#645`](https://github.com/Stratio/kind/pull/645)
+* [PLT-1178] -  fix aws-load-balancer-controller  - [`#640`](https://github.com/Stratio/kind/pull/640)
 
 
 ## Previous development
