@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.8.0 (upcoming)
+## 0.9.0 (upcoming)
+
+* Pending changelog
+
+## Previous development
+
+### Branched to branch-0.8 (2026-02-20)
 
  * [PLT-3794] -  Feature: Add gitops-enabled in keoscluster to avoid FluxCD deployments and asssociated helmreleases  - [`#876`](https://github.com/Stratio/kind/pull/876)
 * [PLT-3770] -  Subir Flux a 2.7.5  - [`#873`](https://github.com/Stratio/kind/pull/873)
@@ -82,7 +88,7 @@ All notable changes to this project will be documented in this file.
 * [PLT-1178] -  fix aws-load-balancer-controller  - [`#640`](https://github.com/Stratio/kind/pull/640)
 
 
-## Previous development
+
 
 ### Branched to branch-0.17.0-0.6 (2024-10-25)
 
