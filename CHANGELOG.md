@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.8.0 (upcoming)
+## 0.17.0-0.8.0 (upcoming)
 
  * [PLT-3794] -  Feature: Add gitops-enabled in keoscluster to avoid FluxCD deployments and asssociated helmreleases  - [`#876`](https://github.com/Stratio/kind/pull/876)
 * [PLT-3770] -  Subir Flux a 2.7.5  - [`#873`](https://github.com/Stratio/kind/pull/873)
