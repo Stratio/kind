@@ -161,6 +161,7 @@ type helmRepository struct {
 type calicoHelmParams struct {
 	Spec           commons.KeosSpec
 	KeosRegUrl     string
+	QuayRegUrl     string
 	Private        bool
 	IsNetPolEngine bool
 	Annotations    map[string]string
@@ -679,7 +680,8 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 
 	calicoHelmParams := calicoHelmParams{
 		Spec:           keosCluster.Spec,
-		KeosRegUrl:     privateParams.KeosRegUrl,
+		KeosRegUrl:     commons.GetPrefixedRegistryURL("docker.io", privateParams.KeosRegUrl, privateParams.CentralECR),
+		QuayRegUrl:     commons.GetPrefixedRegistryURL("quay.io", privateParams.KeosRegUrl, privateParams.CentralECR),
 		Private:        privateParams.Private,
 		IsNetPolEngine: isNetPolEngine,
 		Annotations: map[string]string{

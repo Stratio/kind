@@ -731,7 +731,9 @@ spec:
 			ctx.Status.Start("Enabling CoreDNS as DNS server 📡")
 			defer ctx.Status.End(false)
 
-			gcpCoreDNSTemplate, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_deployment.tmpl", majorVersion, privateParams)
+				coreDNSPrivateParams := privateParams
+			coreDNSPrivateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
+			gcpCoreDNSTemplate, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_deployment.tmpl", majorVersion, coreDNSPrivateParams)
 
 			coreDNSTemplate := "/kind/coredns-configmap.yaml"
 			coreDNSConfigmap, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_configmap.tmpl", majorVersion, a.keosCluster.Spec)
