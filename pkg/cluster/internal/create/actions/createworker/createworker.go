@@ -317,24 +317,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	if privateParams.Private {
 
+		k8sRegUrl := commons.GetPrefixedRegistryURL("registry.k8s.io", keosRegistry.url, keosRegistry.awsCentralECREnabled)
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cluster-api:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  bootstrap-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  control-plane-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-aws:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPA_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/stratio\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/cluster-api-azure-controller:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPZ_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/azureserviceoperator:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/k8s\" >> /root/.cluster-api/clusterctl.yaml && " +
