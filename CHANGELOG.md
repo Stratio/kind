@@ -10,7 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### Branched to branch-0.8 (2026-02-20)
 
- * [PLT-3794] -  Feature: Add gitops-enabled in keoscluster to avoid FluxCD deployments and asssociated helmreleases  - [`#876`](https://github.com/Stratio/kind/pull/876)
+* [PLT-2691] -  [Fix] Flux2 chart upgrading provisioner 
+* [PLT-3794] -  Feature: Add gitops-enabled in keoscluster to avoid FluxCD deployments and asssociated helmreleases  - [`#876`](https://github.com/Stratio/kind/pull/876)
 * [PLT-3770] -  Subir Flux a 2.7.5  - [`#873`](https://github.com/Stratio/kind/pull/873)
 * [PLT-3777] -  Feature: Adaptate to Semantic Versioning  - [`#875`](https://github.com/Stratio/kind/pull/875)
 * [PLT-3697] -  [EKS] Fallo al desplegar "AWS LB controller"  - [`#871`](https://github.com/Stratio/kind/pull/871)
