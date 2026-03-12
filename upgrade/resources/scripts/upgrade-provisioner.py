@@ -68,7 +68,8 @@ common_charts = {
     "flux2": {
         "version": "2.17.2",
         "namespace": "kube-system",
-        "repo": "https://fluxcd-community.github.io/helm-charts"
+        "repo": "https://fluxcd-community.github.io/helm-charts",
+        "release_name": "flux"
     },
     "tigera-operator": {
         "version": "v3.30.2",
@@ -630,7 +631,11 @@ def filter_installed_charts(charts):
         charts_installed = json.loads(output)
         charts_installed_names = [chart["name"] for chart in charts_installed]
 
-        charts_filtered = {chart_name: chart_data for chart_name, chart_data in charts.items() if chart_name in charts_installed_names}
+        charts_filtered = {
+            chart_name: chart_data
+            for chart_name, chart_data in charts.items()
+            if chart_data.get("release_name", chart_name) in charts_installed_names
+        }
         return charts_filtered
     except Exception as e:
         print("FAILED")
