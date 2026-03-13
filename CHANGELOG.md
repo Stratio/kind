@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.17.0-0.8.1 (upcoming)
+
+* Update Changelog for new release
+
 ## 0.17.0-0.8.0 (2026-02-23)
 
 * [PLT-3691] -  [Fix] Flux2 chart upgrading provisioner 
