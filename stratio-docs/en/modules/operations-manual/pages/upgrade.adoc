@@ -2,98 +2,357 @@
 
 == Description
 
-The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the following environments:
+The `upgrade-provisioner.py` script automates the upgrade of Kubernetes clusters in the following environments:
 
-- *EKS* on AWS.
-- *Azure VMs*.
+* *EKS* on Amazon Web Services (managed)
+* *Azure VMs* on Microsoft Azure (unmanaged)
 
-It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.5.X` to that provided by `cloud-provisioner 0.6.X`. To ensure a reproducible runtime environment, the Docker image `stratio-cloud-provisioner-upgrade-image` has been created, which includes the upgrade script and all necessary dependencies.
+It allows upgrading the Kubernetes cluster version from the one installed with `cloud-provisioner 0.7.X` to the version provided by `cloud-provisioner 0.8.0`.
+
+To ensure a reproducible execution environment, the Docker image `cloud-provisioner-upgrade:0.17.0-0.8.0` has been created. It includes the upgrade script and all required dependencies.
+
+=== What gets upgraded
+
+* *Common components* across all platforms:
+** _cluster-operator_: `0.6.0`
+** _cert-manager_: `v1.19.1`
+** _flux2_: `2.17.2`
+** _tigera-operator_: `v3.30.2`
+** _cluster-autoscaler_: `9.52.1`
+
+* *Cluster API Core*
+** _cluster-api (CAPI)_: `v1.10.8`
+** _bootstrap-kubeadm_: `v1.10.8`
+** _control-plane-kubeadm_: `v1.10.8`
+
+* *Platform-specific infrastructure providers*:
+** CAPA (AWS): `v2.9.2`
+** CAPZ (Azure): `v1.21.1`
+** CAPG (GCP): `1.6.1-0.4.0` *(not yet tested)*
+
+* *Platform-specific charts*:
+** EKS (if installed):
+*** _aws-load-balancer-controller_: `1.14.1`
+** Azure VMs:
+*** _azuredisk-csi-driver_: `1.33.5`
+*** _azurefile-csi-driver_: `1.34.1`
+*** _cloud-provider-azure_: `1.34.2`
 
 == Requirements
 
-=== General
+* Technical:
+** Docker must be installed on the system.
+** A _kubeconfig_ file with access to the cluster must be available.
+** A _secrets.yml_ file (Ansible Vault) used during cluster creation must be available.
+** A local directory for backups must be available (it will be mounted into the container).
 
-* _kubeconfig_ file with access to the cluster.
-* _secrets.yml_ file used during cluster creation.
-* Installed Docker tool, required to run the container.
+* Functional:
++
+Before running the upgrade, verify that the cluster meets the following conditions:
++
+** _KeosCluster_ ready:
++
+[source,bash]
+----
+kubectl get keosclusters.installer.stratio.com -A
+----
++
+*Expected output:*
++
+*** `READY = true`
+*** `PHASE = Provisioned`
+
+** Healthy nodes:
++
+[source,bash]
+----
+kubectl get nodes
+----
++
+*Expected:* all nodes with `STATUS = Ready`.
+
+** Running machines:
++
+[source,bash]
+----
+kubectl get machines -A
+----
++
+*Expected:* all with `PHASE = Running`.
+
+** Healthy _MachineDeployments_:
++
+[source,bash]
+----
+kubectl get machinedeployments -A
+----
++
+*Expected:*
++
+*** `READY = REPLICAS`
+*** `UNAVAILABLE = 0`
+
+** Healthy _Cluster API_ pods:
++
+[source,bash]
+----
+kubectl get pods -n capi-system
+kubectl get pods -n capa-system   # o capz-system / capg-system
+----
++
+*Expected:* all pods in `Running` state and no errors in the logs.
+
+** _Cluster-Operator_ ready:
++
+[source,bash]
+----
+kubectl get helmrelease cluster-operator -n kube-system
+----
++
+*Expected:* `Ready = True`.
 
 === Permissions
 
 It is essential to xref:operations-manual:installation.adoc[review the documentation] to ensure that no additional permissions are required in the cluster.
 
-== Running the script
+== Preparation
 
-=== Building the container
-
-Run the Docker container with the version upgrade image, mounting the required files:
+Create a local directory for backups:
 
 [source,bash]
 ----
-docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig path>:/upgrade/.kube/config stratio-cloud-provisioner-upgrade-image:0.6.X
+mkdir -p /ruta/local/backup
 ----
 
-=== Using the version upgrade script
-
-==== Syntax
-
-[source,bash]
-----
-python3 upgrade-provisioner.py [OPTIONS]
-----
-
-Key options:
-
-|===
-| Flag | Description | Default Value | Mandatory
-
-| `-p`, `--vault-password`
-| Specify the Vault password needed to decrypt secrets.
-|
-| Yes
-
-| `-y`, `--yes`
-| Skip task confirmations (automatic mode).
-| False
-| No
-
-| `-k`, `--kubeconfig`
-| Specify the Kubectl configuration file to use.
-| ~/.kube/config
-| No
-
-| `-s`, `--secrets`
-| Encrypted secrets file.
-| secrets.yml
-| No
-
-| `--disable-backup`
-| Disable backup before upgrading (enabled by default).
-| False
-| No
-
-| `--disable-prepare-capsule`
-| Disable environment preparation for the upgrade process.
-| False
-| No
-
-| `--skip-k8s-intermediate-version`
-| Skip updating the workers to the intermediate Kubernetes version. This is only supported in EKS environments.
-| False
-| No
-
-| `--private`
-| Treats the Docker registry and the Helm repository as private.
-| False
-| No
-|===
+NOTE: This directory must be mounted inside the container at `/upgrade/backup`.
 
 == Required structure
 
-Ensure that the working directory includes the following:
+Ensure that the working directory includes:
 
 * `upgrade-provisioner.py`: main script.
 * `templates/`: Jinja2 templates.
 * `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
 * `secrets.yml`: cluster credentials.
-* `.kube/`: directory containing the `kubeconfig` file.
+* `.kube/`: directory containing the _kubeconfig_ file.
+
+== Important notes
+
+=== Registry configuration
+
+[%header,cols="1,2"]
+|===
+| Scenario | Required action
+
+| Without the `--private` flag.
+| `Clusterctl` will use images from `registry.k8s.io`.
+
+| Private registry only
+| You *must* use the _flag_ `--private`.
+|===
+
+WARNING: If the cluster can only access a private registry, the `--private` flag is *mandatory*.
+
+== Using the upgrade script
+
+=== Syntax
+
+Inside the container, run:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password>
+----
+
+To see all available options:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py --help
+----
+
+Main options:
+
+[%header,cols="1,2,1,1"]
+|===
+| Flag | Description | Default value | Required
+
+| `-p`, `--vault-password`
+| Specifies the Vault password required to decrypt secrets.
+|
+| Yes
+
+| `-y`, `--yes`
+| Runs in automatic mode without prompting for confirmation between tasks.
+| False
+| No
+
+| `-k`, `--kubeconfig`
+| Specifies the _kubeconfig_ file to use.
+| ~/.kube/config
+| No
+
+| `-s`, `--secrets`
+| Specifies the encrypted secrets file.
+| secrets.yml
+| No
+
+| `--disable-backup`
+| Disables the pre-upgrade backup (enabled by default).
+| False
+| No
+
+| `--disable-prepare-capsule`
+| Disables environment preparation for the upgrade process.
+| False
+| No
+
+| `--skip-k8s-intermediate-version`
+| Skips the intermediate Kubernetes _workers_ upgrade. Only supported in EKS environments.
+| False
+| No
+
+| `--private`
+| Indicates that the Docker registry and Helm repository are private.
+| False
+| No
+|===
+
+=== Running the upgrade container
+
+[source,bash]
+----
+docker run \
+  --name cloud-provisioner-upgrade-0.8.0 \
+  --net host \
+  -it \
+  -v /ruta/local/secrets.yml:/upgrade/secrets.yml \
+  -v /ruta/local/.kube/config:/upgrade/.kube/config \
+  -v /ruta/local/backup:/upgrade/backup \
+  cloud-provisioner-upgrade:0.17.0-0.8.0
+----
+
+== Upgrade process overview
+
+The script executes the following workflow:
+
+. *Validation*
+** Validates _kubeconfig_ and secrets.
+** Configures cloud provider credentials.
+
+. *Pre-upgrade*
+** *Scales _cluster-autoscaler_ to 0* to prevent automatic scaling during the upgrade.
+
+. *Backup*
+** CAPX components (via `clusterctl move`).
+** Capsule webhook configurations.
+
+. *Capsule preparation*
+** Modifies webhooks to exclude critical namespaces from validation/mutation.
+** Ensures tenant isolation does not block the upgrade.
+
+. *Chart upgrade*
+** Upgrades base charts (cert-manager, flux2, tigera-operator, etc.).
+** Upgrades provider-specific charts (aws-load-balancer-controller, Azure CSI controllers).
+** *Restores Capsule webhooks* to their original configuration.
+
+. *_Cluster-Operator_ preparation*
+** Suspends the _HelmRelease_ of _cluster-operator_.
+** Stops the _keoscluster-controller_ deployment.
+** Disables _keoscluster_ validation/mutation webhooks.
+** Updates _ClusterConfig_ with new component versions.
+
+. *CAPI upgrade*
++
+[source,bash]
+----
+clusterctl upgrade apply \
+  --core cluster-api:v1.10.8 \
+  --infrastructure <proveedor>:<versión> \
+  --wait-providers
+----
+
+. *Post-upgrade*
+** Restores _keoscluster_ webhooks.
+** Starts the _keoscluster-controller_ deployment.
+** Resumes the _HelmRelease_ of _cluster-operator_.
+** Waits until the _cluster-operator_ is ready.
+** Waits for all components to reach the ready state.
+** Restores _cluster-autoscaler_ replicas to 2.
+
+== Monitoring during the upgrade
+
+* Watch the Autoscaler
++
+[source,bash]
+----
+watch -n2 kubectl -n kube-system get deploy cluster-autoscaler-clusterapi-cluster-autoscaler
+----
+
+* Monitor critical pods
++
+[source,bash]
+----
+watch -n2 'kubectl get pods -A | grep -E "cluster-operator|capi|cap.|autoscaler|tigera"'
+----
+
+* Track _HelmReleases_
++
+[source,bash]
+----
+watch -n2 kubectl get helmreleases -A
+----
+
+== Final verification
+
+* Verify container images.
++
+[source,bash]
+----
+kubectl get pods -A -o json \
+| jq -r '
+  .items[]
+  | (
+      [.spec.containers[]?.image] +
+      [.spec.initContainers[]?.image]
+    )
+  | .[]
+' \
+| sort -u
+----
++
+*Expected versions:*
++
+** CAPI → `v1.10.8`
+** CAPA → `v2.9.2`
+** CAPG → `1.6.1-0.4.0`
+** CAPZ → `v1.21.1`
+
+* Verify chart versions.
++
+[source,bash]
+----
+kubectl get hr -A -o json \
+| jq -r '
+  .items[]
+  | "\(.metadata.namespace)/\(.metadata.name) -> \(.spec.chart.spec.chart)@\(.spec.chart.spec.version)"
+' \
+| sort -u
+----
+
+* Final status verification.
++
+[source,bash]
+----
+kubectl get keoscluster -A
+kubectl get machines -A
+kubectl get machinedeployments -A
+kubectl get nodes
+----
++
+*Expected state::*
++
+** ✅ All resources in `Ready` state.
+** ✅ All machines in `Running` state.
+** ✅ No replicas in `Unavailable` state.

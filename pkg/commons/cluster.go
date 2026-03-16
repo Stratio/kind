@@ -82,6 +82,7 @@ type ClusterConfigSpec struct {
 	PrivateHelmRepo             bool               `yaml:"private_helm_repo"`
 	Charts                      []Chart            `yaml:"charts,omitempty"`
 	Capx                        CAPX               `yaml:"capx,omitempty"`
+	GitOpsEnabled               bool               `yaml:"gitops_enabled"`
 }
 
 type CAPX struct {
@@ -513,6 +514,8 @@ func (s ClusterConfigSpec) Init() ClusterConfigSpec {
 	s.PrivateHelmRepo = true
 	// Set workers config max unhealthy to 100 by default
 	s.WorkersConfig.MaxUnhealthy = ToPtr[int](100)
+	// Set Git Ops as false by default
+	s.GitOpsEnabled = false
 
 	return s
 }

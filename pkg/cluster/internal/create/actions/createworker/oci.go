@@ -19,11 +19,11 @@ import (
 	"sigs.k8s.io/kind/pkg/errors"
 )
 
-var release_pattern = "^[0-9]{1,2}.[0-9]{1,3}.[0-9]{1,3}$"
-var prerelease_pattern = "-[0-9a-f]{7}$"
-var milestone_pattern = "-M\\d+$"
-var pr_pattern = "-PR[0-9]{1,5}-SNAPSHOT$"
-var snapshot_pattern = "-SNAPSHOT$"
+var release_pattern    = `^\d+\.\d+\.\d+$`
+var prerelease_pattern = `^\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$`
+var milestone_pattern  = `^\d+\.\d+\.\d+-m\.\d+$`
+var snapshot_pattern   = `^\d+\.\d+\.\d+-SNAPSHOT$`
+var pr_pattern         = `^\d+\.\d+\.\d+-PR\d+-SNAPSHOT$`
 
 var versions = map[string][]string{
 	release_pattern:    {},
