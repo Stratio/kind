@@ -218,7 +218,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
         "capz-system",
         "capg-system",
     ]
-    print("[INFO] Backing up CAPI/CAPA/CAPZ/CAPG secrets:", end=" ", flush=True)
+    print("[INFO] Backing up CAPX secrets:", end=" ", flush=True)
     if dry_run:
         print("DRY-RUN")
     else:
