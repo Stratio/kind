@@ -182,6 +182,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
     print("[INFO] Backing up capsule files:", end =" ", flush=True)
     if not dry_run:
         os.makedirs(backup_dir + "/capsule", exist_ok=True)
+        capsule_backed_up = False
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
         status, _ = subprocess.getstatusoutput(command)
         if status == 0:
@@ -191,6 +192,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
                 print("FAILED")
                 print("[ERROR] Backing up capsule files failed:\n" + output)
                 sys.exit(1)
+            capsule_backed_up = True
         command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
         status, output = subprocess.getstatusoutput(command)
         if status == 0:
@@ -200,9 +202,10 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
                 print("FAILED")
                 print("[ERROR] Backing up capsule files failed:\n" + output)
                 sys.exit(1)
-            else:
-                print("OK")
-        if "NotFound" in output:
+            capsule_backed_up = True
+        if capsule_backed_up:
+            print("OK")
+        else:
             print("SKIP")
     else:
         print("DRY-RUN")
@@ -397,6 +400,8 @@ def scale_cluster_autoscaler(replicas, dry_run):
     # Wait until ready
     command = kubectl + " wait deployment cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --for=condition=Available --timeout=5m"
     execute_command(command, False, False)
+
+    print("OK")
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
     '''Wait for the KeosCluster to be ready'''
@@ -1182,8 +1187,9 @@ def restore_keoscluster_webhooks():
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup:", end =" ", flush=True)
         run_command(f"{kubectl} create -f {backup_file}", allow_errors=True)
+        print("OK")
 
-        print("[INFO] Labeling and annotating webhooks...", end =" ", flush=True)
+        print("[INFO] Labeling and annotating webhooks:", end =" ", flush=True)
         update_annotation_label("app.kubernetes.io/managed-by", "Helm", resources_webhooks, "label")
         update_annotation_label("meta.helm.sh/release-name", "cluster-operator", resources_webhooks)
         update_annotation_label("meta.helm.sh/release-namespace", "kube-system", resources_webhooks)
@@ -1781,9 +1787,6 @@ if __name__ == '__main__':
     stop_keoscluster_controller()
     disable_keoscluster_webhooks()
     update_clusterconfig(cluster_config, charts_to_upgrade, provider, cluster_operator_version)
-
-    # Upgrade Cluster API providers
-    print("[INFO] Upgrading Cluster API providers...")
 
     # -------------------------------------------------
     # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
