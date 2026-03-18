@@ -7,9 +7,9 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 * *EKS* en AWS (gestionado)
 * *Azure VMs* (no gestionado)
 
-Permite actualizar la versión del _cluster_ de Kubernetes desde la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.8.0`.
+Permite actualizar la versión del _cluster_ de Kubernetes desde la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.8.X`.
 
-Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.0`, que incluye el _script_ de actualización y todas las dependencias necesarias.
+Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.X`, que incluye el _script_ de actualización y todas las dependencias necesarias.
 
 === Qué se actualiza
 
@@ -41,8 +41,8 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 == Requisitos
 
 * Técnicos:
-** Tener un Docker instalado en el sistema.
-** Disponer de un archivo _kubeconfig_ con acceso al _cluster_.
+** Tener Docker instalado en el sistema.
+** Disponer de un archivo _kubeconfig_ con acceso al _cluster_ (.kube/config).
 ** Disponer de un archivo _secrets.yml_ (Ansible Vault) utilizado durante la creación del _cluster_.
 ** Tener un directorio local para copias de seguridad (se montará en el contenedor).
 
