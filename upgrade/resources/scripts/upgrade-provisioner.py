@@ -633,12 +633,11 @@ def get_pods_cidr(keos_cluster):
 def is_private_registry_enabled(cluster_config):
     '''Return the effective private registry setting'''
 
-    return cluster_config.get("spec", {}).get("private_registry", False) or private_registry
+    return cluster_config.get("spec", {}).get("private_registry", False) or config.get("private", False)
 
 def is_private_helm_repo_enabled(cluster_config):
     '''Return the effective private Helm repository setting'''
-
-    return cluster_config.get("spec", {}).get("private_helm_repo", False) or private_helm_repo
+    return cluster_config.get("spec", {}).get("private_helm_repo", False) or config.get("private", False)
 
 def render_values_template(values_file, keos_cluster, cluster_config):
     '''Render the values template'''
