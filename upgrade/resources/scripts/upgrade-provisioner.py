@@ -630,12 +630,22 @@ def get_pods_cidr(keos_cluster):
     except KeyError:
         return ""
 
+def is_private_registry_enabled(cluster_config):
+    '''Return the effective private registry setting'''
+
+    return cluster_config.get("spec", {}).get("private_registry", False) or private_registry
+
+def is_private_helm_repo_enabled(cluster_config):
+    '''Return the effective private Helm repository setting'''
+
+    return cluster_config.get("spec", {}).get("private_helm_repo", False) or private_helm_repo
+
 def render_values_template(values_file, keos_cluster, cluster_config):
     '''Render the values template'''
 
     try:
         values_params = {
-            "private": cluster_config["spec"]["private_registry"] or private_registry,
+            "private": is_private_registry_enabled(cluster_config),
             "cluster_name": keos_cluster["metadata"]["name"],
             "registry": get_keos_registry_url(keos_cluster),
             "provider": keos_cluster["spec"]["infra_provider"],
@@ -912,7 +922,8 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         # ------------------------------------------------------------------
         cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
         cluster_config["spec"]["cluster_operator_image_version"] = cluster_operator_version
-        cluster_config["spec"]["private_helm_repo"] = private_helm_repo
+        cluster_config["spec"]["private_registry"] = is_private_registry_enabled(cluster_config)
+        cluster_config["spec"]["private_helm_repo"] = is_private_helm_repo_enabled(cluster_config)
 
         # ------------------------------------------------------------------
         # Update CAPX (Cluster API providers)
@@ -990,10 +1001,47 @@ def create_clusterctl_config_for_private_registry(registry_url, provider):
     if 'images' not in config_data:
         config_data['images'] = {}
 
-    # Set the repository override for all images
-    config_data['images']['all'] = {
-        'repository': f"{registry_url}/stratio"
+    # Align the image overrides with the original installation logic.
+    config_data['images']['cluster-api'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
     }
+    config_data['images']['bootstrap-kubeadm'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
+    }
+    config_data['images']['control-plane-kubeadm'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
+    }
+    config_data['images']['cert-manager'] = {
+        'repository': f"{registry_url}/jetstack"
+    }
+
+    if provider == "aws":
+        config_data['images']['infrastructure-aws'] = {
+            'repository': f"{registry_url}/cluster-api-aws",
+            'tag': CAPA,
+        }
+    elif provider == "gcp":
+        config_data['images']['infrastructure-gcp'] = {
+            'repository': f"{registry_url}/stratio",
+            'tag': CAPG,
+        }
+    elif provider == "azure":
+        config_data['images']['infrastructure-azure/cluster-api-azure-controller'] = {
+            'repository': f"{registry_url}/cluster-api-azure",
+            'tag': CAPZ,
+        }
+        config_data['images']['infrastructure-azure/azureserviceoperator'] = {
+            'repository': f"{registry_url}/k8s"
+        }
+        config_data['images']['infrastructure-azure/kube-rbac-proxy'] = {
+            'repository': f"{registry_url}/kubebuilder"
+        }
+        config_data['images']['infrastructure-azure/nmi'] = {
+            'repository': f"{registry_url}/oss/azure/aad-pod-identity"
+        }
 
     # Write updated configuration
     with open(config_file, 'w') as f:
@@ -1001,10 +1049,11 @@ def create_clusterctl_config_for_private_registry(registry_url, provider):
 
     print("OK")
     print(f"[DEBUG] Updated clusterctl config at {config_file}")
-    print(f"[DEBUG] Images will be pulled from: {registry_url}/stratio")
+    print(f"[DEBUG] Images will be pulled from private registry: {registry_url}")
 
-    # Patch local repository manifests
-    patch_local_repository_manifests(config_dir, registry_url)
+    if provider == "gcp":
+        # GCP local manifests need additional image rewrites beyond clusterctl overrides.
+        patch_local_repository_manifests(config_dir, registry_url)
 
 def patch_local_repository_manifests(config_dir, registry_url):
     """Patch local repository YAML manifests to use private registry"""
@@ -1743,8 +1792,8 @@ if __name__ == '__main__':
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     print("OK")
 
-    private_registry = config["private"]
-    private_helm_repo = config["private"]
+    private_registry = is_private_registry_enabled(cluster_config)
+    private_helm_repo = is_private_helm_repo_enabled(cluster_config)
     cluster_operator_version = config["cluster_operator"]
 
     charts_to_upgrade = dict(common_charts)
@@ -1791,13 +1840,14 @@ if __name__ == '__main__':
     # -------------------------------------------------
     # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
     # -------------------------------------------------
-    if provider == "gcp" and private_registry:
+    if private_registry:
         registry_url = get_keos_registry_url(keos_cluster)
         print(f"[DEBUG] Using private registry: {registry_url}")
         create_clusterctl_config_for_private_registry(registry_url, provider)
-        # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
-        config_dir = os.path.expanduser("~/.cluster-api")
-        patch_gcp_crd_conversion_webhook(config_dir)   
+        if provider == "gcp":
+            # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
+            config_dir = os.path.expanduser("~/.cluster-api")
+            patch_gcp_crd_conversion_webhook(config_dir)
 
     # -------------------------------------------------
     # GCP CRD conversion webhook cleanup (prevents caBundle PEM error during clusterctl upgrade)
