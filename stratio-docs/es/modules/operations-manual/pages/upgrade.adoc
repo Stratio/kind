@@ -330,7 +330,7 @@ watch -n2 'kubectl get pods -A | grep -E "cluster-operator|capi|cap.|autoscaler|
 watch -n2 kubectl get helmreleases -A
 ----
 
-* Observar el provider
+* Observar el proveedor.
 +
 [source,bash]
 ----
