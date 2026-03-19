@@ -164,7 +164,7 @@ Esto implica que:
 
 * Si `ClusterConfig.spec.private_registry=true`, el _script_ seguirá usando el registro privado aunque *no se pase* `--private`.
 * Si `ClusterConfig.spec.private_helm_repo=true`, el _script_ seguirá usando el repositorio Helm privado aunque *no se pase* `--private`.
-* Si se pasa `--private`, ambos valores se fuerzan a `true` durante la actualización y el `ClusterConfig` se actualiza con esos valores.
+* *Si se pasa* `--private`, ambos valores se fuerzan a `true` durante la actualización y el `ClusterConfig` se actualiza con esos valores.
 
 ==== Casos habituales
 
