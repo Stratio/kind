@@ -104,11 +104,39 @@ azure_vm_charts = {
     }
 }
 
-# Crear entorno de Jinja2 para cargar las plantillas
+# List of GCP (CAPG) CRD names that require conversion webhook cleanup before clusterctl upgrade
+CAPG_CRDS = [
+    "gcpclusters.infrastructure.cluster.x-k8s.io",
+    "gcpclustertemplates.infrastructure.cluster.x-k8s.io",
+    "gcpmanagedclusters.infrastructure.cluster.x-k8s.io",
+    "gcpmanagedcontrolplanes.infrastructure.cluster.x-k8s.io",
+    "gcpmanagedmachinepools.infrastructure.cluster.x-k8s.io",
+    "gcpmachines.infrastructure.cluster.x-k8s.io",
+    "gcpmachinetemplates.infrastructure.cluster.x-k8s.io",
+]
+
+def patch_capg_crds_live():
+    for crd in CAPG_CRDS:
+        # Remove conversion webhook from CRD to avoid caBundle PEM errors during clusterctl upgrade.
+        # Both patches are best-effort: if the conversion block doesn't exist the patch is a no-op.
+        print(f"[INFO] Removing conversion webhook from {crd} (best-effort):", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch crd {crd} --type=json "
+            "-p='[{\"op\":\"remove\",\"path\":\"/spec/conversion\"}]'",
+            allow_errors=True
+        )
+        run_command(
+            f"{kubectl} patch crd {crd} --type=merge "
+            "-p='{\"spec\":{\"conversion\":{\"strategy\":\"None\"}}}'",
+            allow_errors=True
+        )
+        print("OK (best-effort)")
+
+# Set up Jinja2 environment to load templates from the templates directory
 template_dir = './templates'
 env = Environment(loader=FileSystemLoader(template_dir))
 
-# Cargar plantillas
+# Load Jinja2 templates for HelmRepository and HelmRelease manifests
 helmrepository_template = env.get_template('helmrepository_template.yaml')
 helmrelease_template = env.get_template('helmrelease_template.yaml')
 
@@ -133,8 +161,8 @@ def parse_args():
     return vars(args)
 
 def backup(backup_dir, namespace, cluster_name, dry_run):
-    '''Backup CAPX and capsule files'''
-    
+    '''Backup CAPX cluster move files, capsule webhooks and CAPI/CAPX namespace secrets'''
+
     print("[INFO] Backing up files into directory " + backup_dir)
     # Backup CAPX files
     print("[INFO] Backing up CAPX files:", end =" ", flush=True)
@@ -154,6 +182,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
     print("[INFO] Backing up capsule files:", end =" ", flush=True)
     if not dry_run:
         os.makedirs(backup_dir + "/capsule", exist_ok=True)
+        capsule_backed_up = False
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
         status, _ = subprocess.getstatusoutput(command)
         if status == 0:
@@ -163,6 +192,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
                 print("FAILED")
                 print("[ERROR] Backing up capsule files failed:\n" + output)
                 sys.exit(1)
+            capsule_backed_up = True
         command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
         status, output = subprocess.getstatusoutput(command)
         if status == 0:
@@ -172,16 +202,58 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
                 print("FAILED")
                 print("[ERROR] Backing up capsule files failed:\n" + output)
                 sys.exit(1)
-            else:
-                print("OK")
-        if "NotFound" in output:
+            capsule_backed_up = True
+        if capsule_backed_up:
+            print("OK")
+        else:
             print("SKIP")
     else:
         print("DRY-RUN")
+    # Backup CAPI/CAPA/CAPZ/CAPG secrets
+    capx_namespaces = [
+        "capi-system",
+        "capi-kubeadm-bootstrap-system",
+        "capi-kubeadm-control-plane-system",
+        "capa-system",
+        "capz-system",
+        "capg-system",
+    ]
+    print("[INFO] Backing up CAPX secrets:", end=" ", flush=True)
+    if dry_run:
+        print("DRY-RUN")
+    else:
+        capx_secrets_backed_up = False
+        for ns in capx_namespaces:
+            # Check if the namespace exists
+            check_ns_cmd = kubectl + f" get namespace {ns} --ignore-not-found -o name"
+            ns_status, ns_output = subprocess.getstatusoutput(check_ns_cmd)
+            if ns_status != 0 or not ns_output.strip():
+                continue
+            # List secrets in the namespace
+            list_cmd = kubectl + f" get secret -n {ns} -o name"
+            list_status, list_output = subprocess.getstatusoutput(list_cmd)
+            if list_status != 0 or not list_output.strip():
+                continue
+            ns_backup_dir = backup_dir + "/capx-secrets/" + ns
+            os.makedirs(ns_backup_dir, exist_ok=True)
+            for secret_ref in list_output.strip().splitlines():
+                secret_name = secret_ref.split("/")[-1]
+                out_file = ns_backup_dir + "/" + secret_name + ".yaml"
+                dump_cmd = kubectl + f" get secret -n {ns} {secret_name} -o yaml 2>/dev/null > {out_file}"
+                dump_status, dump_output = subprocess.getstatusoutput(dump_cmd)
+                if dump_status != 0:
+                    print("FAILED")
+                    print(f"[ERROR] Backing up secret {ns}/{secret_name} failed:\n" + dump_output)
+                    sys.exit(1)
+                capx_secrets_backed_up = True
+        if capx_secrets_backed_up:
+            print("OK")
+        else:
+            print("SKIP")
 
 def prepare_capsule(dry_run):
     '''Prepare capsule for the upgrade process'''
-    
+
     print("[INFO] Preparing capsule-mutating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -205,7 +277,7 @@ def prepare_capsule(dry_run):
     print("[INFO] Preparing capsule-validating-webhook-configuration for the upgrade process:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
-        status, _ = subprocess.getstatusoutput(command)
+        status, output = subprocess.getstatusoutput(command)
         if status != 0:
             if "NotFound" in output:
                 print("SKIP")
@@ -224,7 +296,7 @@ def prepare_capsule(dry_run):
 
 def restore_capsule(dry_run):
     '''Restore capsule after the upgrade process'''
-    
+
     print("[INFO] Restoring capsule-mutating-webhook-configuration:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get mutatingwebhookconfigurations capsule-mutating-webhook-configuration"
@@ -246,7 +318,7 @@ def restore_capsule(dry_run):
     print("[INFO] Restoring capsule-validating-webhook-configuration:", end =" ", flush=True)
     if not dry_run:
         command = kubectl + " get validatingwebhookconfigurations capsule-validating-webhook-configuration"
-        status, _ = subprocess.getstatusoutput(command)
+        status, output = subprocess.getstatusoutput(command)
         if status != 0:
             if "NotFound" in output:
                 print("SKIP")
@@ -307,7 +379,7 @@ def scale_cluster_autoscaler(replicas, dry_run):
     if output.strip() == "":
         print("[INFO] Cluster autoscaler not deployed: SKIP")
         return
-    
+
     current_replicas = int(output)
 
     if current_replicas == replicas:
@@ -323,18 +395,20 @@ def scale_cluster_autoscaler(replicas, dry_run):
 
     # Scale
     command = kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
-    execute_command(command, False)
+    execute_command(command, False, False)
 
     # Wait until ready
     command = kubectl + " wait deployment cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --for=condition=Available --timeout=5m"
-    execute_command(command, False)
+    execute_command(command, False, False)
 
-def wait_for_keos_cluster(cluster_name, time):
+    print("OK")
+
+def wait_for_keos_cluster(cluster_name, timeout_minutes):
     '''Wait for the KeosCluster to be ready'''
-    
+
     command = (
         "kubectl wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
-        + cluster_name + " -n cluster-" + cluster_name + " --timeout "+time+"m"
+        + cluster_name + " -n cluster-" + cluster_name + " --timeout "+timeout_minutes+"m"
     )
     execute_command(command, False, False)
 
@@ -348,13 +422,12 @@ def validate_helm_repository(helm_repository):
     except ValueError:
         raise ValueError(f"The Helm repository '{helm_repository}' is invalid.")
 
-
 def update_helm_repository(cluster_name, helm_repository, dry_run):
     '''Update the Helm repository'''
-    
+
     wait_for_keos_cluster(cluster_name, "10")
 
-    
+
     patch_helm_repository = [
         {"op": "replace", "path": "/spec/helm_repository/url", "value": helm_repository},
     ]
@@ -362,7 +435,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
     patch_json = json.dumps(patch_helm_repository)
     command = f"{kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
     execute_command(command, False, False)
-    
+
     patch_helmRepository = [
         {"op": "replace", "path": "/spec/url", "value": helm_repository},
     ]
@@ -370,16 +443,16 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
     existing_helmrepo, err = run_command(f"{kubectl} get helmrepository -n kube-system keos --ignore-not-found", allow_errors=True)
     if "doesn't have a resource type \"helmrepository\"" in err:
         existing_helmrepo = False
-        
+
     if existing_helmrepo:
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
         execute_command(command, False, False)
-    
+
     wait_for_keos_cluster(cluster_name, "10")
 
 def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=5):
     '''Execute a command and handle the output'''
-    
+
     output = ""
     retries = 0
 
@@ -405,14 +478,15 @@ def execute_command(command, dry_run, result = True, max_retries=3, retry_delay=
 
 def get_chart_version(chart, namespace):
     '''Get the version of a Helm chart'''
-    
+
     command = helm + " -n " + namespace + " list"
     output = execute_command(command, False, False)
-    # NAME                NAMESPACE   REVISION    UPDATED                                 STATUS      CHART                   APP VERSION
-    # cluster-operator    kube-system 1           2025-03-17 10:11:40.845888283 +0000 UTC deployed    cluster-operator-0.2.0  0.2.0 
     for line in output.split("\n"):
         splitted_line = line.split()
         if chart == splitted_line[0]:
+            # helm list output columns (0-indexed):
+            # 0:NAME  1:NAMESPACE  2:REVISION  3:UPDATED(date)  4:UPDATED(time)
+            # 5:UPDATED(timezone)  6:UPDATED(utc)  7:STATUS  8:CHART  9:APP_VERSION
             if chart == "cluster-operator":
                 return splitted_line[9]
             else:
@@ -421,7 +495,7 @@ def get_chart_version(chart, namespace):
 
 def get_version(version):
     '''Get the version number'''
-    
+
     return re.sub(r'\D', '', version)
 
 def print_upgrade_support():
@@ -433,14 +507,14 @@ def print_upgrade_support():
 
 def request_confirmation():
     '''Request confirmation to continue'''
-    
+
     enter = input("Press ENTER to continue upgrading the cluster or any other key to abort: ")
     if enter != "":
         sys.exit(0)
 
 def get_keos_cluster_cluster_config():
     '''Get the KeosCluster and ClusterConfig objects'''
-    
+
     try:
         keoscluster_list_output, err = run_command(kubectl + " get keoscluster -A -o json")
         keos_cluster = json.loads(keoscluster_list_output)["items"][0]
@@ -450,36 +524,53 @@ def get_keos_cluster_cluster_config():
     except Exception as e:
         print(f"[ERROR] {e}.")
         raise e
-    
-    
+
+
 def run_command(command, allow_errors=False, retries=3, retry_delay=2):
-    '''Run a command and return the output'''
-    
+
+    if config["dry_run"]:
+        mutating_keywords = [
+            " apply ",
+            " patch ",
+            " delete ",
+            " scale ",
+            " create ",
+            " annotate ",
+            " label ",
+            " upgrade apply ",
+        ]
+
+        normalized_command = f" {command.lower()} "
+
+        if any(keyword in normalized_command for keyword in mutating_keywords):
+            print("[DRY-RUN] Skipping mutating command")
+            return "", ""
+
     attempts = 0
-    
+
     while attempts <= retries:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        
+
         if result.returncode == 0:
-            return result.stdout, result.stderr  
-        
+            return result.stdout, result.stderr
+
         # If the command fails and the error is allowed, return the result without raising an exception
         if allow_errors:
             return result.stdout, result.stderr
-        
-        # If the command fails and the error is not allowed, but there are retries left, wait and retry        
+
+        # If the command fails and the error is not allowed, but there are retries left, wait and retry
         attempts += 1
         if attempts > retries:
-            raise Exception(f"Error executing '{command}' after {retries + 1} attempts: {result.stderr}")
-        
+            raise Exception(f"Error executing '{command}': {result.stderr}")
+
         time.sleep(retry_delay)
 
 def get_helm_repository(keos_cluster):
     '''Get the Helm registry URL'''
-    
+
     try:
         helm_repository = keos_cluster["spec"]["helm_repository"]["url"]
-        
+
         if helm_repository:
             return helm_repository
         else:
@@ -489,14 +580,14 @@ def get_helm_repository(keos_cluster):
 
 def get_deploy_version(deploy, namespace, container):
     '''Get the version of a deployment'''
-    
+
     command = f"{kubectl} -n " + namespace + " get deploy " + deploy + " -o json  | jq -r '.spec.template.spec.containers[].image' | grep '" + container + "' | cut -d: -f2"
     output = execute_command(command, False, False)
     return output.split("@")[0]
 
 def update_annotation_label(annotation_label_key, annotation_label_value, resources, type="annotation"):
     '''Update the annotation or label of a resource'''
-    
+
     for resource in resources:
         kind = resource["kind"]
         name = resource["name"]
@@ -504,19 +595,19 @@ def update_annotation_label(annotation_label_key, annotation_label_value, resour
         action_type = "annotate"
         if type == "label":
             action_type = "label"
-        try: 
+        try:
             command = f"{kubectl} get {kind} {name} "
             if ns:
                 command = command + f" -n {ns}"
             output, err = run_command(command, allow_errors=True)
             if "not found" in err.lower():
-                
+
                 continue
         except Exception as e:
             print("FAILED")
             print(f"[ERROR] Error checking the existence of {kind} {name}: {e}")
             return
-        
+
         command = f"{kubectl} {action_type} {kind} {name} {annotation_label_key}={annotation_label_value} --overwrite "
         if ns:
             command = command + f" -n {ns}"
@@ -524,35 +615,42 @@ def update_annotation_label(annotation_label_key, annotation_label_value, resour
 
 def get_keos_registry_url(keos_cluster):
     '''Get the Keos registry URL'''
-    
+
     docker_registries = keos_cluster["spec"]["docker_registries"]
     for registry in docker_registries:
         if registry.get("keos_registry", False):
             return registry["url"]
     return ""
 
-
 def get_pods_cidr(keos_cluster):
     '''Get the pods CIDR'''
-    
+
     try:
         return keos_cluster["spec"]["networks"]["pods_cidr"]
     except KeyError:
         return ""
 
+def is_private_registry_enabled(cluster_config):
+    '''Return the effective private registry setting'''
+
+    return cluster_config.get("spec", {}).get("private_registry", False) or config.get("private", False)
+
+def is_private_helm_repo_enabled(cluster_config):
+    '''Return the effective private Helm repository setting'''
+    return cluster_config.get("spec", {}).get("private_helm_repo", False) or config.get("private", False)
 
 def render_values_template(values_file, keos_cluster, cluster_config):
     '''Render the values template'''
-    
+
     try:
         values_params = {
-            "private": cluster_config["spec"]["private_registry"] or private_registry,
+            "private": is_private_registry_enabled(cluster_config),
             "cluster_name": keos_cluster["metadata"]["name"],
             "registry": get_keos_registry_url(keos_cluster),
             "provider": keos_cluster["spec"]["infra_provider"],
             "managed_cluster": keos_cluster["spec"]["control_plane"]["managed"]
         }
-        
+
         template = env.get_template(values_file)
         rendered_values = template.render(values_params)
         return rendered_values
@@ -591,7 +689,7 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_tigera_operator_image_tag_value(values_file):
-    '''Update cluster-operator image tag value'''
+    '''Update tigera-operator calicoctl and controller image tag values'''
 
     try:
         with open(values_file, 'r') as file:
@@ -608,15 +706,15 @@ def update_tigera_operator_image_tag_value(values_file):
 
 def create_empty_values_file(values_file):
     ''' Create an empty values file'''
-    
+
     try:
-        open(values_file, 'w').close()  
+        open(values_file, 'w').close()
     except Exception as e:
         raise e
 
 def create_configmap_from_values(configmap_name, namespace, values_file):
     '''Create a ConfigMap from values'''
-    
+
     try:
         command = f"{kubectl} create configmap {configmap_name} -n {namespace} --from-file=values.yaml={values_file} --dry-run=client -o yaml | kubectl apply -f -"
         run_command(command)
@@ -647,7 +745,7 @@ def upgrade_chart(chart_name, chart_data):
     chart_repo = chart_data["repo"]
     chart_version = chart_data["version"]
     chart_namespace = chart_data["namespace"]
-    
+
     release_name = chart_name
     if chart_name == "flux2":
         release_name = "flux"
@@ -658,7 +756,7 @@ def upgrade_chart(chart_name, chart_data):
     repo_auth_required = False
     repo_url = chart_repo
 
-    if chart_name in "cluster-operator" or private_helm_repo:
+    if chart_name == "cluster-operator" or private_helm_repo:
         repo_name = "keos"
         repo_url =  keos_cluster["spec"]["helm_repository"]["url"]
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
@@ -675,42 +773,51 @@ def upgrade_chart(chart_name, chart_data):
 
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
-    
-    create_default_values(release_name, chart_namespace, default_values_file, provider)
-    if release_name == "cluster-operator":
-        update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
-    elif release_name == "tigera-operator":
-        update_tigera_operator_image_tag_value(default_values_file)
 
-    create_empty_values_file(empty_values_file)
-    
-    create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
-    create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
-
-    helm_repo_data = {
-        'repository_name': repo_name,
-        'namespace': chart_namespace,
-        'interval': '10m',
-        'repository_url': repo_url,
-        'schema': repo_schema,
-        'provider': provider,
-        'auth_required': repo_auth_required,
-        'username': repo_username,
-        'password': repo_password
-    }
-    
-    helm_release_data = {
-        'ReleaseName': release_name,
-        'ChartName': chart_name,
-        'ChartNamespace': chart_namespace,
-        'ChartVersion': chart_version,
-        'ChartRepoRef': repo_name,
-        'HelmReleaseSourceInterval': '1m',
-        'HelmReleaseInterval': '1m',
-        'HelmReleaseRetries': 3
-    }
+    # Cleanup function for temp files
+    def cleanup_temp_files():
+        for temp_file in [default_values_file, empty_values_file]:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception:
+                    pass
 
     try:
+        create_default_values(release_name, chart_namespace, default_values_file, provider)
+        if release_name == "cluster-operator":
+            update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
+        elif release_name == "tigera-operator":
+            update_tigera_operator_image_tag_value(default_values_file)
+
+        create_empty_values_file(empty_values_file)
+
+        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
+        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
+
+        helm_repo_data = {
+            'repository_name': repo_name,
+            'namespace': chart_namespace,
+            'interval': '10m',
+            'repository_url': repo_url,
+            'schema': repo_schema,
+            'provider': provider,
+            'auth_required': repo_auth_required,
+            'username': repo_username,
+            'password': repo_password
+        }
+
+        helm_release_data = {
+            'ReleaseName': release_name,
+            'ChartName': chart_name,
+            'ChartNamespace': chart_namespace,
+            'ChartVersion': chart_version,
+            'ChartRepoRef': repo_name,
+            'HelmReleaseSourceInterval': '1m',
+            'HelmReleaseInterval': '1m',
+            'HelmReleaseRetries': 3
+        }
+
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
 
@@ -723,20 +830,27 @@ def upgrade_chart(chart_name, chart_data):
         with open(release_file, 'w') as f:
             f.write(helmrelease_yaml)
 
-        command = f"{kubectl} apply -f {repository_file} "
-        run_command(command)
+        run_command(f"{kubectl} apply -f {repository_file}")
 
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
-        command = f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts"
-        run_command(command)
-        
+        run_command(f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
+
         print("OK")
+
+        # Cleanup temp files after successful apply
+        cleanup_temp_files()
+        if os.path.exists(repository_file):
+            os.remove(repository_file)
+        if os.path.exists(release_file):
+            os.remove(release_file)
+
     except Exception as e:
+        cleanup_temp_files()
         raise e
 
 def upgrade_charts(charts):
     '''Update the charts'''
-    
+
     try:
         print(f"[INFO] Updating charts versions:")
         for chart_name, chart_data in charts.items():
@@ -750,7 +864,7 @@ def upgrade_charts(charts):
 
 def stop_keoscluster_controller():
     '''Stop the KEOSCluster controller'''
-    
+
     try:
         print("[INFO] Stopping keoscluster-controller-manager deployment:", end =" ", flush=True)
         run_command(f"{kubectl} scale deployment -n kube-system keoscluster-controller-manager --replicas=0", allow_errors=True)
@@ -767,7 +881,7 @@ def disable_keoscluster_webhooks():
     try:
         backup_keoscluster_webhooks()
         print("[INFO] Disabling KEOSCluster webhooks:", end =" ", flush=True)
-        
+
         run_command(f"{kubectl} delete validatingwebhookconfiguration keoscluster-validating-webhook-configuration", allow_errors=True)
         run_command(f"{kubectl} delete mutatingwebhookconfiguration keoscluster-mutating-webhook-configuration", allow_errors=True)
         print("OK")
@@ -778,13 +892,12 @@ def disable_keoscluster_webhooks():
 
 def backup_keoscluster_webhooks():
     '''Backup the KEOSCluster webhooks'''
-    
+
     backup_file = backup_dir + "/cluster-operator/keoscluster-webhooks.yaml"
     try:
         if not os.path.exists(os.path.dirname(backup_file)):
             os.makedirs(os.path.dirname(backup_file))
-        print("[INFO] Backing up KEOSCluster webhooks...")
-        print("[INFO] Backup of validation webhooks:", end =" ", flush=True)
+        print("[INFO] Backing up KEOSCluster webhook configurations:", end =" ", flush=True)
         command = f"{helm} get manifest -n kube-system cluster-operator"
         command += f" | yq 'select(.kind == \"ValidatingWebhookConfiguration\" or .kind == \"MutatingWebhookConfiguration\")'"
         command += f" > {backup_file}"
@@ -808,7 +921,8 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         # ------------------------------------------------------------------
         cluster_config["spec"]["cluster_operator_version"] = cluster_operator_version
         cluster_config["spec"]["cluster_operator_image_version"] = cluster_operator_version
-        cluster_config["spec"]["private_helm_repo"] = private_helm_repo
+        cluster_config["spec"]["private_registry"] = is_private_registry_enabled(cluster_config)
+        cluster_config["spec"]["private_helm_repo"] = is_private_helm_repo_enabled(cluster_config)
 
         # ------------------------------------------------------------------
         # Update CAPX (Cluster API providers)
@@ -859,10 +973,203 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         print(f"[ERROR] Error updating the clusterconfig: {e}")
         raise e
 
+def create_clusterctl_config_for_private_registry(registry_url, provider):
+    """Create or update clusterctl config file to use private registry"""
+    print("[INFO] Configuring clusterctl for private registry:", end=" ", flush=True)
+
+    config_dir = os.path.expanduser("~/.cluster-api")
+    config_file = os.path.join(config_dir, "clusterctl.yaml")
+
+    # Create config directory if it doesn't exist
+    os.makedirs(config_dir, exist_ok=True)
+
+    # Read existing config or create new one
+    config_data = {}
+    if os.path.exists(config_file):
+        # Backup existing config
+        backup_file = config_file + ".backup-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        run_command(f"cp {config_file} {backup_file}", allow_errors=True)
+        print(f"\n[DEBUG] Backed up existing config to {backup_file}")
+
+        # Load existing config
+        with open(config_file, 'r') as f:
+            config_data = yaml.safe_load(f) or {}
+        print(f"[DEBUG] Loaded existing clusterctl config")
+
+    # Update images section for private registry
+    if 'images' not in config_data:
+        config_data['images'] = {}
+
+    # Align the image overrides with the original installation logic.
+    config_data['images']['cluster-api'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
+    }
+    config_data['images']['bootstrap-kubeadm'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
+    }
+    config_data['images']['control-plane-kubeadm'] = {
+        'repository': f"{registry_url}/cluster-api",
+        'tag': CAPI,
+    }
+    config_data['images']['cert-manager'] = {
+        'repository': f"{registry_url}/jetstack"
+    }
+
+    if provider == "aws":
+        config_data['images']['infrastructure-aws'] = {
+            'repository': f"{registry_url}/cluster-api-aws",
+            'tag': CAPA,
+        }
+    elif provider == "gcp":
+        config_data['images']['infrastructure-gcp'] = {
+            'repository': f"{registry_url}/stratio",
+            'tag': CAPG,
+        }
+    elif provider == "azure":
+        config_data['images']['infrastructure-azure/cluster-api-azure-controller'] = {
+            'repository': f"{registry_url}/cluster-api-azure",
+            'tag': CAPZ,
+        }
+        config_data['images']['infrastructure-azure/azureserviceoperator'] = {
+            'repository': f"{registry_url}/k8s"
+        }
+        config_data['images']['infrastructure-azure/kube-rbac-proxy'] = {
+            'repository': f"{registry_url}/kubebuilder"
+        }
+        config_data['images']['infrastructure-azure/nmi'] = {
+            'repository': f"{registry_url}/oss/azure/aad-pod-identity"
+        }
+
+    # Write updated configuration
+    with open(config_file, 'w') as f:
+        yaml.safe_dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+    print("OK")
+    print(f"[DEBUG] Updated clusterctl config at {config_file}")
+    print(f"[DEBUG] Images will be pulled from private registry: {registry_url}")
+
+    if provider == "gcp":
+        # GCP local manifests need additional image rewrites beyond clusterctl overrides.
+        patch_local_repository_manifests(config_dir, registry_url)
+
+def patch_local_repository_manifests(config_dir, registry_url):
+    """Patch local repository YAML manifests to use private registry"""
+    print("[INFO] Patching local repository manifests:", end=" ", flush=True)
+
+    local_repo = os.path.join(config_dir, "local-repository")
+    if not os.path.exists(local_repo):
+        print("SKIP (no local repository found)")
+        return
+
+    patched_count = 0
+    total_replacements = 0
+
+    for root, _, files in os.walk(local_repo):
+        for file in files:
+            if file.endswith(".yaml"):
+                filepath = os.path.join(root, file)
+                try:
+                    with open(filepath, 'r') as f:
+                        content = f.read()
+
+                    # Replace registry.k8s.io with private registry
+                    # This regex captures the full image path
+                    original_content = content
+                    new_content, count = re.subn(
+                        r'registry\.k8s\.io/([^\s:"\']+)',
+                        f'{registry_url}/stratio/\\1',
+                        content
+                    )
+                    # Fix CAPG manifest that uses e2e image tag
+                    new_content, gcp_count = re.subn(
+                        r'gcr\.io/k8s-staging-cluster-api-gcp/cluster-api-gcp-controller:[^\s"\']+',
+                        f'{registry_url}/stratio/cluster-api-gcp-controller:{CAPG}',
+                        new_content
+                    )
+                    count += gcp_count
+                    # Only write if changes were made
+                    if new_content != original_content:
+                        with open(filepath, 'w') as f:
+                            f.write(new_content)
+                        patched_count += 1
+                        total_replacements += count
+                        print(f"\n[DEBUG] Patched {filepath}: {count} replacements", flush=True)
+                except Exception as e:
+                    print(f"\n[WARN] Failed to patch {filepath}: {e}")
+
+    print(f"\nOK ({patched_count} files patched, {total_replacements} total replacements)")
+
+def patch_gcp_crd_conversion_webhook(config_dir):
+    """Remove conversion webhook from GCP CRDs in local repository to avoid caBundle errors"""
+    print("[INFO] Removing conversion webhooks from GCP CRDs:", end=" ", flush=True)
+
+    gcp_repo = os.path.join(config_dir, "local-repository", "infrastructure-gcp")
+    if not os.path.exists(gcp_repo):
+        print("SKIP (no GCP repository found)")
+        return
+
+    patched_files = []
+    patched_crds = 0
+
+    for root, _, files in os.walk(gcp_repo):
+        for file in files:
+            if file.endswith(".yaml"):
+                filepath = os.path.join(root, file)
+                try:
+                    with open(filepath, 'r') as f:
+                        content = f.read()
+
+                    yaml_parser = YAML()
+                    yaml_parser.preserve_quotes = True
+                    yaml_parser.width = 4096
+
+                    documents = list(yaml_parser.load_all(content))
+                    modified = False
+
+                    for doc in documents:
+                        if doc and doc.get('kind') == 'CustomResourceDefinition':
+                            crd_name = doc.get('metadata', {}).get('name', '')
+                            if crd_name in CAPG_CRDS:
+                                if 'spec' in doc and 'conversion' in doc['spec']:
+                                    del doc['spec']['conversion']
+                                    modified = True
+                                    patched_crds += 1
+                                    print(f"\n[DEBUG] Removed conversion from {crd_name} in {filepath}", flush=True)
+
+                        # Fallback: if conversion block still exists but empty/partial, force strategy None
+                        if doc and doc.get('kind') == 'CustomResourceDefinition':
+                            crd_name = doc.get('metadata', {}).get('name', '')
+                            if crd_name in CAPG_CRDS:
+                                if 'spec' in doc and 'conversion' in doc['spec']:
+                                    doc['spec']['conversion'] = {"strategy": "None"}
+                                    modified = True
+                                    print(f"\n[DEBUG] Forced conversion.strategy=None for {crd_name} in {filepath}", flush=True)
+
+                    if modified:
+                        output = StringIO()
+                        yaml_parser.dump_all(documents, output)
+                        with open(filepath, 'w') as f:
+                            f.write(output.getvalue())
+                        patched_files.append(filepath)
+
+                except Exception as e:
+                    print(f"\n[WARN] Failed to patch CRD in {filepath}: {e}")
+
+    if patched_files:
+        print(f"\nOK ({len(patched_files)} files patched, {patched_crds} CRDs patched)")
+    else:
+        print("OK (no CRDs needed patching)")
+
 def patch_clusterctl_images(registry_url):
+    '''Patch Cluster API provider image references to use a private registry'''
     print("[INFO] Patching Cluster API provider images for private registry:", end=" ", flush=True)
 
     repo_base = os.environ.get("CAPI_REPO")
+    if not repo_base:
+        print("SKIP (CAPI_REPO not set)")
+        return
 
     for root, _, files in os.walk(repo_base):
         for file in files:
@@ -884,6 +1191,7 @@ def patch_clusterctl_images(registry_url):
     print("OK")
 
 def upgrade_cluster_api_providers(provider):
+    '''Upgrade Cluster API core and infrastructure providers using clusterctl'''
     print("[INFO] Upgrading Cluster API providers:", end=" ", flush=True)
 
     command = (
@@ -892,7 +1200,8 @@ def upgrade_cluster_api_providers(provider):
         f"--core cluster-api:{CAPI} "
     )
 
-    # Add bootstrap and control-plane flags only for Azure
+    # Bootstrap and control-plane providers are only needed for unmanaged clusters (Azure VMs).
+    # EKS and GKE manage the control plane themselves, so these providers are not upgraded.
     if provider == "azure":
         command += (
             f"--bootstrap kubeadm:{CAPI_KUBEADM_BOOTSTRAP} "
@@ -901,16 +1210,20 @@ def upgrade_cluster_api_providers(provider):
 
     if provider == "aws":
         command += f"--infrastructure aws:{CAPA} "
-    elif provider == "gcp":
-        command += f"--infrastructure gcp:{CAPG} "
     elif provider == "azure":
         command += f"--infrastructure azure:{CAPZ} "
+    elif provider == "gcp":
+        command += f"--infrastructure gcp:{CAPG} "
 
     command += "--wait-providers"
 
+    safe_command = re.sub(r"GCP_B64ENCODED_CREDENTIALS=\S+", "GCP_B64ENCODED_CREDENTIALS=<redacted>", command)
+    print(f"\n[DEBUG] Full clusterctl command: {safe_command}", flush=True)
+
     run_command(command)
+
     print("OK")
-    
+
 def restore_keoscluster_webhooks():
     '''Restore the KEOSCluster webhooks'''
 
@@ -920,10 +1233,11 @@ def restore_keoscluster_webhooks():
         {"kind": "ValidatingWebhookConfiguration", "name": "keoscluster-validating-webhook-configuration", "namespace": "kube-system"},
     ]
     try:
-        print("[INFO] Restoring KEOSCluster webhooks from backup...")
+        print("[INFO] Restoring KEOSCluster webhooks from backup:", end =" ", flush=True)
         run_command(f"{kubectl} create -f {backup_file}", allow_errors=True)
+        print("OK")
 
-        print("[INFO] Labeling and annotating webhooks...", end =" ", flush=True)
+        print("[INFO] Labeling and annotating webhooks:", end =" ", flush=True)
         update_annotation_label("app.kubernetes.io/managed-by", "Helm", resources_webhooks, "label")
         update_annotation_label("meta.helm.sh/release-name", "cluster-operator", resources_webhooks)
         update_annotation_label("meta.helm.sh/release-namespace", "kube-system", resources_webhooks)
@@ -988,9 +1302,8 @@ def configure_aws_credentials(vault_secrets_data):
 
     print("OK")
 
-
 def configure_azure_credentials(vault_secrets_data):
-    print(f"[INFO] Configuring Azure CLI credentials", end=" ", flush=True)
+    print("[INFO] Configuring Azure CLI credentials", end=" ", flush=True)
     azure_client_id = vault_secrets_data['secrets']['azure']['credentials']['client_id']
     azure_client_secret = vault_secrets_data['secrets']['azure']['credentials']['client_secret']
     azure_subscription_id = vault_secrets_data['secrets']['azure']['credentials']['subscription_id']
@@ -999,19 +1312,152 @@ def configure_azure_credentials(vault_secrets_data):
     command = f"az login --service-principal --username {azure_client_id} \
                 --password {azure_client_secret} --tenant {azure_tenant_id}"
 
-    run_command(command)
-    print("OK")
+    try:
+        run_command(command)
+        print("OK")
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] Azure CLI login failed: {e}")
+        sys.exit(1)
+
+def configure_gcp_credentials(vault_secrets_data):
+    """Configure GCP gcloud credentials from service account key"""
+    print("[INFO] Configuring GCP gcloud credentials", end=" ", flush=True)
+
+    try:
+        gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+        project_id = gcp_creds['project_id']
+
+        # Check if service_account_key exists (JSON key content)
+        if 'service_account_key' in gcp_creds:
+            # Write service account key to temporary file
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as key_file:
+                json.dump(gcp_creds['service_account_key'], key_file)
+                key_path = key_file.name
+
+            # Activate service account
+            activate_cmd = f"gcloud auth activate-service-account --key-file={key_path} --quiet"
+            result = subprocess.run(activate_cmd, shell=True, capture_output=True, text=True)
+
+            # Clean up key file
+            os.remove(key_path)
+
+            if result.returncode != 0:
+                print("FAILED")
+                print(f"[ERROR] gcloud auth failed: {result.stderr}")
+                sys.exit(1)
+
+        # Set default project
+        project_cmd = f"gcloud config set project {project_id} --quiet"
+        result = subprocess.run(project_cmd, shell=True, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print("FAILED")
+            print(f"[ERROR] Setting GCP project failed: {result.stderr}")
+            sys.exit(1)
+
+        print("OK")
+
+    except KeyError as e:
+        print("FAILED")
+        print(f"[ERROR] Missing GCP credential field: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] GCP credential configuration failed: {e}")
+        sys.exit(1)
+
+def activate_capg_service_account(kubectl, kubeconfig):
+    """
+    Activates the CAPG service account from capg-manager-bootstrap-credentials
+    and regenerates kubeconfig so gke-gcloud-auth-plugin uses this identity.
+    """
+
+    print("[INFO] Activating CAPG service account:", end=" ", flush=True)
+
+    try:
+        # Get credentials.json from secret
+        cmd = (
+            f"{kubectl} -n capg-system get secret "
+            f"capg-manager-bootstrap-credentials "
+            f"-o jsonpath='{{.data.credentials\\.json}}'"
+        )
+
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+
+        if result.returncode != 0 or not result.stdout.strip():
+            print("FAILED")
+            print(result.stderr)
+            sys.exit(1)
+
+        credentials_json = base64.b64decode(result.stdout.strip()).decode("utf-8")
+        credentials = json.loads(credentials_json)
+
+        # Write temporary key file
+        import tempfile
+        key_file = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        key_file.write(credentials_json)
+        key_file.close()
+        key_path = key_file.name
+
+        # Activate SA
+        subprocess.run(
+            f"gcloud auth activate-service-account "
+            f"--key-file={key_path} --quiet",
+            shell=True,
+            check=True
+        )
+
+        # Set project
+        subprocess.run(
+            f"gcloud config set project {credentials['project_id']} --quiet",
+            shell=True,
+            check=True
+        )
+
+        # Extract cluster name from kubeconfig context
+        context = subprocess.check_output(
+            f"kubectl --kubeconfig {kubeconfig} config current-context",
+            shell=True,
+            text=True
+        ).strip()
+
+        cluster_name = context.split("_")[-1]
+
+        # 🔥 Get region from VAULT secrets (NOT from CAPG secret)
+        gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+        location = gcp_creds.get('region') or gcp_creds.get('zone')
+
+        if not location:
+            raise Exception("GCP region/zone not found in vault secrets")
+
+        # Refresh kubeconfig using correct region
+        subprocess.run(
+            f"KUBECONFIG={kubeconfig} "
+            f"gcloud container clusters get-credentials {cluster_name} "
+            f"--region {location} "
+            f"--project {credentials['project_id']}",
+            shell=True,
+            check=True
+        )
+
+        print("OK")
+
+    except Exception as e:
+        print("FAILED")
+        print(e)
+        sys.exit(1)
 
 if __name__ == '__main__':
     # Set start time
     start_time = time.time()
     print("[INFO] Starting cluster upgrade process")
     print("[INFO] Setting up the environment...")
-    
+
     # Set backup directory
     backup_dir = "./backup/upgrade/"
-    print("Backup directory: " + backup_dir)
-
+    print("[INFO] Backup directory: " + backup_dir)
 
     # Configure the logger
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1048,7 +1494,7 @@ if __name__ == '__main__':
     print("OK")
 
     # Get data from vault secrets file (secrets.yml)
-    print("[INFO] Reading secrets file", end =" ", flush=True)  
+    print("[INFO] Reading secrets file", end =" ", flush=True)
     try:
         vault = Vault(config["vault_password"])
         vault_secrets_data = vault.load(open(config["secrets"]).read())
@@ -1057,13 +1503,16 @@ if __name__ == '__main__':
         sys.exit(1)
     print("OK")
 
-    # Configure aws CLI
-    print("[INFO] Configuring cloud provider CLI credentials", end =" ", flush=True)  
+    # Configure cloud provider CLI
     if 'aws' in vault_secrets_data['secrets']:
         configure_aws_credentials(vault_secrets_data)
     elif 'azure' in vault_secrets_data['secrets']:
         configure_azure_credentials(vault_secrets_data)
-    print("OK")
+    elif 'gcp' in vault_secrets_data['secrets']:
+        configure_gcp_credentials(vault_secrets_data)
+    else:
+        print("[ERROR] Unable to detect provider from secrets file for CLI configuration")
+        sys.exit(1)
 
     # Print kubeconfig path
     print("[INFO] Using kubeconfig: " + kubeconfig)
@@ -1071,11 +1520,13 @@ if __name__ == '__main__':
     # Set kubectl
     print("[INFO] Setting kubectl with kubeconfig", end =" ", flush=True)
     kubectl = "kubectl --kubeconfig " + kubeconfig
+    print("OK")
 
     # Set helm
     print("[INFO] Setting helm with kubeconfig", end =" ", flush=True)
     helm = "helm --kubeconfig " + kubeconfig
-    
+    print("OK")
+
     # Detect provider early from secrets file
     if 'aws' in vault_secrets_data['secrets']:
         provider = "aws"
@@ -1086,9 +1537,9 @@ if __name__ == '__main__':
     else:
         print("[ERROR] Unable to detect provider from secrets file")
         sys.exit(1)
-    
+
     print("[INFO] Detected provider: " + provider)
-    
+
     # Extract cluster name from kubeconfig context
     try:
         context_cmd = f"kubectl --kubeconfig {kubeconfig} config current-context"
@@ -1107,7 +1558,7 @@ if __name__ == '__main__':
     except Exception as e:
         cluster_name_guess = None
         print(f"[WARN] Could not extract cluster name from kubeconfig context: {e}")
-    
+
     # Validate kubectl access BEFORE trying to get resources
     print("[INFO] Validating kubectl access to the cluster:", end =" ", flush=True)
 
@@ -1121,7 +1572,7 @@ if __name__ == '__main__':
 
         if provider == "aws":
             region = vault_secrets_data['secrets']['aws']['credentials']['region']
-            
+
             # Try to get cluster name from context or use provided name
             if cluster_name_guess:
                 cluster_name_for_refresh = cluster_name_guess
@@ -1136,7 +1587,7 @@ if __name__ == '__main__':
                 f"--region {region} "
                 f"--kubeconfig {kubeconfig}"
             )
-            
+
             print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
             status = subprocess.call(refresh_cmd, shell=True)
 
@@ -1152,7 +1603,7 @@ if __name__ == '__main__':
                 sys.exit(1)
 
             print("OK (kubeconfig refreshed)")
-            
+
         elif provider == "azure":
             print("[ERROR] kubectl access failed")
             print("[HINT] For Azure, refresh upgrade credentials:")
@@ -1162,19 +1613,61 @@ if __name__ == '__main__':
             print(f"  3. Ensure the user credentials or service principal tokens are valid")
             print("[ACTION REQUIRED] After updating the credentials in the kubeconfig file, please re-run this script")
             sys.exit(1)
-            
+
         elif provider == "gcp":
-            print("[ERROR] kubectl access failed")
-            print("[HINT] For GCP, refresh credentials with:")
-            print(f"  gcloud container clusters get-credentials <cluster-name> --region <region> --project <project-id>")
-            sys.exit(1)
-            
+            # Get GCP credentials from vault
+            gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+            project_id = gcp_creds['project_id']
+            region = gcp_creds.get('region', gcp_creds.get('zone'))  # Support both region and zone
+
+            # Try to get cluster name from context or use provided name
+            if cluster_name_guess:
+                cluster_name_for_refresh = cluster_name_guess
+            else:
+                print("[ERROR] Cannot refresh kubeconfig: cluster name not detected from context")
+                print("[HINT] Ensure your kubeconfig has a valid context set")
+                sys.exit(1)
+
+            # Determine if it's a regional or zonal cluster
+            if region:
+                location_flag = f"--region {region}"
+            else:
+                print("[ERROR] Cannot refresh kubeconfig: region/zone not found in secrets")
+                print("[HINT] Ensure 'region' or 'zone' is set in GCP credentials")
+                sys.exit(1)
+
+            refresh_cmd = (
+                f"KUBECONFIG={kubeconfig} gcloud container clusters get-credentials {cluster_name_for_refresh} "
+                f"{location_flag} "
+                f"--project {project_id}"
+            )
+
+            print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
+            status = subprocess.call(refresh_cmd, shell=True)
+
+            if status != 0:
+                print("[ERROR] Failed to refresh kubeconfig")
+                sys.exit(1)
+
+            # Rebuild kubectl with refreshed kubeconfig
+            kubectl = "kubectl --kubeconfig " + kubeconfig
+
+            if not test_kubectl():
+                print("[ERROR] kubectl still failing after kubeconfig refresh")
+                sys.exit(1)
+
+            print("OK (kubeconfig refreshed)")
+
         else:
             print("[ERROR] kubectl access failed and auto-refresh not supported for this provider")
             sys.exit(1)
     else:
         print("OK")
-    
+
+    # Activate CAPG service account and refresh GKE kubeconfig after kubectl validation
+    if provider == "gcp":
+        activate_capg_service_account(kubectl, kubeconfig)
+
     # Get KeosCluster and ClusterConfig
     print("[INFO] Getting KeosCluster and ClusterConfig", end =" ", flush=True)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
@@ -1190,15 +1683,15 @@ if __name__ == '__main__':
     print("OK")
 
     print("[INFO] Cluster name: " + cluster_name)
-    
+
     # Verify provider matches
     provider_from_cluster = keos_cluster["spec"]["infra_provider"]
     if provider != provider_from_cluster:
         print(f"[WARN] Provider mismatch: detected '{provider}' from secrets but cluster reports '{provider_from_cluster}'")
         provider = provider_from_cluster
-    
+
     print("[INFO] Provider: " + provider)
-    
+
     if not config["dry_run"] and not config["yes"]:
         request_confirmation()
 
@@ -1208,7 +1701,7 @@ if __name__ == '__main__':
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
-    # Setting clusterctl env vars 
+    # Setting clusterctl env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
 
     # Get and update the helm repository if needed
@@ -1222,7 +1715,7 @@ if __name__ == '__main__':
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     scale_cluster_autoscaler(0, config["dry_run"])
- 
+
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)
 
@@ -1254,7 +1747,7 @@ if __name__ == '__main__':
         # Enable experimental machine pool support for managed clusters
         if managed:
             env_vars += " EXP_MACHINE_POOL=true"
-        
+
         # Configure Azure service principal credentials from vault secrets
         if "credentials" in vault_secrets_data["secrets"]["azure"]:
             credentials = vault_secrets_data["secrets"]["azure"]["credentials"]
@@ -1293,14 +1786,16 @@ if __name__ == '__main__':
     else:
         print("[INFO] Capsule preparation disabled: SKIP")
 
-    # Update the clusterconfig and keoscluster
+    # Re-fetch KeosCluster and ClusterConfig to ensure we work with the latest state before upgrading
+    print("[INFO] Re-fetching KeosCluster and ClusterConfig:", end=" ", flush=True)
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
+    print("OK")
 
-    private_registry = config["private"]
-    private_helm_repo = config["private"] 
+    private_registry = is_private_registry_enabled(cluster_config)
+    private_helm_repo = is_private_helm_repo_enabled(cluster_config)
     cluster_operator_version = config["cluster_operator"]
-    
-    charts_to_upgrade = common_charts
+
+    charts_to_upgrade = dict(common_charts)
     if provider == "aws":
         # Since aws-load-balancer-controller is optional we need to check if is installed
         aws_eks_charts_installed = filter_installed_charts(aws_eks_charts)
@@ -1309,64 +1804,105 @@ if __name__ == '__main__':
         charts_to_upgrade.update(azure_vm_charts)
     charts_to_upgrade["cluster-operator"]["chart_version"] = cluster_operator_version
 
+    # Filter out charts that are not installed to avoid errors
+    charts_to_upgrade = filter_installed_charts(charts_to_upgrade)
+
     upgrade_charts(charts_to_upgrade)
     print("[INFO] All charts updated successfully")
-    
+
     # Restore capsule
     if not config["disable_prepare_capsule"]:
         restore_capsule(config["dry_run"])
-    
-    print("[INFO] Waiting for the cluster-operator helmrelease to be ready...")
+
+    print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
     command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'=True --timeout=5m"
-    run_command(command)
+    try:
+        run_command(command)
+        print("OK")
+    except Exception as e:
+        print("[WARN] HelmRelease not ready, checking status...")
+        status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
+        status_output, _ = run_command(status_cmd, allow_errors=True)
+        print(f"[INFO] HelmRelease status: {status_output}")
+        raise e
     print("[INFO] Upgrading Cluster Operator components...")
     print("[INFO] Suspending cluster-operator helmrelease:", end =" ", flush=True)
 
     command = kubectl + " patch helmrelease cluster-operator -n kube-system --type merge --patch '{\"spec\":{\"suspend\":true}}'"
     run_command(command)
     print("OK")
-    
+
     stop_keoscluster_controller()
     disable_keoscluster_webhooks()
     update_clusterconfig(cluster_config, charts_to_upgrade, provider, cluster_operator_version)
 
-    # Upgrade Cluster API providers
-    print("[INFO] Upgrading Cluster API providers...")
-    # If private registry is used, we need to patch the Cluster API provider manifests to use the private registry before upgrading them, otherwise the upgrade will fail because clusterctl will try to pull the images from the public registry 
+    # -------------------------------------------------
+    # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
+    # -------------------------------------------------
     if private_registry:
         registry_url = get_keos_registry_url(keos_cluster)
-        patch_clusterctl_images(registry_url)
+        print(f"[DEBUG] Using private registry: {registry_url}")
+        create_clusterctl_config_for_private_registry(registry_url, provider)
+        if provider == "gcp":
+            # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
+            config_dir = os.path.expanduser("~/.cluster-api")
+            patch_gcp_crd_conversion_webhook(config_dir)
+
+    # -------------------------------------------------
+    # GCP CRD conversion webhook cleanup (prevents caBundle PEM error during clusterctl upgrade)
+    # -------------------------------------------------
+    if provider == "gcp":
+        patch_capg_crds_live()
+    # -------------------------------------------------
+    # Execute clusterctl upgrade
+    # -------------------------------------------------
     upgrade_cluster_api_providers(provider)
     print("[INFO] Cluster API providers upgraded successfully")
 
+    print("[INFO] Restoring KEOSCluster webhooks and starting controller...")
     keos_cluster, cluster_config = get_keos_cluster_cluster_config()
     provider = keos_cluster["spec"]["infra_provider"]
     restore_keoscluster_webhooks()
     start_keoscluster_controller()
-    print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
+    print("[INFO] Resuming cluster-operator helmrelease:", end =" ", flush=True)
     command = kubectl + " patch helmrelease cluster-operator -n kube-system --type merge --patch '{\"spec\":{\"suspend\":false}}'"
     run_command(command)
-    command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
-    run_command(command)
     print("OK")
-    
+
+    print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
+    command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+    try:
+        run_command(command)
+        print("OK")
+    except Exception as e:
+        print("FAILED")
+        print("[ERROR] HelmRelease failed to become ready, checking status...")
+        status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
+        status_output, _ = run_command(status_cmd, allow_errors=True)
+        print(f"[DEBUG] HelmRelease details:\n{status_output}")
+        print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
+        raise e
+
     cluster_name = keos_cluster["metadata"]["name"]
-    
+
     print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
-    
+
     command = (
         kubectl + " wait --for=jsonpath=\"{.status.ready}\"=true KeosCluster "
         + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
     )
     execute_command(command, False)
-            
-    command = "kubectl wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
-    run_command(command)
-    print("[INFO] keoscluster-controller-manager is Available")
-    
+
+    command = kubectl + " wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
+    try:
+        run_command(command)
+        print("[INFO] keoscluster-controller-manager is Available")
+    except Exception as e:
+        print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
+
     print("[INFO] Restoring cluster-autoscaler replicas")
     scale_cluster_autoscaler(2, config["dry_run"])
-   
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     minutes, seconds = divmod(elapsed_time, 60)

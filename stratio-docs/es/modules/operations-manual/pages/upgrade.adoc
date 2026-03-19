@@ -6,10 +6,11 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 
 * *EKS* en AWS (gestionado)
 * *Azure VMs* (no gestionado)
+* *GKE* en GCP (gestionado)
 
-Permite actualizar la versión del _cluster_ de Kubernetes desde la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.8.0`.
+Permite actualizar la versión del _cluster_ de Kubernetes desde la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.8.X`.
 
-Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.0`, que incluye el _script_ de actualización y todas las dependencias necesarias.
+Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.17.0-0.8.X`, que incluye el _script_ de actualización y todas las dependencias necesarias.
 
 === Qué se actualiza
 
@@ -28,7 +29,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 * *Proveedores de infraestructura* específicos de plataforma:
 ** CAPA (AWS): `v2.9.2`
 ** CAPZ (Azure): `v1.21.1`
-** CAPG (GCP): `1.6.1-0.4.0` *(aún no probado)*
+** CAPG (GCP): `1.6.1-0.4.0`
 
 * *Charts* específicos de plataforma:
 ** EKS (si está instalado):
@@ -41,14 +42,14 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 == Requisitos
 
 * Técnicos:
-** Tener un Docker instalado en el sistema.
-** Disponer de un archivo _kubeconfig_ con acceso al _cluster_.
+** Tener Docker instalado en el sistema.
+** Disponer de un archivo _kubeconfig_ con acceso al _cluster_ (.kube/config).
 ** Disponer de un archivo _secrets.yml_ (Ansible Vault) utilizado durante la creación del _cluster_.
 ** Tener un directorio local para copias de seguridad (se montará en el contenedor).
 
 * Funcionales:
 +
-Antes de ejecutar la actualización, verifica que el _cluster_ cumpla las siguientes condiciones:
+Antes de ejecutar la actualización, verifica que el _cluster_ cumpla las siguientes condiciones dependiendo de cada plataforma:
 +
 ** _KeosCluster_ listo:
 +
@@ -69,7 +70,7 @@ kubectl get keosclusters.installer.stratio.com -A
 kubectl get nodes
 ----
 +
-*Esperado:* todos los nodos con `STATUS = Ready`.
+*Salida esperada:* todos los nodos con `STATUS = Ready`.
 
 ** Máquinas en ejecución:
 +
@@ -78,38 +79,49 @@ kubectl get nodes
 kubectl get machines -A
 ----
 +
-*Esperado:* todas con `PHASE = Running`.
+*Salida esperada:* todas con `PHASE = Running`.
 
-** _MachineDeployments_ saludables:
+** _MachineDeployments_:
 +
 [source,bash]
 ----
 kubectl get machinedeployments -A
 ----
 +
-*Esperado:*
+*Salida esperada:*
 +
 *** `READY = REPLICAS`
 *** `UNAVAILABLE = 0`
 
-** _Pods_ de _Cluster API_ saludables:
+** _MachinePools_:
++
+[source,bash]
+----
+kubectl get machinepools -A
+----
++
+*Salida esperada:* todos con `PHASE = Running`.
+
+** _Pods_ de _Cluster API_ y proveedores:
 +
 [source,bash]
 ----
 kubectl get pods -n capi-system
-kubectl get pods -n capa-system   # o capz-system / capg-system
+kubectl get pods -n capa-system
+kubectl get pods -n capg-system
+kubectl get pods -n capz-system
 ----
 +
-*Esperado:* todos los _pods_ en estado `Running` y sin errores en los _logs_.
+*Salida esperada:* todos los _pods_ en estado `Running` y sin errores en los _logs_.
 
-** _Cluster-Operator_ listo:
+** _Cluster-Operator_:
 +
 [source,bash]
 ----
 kubectl get helmrelease cluster-operator -n kube-system
 ----
 +
-*Esperado:* `Ready = True`.
+*Salida esperada:* `Ready = True`.
 
 === Permisos
 
@@ -121,7 +133,7 @@ Crea un directorio local para copias de seguridad:
 
 [source,bash]
 ----
-mkdir -p /ruta/local/backup
+mkdir -p $PWD/backup
 ----
 
 NOTE: Este directorio debe montarse dentro del contenedor en `/upgrade/backup`.
@@ -132,27 +144,58 @@ Asegúrate de que el directorio de trabajo incluya:
 
 * `upgrade-provisioner.py`: _script_ principal.
 * `templates/`: plantillas Jinja2.
-* `files/`: archivos adicionales (configuraciones, Helm, etc.).
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
-* `.kube/`: directorio con el archivo _kubeconfig_.
+* `.kube/config`: archivo _kubeconfig_ del _cluster_.
+* `backup/`: directorio para copias de seguridad (puede estar vacío inicialmente).
 
 == Notas importantes
 
-=== Configuración del registro
+=== Uso del _flag_ `--private`
 
-[%header,cols="1,2"]
+El _flag_ `--private` *fuerza* el uso de repositorios privados para:
+
+* Las imágenes de contenedores (`private_registry`).
+* Los _charts_ de Helm (`private_helm_repo`).
+
+El comportamiento final del _script_ no depende solo del _flag_, sino también de los valores ya definidos en `ClusterConfig`.
+
+Esto implica que:
+
+* Si `ClusterConfig.spec.private_registry=true`, el _script_ seguirá usando el registro privado aunque *no se pase* `--private`.
+* Si `ClusterConfig.spec.private_helm_repo=true`, el _script_ seguirá usando el repositorio Helm privado aunque *no se pase* `--private`.
+* *Si se pasa* `--private`, ambos valores se fuerzan a `true` durante la actualización y el `ClusterConfig` se actualiza con esos valores.
+
+==== Casos habituales
+
+[%header,cols="2,2,3"]
 |===
-| Escenario | Acción requerida
+| Estado actual en `ClusterConfig`
+| Ejecución
+| Resultado
 
-| Sin el _flag_ `--private`.
-| `Clusterctl` utilizará imágenes de `registry.k8s.io`.
+| `private_registry=true` +
+`private_helm_repo=true`
+| sin `--private`
+| Se seguirá usando el registro privado de Helm en repositorios privados.
 
-| Solo registro privado.
-| *Debe* usar el _flag_ `--private`.
+| `private_registry=false` +
+`private_helm_repo=false`
+| sin `--private`
+| Se usarán repositorios públicos.
+
+| `private_registry=false` +
+`private_helm_repo=false`
+| con `--private`
+| Se fuerza el uso del registro privado y del repositorio privado de Helm, y el `ClusterConfig` queda actualizado a `true`.
 |===
 
-WARNING: Si el _cluster_ solo puede acceder a un registro privado, el _flag_ `--private` es *obligatorio*.
+==== Origen de _charts_ e imágenes
+
+* Cuando `private_helm_repo=true`, los _charts_ se resuelven desde `KeosCluster.spec.helm_repository.url`.
+* Cuando `private_registry=true`, las imágenes de Cluster API se resuelven desde el registro marcado como `keos_registry=true` en `KeosCluster.spec.docker_registries`.
+
+WARNING: El _flag_ `--private` solo es necesario si quieres *forzar el uso de repositorios privados* y el `ClusterConfig` actual ya no lo tiene habilitado.
 
 == Uso del _script_ de actualización
 
@@ -183,11 +226,6 @@ Opciones principales:
 |
 | Sí
 
-| `-y`, `--yes`
-| Ejecuta en modo automático sin solicitar confirmación entre tareas.
-| False
-| No
-
 | `-k`, `--kubeconfig`
 | Especifica el archivo _kubeconfig_ a utilizar.
 | ~/.kube/config
@@ -208,11 +246,6 @@ Opciones principales:
 | False
 | No
 
-| `--skip-k8s-intermediate-version`
-| Omite la actualización intermedia de los _workers_ de Kubernetes. Solo compatible con entornos EKS.
-| False
-| No
-
 | `--private`
 | Indica que el _registry_ de Docker y el repositorio de Helm son privados.
 | False
@@ -224,13 +257,13 @@ Opciones principales:
 [source,bash]
 ----
 docker run \
-  --name cloud-provisioner-upgrade-0.8.0 \
+  --name cloud-provisioner-upgrade-0.8.X \
   --net host \
   -it \
-  -v /ruta/local/secrets.yml:/upgrade/secrets.yml \
-  -v /ruta/local/.kube/config:/upgrade/.kube/config \
-  -v /ruta/local/backup:/upgrade/backup \
-  cloud-provisioner-upgrade:0.17.0-0.8.0
+  -v $PWD/secrets.yml:/upgrade/secrets.yml \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v $PWD/backup:/upgrade/backup \
+  cloud-provisioner-upgrade:0.17.0-0.8.X
 ----
 
 == Descripción general del proceso de actualización
@@ -242,20 +275,20 @@ El _script_ ejecuta el siguiente flujo de trabajo:
 ** Configura credenciales del proveedor _cloud_.
 
 . *Pre-actualización*
-** *Escala _cluster-autoscaler_ a 0* para evitar escalado automático durante la actualización.
+** Escala _cluster-autoscaler_ a 0 para evitar escalado automático durante la actualización. (No aplica en GKE).
 
 . *Copia de seguridad*
 ** Componentes CAPX (mediante `clusterctl move`).
 ** Configuraciones de _webhooks_ de Capsule.
 
 . *Preparación de Capsule*
-** *Modifica los _webhooks_* para excluir _namespaces_ críticos de la validación/mutación.
+** Modifica los _webhooks_ para excluir _namespaces_ críticos de la validación y la mutación.
 ** Garantiza que el aislamiento de _tenants_ no bloquee la actualización.
 
 . *Actualización de _charts_*
 ** Actualiza _charts_ base (cert-manager, flux2, tigera-operator, etc.).
 ** Actualiza _charts_ específicos del proveedor (aws-load-balancer-controller, _controllers_ CSI de Azure).
-** *Restaura los _webhooks_ de Capsule* a la configuración original.
+** Restaura los _webhooks_ de Capsule a la configuración original.
 
 . *Preparación de _Cluster-Operator_*
 ** Suspende el _HelmRelease_ de _cluster-operator_.
@@ -277,31 +310,31 @@ clusterctl upgrade apply \
 ** Restaura los _webhooks_ de _keoscluster_.
 ** Inicia el _deployment_ de _keoscluster-controller_.
 ** Reanuda el _HelmRelease_ de _cluster-operator_.
-** Espera a que _cluster-operator_ esté listo.
-** Espera a que todos los componentes estén en estado listo.
+** Espera a que el _cluster-operator_ esté _ready_.
+** Espera a que todos los componentes estén en estado _ready_.
 ** Restaura las réplicas de _cluster-autoscaler_ a 2.
 
 == Monitorización durante la actualización
 
-* Observar el Autoscaler
-+
-[source,bash]
-----
-watch -n2 kubectl -n kube-system get deploy cluster-autoscaler-clusterapi-cluster-autoscaler
-----
-
-* Monitorizar _pods_ críticos
+* Monitorizar _pods_ críticos.
 +
 [source,bash]
 ----
 watch -n2 'kubectl get pods -A | grep -E "cluster-operator|capi|cap.|autoscaler|tigera"'
 ----
 
-* Seguir _HelmReleases_
+* Seguir _HelmReleases_.
 +
 [source,bash]
 ----
 watch -n2 kubectl get helmreleases -A
+----
+
+* Observar el proveedor.
++
+[source,bash]
+----
+watch -n2 kubectl get providers -A
 ----
 
 == Verificación final
@@ -348,11 +381,8 @@ kubectl get hr -A -o json \
 kubectl get keoscluster -A
 kubectl get machines -A
 kubectl get machinedeployments -A
+kubectl get machinepools -A
 kubectl get nodes
+# Verificar que los logs de CAPX no contengan errores tras la actualización
 ----
-+
-*Estado esperado:*
-+
-** ✅ Todos los recursos en estado `Ready`.
-** ✅ Todas las máquinas en estado `Running`.
-** ✅ Ninguna réplica en estado `Unavailable`.
+
