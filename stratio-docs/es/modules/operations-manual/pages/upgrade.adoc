@@ -282,7 +282,7 @@ El _script_ ejecuta el siguiente flujo de trabajo:
 ** Configuraciones de _webhooks_ de Capsule.
 
 . *Preparación de Capsule*
-** Modifica los _webhooks_ para excluir _namespaces_ críticos de la validación/mutación.
+** Modifica los _webhooks_ para excluir _namespaces_ críticos de la validación y la mutación.
 ** Garantiza que el aislamiento de _tenants_ no bloquee la actualización.
 
 . *Actualización de _charts_*
