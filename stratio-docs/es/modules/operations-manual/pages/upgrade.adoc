@@ -190,7 +190,7 @@ Esto implica que:
 | Se fuerza el uso de registro privado y Helm repo privado, y el `ClusterConfig` queda actualizado a `true`.
 |===
 
-==== Origen de charts e imágenes
+==== Origen de _charts_ e imágenes
 
 * Cuando `private_helm_repo=true`, los charts se resuelven desde `KeosCluster.spec.helm_repository.url`.
 * Cuando `private_registry=true`, las imágenes de Cluster API se resuelven desde el registro marcado como `keos_registry=true` en `KeosCluster.spec.docker_registries`.
