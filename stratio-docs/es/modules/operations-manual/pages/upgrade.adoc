@@ -192,7 +192,7 @@ Esto implica que:
 
 ==== Origen de _charts_ e imágenes
 
-* Cuando `private_helm_repo=true`, los charts se resuelven desde `KeosCluster.spec.helm_repository.url`.
+* Cuando `private_helm_repo=true`, los _charts_ se resuelven desde `KeosCluster.spec.helm_repository.url`.
 * Cuando `private_registry=true`, las imágenes de Cluster API se resuelven desde el registro marcado como `keos_registry=true` en `KeosCluster.spec.docker_registries`.
 
 WARNING: El flag `--private` solo es necesario si quieres *forzar* el uso de repositorios privados y el `ClusterConfig` actual no lo tiene ya habilitado.
