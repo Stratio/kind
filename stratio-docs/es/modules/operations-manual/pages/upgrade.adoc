@@ -187,7 +187,7 @@ Esto implica que:
 | `private_registry=false` +
 `private_helm_repo=false`
 | con `--private`
-| Se fuerza el uso de registro privado y Helm repo privado, y el `ClusterConfig` queda actualizado a `true`.
+| Se fuerza el uso del registro privado y del repositorio privado de Helm, y el `ClusterConfig` queda actualizado a `true`.
 |===
 
 ==== Origen de _charts_ e imágenes
