@@ -153,7 +153,7 @@ Asegúrate de que el directorio de trabajo incluya:
 
 === Uso del _flag_ `--private`
 
-El flag `--private` *fuerza* el uso de repositorios privados para:
+El _flag_ `--private` *fuerza* el uso de repositorios privados para:
 
 * las imágenes de contenedores (`private_registry`)
 * los charts de Helm (`private_helm_repo`)
