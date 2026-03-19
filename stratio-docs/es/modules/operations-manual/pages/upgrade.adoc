@@ -323,7 +323,7 @@ clusterctl upgrade apply \
 watch -n2 'kubectl get pods -A | grep -E "cluster-operator|capi|cap.|autoscaler|tigera"'
 ----
 
-* Seguir _HelmReleases_
+* Seguir _HelmReleases_.
 +
 [source,bash]
 ----
