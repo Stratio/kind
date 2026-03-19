@@ -177,7 +177,7 @@ Esto implica que:
 | `private_registry=true` +
 `private_helm_repo=true`
 | sin `--private`
-| Se seguirán usando registro privado e Helm repo privado.
+| Se seguirá usando el registro privado de Helm en repositorios privados.
 
 | `private_registry=false` +
 `private_helm_repo=false`
