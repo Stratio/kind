@@ -146,7 +146,7 @@ Asegúrate de que el directorio de trabajo incluya:
 * `templates/`: plantillas Jinja2.
 * `requirements.txt`: dependencias necesarias.
 * `secrets.yml`: credenciales del _cluster_.
-* `.kube/config`: archivo _kubeconfig_ del clúster.
+* `.kube/config`: archivo _kubeconfig_ del _cluster_.
 * `backup/`: directorio para copias de seguridad (puede estar vacío inicialmente).
 
 == Notas importantes
