@@ -79,7 +79,7 @@ kubectl get nodes
 kubectl get machines -A
 ----
 +
-*Salida esperada::* todas con `PHASE = Running`.
+*Salida esperada:* todas con `PHASE = Running`.
 
 ** _MachineDeployments_:
 +
