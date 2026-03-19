@@ -310,7 +310,7 @@ clusterctl upgrade apply \
 ** Restaura los _webhooks_ de _keoscluster_.
 ** Inicia el _deployment_ de _keoscluster-controller_.
 ** Reanuda el _HelmRelease_ de _cluster-operator_.
-** Espera a que _cluster-operator_ esté _ready_.
+** Espera a que el _cluster-operator_ esté _ready_.
 ** Espera a que todos los componentes estén en estado _ready_.
 ** Restaura las réplicas de _cluster-autoscaler_ a 2.
 
