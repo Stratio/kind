@@ -151,7 +151,7 @@ Asegúrate de que el directorio de trabajo incluya:
 
 == Notas importantes
 
-=== Uso del flag `--private`
+=== Uso del _flag_ `--private`
 
 El flag `--private` *fuerza* el uso de repositorios privados para:
 
