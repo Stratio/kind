@@ -316,7 +316,7 @@ clusterctl upgrade apply \
 
 == Monitorización durante la actualización
 
-* Monitorizar _pods_ críticos
+* Monitorizar _pods_ críticos.
 +
 [source,bash]
 ----
