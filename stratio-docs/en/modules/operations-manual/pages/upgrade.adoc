@@ -6,10 +6,11 @@ The `upgrade-provisioner.py` script automates the upgrade of Kubernetes clusters
 
 * *EKS* on Amazon Web Services (managed)
 * *Azure VMs* on Microsoft Azure (unmanaged)
+* *GKE* on Google Cloud Platform (managed)
 
-It allows upgrading the Kubernetes cluster version from the one installed with `cloud-provisioner 0.7.X` to the version provided by `cloud-provisioner 0.8.0`.
+It allows upgrading the Kubernetes cluster version from the one installed with `cloud-provisioner 0.7.X` to the version provided by `cloud-provisioner 0.8.X`.
 
-To ensure a reproducible execution environment, the Docker image `cloud-provisioner-upgrade:0.17.0-0.8.0` has been created. It includes the upgrade script and all required dependencies.
+To ensure a reproducible execution environment, the Docker image `cloud-provisioner-upgrade:0.17.0-0.8.X` has been created. It includes the upgrade script and all required dependencies.
 
 === What gets upgraded
 
@@ -92,12 +93,23 @@ kubectl get machinedeployments -A
 *** `READY = REPLICAS`
 *** `UNAVAILABLE = 0`
 
+** _MachinePools_:
++
+[source,bash]
+----
+kubectl get machinepools -A
+----
++
+*Salida esperada:* todos con `PHASE = Running`.
+
 ** Healthy _Cluster API_ pods:
 +
 [source,bash]
 ----
 kubectl get pods -n capi-system
-kubectl get pods -n capa-system   # o capz-system / capg-system
+kubectl get pods -n capa-system
+kubectl get pods -n capg-system
+kubectl get pods -n capz-system
 ----
 +
 *Expected:* all pods in `Running` state and no errors in the logs.
@@ -132,27 +144,57 @@ Ensure that the working directory includes:
 
 * `upgrade-provisioner.py`: main script.
 * `templates/`: Jinja2 templates.
-* `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
 * `secrets.yml`: cluster credentials.
 * `.kube/`: directory containing the _kubeconfig_ file.
 
 == Important notes
 
-=== Registry configuration
+=== Uso del flag `--private`
 
-[%header,cols="1,2"]
+El flag `--private` *fuerza* el uso de repositorios privados para:
+
+* las imágenes de contenedores (`private_registry`)
+* los charts de Helm (`private_helm_repo`)
+
+El comportamiento final del script no depende solo del flag, sino también de los valores ya definidos en `ClusterConfig`.
+
+Esto implica:
+
+* Si `ClusterConfig.spec.private_registry=true`, el script seguirá usando registro privado aunque *no* se pase `--private`.
+* Si `ClusterConfig.spec.private_helm_repo=true`, el script seguirá usando repositorio Helm privado aunque *no* se pase `--private`.
+* Si se pasa `--private`, ambos valores se fuerzan a `true` durante la actualización y el `ClusterConfig` se actualiza con esos valores.
+
+==== Casos habituales
+
+[%header,cols="2,2,3"]
 |===
-| Scenario | Required action
+| Estado actual en `ClusterConfig`
+| Ejecución
+| Resultado
 
-| Without the `--private` flag.
-| `Clusterctl` will use images from `registry.k8s.io`.
+| `private_registry=true` +
+`private_helm_repo=true`
+| sin `--private`
+| Se seguirán usando registro privado e Helm repo privado.
 
-| Private registry only
-| You *must* use the _flag_ `--private`.
+| `private_registry=false` +
+`private_helm_repo=false`
+| sin `--private`
+| Se usarán repositorios públicos.
+
+| `private_registry=false` +
+`private_helm_repo=false`
+| con `--private`
+| Se fuerza el uso de registro privado y Helm repo privado, y el `ClusterConfig` queda actualizado a `true`.
 |===
 
-WARNING: If the cluster can only access a private registry, the `--private` flag is *mandatory*.
+==== Origen de charts e imágenes
+
+* Cuando `private_helm_repo=true`, los charts se resuelven desde `KeosCluster.spec.helm_repository.url`.
+* Cuando `private_registry=true`, las imágenes de Cluster API se resuelven desde el registro marcado como `keos_registry=true` en `KeosCluster.spec.docker_registries`.
+
+WARNING: El flag `--private` solo es necesario si quieres *forzar* el uso de repositorios privados y el `ClusterConfig` actual no lo tiene ya habilitado.
 
 == Using the upgrade script
 
@@ -183,11 +225,6 @@ Main options:
 |
 | Yes
 
-| `-y`, `--yes`
-| Runs in automatic mode without prompting for confirmation between tasks.
-| False
-| No
-
 | `-k`, `--kubeconfig`
 | Specifies the _kubeconfig_ file to use.
 | ~/.kube/config
@@ -208,11 +245,6 @@ Main options:
 | False
 | No
 
-| `--skip-k8s-intermediate-version`
-| Skips the intermediate Kubernetes _workers_ upgrade. Only supported in EKS environments.
-| False
-| No
-
 | `--private`
 | Indicates that the Docker registry and Helm repository are private.
 | False
@@ -227,9 +259,9 @@ docker run \
   --name cloud-provisioner-upgrade-0.8.0 \
   --net host \
   -it \
-  -v /ruta/local/secrets.yml:/upgrade/secrets.yml \
-  -v /ruta/local/.kube/config:/upgrade/.kube/config \
-  -v /ruta/local/backup:/upgrade/backup \
+  -v $PWD/secrets.yml:/upgrade/secrets.yml \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v $PWD/backup:/upgrade/backup \
   cloud-provisioner-upgrade:0.17.0-0.8.0
 ----
 
@@ -242,7 +274,7 @@ The script executes the following workflow:
 ** Configures cloud provider credentials.
 
 . *Pre-upgrade*
-** *Scales _cluster-autoscaler_ to 0* to prevent automatic scaling during the upgrade.
+** Scales _cluster-autoscaler_ to 0 to prevent automatic scaling during the upgrade. (No aplica en GKE)
 
 . *Backup*
 ** CAPX components (via `clusterctl move`).
@@ -255,7 +287,7 @@ The script executes the following workflow:
 . *Chart upgrade*
 ** Upgrades base charts (cert-manager, flux2, tigera-operator, etc.).
 ** Upgrades provider-specific charts (aws-load-balancer-controller, Azure CSI controllers).
-** *Restores Capsule webhooks* to their original configuration.
+** Restores Capsule webhooks to their original configuration.
 
 . *_Cluster-Operator_ preparation*
 ** Suspends the _HelmRelease_ of _cluster-operator_.
@@ -348,11 +380,8 @@ kubectl get hr -A -o json \
 kubectl get keoscluster -A
 kubectl get machines -A
 kubectl get machinedeployments -A
+kubectl get machinepools -A
 kubectl get nodes
+# Verificar que los logs de CAPX no contengan errores tras la actualización
 ----
-+
-*Expected state::*
-+
-** ✅ All resources in `Ready` state.
-** ✅ All machines in `Running` state.
-** ✅ No replicas in `Unavailable` state.
+
