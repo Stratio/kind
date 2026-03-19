@@ -164,7 +164,7 @@ This means that:
 
 * If `ClusterConfig.spec.private_registry=true`, the script will continue using the private registry even if `--private` is *not provided*.
 * If `ClusterConfig.spec.private_helm_repo=true`, the script will continue using the private Helm repository even if `--private` is *not provided*.
-* *If `--private` is provided*, both values are forced to `true` during the upgrade and the `ClusterConfig` is updated accordingly.
+* *If `--private` is provided*, both values are forced to `true` during the upgrade, and the `ClusterConfig` is updated accordingly.
 
 ==== Common scenarios
 
