@@ -155,8 +155,8 @@ Asegúrate de que el directorio de trabajo incluya:
 
 El _flag_ `--private` *fuerza* el uso de repositorios privados para:
 
-* las imágenes de contenedores (`private_registry`)
-* los charts de Helm (`private_helm_repo`)
+* Las imágenes de contenedores (`private_registry`).
+* Los _charts_ de Helm (`private_helm_repo`).
 
 El comportamiento final del script no depende solo del flag, sino también de los valores ya definidos en `ClusterConfig`.
 
