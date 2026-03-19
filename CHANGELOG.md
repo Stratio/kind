@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 
-## 0.17.0-0.8.1 (upcomig)
+## 0.17.0-0.8.2 (upcomig)
 
 * [PLT-3877] -  [Azure/EKS/GKE] Cloud-Provisioner upgrade 
 
