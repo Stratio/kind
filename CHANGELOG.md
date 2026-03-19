@@ -2,7 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## 0.17.0-0.9.0 (upcoming)
+=======
+
+## 0.17.0-0.8.1 (upcomig)
+
+* [PLT-3877] -  [Azure/EKS/GKE] Cloud-Provisioner upgrade 
+
+## 0.17.0-0.8.1 (2026-03-13)
+>>>>>>> f3ac2e2b ([PLT-3877] GKE Upgrade (#891))
 
 * [PLT-3691] -  [Fix] Flux2 chart upgrading provisioner 
 

@@ -74,7 +74,9 @@ RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
     > /etc/apt/sources.list.d/google-cloud-sdk.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends google-cloud-cli && \
+    apt-get install -y --no-install-recommends \
+        google-cloud-cli \
+        google-cloud-sdk-gke-gcloud-auth-plugin && \
     rm -rf /var/lib/apt/lists/*
 
 # =========================
@@ -124,6 +126,10 @@ RUN for i in metadata.yaml infrastructure-components.yaml; do \
       curl -L https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${CAPG}/${i} -o ${CAPI_REPO}/infrastructure-gcp/${CAPG}/${i} && \
       curl -L https://github.com/kubernetes-sigs/cluster-api-provider-azure/releases/download/${CAPZ}/${i} -o ${CAPI_REPO}/infrastructure-azure/${CAPZ}/${i}; \
     done
+
+# Create symlink for CAPG to support clusterctl's version normalization
+# clusterctl expects 'v' prefix, but GitHub release doesn't use it
+RUN ln -s ${CAPI_REPO}/infrastructure-gcp/${CAPG} ${CAPI_REPO}/infrastructure-gcp/v${CAPG}
 
 RUN curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/core-components.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/core-components.yaml && \
     curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL}/bootstrap-components.yaml -o ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL}/bootstrap-components.yaml && \
