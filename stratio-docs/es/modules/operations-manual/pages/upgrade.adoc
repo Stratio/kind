@@ -160,7 +160,7 @@ El _flag_ `--private` *fuerza* el uso de repositorios privados para:
 
 El comportamiento final del _script_ no depende solo del _flag_, sino también de los valores ya definidos en `ClusterConfig`.
 
-Esto implica:
+Esto implica que:
 
 * Si `ClusterConfig.spec.private_registry=true`, el script seguirá usando registro privado aunque *no* se pase `--private`.
 * Si `ClusterConfig.spec.private_helm_repo=true`, el script seguirá usando repositorio Helm privado aunque *no* se pase `--private`.
