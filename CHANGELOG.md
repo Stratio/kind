@@ -2,13 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-<<<<<<< HEAD
 ## 0.17.0-0.9.0 (upcoming)
-=======
-## 0.17.0-0.8.3 (upcoming)
+
+## 0.17.0-0.8.3 (2026-03-20)
 
 * [PLT-3877] cloud-provisioner upgrade,  update cluster-operator version 
->>>>>>> 4b6ae1f6 ([PLT-3877] Update cluster-operator version on upgrade (#894))
 
 ## 0.17.0-0.8.2 (2026-03-19)
 
