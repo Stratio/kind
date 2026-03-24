@@ -13,6 +13,9 @@ core:
       pod2daemon-flexvol: v3.30.2
       tigera-operator: v1.38.5
       typha: v3.30.2
+      whisker: v3.30.2
+      whisker-backend: v3.30.2
+      goldmane: v3.30.2
     capi:
       kubeadm-bootstrap-controller: v1.10.8
       kubeadm-control-plane-controller: v1.10.8
@@ -25,7 +28,7 @@ core:
       cert-manager-webhook: v1.19.1
     cluster-autoscaler: v1.34.1
     cluster-operator:
-      cluster-operator: 0.6.0
+      cluster-operator: 0.6.1
     flux:
       flux-cli: v2.7.5
       helm-controller: v1.4.5
@@ -99,4 +102,4 @@ gcp:
       infrastructure-components.yaml: 1.6.1-0.4.0
   managed:
     images:
-      coredns: v1.12.4
+      coredns: v1.11.3
