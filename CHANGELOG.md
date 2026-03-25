@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## 0.17.0-0.9.0 (upcoming)
+=======
+## 0.17.0-0.8.4 (upcoming)
+
+* [Fix]  Azure image to version V2, GKE coredns version to 1.11.3, Add whisker and goldmane images to list
+>>>>>>> 6db58d44 (Fix cloud provisioner images (#898))
 
 ## 0.17.0-0.8.3 (2026-03-20)
 
