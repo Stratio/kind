@@ -4,21 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## 0.17.0-0.9.0 (upcoming)
 
+* [PLT-3091] Adaptar cloud-provisioner para soportar ECR central: soportar prefijos
+
 ## 0.17.0-0.8.4 (2026-03-25)
 
 * [Fix]  Azure image to version V2, GKE coredns version to 1.11.3, Add whisker and goldmane images to list
 
 ## 0.17.0-0.8.3 (2026-03-20)
 
-* [PLT-3877] cloud-provisioner upgrade,  update cluster-operator version 
+* [PLT-3877] cloud-provisioner upgrade,  update cluster-operator version
 
 ## 0.17.0-0.8.2 (2026-03-19)
 
-* [PLT-3877] -  [Azure/EKS/GKE] Cloud-Provisioner upgrade 
+* [PLT-3877] -  [Azure/EKS/GKE] Cloud-Provisioner upgrade
 
 ## 0.17.0-0.8.1 (2026-03-13)
 
-* [PLT-3691] -  [Fix] Flux2 chart upgrading provisioner 
+* [PLT-3691] -  [Fix] Flux2 chart upgrading provisioner
 
 ## Previous development
 
