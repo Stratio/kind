@@ -31,7 +31,7 @@ from io import StringIO
 from urllib.parse import urlparse
 
 CLOUD_PROVISIONER = "0.17.0-0.8"
-CLUSTER_OPERATOR = "0.6.1"
+CLUSTER_OPERATOR = "0.7.0-m.1"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.5.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.7"
 
@@ -61,7 +61,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.6.1",
+        "version": "0.7.0-m.1",
         "namespace": "kube-system",
         "repo": ""
     },
