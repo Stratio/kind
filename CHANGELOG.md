@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.17.0-0.8.4 (upcoming)
+
+* [Fix]  Azure image to version V2, GKE coredns version to 1.11.3, Add whisker and goldmane images to list
+
 ## 0.17.0-0.8.3 (2026-03-20)
 
 * [PLT-3877] cloud-provisioner upgrade,  update cluster-operator version 
