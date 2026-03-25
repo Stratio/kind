@@ -37,43 +37,58 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 
 |
 |
-| docker.io/calico/kube-controllers
+| quay.io/calico/kube-controllers
 | 3.29.1
 
 |
 |
-| docker.io/calico/typha
+| quay.io/calico/typha
 | 3.29.1
 
 |
 |
-| docker.io/calico/node
+| quay.io/calico/node
 | 3.29.1
 
 |
 |
-| docker.io/calico/csi
+| quay.io/calico/csi
 | 3.29.1
 
 |
 |
-| docker.io/calico/node-driver-registrar
+| quay.io/calico/node-driver-registrar
 | 3.29.1
 
 |
 |
-| docker.io/calico/ctl
+| quay.io/calico/ctl
 | 3.29.1
 
 |
 |
-| docker.io/calico/cni
+| quay.io/calico/cni
 | 3.29.1
 
 |
 |
-| docker.io/calico/pod2daemon-flexvol
+| quay.io/calico/pod2daemon-flexvol
 | 3.29.1
+
+|
+|
+| quay.io/calico/whisker:v3.30.2
+| 3.30.2
+
+|
+|
+| quay.io/calico/whisker-backend:v3.30.2
+| 3.30.2
+
+|
+|
+| quay.io/calico/goldmane:v3.30.2
+| 3.30.2
 
 |
 |
