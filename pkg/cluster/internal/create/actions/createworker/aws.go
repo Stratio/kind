@@ -190,7 +190,7 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	lbControllerManagerHelmParams := lbControllerHelmParams{
 		ClusterName: privateParams.KeosCluster.Metadata.Name,
 		Private:     privateParams.Private,
-		KeosRegUrl:  privateParams.KeosRegUrl,
+		KeosRegUrl:  commons.GetPrefixedRegistryURL("public.ecr.aws", privateParams.KeosRegUrl, privateParams.CentralECR),
 		AccountID:   accountID,
 		RoleName:    roleName,
 	}

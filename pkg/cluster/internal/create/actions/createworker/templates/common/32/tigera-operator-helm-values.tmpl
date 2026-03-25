@@ -78,7 +78,7 @@ resources: {}
 # Image and registry configuration for the tigera/operator pod.
 tigeraOperator:
 {{- if $.Private }}
-  registry: {{ $.KeosRegUrl }}
+  registry: {{ $.QuayRegUrl }}
 {{- else }}
   registry: quay.io
 {{- end }}

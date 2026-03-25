@@ -38,7 +38,7 @@ TAG=$(shell git describe --exact-match --tags 2>/dev/null)
 #PATH:=$(shell . hack/build/setup-go.sh && echo "$${PATH}")
 # Allow automatic toolchain resolution so go 1.21.x host can fetch 1.25 toolchain.
 PATH:=$(shell . hack/build/setup-go.sh && echo "$$PATH")
-export GOTOOLCHAIN=local
+export GOTOOLCHAIN=auto
 # go1.9+ can autodetect GOROOT, but if some other tool sets it ...
 GOROOT:=
 # enable modules
