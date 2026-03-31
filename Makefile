@@ -62,7 +62,7 @@ KIND_BINARY_NAME?=cloud-provisioner
 # - smaller binaries: -w (trim debugger data, but not panics)
 # - metadata: -X=... to bake in git commit
 KIND_VERSION_PKG:=sigs.k8s.io/kind/pkg/cmd/kind/version
-KIND_BUILD_LD_FLAGS:=-X=$(KIND_VERSION_PKG).gitTag=$(TAG) -X=$(KIND_VERSION_PKG).gitCommit=$(COMMIT)
+KIND_BUILD_LD_FLAGS:=-X=$(KIND_VERSION_PKG).gitTag=$(TAG) -X=$(KIND_VERSION_PKG).gitCommit=$(COMMIT) -X=$(KIND_VERSION_PKG).gitCommitCount=$(COMMIT_COUNT)
 KIND_BUILD_FLAGS?=-trimpath -ldflags="-buildid= -w $(KIND_BUILD_LD_FLAGS)"
 ################################################################################
 # ================================= Building ===================================

@@ -2,9 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.17.0-0.9.0 (upcoming)
+## 0.9.0 (upcoming)
 
-* [PLT-3091] Adaptar cloud-provisioner para soportar ECR central: soportar prefijos
+* [PLT-3963] - Adaptar cloud-provisioner a Semantic Versioning
+* [PLT-3091] - Adaptar cloud-provisioner para soportar ECR central: soportar prefijos
 
 ## 0.17.0-0.8.4 (2026-03-25)
 
@@ -12,7 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.17.0-0.8.3 (2026-03-20)
 
-* [PLT-3877] cloud-provisioner upgrade,  update cluster-operator version
+* [PLT-3877] -  cloud-provisioner upgrade,  update cluster-operator version
 
 ## 0.17.0-0.8.2 (2026-03-19)
 

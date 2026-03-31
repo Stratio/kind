@@ -6,8 +6,7 @@ hose {
     DEVTIMEOUT = 30
     // Fixed missing closing quote: use golang 1.25.1 image explicitly
     BUILDTOOL_IMAGE = 'golang:1.25.1'
-    VERSIONING_TYPE = 'stratioVersion-3-3'
-    UPSTREAM_VERSION = '0.17.0'
+    VERSIONING_TYPE = "semver"
     DEPLOYONPRS = true
     GRYPE_TEST = true
     MODULE_LIST = [ "paas.cloud-provisioner:cloud-provisioner:tar.gz" ]
