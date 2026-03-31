@@ -32,16 +32,20 @@ func Version(useGitCommit bool) string {
 	v := versionCore
 	// add pre-release version info if we have it
 	if versionPreRelease != "" {
-		// If gitTag was set, set it as version
+		// If gitTag was set, use it directly as the full version
 		if gitTag != "" {
 			v = gitTag
 		} else {
-			v += "-" + versionPreRelease
-		}
-		// otherwise if commit was set, add to the pre-release version
-		if useGitCommit && gitCommit != "" {
-			// NOTE: use 14 character short hash, like Kubernetes
-			v += " GitCommit:" + truncate(gitCommit, 14)
+			// Build semver pre-release: SNAPSHOT[.commitCount]
+			preRelease := versionPreRelease
+			if gitCommitCount != "" {
+				preRelease += "." + gitCommitCount
+			}
+			v += "-" + preRelease
+			// Append commit hash as semver build metadata: +hash
+			if useGitCommit && gitCommit != "" {
+				v += "+" + truncate(gitCommit, 14)
+			}
 		}
 	}
 	return v
@@ -55,7 +59,7 @@ func DisplayVersion() string {
 
 // versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
 
-const versionCore = "0.17.0-0.9.0"
+const versionCore = "0.9.0"
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0

@@ -173,10 +173,10 @@ func sanitizeImage(image string) (string, string) {
 
 
 // removePrereleaseHash removes a final dash+hash (e.g., -8214d23) from the image tag,
-// leaving e.g. cloud-provisioner:0.17.0-0.7.0-8214d23 -> cloud-provisioner:0.17.0-0.7.0
+// leaving e.g. cloud-provisioner:0.9.0-8214d23 -> cloud-provisioner:0.9.0
 func removePrereleaseHash(image string) string {
-    // Matches something like :0.17.0-0.7.0-8214d23 at the end and removes the -hash part
-    re := regexp.MustCompile(`^(.+:\d+\.\d+\.\d+-\d+\.\d+\.\d+)-[a-fA-F0-9]{7,}$`)
+    // Matches a git commit hash suffix (7+ hex chars) after a semver tag and removes it
+    re := regexp.MustCompile(`^(.+:\d+\.\d+\.\d+)-[a-fA-F0-9]{7,}$`)
     if matches := re.FindStringSubmatch(image); len(matches) == 2 {
         return matches[1]
     }

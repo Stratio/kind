@@ -16,5 +16,5 @@ CORE_VERSION=$(echo "$VERSION" | sed -E "s/-.*//")
 echo "Modifying cloud-provisioner version to: $1"
 echo $VERSION > $BASEDIR/VERSION
 
-sed -i "s/\(const versionCore = \"\)[^\"]*\"/\10.17.0-$CORE_VERSION\"/" "$VERSION_GO_FILE"
+sed -i "s/\(const versionCore = \"\)[^\"]*\"/\1$CORE_VERSION\"/" "$VERSION_GO_FILE"
 sed -i "s/\(const versionPreRelease = \"\)[^\"]*\"/\1SNAPSHOT\"/" "$VERSION_GO_FILE"
