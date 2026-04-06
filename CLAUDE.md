@@ -62,7 +62,7 @@ make verify     # Run all checks: lint + generated code + shellcheck
 The codebase has several distinct layers:
 
 ### CLI Layer (`pkg/cmd/kind/`)
-Cobra-based command structure. Root command is `cloud-provisioner` with sub-commands: `build`, `create`, `delete`, `export`, `get`, `load`, `completion`.
+Cobra-based command structure. Root command is `cloud-provisioner` with sub-commands: `build`, `create`, `delete`, `export`, `get`, `load`, `completion`, `version`.
 
 ### API Configuration (`pkg/apis/config/v1alpha4/`)
 Kubernetes-style YAML cluster definitions with generated DeepCopy code. Changes to types here require `make generate`.
@@ -71,7 +71,7 @@ Kubernetes-style YAML cluster definitions with generated DeepCopy code. Changes 
 Core cluster lifecycle (create, delete, get nodes). `provider.go` is the main entry point with a provider abstraction for Docker/Podman backends.
 
 ### Creation Actions (`pkg/cluster/internal/create/actions/`)
-Each subdirectory is a discrete step in cluster creation: kubeadm init, CNI, storage, HAProxy, worker nodes, KEOS cluster. The `createworker/` package is the most complex, handling cloud-provider-specific worker node bootstrapping.
+Each subdirectory is a discrete step in cluster creation: `kubeadminit`, `kubeadmjoin`, `installcni`, `installstorage`, `loadbalancer`, `createworker`, `waitforready`. The `createworker/` package is the most complex, handling cloud-provider-specific worker node bootstrapping.
 
 ### Common Utilities (`pkg/commons/`)
 Shared types across the codebase: `ClusterConfig`, `KeosCluster`, CAPX versions, chart definitions, credential handling. `cluster.go` defines the core data structures.
@@ -92,10 +92,8 @@ Docker and Podman provider implementations. Cloud-provider integrations (AWS, Az
 
 ## PR and Branch Conventions
 
-From `CONTRIBUTING.md`, PRs use Jira-based labels:
-- `wip` → `dont merge` → `ok-to-review` → `ok-to-test` → `ok-to-merge`
+See `CONTRIBUTING.md` for the full PR workflow and label reference.
 - Branch naming follows Jira ticket IDs (e.g., `PLT-3091`)
-- CI labels: `ok-to-test` triggers Jenkins cloud smoke tests per provider
 
 ## Cloud Provider Structure
 
