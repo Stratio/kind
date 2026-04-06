@@ -8,10 +8,68 @@ This is **cloud-provisioner**, a fork of the [kind](https://kind.sigs.k8s.io/) t
 
 ## Build & Development Commands
 
+### Prerequisites
+
+The required Go version is defined in two files (keep them in sync when upgrading):
+
+| File | Used by |
+|------|---------|
+| `.go-version` | Makefile via `hack/build/setup-go.sh` (gimme) |
+| `.tool-versions` | asdf (`golang` entry) |
+
+Check current required version:
+```bash
+cat .go-version       # e.g. 1.25.0
+cat .tool-versions    # e.g. golang 1.25.8
+```
+
+### Standard Build
+
+```bash
+make clean build
+make install INSTALL_DIR=$HOME/.local/bin   # or any directory in your PATH
+```
+
+The Makefile automatically resolves the Go toolchain via `hack/build/setup-go.sh` using
+[gimme](hack/third_party/gimme/gimme) and `GOTOOLCHAIN=auto`. No manual `go` setup is needed.
+
+**Verify the installed binary:**
+```bash
+which cloud-provisioner
+cloud-provisioner version
+```
+
+### Skipping gimme (recommended when host Go matches `.go-version`)
+
+The bundled gimme does not support Go versions newer than its own release. If your host Go
+already matches the required version (e.g. via asdf), bypass gimme entirely with:
+
+```bash
+FORCE_HOST_GO=1 make clean build
+make install INSTALL_DIR=$HOME/.local/bin
+```
+
+This avoids the warning:
+```
+Unable to setup go bootstrap from existing or binary
+I don't have any idea what to do with '1.25.x'.
+```
+
+### Common errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `I don't have any idea what to do with '1.25.x'` | Bundled gimme is too old to handle this Go version | Use `FORCE_HOST_GO=1 make build` |
+| `go: toolchain go1.25.x not available` | `GOTOOLCHAIN=local` is set in environment and host Go is older | Unset it: `unset GOTOOLCHAIN` |
+| Binary still runs old version after install | Old binary earlier in `PATH` | Check with `which -a cloud-provisioner` |
+| `go: updates to go.mod needed; to update it: go mod tidy` | `go.mod` is out of sync after a Go version bump | Run `go mod tidy` |
+
+### All make targets
+
 ```bash
 make build          # Build binary to bin/cloud-provisioner
 make install        # Install to Go bin dir (INSTALL_DIR=/path to override)
-make clean          # Remove binaries and cache
+make clean          # Remove binaries and gimme cache
 
 make test           # Run all tests with coverage and JUnit output
 make unit           # Run unit tests only (-short + nointegration tag)
@@ -29,7 +87,7 @@ make update         # Run all code generation and formatting
 go test -v ./pkg/path/to/package/... -run TestName
 ```
 
-**Key build env vars:** `GO111MODULE=on`, `CGO_ENABLED=0` (static binaries), `GOTOOLCHAIN=local`
+**Key build env vars:** `GO111MODULE=on`, `CGO_ENABLED=0` (static binaries), `GOTOOLCHAIN=auto`
 
 ## Architecture
 
@@ -61,7 +119,7 @@ Docker and Podman provider implementations. Cloud-provider integrations (AWS, Az
 | `pkg/cluster/provider.go` | Main provider interface for cluster lifecycle |
 | `pkg/cluster/internal/create/actions/createworker/createworker.go` | Worker node creation orchestration |
 | `pkg/cluster/internal/create/actions/createworker/provider.go` | Cloud-provider-specific worker logic |
-| `pkg/cluster/internal/create/actions/createworker/keosinstaller.go` | KEOS installation logic |
+| `pkg/cluster/internal/create/actions/createworker/keosinstaller.go` | Generates `keos.yaml` descriptor from `KeosCluster` config (rotates existing file as backup); also writes `aws_central_ecr_override.yml` when ECR central is enabled |
 | `pkg/apis/config/v1alpha4/types.go` | Cluster configuration API types |
 
 ## PR and Branch Conventions
