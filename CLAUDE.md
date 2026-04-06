@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+<!-- For Claude Code setup guidance: https://code.claude.com/docs -->
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
