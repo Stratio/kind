@@ -41,55 +41,21 @@ which cloud-provisioner
 cloud-provisioner version
 ```
 
-### Skipping gimme (recommended when host Go matches `.go-version`)
-
-The bundled gimme does not support Go versions newer than its own release. If your host Go
-already matches the required version (e.g. via asdf), bypass gimme entirely with:
-
-```bash
-FORCE_HOST_GO=1 make clean build
-make install INSTALL_DIR=$HOME/.local/bin
-```
-
-This avoids the warning:
-```
-Unable to setup go bootstrap from existing or binary
-I don't have any idea what to do with '1.25.x'.
-```
-
-### Common errors
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `I don't have any idea what to do with '1.25.x'` | Bundled gimme is too old to handle this Go version | Use `FORCE_HOST_GO=1 make build` |
-| `go: toolchain go1.25.x not available` | `GOTOOLCHAIN=local` is set in environment and host Go is older | Unset it: `unset GOTOOLCHAIN` |
-| Binary still runs old version after install | Old binary earlier in `PATH` | Check with `which -a cloud-provisioner` |
-| `go: updates to go.mod needed; to update it: go mod tidy` | `go.mod` is out of sync after a Go version bump | Run `go mod tidy` |
-
-### All make targets
-
-```bash
-make build          # Build binary to bin/cloud-provisioner
-make install        # Install to Go bin dir (INSTALL_DIR=/path to override)
-make clean          # Remove binaries and gimme cache
-
-make test           # Run all tests with coverage and JUnit output
-make unit           # Run unit tests only (-short + nointegration tag)
-make integration    # Run integration tests only
-
-make lint           # Run golangci-lint
-make verify         # Run all checks (lint + generated code + shellcheck)
-make gofmt          # Format all Go code
-make generate       # Regenerate deepcopy code for API types
-make update         # Run all code generation and formatting
-```
-
 **Run a single test:**
 ```bash
 go test -v ./pkg/path/to/package/... -run TestName
 ```
 
 **Key build env vars:** `GO111MODULE=on`, `CGO_ENABLED=0` (static binaries), `GOTOOLCHAIN=auto`
+
+**Non-obvious make targets:**
+```bash
+make generate   # Regenerate DeepCopy code after API type changes (pkg/apis/config/v1alpha4/)
+make update     # Run all code generation + gofmt
+make verify     # Run all checks: lint + generated code + shellcheck
+```
+
+> Build troubleshooting (gimme errors, GOTOOLCHAIN issues) → `.claude/rules/build.md`
 
 ## Architecture
 
@@ -121,7 +87,7 @@ Docker and Podman provider implementations. Cloud-provider integrations (AWS, Az
 | `pkg/cluster/provider.go` | Main provider interface for cluster lifecycle |
 | `pkg/cluster/internal/create/actions/createworker/createworker.go` | Worker node creation orchestration |
 | `pkg/cluster/internal/create/actions/createworker/provider.go` | Cloud-provider-specific worker logic |
-| `pkg/cluster/internal/create/actions/createworker/keosinstaller.go` | Generates `keos.yaml` descriptor from `KeosCluster` config (rotates existing file as backup); also writes `aws_central_ecr_override.yml` when ECR central is enabled |
+| `pkg/cluster/internal/create/actions/createworker/keosinstaller.go` | Generates and rotates `keos.yaml` descriptor; writes `aws_central_ecr_override.yml` when ECR central is enabled |
 | `pkg/apis/config/v1alpha4/types.go` | Cluster configuration API types |
 
 ## PR and Branch Conventions
