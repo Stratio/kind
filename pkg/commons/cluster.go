@@ -295,6 +295,7 @@ type Security struct {
 type WorkerNodes []struct {
 	Name             string            `yaml:"name" validate:"required"`
 	NodeImage        string            `yaml:"node_image,omitempty"`
+	AmiType          string            `yaml:"ami_type,omitempty" validate:"omitempty,oneof=BOTTLEROCKET_x86_64"`
 	Quantity         *int              `yaml:"quantity" validate:"required,numeric,gte=0"`
 	Size             string            `yaml:"size" validate:"required"`
 	ZoneDistribution string            `yaml:"zone_distribution,omitempty" validate:"omitempty,oneof='balanced' 'unbalanced'"`
