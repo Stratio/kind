@@ -1107,6 +1107,7 @@ $ cat << EOF > policy.json
 				"ec2:DescribeSecurityGroups",
 				"ec2:DescribeSubnets",
 				"elasticloadbalancing:DescribeListeners",
+				"elasticloadbalancing:DescribeListenerAttributes",
 				"elasticloadbalancing:DescribeLoadBalancers",
 				"elasticloadbalancing:DescribeLoadBalancerAttributes",
 				"elasticloadbalancing:DescribeRules",
