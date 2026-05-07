@@ -267,6 +267,7 @@ type Subnets struct {
 type AWSCP struct {
 	AssociateOIDCProvider bool   `yaml:"associate_oidc_provider,omitempty" validate:"boolean"`
 	EncryptionKey         string `yaml:"encryption_key,omitempty"`
+	MPRoleName            string `yaml:"mp_role_name,omitempty"`
 	Logging               struct {
 		ApiServer         bool `yaml:"api_server" validate:"boolean"`
 		Audit             bool `yaml:"audit" validate:"boolean"`

@@ -240,6 +240,10 @@ spec:
     iamRoleCreation: false
     defaultControlPlaneRole:
         disable: false
+    managedMachinePool:
+        disable: false
+        extraPolicyAttachments:
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
   controlPlane:
     enableCSIPolicy: true
   nodes:
