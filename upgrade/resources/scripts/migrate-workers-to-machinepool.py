@@ -21,7 +21,8 @@ CAPA_DEPLOYMENT = "capa-controller-manager"
 CAPA_CONTAINER_INDEX = 0
 KEOS_CLUSTER_NAMESPACE_PREFIX = "cluster-"
 
-# Minimum versions required to run this migration
+# Target and minimum versions for this migration
+TARGET_CLUSTER_OPERATOR_VERSION = "0.9.0-PR907-SNAPSHOT"
 MIN_CLUSTER_OPERATOR_VERSION = "0.6.1"
 MIN_CAPA_VERSION = "v2.9.2"
 
@@ -385,8 +386,8 @@ def parse_args():
                         help="Path to kubeconfig file. Can also be set via $KUBECONFIG.",
                         default="~/.kube/config")
     parser.add_argument("--cluster-operator-version",
-                        help="Target cluster-operator version (e.g. 0.8.0-PLT-3962-MP-01.15).",
-                        required=True)
+                        help="Target cluster-operator version. Defaults to the version bundled with this release.",
+                        default=TARGET_CLUSTER_OPERATOR_VERSION)
     parser.add_argument("--dry-run", action="store_true",
                         help="Print actions without executing them.")
     parser.add_argument("--check-ready", metavar="WORKER_MP_NAME",
