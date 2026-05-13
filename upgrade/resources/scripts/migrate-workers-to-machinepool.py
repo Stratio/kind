@@ -421,6 +421,11 @@ def main():
     print("  ensure those artifacts have been pushed before running this script.")
     print("=" * 70)
     print("")
+    answer = input("Have you verified the artifacts are available? [y/N] ").strip().lower()
+    if answer != "y":
+        print("[INFO] Aborted by user.")
+        sys.exit(0)
+    print("")
     validate_prerequisites(args.dry_run)
     patch_capa_feature_gates(args.dry_run)
     update_cluster_operator(args.cluster_operator_version, args.dry_run)
