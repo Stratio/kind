@@ -411,6 +411,16 @@ def main():
         return
 
     # Mode: preparation (S4 → S2 → S3)
+    print("=" * 70)
+    print("  IMPORTANT: Before continuing, verify that the following artifacts")
+    print(f"  are available in the registry/repository configured for this cluster:")
+    print(f"    - cluster-operator image:      {args.cluster_operator_version}")
+    print(f"    - cluster-operator Helm chart: {args.cluster_operator_version}")
+    print("")
+    print("  If the cluster uses a private registry or private Helm repository,")
+    print("  ensure those artifacts have been pushed before running this script.")
+    print("=" * 70)
+    print("")
     validate_prerequisites(args.dry_run)
     patch_capa_feature_gates(args.dry_run)
     update_cluster_operator(args.cluster_operator_version, args.dry_run)
