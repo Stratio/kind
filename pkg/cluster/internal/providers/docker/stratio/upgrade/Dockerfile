@@ -158,6 +158,7 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases && \
 # =========================
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
+COPY ${UPGRADE_DIR}/migrate-workers-to-machinepool.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
