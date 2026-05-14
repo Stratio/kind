@@ -17,6 +17,8 @@ import subprocess
 import sys
 import time
 
+from ansible_vault import Vault
+
 CAPA_NAMESPACE = "capa-system"
 CAPA_DEPLOYMENT = "capa-controller-manager"
 CAPA_CONTAINER_INDEX = 0
@@ -378,6 +380,45 @@ def check_mp_ready(worker_mp_name):
 # Argument parsing and main
 # ---------------------------------------------------------------------------
 
+def configure_aws_credentials(vault_secrets_data):
+    print("[INFO] Configuring AWS credentials:", end=" ", flush=True)
+    aws_creds = vault_secrets_data['secrets']['aws']['credentials']
+    os.environ["AWS_PAGER"] = ""
+    os.environ["AWS_ACCESS_KEY_ID"] = aws_creds['access_key']
+    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_creds['secret_key']
+    os.environ["AWS_DEFAULT_REGION"] = aws_creds['region']
+    role_arn = aws_creds.get('role_arn')
+    if role_arn:
+        result = subprocess.run(
+            ["aws", "sts", "assume-role", "--role-arn", role_arn, "--role-session-name", "migrate-session"],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print("FAILED")
+            print(result.stderr)
+            sys.exit(1)
+        creds = json.loads(result.stdout)["Credentials"]
+        os.environ["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
+        os.environ["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
+        os.environ["AWS_SESSION_TOKEN"] = creds["SessionToken"]
+    print("OK")
+
+
+def load_secrets(secrets_path, vault_password):
+    print("[INFO] Reading secrets file:", end=" ", flush=True)
+    if not os.path.exists(secrets_path):
+        print(f"FAILED\n[ERROR] Secrets file '{secrets_path}' not found.")
+        sys.exit(1)
+    try:
+        vault = Vault(vault_password)
+        data = vault.load(open(secrets_path).read())
+        print("OK")
+        return data
+    except Exception as e:
+        print(f"FAILED\n[ERROR] Could not decrypt secrets file: {e}")
+        sys.exit(1)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Migrate EKS worker nodes from MachineDeployments to MachinePools.",
@@ -386,6 +427,12 @@ def parse_args():
     parser.add_argument("-k", "--kubeconfig",
                         help="Path to kubeconfig file. Can also be set via $KUBECONFIG.",
                         default=None)
+    parser.add_argument("-p", "--vault-password",
+                        help="Vault password to decrypt secrets.yml.",
+                        required=True)
+    parser.add_argument("-s", "--secrets",
+                        help="Path to the encrypted secrets file.",
+                        default="secrets.yml")
     parser.add_argument("--cluster-operator-version",
                         help="Target cluster-operator version. Defaults to the version bundled with this release.",
                         default=TARGET_CLUSTER_OPERATOR_VERSION)
@@ -405,6 +452,9 @@ def main():
 
     if args.dry_run:
         print("[INFO] Running in DRY-RUN mode — no changes will be applied.")
+
+    vault_secrets_data = load_secrets(args.secrets, args.vault_password)
+    configure_aws_credentials(vault_secrets_data)
 
     # Mode: --check-ready (migration assistant, can run standalone after preparation)
     if args.check_ready:
