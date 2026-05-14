@@ -12,6 +12,7 @@ __version__ = "0.1.0"
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -384,7 +385,7 @@ def parse_args():
     )
     parser.add_argument("-k", "--kubeconfig",
                         help="Path to kubeconfig file. Can also be set via $KUBECONFIG.",
-                        default="~/.kube/config")
+                        default=None)
     parser.add_argument("--cluster-operator-version",
                         help="Target cluster-operator version. Defaults to the version bundled with this release.",
                         default=TARGET_CLUSTER_OPERATOR_VERSION)
@@ -400,7 +401,7 @@ def main():
     args = parse_args()
 
     if args.kubeconfig:
-        kubectl = f"kubectl --kubeconfig {args.kubeconfig}"
+        kubectl = f"kubectl --kubeconfig {os.path.expanduser(args.kubeconfig)}"
 
     if args.dry_run:
         print("[INFO] Running in DRY-RUN mode — no changes will be applied.")
