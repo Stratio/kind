@@ -292,7 +292,7 @@ def update_cluster_operator(cluster_operator_version, dry_run):
 
         # 5. Wait for KeosCluster ready
         print("[INFO] Waiting for KeosCluster ready:", end=" ", flush=True)
-        cmd = (kubectl + " wait keoscluster -A"
+        cmd = (kubectl + " wait keoscluster --all -A"
                " --for=jsonpath='{.status.ready}'=true --timeout=5m")
         execute_command(cmd, dry_run)
 
