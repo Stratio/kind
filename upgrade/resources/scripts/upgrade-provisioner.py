@@ -46,12 +46,12 @@ CAPA = "v2.9.2"
 CAPG = "1.6.1-0.4.0"
 CAPZ = "v1.21.1"
 
-TIGERA_OPERATOR_CALICOCTL_VERSION = "3.30.2"
-TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.38.5"
+TIGERA_OPERATOR_CALICOCTL_VERSION = "3.32.0"
+TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.42.0"
 
 common_charts = {
     "cert-manager": {
-        "version": "v1.19.1",
+        "version": "v1.20.2",
         "namespace": "cert-manager",
         "repo": "https://charts.jetstack.io"
     },
@@ -66,13 +66,13 @@ common_charts = {
         "repo": ""
     },
     "flux2": {
-        "version": "2.17.2",
+        "version": "2.18.3",
         "namespace": "kube-system",
         "repo": "https://fluxcd-community.github.io/helm-charts",
         "release_name": "flux"
     },
     "tigera-operator": {
-        "version": "v3.30.2",
+        "version": "v3.32.0",
         "namespace": "tigera-operator",
         "repo": "https://docs.projectcalico.org/charts"
     }
