@@ -4,36 +4,36 @@ core:
     helm: v3.13.1
   images:
     calico:
-      cni: v3.30.2
-      csi: v3.30.2
-      ctl: v3.30.2
-      kube-controllers: v3.30.2
-      node-driver-registrar: v3.30.2
-      node: v3.30.2
-      pod2daemon-flexvol: v3.30.2
-      tigera-operator: v1.38.5
-      typha: v3.30.2
-      whisker: v3.30.2
-      whisker-backend: v3.30.2
-      goldmane: v3.30.2
+      cni: v3.32.0
+      csi: v3.32.0
+      ctl: v3.32.0
+      kube-controllers: v3.32.0
+      node-driver-registrar: v3.32.0
+      node: v3.32.0
+      pod2daemon-flexvol: v3.32.0
+      tigera-operator: v1.42.0
+      typha: v3.32.0
+      whisker: v3.32.0
+      whisker-backend: v3.32.0
+      goldmane: v3.32.0
     capi:
       kubeadm-bootstrap-controller: v1.10.8
       kubeadm-control-plane-controller: v1.10.8
       cluster-api-controller: v1.10.8
     cert-manager:
-      cert-manager-acmesolver: v1.19.1
-      cert-manager-cainjector: v1.19.1
-      cert-manager-controller: v1.19.1
-      cert-manager-startupapicheck: v1.19.1
-      cert-manager-webhook: v1.19.1
+      cert-manager-acmesolver: v1.20.2
+      cert-manager-cainjector: v1.20.2
+      cert-manager-controller: v1.20.2
+      cert-manager-startupapicheck: v1.20.2
+      cert-manager-webhook: v1.20.2
     cluster-autoscaler: v1.34.1
     cluster-operator:
       cluster-operator: 0.7.0-m.1
     flux:
-      flux-cli: v2.7.5
-      helm-controller: v1.4.5
-      kustomize-controller: v1.7.3
-      source-controller: v1.7.4
+      flux-cli: v2.8.7
+      helm-controller: v1.5.4
+      kustomize-controller: v1.8.5
+      source-controller: v1.8.4
     kind:
       cloud-provisioner: 0.17.0-0.8.0
       coredns: v1.12.1
@@ -44,11 +44,11 @@ core:
       kube-proxy: v1.34.0
       kube-scheduler: v1.34.0
   charts:
-    cert-manager: v1.19.1
+    cert-manager: v1.20.2
     cluster-autoscaler: 9.52.1
     cluster-operator: 0.5.2
-    flux: 2.17.2
-    tigera-operator: v3.30.2
+    flux: 2.18.3
+    tigera-operator: v3.32.0
 aws:
   capa:
     binaries:
