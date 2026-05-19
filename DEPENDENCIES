@@ -28,7 +28,7 @@ core:
       cert-manager-webhook: v1.20.2
     cluster-autoscaler: v1.34.1
     cluster-operator:
-      cluster-operator: 0.6.1
+      cluster-operator: 0.6.2
     flux:
       flux-cli: v2.8.7
       helm-controller: v1.5.4
