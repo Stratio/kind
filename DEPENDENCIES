@@ -1,6 +1,6 @@
 core:
   binaries:
-    clusterctl: v1.10.8
+    clusterctl: v1.10.10
     helm: v3.13.1
   images:
     calico:
@@ -17,9 +17,9 @@ core:
       whisker-backend: v3.32.0
       goldmane: v3.32.0
     capi:
-      kubeadm-bootstrap-controller: v1.10.8
-      kubeadm-control-plane-controller: v1.10.8
-      cluster-api-controller: v1.10.8
+      kubeadm-bootstrap-controller: v1.10.10
+      kubeadm-control-plane-controller: v1.10.10
+      cluster-api-controller: v1.10.10
     cert-manager:
       cert-manager-acmesolver: v1.20.2
       cert-manager-cainjector: v1.20.2
@@ -52,12 +52,12 @@ core:
 aws:
   capa:
     binaries:
-      clusterawsadm: v2.9.2
+      clusterawsadm: v2.9.3
     images:
-      cluster-api-aws-controller: v2.9.2
+      cluster-api-aws-controller: v2.9.3
     manifests:
-      metadata.yaml: v2.9.2
-      infrastructure-components.yaml: v2.9.2
+      metadata.yaml: v2.9.3
+      infrastructure-components.yaml: v2.9.3
   managed:
     addons:
       aws-ebs-csi-driver: v1.47.0-eksbuild.1
@@ -72,10 +72,10 @@ azure:
   capz:
     images:
       azureserviceoperator: v2.11.0
-      cluster-api-azure-controller: v1.21.1
+      cluster-api-azure-controller: v1.21.3
     manifests:
-      metadata.yaml: v1.21.1
-      infrastructure-components.yaml: v1.21.1
+      metadata.yaml: v1.21.3
+      infrastructure-components.yaml: v1.21.3
   unmanaged:
     charts:
       azuredisk-csi-driver: 1.33.5
