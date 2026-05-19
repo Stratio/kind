@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.17.0-0.8.5 (2026-05-19)
+
+* [PLT-4154] Fix vulnerabilities: CAPI v1.10.10, CAPA v2.9.3, CAPZ v1.21.3, Calico v3.32.0, cert-manager v1.20.2, FluxCD 2.18.3, cluster-operator 0.6.2
+
 ## 0.17.0-0.8.4 (2026-03-25)
 
 * [Fix]  Azure image to version V2, GKE coredns version to 1.11.3, Add whisker and goldmane images to list
