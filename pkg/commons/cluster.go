@@ -36,6 +36,14 @@ var (
 	capg_version = "1.6.1-0.3.1"
 )
 
+const (
+	DefaultDockerhubPrefix = "/dockerhub"
+	DefaultEcrpublicPrefix = "/ecrpublic"
+	DefaultGhcrPrefix      = "/ghcr"
+	DefaultK8sPrefix       = "/k8s"
+	DefaultQuayPrefix      = "/quay"
+)
+
 type Resource struct {
 	APIVersion string      `yaml:"apiVersion" validate:"required"`
 	Kind       string      `yaml:"kind" validate:"required"`
@@ -382,10 +390,11 @@ type DockerRegistryCredentials struct {
 }
 
 type DockerRegistry struct {
-	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
-	Type         string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
-	URL          string `yaml:"url" validate:"required"`
-	KeosRegistry bool   `yaml:"keos_registry" validate:"boolean"`
+	AuthRequired         bool   `yaml:"auth_required" validate:"boolean"`
+	Type                 string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
+	URL                  string `yaml:"url" validate:"required"`
+	KeosRegistry         bool   `yaml:"keos_registry" validate:"boolean"`
+	AWSCentralECREnabled bool   `yaml:"aws_central_ecr_enabled" validate:"boolean"`
 }
 
 type HelmRepositoryCredentials struct {
@@ -575,6 +584,126 @@ func (s KeosSpec) Init() KeosSpec {
 	s.Dns.ManageZone = true
 
 	return s
+}
+
+// GetPrefixedRegistryURL returns the registry URL with prefix if appropriate
+func GetPrefixedRegistryURL(originalRegistry string, baseRegistryURL string, awsCentralECREnabled bool) string {
+	if !awsCentralECREnabled || baseRegistryURL == "" {
+		return baseRegistryURL
+	}
+
+	prefix := ""
+	switch {
+	case strings.Contains(originalRegistry, "docker.io"):
+		prefix = DefaultDockerhubPrefix
+	case strings.Contains(originalRegistry, "public.ecr.aws"):
+		prefix = DefaultEcrpublicPrefix
+	case strings.Contains(originalRegistry, "ghcr.io"):
+		prefix = DefaultGhcrPrefix
+	case strings.Contains(originalRegistry, "quay.io"):
+		prefix = DefaultQuayPrefix
+	case strings.Contains(originalRegistry, "k8s.io"):
+		prefix = DefaultK8sPrefix
+	}
+
+	return baseRegistryURL + prefix
+}
+
+// Validator for WorkloadPool field
+func workloadPoolValidator(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+
+	if value == "" {
+		return true // omitempty
+	}
+
+	// Must match "<projectid>.svc.id.goog"
+	parts := strings.Split(value, ".svc.id.goog")
+	if len(parts) != 2 || parts[0] == "" {
+		fmt.Printf("DEBUG workloadPool: formato inválido '%s'\n", value)
+		return false
+	}
+	return true
+}
+
+// Validator for required_if_enabled
+func requiredIfEnabledValidator(fl validator.FieldLevel) bool {
+	parent := fl.Parent()
+	enabledField := parent.FieldByName("Enabled")
+
+	if !enabledField.IsValid() || enabledField.IsNil() {
+		return true
+	}
+
+	enabled := enabledField.Elem().Bool()
+	if !enabled {
+		return true
+	}
+
+	field := fl.Field()
+
+	if !field.IsValid() || (field.Kind() == reflect.Ptr && field.IsNil()) {
+		return false
+	}
+
+	switch field.Kind() {
+	case reflect.String, reflect.Slice, reflect.Map, reflect.Array:
+		return field.Len() > 0
+	default:
+		return field.Interface() != reflect.Zero(field.Type()).Interface()
+	}
+}
+
+// Validator for ServiceAccounts field
+func gcpServiceAccountsValidator(fl validator.FieldLevel) bool {
+	serviceAccounts, ok := fl.Field().Interface().(map[string]string)
+	if !ok {
+		return false
+	}
+
+	// Get parent struct (WorkloadIdentityConfig)
+	parent := fl.Parent()
+	workloadPoolField := parent.FieldByName("WorkloadPool")
+	if !workloadPoolField.IsValid() {
+		return false
+	}
+	workloadPool := workloadPoolField.String()
+
+	var poolProjectID string
+	if workloadPool != "" {
+		parts := strings.Split(workloadPool, ".svc.id.goog")
+		if len(parts) == 2 && parts[0] != "" {
+			poolProjectID = parts[0]
+		}
+	}
+
+	for _, saEmail := range serviceAccounts {
+		// 1. Format check
+		if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
+			return false
+		}
+		parts := strings.Split(saEmail, "@")
+		if len(parts) != 2 {
+			return false
+		}
+
+		// 2. Consistency check
+		if poolProjectID != "" {
+			// Extract project ID from email: <sa-name>@<project-id>.iam.gserviceaccount.com
+			domainParts := strings.Split(parts[1], ".iam.gserviceaccount.com")
+			if len(domainParts) < 1 {
+				return false
+			}
+			saProjectID := domainParts[0]
+
+			if saProjectID != poolProjectID {
+				fmt.Printf("ERROR: SA MISMATCH - saProjectID='%s' not equal to poolProjectID='%s'\n", saProjectID, poolProjectID)
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // Read descriptor file

@@ -84,6 +84,7 @@ type ChartsDictionary struct {
 type PrivateParams struct {
 	KeosCluster commons.KeosCluster
 	KeosRegUrl  string
+	CentralECR  bool
 	Private     bool
 	HelmPrivate bool
 }
@@ -160,6 +161,7 @@ type helmRepository struct {
 type calicoHelmParams struct {
 	Spec           commons.KeosSpec
 	KeosRegUrl     string
+	QuayRegUrl     string
 	Private        bool
 	IsNetPolEngine bool
 	Annotations    map[string]string
@@ -168,6 +170,7 @@ type calicoHelmParams struct {
 type commonHelmParams struct {
 	KeosRegUrl string
 	Private    bool
+	CentralECR bool
 }
 
 type cloudControllerHelmParams struct {
@@ -440,6 +443,12 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 	certManagerHelmParams := commonHelmParams{
 		KeosRegUrl: keosRegistryUrl,
 		Private:    privateParams.Private,
+		CentralECR: privateParams.CentralECR,
+	}
+
+	// if central ecr is enabled add suffix to the image
+	if privateParams.CentralECR {
+		certManagerHelmParams.KeosRegUrl = commons.GetPrefixedRegistryURL("quay.io", privateParams.KeosRegUrl, privateParams.CentralECR)
 	}
 	certManagerHelmValues, err := getManifest("common", "cert-manager-helm-values.tmpl", majorVersion, certManagerHelmParams)
 	if err != nil {
@@ -694,7 +703,8 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 
 	calicoHelmParams := calicoHelmParams{
 		Spec:           keosCluster.Spec,
-		KeosRegUrl:     privateParams.KeosRegUrl,
+		KeosRegUrl:     commons.GetPrefixedRegistryURL("docker.io", privateParams.KeosRegUrl, privateParams.CentralECR),
+		QuayRegUrl:     commons.GetPrefixedRegistryURL("quay.io", privateParams.KeosRegUrl, privateParams.CentralECR),
 		Private:        privateParams.Private,
 		IsNetPolEngine: isNetPolEngine,
 		Annotations: map[string]string{
@@ -702,6 +712,10 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 		},
 	}
 
+	// if CentralECR is enabled add suffix to the image
+	if privateParams.CentralECR {
+		privateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("quay.io", privateParams.KeosRegUrl, privateParams.CentralECR)
+	}
 	// Generate the calico helm values
 	calicoHelmValues, err := getManifest("common", "tigera-operator-helm-values.tmpl", majorVersion, calicoHelmParams)
 
@@ -756,6 +770,10 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 		clusterAutoscalerHelmReleaseParams.ChartRepoRef = "cluster-autoscaler"
 	}
 
+	// if Central ECR is enabled add suffix to the image
+	if privateParams.CentralECR {
+		privateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
+	}
 	helmValuesCA, err := getManifest("common", "cluster-autoscaler-helm-values.tmpl", majorVersion, privateParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CA helm values")
@@ -826,6 +844,11 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		if err != nil {
 			return errors.Wrap(err, "failed to deploy Flux2 azure pod identity exception")
 		}
+	}
+
+	// if Central ECR is enabled add suffix to the image
+	if privateParams.CentralECR {
+		fluxHelmParams.KeosRegUrl = commons.GetPrefixedRegistryURL("ghcr.io", privateParams.KeosRegUrl, privateParams.CentralECR)
 	}
 
 	// Generate the flux helm values
