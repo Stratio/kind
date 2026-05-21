@@ -1,5 +1,16 @@
 = What's new
 
-The key updates in this version of _Stratio Cloud Provisioner_ are:
+The main new features in this version of _Stratio Cloud Provisioner_ are:
 
-* Updated Calico (v3.30.2) and Tigera Operator (v3.30.2).
+* Increased controller concurrency for Flux in multi-tenant environments.
+* New _gitops++_++enabled_ field in `ClusterConfig` to skip the deployment of components managed via GitOps.
+* [EKS] Default encryption for EBS volumes.
+* [GKE] Workload Identity activation.
+* [GKE] New _additional++_++labels_ field in worker nodes to manage additional labels in node pools.
+* Support for upgrading _cloud-provisioner_, _cluster-operator_, and providers in EKS, Azure, and GKE.
+* Removal of _kube-rbac-proxy_ from _cluster-operator_.
+* Update of Flux to v2.7.5.
+* Update of Tigera Operator and Calico to version 3.30.2.
+* Update of AWS components: CAPA (v2.9.2), AWS Load Balancer Controller (v1.14.1), Cluster Autoscaler (v1.34.1), and EKS addons (`aws-ebs-csi-driver`, CoreDNS, `kube-proxy`, and `vpc-cni`).
+* Update of Azure components: CAPZ (v1.21.1), Azure Service Operator (v2.11.0), CSI Azure Disk (v1.33.5), CSI Azure File (v1.34.1), `azure-cloud-controller-manager`, and `cloud-node-manager` (v1.34.2).
+* Resolution of vulnerabilities in _cloud-provisioner_ components.

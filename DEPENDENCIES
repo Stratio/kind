@@ -38,7 +38,7 @@ core:
       cloud-provisioner: 0.17.0-0.8.0
       coredns: v1.12.1
       etcd: 3.6.4-0
-  kindnetd: v20250512-df8de77b
+      kindnetd: v20250512-df8de77b
       kube-apiserver: v1.34.0
       kube-controller-manager: v1.34.0
       kube-proxy: v1.34.0
