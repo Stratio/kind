@@ -1,6 +1,6 @@
 cli:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/flux-cli
-  tag: v2.8.7
+  tag: v2.7.5
 
 helmController:
   image: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}ghcr.io{{ end }}/fluxcd/helm-controller
