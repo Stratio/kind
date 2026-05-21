@@ -32,8 +32,16 @@ import (
 var (
 	capi_version = "v1.10.8"
 	capa_version = "v2.9.2"
-	capz_version = "v1.21.1"
 	capg_version = "1.6.1-0.4.0"
+	capz_version = "v1.21.1"
+)
+
+const (
+	DefaultDockerhubPrefix = "/dockerhub"
+	DefaultEcrpublicPrefix = "/ecrpublic"
+	DefaultGhcrPrefix      = "/ghcr"
+	DefaultK8sPrefix       = "/k8s"
+	DefaultQuayPrefix      = "/quay"
 )
 
 type Resource struct {
@@ -400,10 +408,11 @@ type DockerRegistryCredentials struct {
 }
 
 type DockerRegistry struct {
-	AuthRequired bool   `yaml:"auth_required" validate:"boolean"`
-	Type         string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
-	URL          string `yaml:"url" validate:"required"`
-	KeosRegistry bool   `yaml:"keos_registry" validate:"boolean"`
+	AuthRequired         bool   `yaml:"auth_required" validate:"boolean"`
+	Type                 string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
+	URL                  string `yaml:"url" validate:"required"`
+	KeosRegistry         bool   `yaml:"keos_registry" validate:"boolean"`
+	AWSCentralECREnabled bool   `yaml:"aws_central_ecr_enabled" validate:"boolean"`
 }
 
 type HelmRepositoryCredentials struct {
@@ -596,6 +605,29 @@ func (s KeosSpec) Init() KeosSpec {
 	s.Dns.ManageZone = true
 
 	return s
+}
+
+// GetPrefixedRegistryURL returns the registry URL with prefix if appropriate
+func GetPrefixedRegistryURL(originalRegistry string, baseRegistryURL string, awsCentralECREnabled bool) string {
+	if !awsCentralECREnabled || baseRegistryURL == "" {
+		return baseRegistryURL
+	}
+
+	prefix := ""
+	switch {
+	case strings.Contains(originalRegistry, "docker.io"):
+		prefix = DefaultDockerhubPrefix
+	case strings.Contains(originalRegistry, "public.ecr.aws"):
+		prefix = DefaultEcrpublicPrefix
+	case strings.Contains(originalRegistry, "ghcr.io"):
+		prefix = DefaultGhcrPrefix
+	case strings.Contains(originalRegistry, "quay.io"):
+		prefix = DefaultQuayPrefix
+	case strings.Contains(originalRegistry, "k8s.io"):
+		prefix = DefaultK8sPrefix
+	}
+
+	return baseRegistryURL + prefix
 }
 
 // Validator for WorkloadPool field

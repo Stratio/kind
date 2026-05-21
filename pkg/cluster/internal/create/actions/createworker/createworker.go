@@ -46,10 +46,11 @@ type action struct {
 }
 
 type KeosRegistry struct {
-	url          string
-	user         string
-	pass         string
-	registryType string
+	url                  string
+	user                 string
+	pass                 string
+	registryType         string
+	awsCentralECREnabled bool
 }
 
 type HelmRegistry struct {
@@ -147,6 +148,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if registry.KeosRegistry {
 			keosRegistry.url = registry.URL
 			keosRegistry.registryType = registry.Type
+			// check if aws_central_ecr is set and enabled (default is false)
+			// and type is ecr
+			if registry.AWSCentralECREnabled && registry.Type == "ecr" {
+				keosRegistry.awsCentralECREnabled = true
+			}
 			continue
 		}
 	}
@@ -171,6 +177,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			KeosCluster: a.keosCluster,
 			KeosRegUrl:  keosRegistry.url,
 			Private:     a.clusterConfig.Spec.Private,
+			CentralECR:  keosRegistry.awsCentralECREnabled,
 			HelmPrivate: a.clusterConfig.Spec.PrivateHelmRepo,
 		}
 	} else {
@@ -178,6 +185,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			KeosCluster: a.keosCluster,
 			KeosRegUrl:  keosRegistry.url,
 			Private:     false,
+			CentralECR:  keosRegistry.awsCentralECREnabled,
 		}
 	}
 
@@ -190,7 +198,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		c = `sed -i 's|docker.io|` + keosRegistry.url + `|g' /kind/manifests/default-cni.yaml`
+		c = `sed -i 's|docker.io|` + commons.GetPrefixedRegistryURL("docker.io", keosRegistry.url, keosRegistry.awsCentralECREnabled) + `|g' /kind/manifests/default-cni.yaml`
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -308,24 +316,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 	if privateParams.Private {
 
+		k8sRegUrl := commons.GetPrefixedRegistryURL("registry.k8s.io", keosRegistry.url, keosRegistry.awsCentralECREnabled)
 		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cluster-api:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  bootstrap-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  control-plane-kubeadm:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-aws:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api-aws\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPA_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/stratio\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/cluster-api-azure-controller:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + k8sRegUrl + "/cluster-api-azure\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPZ_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/azureserviceoperator:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/k8s\" >> /root/.cluster-api/clusterctl.yaml && " +
@@ -334,7 +343,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"  infrastructure-azure/nmi:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/oss/azure/aad-pod-identity\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/jetstack\" >> /root/.cluster-api/clusterctl.yaml "
+			"echo \"    repository: " + commons.GetPrefixedRegistryURL("quay.io", keosRegistry.url, keosRegistry.awsCentralECREnabled) + "/jetstack\" >> /root/.cluster-api/clusterctl.yaml "
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to add private image registry clusterctl config")
@@ -722,7 +731,9 @@ spec:
 			ctx.Status.Start("Enabling CoreDNS as DNS server 📡")
 			defer ctx.Status.End(false)
 
-			gcpCoreDNSTemplate, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_deployment.tmpl", majorVersion, privateParams)
+				coreDNSPrivateParams := privateParams
+			coreDNSPrivateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
+			gcpCoreDNSTemplate, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_deployment.tmpl", majorVersion, coreDNSPrivateParams)
 
 			coreDNSTemplate := "/kind/coredns-configmap.yaml"
 			coreDNSConfigmap, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_configmap.tmpl", majorVersion, a.keosCluster.Spec)

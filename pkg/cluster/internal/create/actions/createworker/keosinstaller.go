@@ -179,5 +179,27 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 		return err
 	}
 
+	var awsCentralECREnabled bool
+	// check keosCluster.Spec.DockerRegistries for aws_central_ecr
+	for _, registry := range keosCluster.Spec.DockerRegistries {
+		if registry.Type == "ecr" && registry.AWSCentralECREnabled {
+			awsCentralECREnabled = true
+			break
+		}
+	}
+
+	// Handle override_vars if exists and aws_central_ecr is enabled
+	if awsCentralECREnabled {
+		overrideDir := "override_vars"
+		if info, err := os.Stat(overrideDir); err == nil && info.IsDir() {
+			overrideFile := filepath.Join(overrideDir, "aws_central_ecr_override.yml")
+			content := "aws_central_ecr_enabled: true\n"
+			err = os.WriteFile(overrideFile, []byte(content), 0644)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
