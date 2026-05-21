@@ -179,21 +179,21 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 		return err
 	}
 
-	var awsCentralECREnabled bool
-	// check keosCluster.Spec.DockerRegistries for aws_central_ecr
+	var ecrPullThroughCacheEnabled bool
+	// check keosCluster.Spec.DockerRegistries for ecr_pull_through_cache
 	for _, registry := range keosCluster.Spec.DockerRegistries {
-		if registry.Type == "ecr" && registry.AWSCentralECREnabled {
-			awsCentralECREnabled = true
+		if registry.Type == "ecr" && registry.ECRPullThroughCacheEnabled {
+			ecrPullThroughCacheEnabled = true
 			break
 		}
 	}
 
-	// Handle override_vars if exists and aws_central_ecr is enabled
-	if awsCentralECREnabled {
+	// Handle override_vars if exists and ecr_pull_through_cache is enabled
+	if ecrPullThroughCacheEnabled {
 		overrideDir := "override_vars"
 		if info, err := os.Stat(overrideDir); err == nil && info.IsDir() {
-			overrideFile := filepath.Join(overrideDir, "aws_central_ecr_override.yml")
-			content := "aws_central_ecr_enabled: true\n"
+			overrideFile := filepath.Join(overrideDir, "ecr_pull_through_cache_override.yml")
+			content := "ecr_pull_through_cache_enabled: true\n"
 			err = os.WriteFile(overrideFile, []byte(content), 0644)
 			if err != nil {
 				return err
