@@ -27,9 +27,10 @@ import (
 
 type KEOSDescriptor struct {
 	DockerRegistry struct {
-		AuthRequired bool   `yaml:"auth_required"`
-		Type         string `yaml:"type"`
-		URL          string `yaml:"url"`
+		AuthRequired              bool   `yaml:"auth_required"`
+		Type                      string `yaml:"type"`
+		URL                       string `yaml:"url"`
+		ECRPullThroughCacheEnabled bool  `yaml:"ecr_pull_through_cache_enabled,omitempty"`
 	} `yaml:"docker_registry"`
 	HelmRepository struct {
 		AuthRequired bool   `yaml:"auth_required"`
@@ -97,6 +98,7 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 			keosDescriptor.DockerRegistry.URL = registry.URL
 			keosDescriptor.DockerRegistry.AuthRequired = registry.AuthRequired
 			keosDescriptor.DockerRegistry.Type = registry.Type
+			keosDescriptor.DockerRegistry.ECRPullThroughCacheEnabled = registry.ECRPullThroughCacheEnabled
 		}
 	}
 
@@ -177,28 +179,6 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 	err = os.WriteFile("keos.yaml", []byte(keosYAMLData), 0644)
 	if err != nil {
 		return err
-	}
-
-	var ecrPullThroughCacheEnabled bool
-	// check keosCluster.Spec.DockerRegistries for ecr_pull_through_cache
-	for _, registry := range keosCluster.Spec.DockerRegistries {
-		if registry.Type == "ecr" && registry.ECRPullThroughCacheEnabled {
-			ecrPullThroughCacheEnabled = true
-			break
-		}
-	}
-
-	// Handle override_vars if exists and ecr_pull_through_cache is enabled
-	if ecrPullThroughCacheEnabled {
-		overrideDir := "override_vars"
-		if info, err := os.Stat(overrideDir); err == nil && info.IsDir() {
-			overrideFile := filepath.Join(overrideDir, "ecr_pull_through_cache_override.yml")
-			content := "ecr_pull_through_cache_enabled: true\n"
-			err = os.WriteFile(overrideFile, []byte(content), 0644)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
