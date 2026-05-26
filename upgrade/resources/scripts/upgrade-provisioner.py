@@ -780,6 +780,42 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
+    '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
+
+    import tempfile
+    import glob
+
+    print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if repo_schema == "oci":
+                pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
+            else:
+                pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
+            run_command(pull_cmd)
+
+            tarballs = glob.glob(f"{tmpdir}/*.tgz")
+            if not tarballs:
+                print("SKIP (no tarball found)")
+                return
+
+            tarball = tarballs[0]
+            run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
+
+            crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
+            if not crd_files:
+                print("SKIP (no CRDs in chart)")
+                return
+
+            for crd_file in crd_files:
+                run_command(f"{kubectl} apply -f {crd_file}")
+
+        print("OK")
+    except Exception as e:
+        print(f"WARN ({e}) — continuing without CRD update")
+
+
 def upgrade_chart(chart_name, chart_data):
     '''Update chart HelmRelease'''
     chart_repo = chart_data["repo"]
@@ -857,6 +893,9 @@ def upgrade_chart(chart_name, chart_data):
             'HelmReleaseInterval': '1m',
             'HelmReleaseRetries': 3
         }
+
+        if chart_name == "cluster-operator":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema)
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
