@@ -157,6 +157,7 @@ def parse_args():
     parser.add_argument("--disable-prepare-capsule", action="store_true", help="Disable preparing capsule for the upgrade process (enabled by default)")
     parser.add_argument("--dry-run", action="store_true", help="Do not upgrade components. This invalidates all other options")
     parser.add_argument("--private", action="store_true", help="Treats the Docker registry and the Helm repository as private")
+    parser.add_argument("--ecr-pull-through", action="store_true", help="Force ECR pull-through cache mode regardless of KeosCluster spec")
     args = parser.parse_args()
     return vars(args)
 
@@ -623,8 +624,10 @@ def get_keos_registry_url(keos_cluster):
     return ""
 
 def is_ecr_pull_through_enabled(keos_cluster):
-    '''Return True if ECR pull-through cache is enabled in the cluster'''
+    '''Return True if ECR pull-through cache is enabled in the cluster or forced via --ecr-pull-through flag'''
 
+    if config.get("ecr_pull_through", False):
+        return True
     for registry in keos_cluster["spec"].get("docker_registries", []):
         if registry.get("ecr_pull_through_cache_enabled", False):
             return True
