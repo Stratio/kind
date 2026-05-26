@@ -717,6 +717,24 @@ def update_tigera_operator_image_tag_value(values_file):
         values['calicoctl']['tag'] = TIGERA_OPERATOR_CALICOCTL_VERSION
         values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
 
+        # Apply ECR pull-through prefixes to registry fields.
+        # The registry URL is stored separately from the image path in tigera values,
+        # so string substitution in create_default_values() never matches — must be done here.
+        if is_ecr_pull_through_enabled(keos_cluster):
+            registry_url = get_keos_registry_url(keos_cluster)
+            quay_registry = f"{registry_url}/quay"
+            dockerhub_registry = f"{registry_url}/dockerhub"
+            if values.get('tigeraOperator', {}).get('registry', '').startswith(registry_url) and \
+               not values['tigeraOperator']['registry'].startswith(quay_registry):
+                values['tigeraOperator']['registry'] = quay_registry
+            if values.get('installation', {}).get('registry', '').startswith(registry_url) and \
+               not values['installation']['registry'].startswith(quay_registry):
+                values['installation']['registry'] = quay_registry
+            calico_image = values.get('calicoctl', {}).get('image', '')
+            if calico_image.startswith(registry_url) and not calico_image.startswith(dockerhub_registry):
+                values['calicoctl']['image'] = calico_image.replace(
+                    f"{registry_url}/calico", f"{dockerhub_registry}/calico", 1)
+
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
 
