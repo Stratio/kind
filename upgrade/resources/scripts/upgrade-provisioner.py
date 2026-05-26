@@ -622,6 +622,14 @@ def get_keos_registry_url(keos_cluster):
             return registry["url"]
     return ""
 
+def is_ecr_pull_through_enabled(keos_cluster):
+    '''Return True if ECR pull-through cache is enabled in the cluster'''
+
+    for registry in keos_cluster["spec"].get("docker_registries", []):
+        if registry.get("ecr_pull_through_cache_enabled", False):
+            return True
+    return False
+
 def get_pods_cidr(keos_cluster):
     '''Get the pods CIDR'''
 
@@ -669,6 +677,17 @@ def create_default_values(chart_name, namespace, values_file, provider):
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config)
         else:
             values, err = run_command(f"{helm} get values {chart_name} -n {namespace} --output yaml")
+        if is_ecr_pull_through_enabled(keos_cluster):
+            registry_url = get_keos_registry_url(keos_cluster)
+            pull_through_substitutions = [
+                (f"{registry_url}/tigera",    f"{registry_url}/quay/tigera"),
+                (f"{registry_url}/jetstack",  f"{registry_url}/quay/jetstack"),
+                (f"{registry_url}/fluxcd",    f"{registry_url}/ghcr/fluxcd"),
+                (f"{registry_url}/autoscaling", f"{registry_url}/k8s/autoscaling"),
+                (f"{registry_url}/eks/",      f"{registry_url}/ecrpublic/eks/"),
+            ]
+            for old, new in pull_through_substitutions:
+                values = values.replace(old, new)
         run_command(f"echo '{values}' > {values_file}")
     except Exception as e:
         raise
@@ -973,7 +992,7 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         print(f"[ERROR] Error updating the clusterconfig: {e}")
         raise e
 
-def create_clusterctl_config_for_private_registry(registry_url, provider):
+def create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=False):
     """Create or update clusterctl config file to use private registry"""
     print("[INFO] Configuring clusterctl for private registry:", end=" ", flush=True)
 
@@ -1000,26 +1019,29 @@ def create_clusterctl_config_for_private_registry(registry_url, provider):
     if 'images' not in config_data:
         config_data['images'] = {}
 
+    k8s_prefix  = "k8s/"  if pull_through else ""
+    quay_prefix = "quay/" if pull_through else ""
+
     # Align the image overrides with the original installation logic.
     config_data['images']['cluster-api'] = {
-        'repository': f"{registry_url}/cluster-api",
+        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
         'tag': CAPI,
     }
     config_data['images']['bootstrap-kubeadm'] = {
-        'repository': f"{registry_url}/cluster-api",
+        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
         'tag': CAPI,
     }
     config_data['images']['control-plane-kubeadm'] = {
-        'repository': f"{registry_url}/cluster-api",
+        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
         'tag': CAPI,
     }
     config_data['images']['cert-manager'] = {
-        'repository': f"{registry_url}/jetstack"
+        'repository': f"{registry_url}/{quay_prefix}jetstack"
     }
 
     if provider == "aws":
         config_data['images']['infrastructure-aws'] = {
-            'repository': f"{registry_url}/cluster-api-aws",
+            'repository': f"{registry_url}/{k8s_prefix}cluster-api-aws",
             'tag': CAPA,
         }
     elif provider == "gcp":
@@ -1842,7 +1864,7 @@ if __name__ == '__main__':
     if private_registry:
         registry_url = get_keos_registry_url(keos_cluster)
         print(f"[DEBUG] Using private registry: {registry_url}")
-        create_clusterctl_config_for_private_registry(registry_url, provider)
+        create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=is_ecr_pull_through_enabled(keos_cluster))
         if provider == "gcp":
             # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
             config_dir = os.path.expanduser("~/.cluster-api")
