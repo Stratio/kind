@@ -1842,7 +1842,7 @@ if __name__ == '__main__':
         charts_to_upgrade.update(aws_eks_charts_installed)
     elif provider == "azure":
         charts_to_upgrade.update(azure_vm_charts)
-    charts_to_upgrade["cluster-operator"]["chart_version"] = cluster_operator_version
+    charts_to_upgrade["cluster-operator"]["version"] = cluster_operator_version
 
     # Filter out charts that are not installed to avoid errors
     charts_to_upgrade = filter_installed_charts(charts_to_upgrade)
