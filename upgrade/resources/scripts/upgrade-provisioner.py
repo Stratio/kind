@@ -790,6 +790,10 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             if repo_schema == "oci":
+                registry = repo_url.replace("oci://", "").split("/")[0]
+                if ".dkr.ecr." in registry:
+                    region = registry.split(".")[3]
+                    run_command(f"aws ecr get-login-password --region {region} | {helm} registry login {registry} --username AWS --password-stdin")
                 pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
