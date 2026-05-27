@@ -25,7 +25,7 @@ core:
       cert-manager-webhook: v1.17.0
     cluster-autoscaler: v1.32.0
     cluster-operator:
-      cluster-operator: 0.5.2
+      cluster-operator: 0.5.3
       kube-rbac-proxy: v0.15.0
     flux:
       flux-cli: v2.4.0
@@ -43,7 +43,7 @@ core:
   charts:
     cert-manager: v1.17.0
     cluster-autoscaler: 9.46.6
-    cluster-operator: 0.5.2
+    cluster-operator: 0.5.3
     flux: 2.14.1
     tigera-operator: v3.29.1
 aws:

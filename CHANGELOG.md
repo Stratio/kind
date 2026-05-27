@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.5 (upcoming)
 
+* [PLT-4162] Add ECR pull-through cache migration script; bump cluster-operator to 0.5.3
 * Remove DoAT on jenkinsfile
 
 ## 0.17.0-0.7.4 (2025-12-15)

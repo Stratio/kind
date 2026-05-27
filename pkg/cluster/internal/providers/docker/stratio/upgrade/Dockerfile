@@ -107,6 +107,7 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases \
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/files /upgrade/files
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
+COPY ${UPGRADE_DIR}/ecr_pull_through.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
 # Install Python dependencies
