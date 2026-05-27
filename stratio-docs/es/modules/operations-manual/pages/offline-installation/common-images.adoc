@@ -122,14 +122,14 @@ Estas son las imágenes necesarias que se usan en los _charts_ instalados por _S
 | v1.32.0
 
 | *cluster-operator*
-| *0.5.2*
+| *0.5.3*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.5.2
+| 0.5.3
 
 |
 |

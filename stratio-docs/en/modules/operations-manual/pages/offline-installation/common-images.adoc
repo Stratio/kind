@@ -122,14 +122,14 @@ These are the required images used in the charts installed by _Stratio Cloud Pro
 | v1.32.0
 
 | *cluster-operator*
-| *0.5.2*
+| *0.5.3*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.5.2
+| 0.5.3
 
 |
 |
