@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.5 (upcoming)
 
+* [PLT-3091] Add ECR pull-through cache migration script for calico, flux and tigera components
 * [PLT-4162] Bump cluster-operator to 0.5.3 version
 * Remove DoAT on jenkinsfile
 
