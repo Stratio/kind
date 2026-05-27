@@ -145,6 +145,42 @@ def wait_keoscluster_provisioned(timeout=300):
     print("OK")
 
 
+def migrate_workload(kind, name, namespace, prefix, ecr_url):
+    """Migrate all containers and initContainers of a workload to pull-through prefix."""
+    out, _ = run_command(
+        f"{kubectl} get {kind} {name} -n {namespace} -o json",
+        allow_errors=True
+    )
+    if not out.strip():
+        print(f"  [{namespace}/{name}] NOT FOUND — skip")
+        return
+    spec = json.loads(out)
+    pod_spec = spec.get("spec", {}).get("template", {}).get("spec", {})
+    all_containers = (
+        [("containers", c, i) for i, c in enumerate(pod_spec.get("containers") or [])] +
+        [("initContainers", c, i) for i, c in enumerate(pod_spec.get("initContainers") or [])]
+    )
+    patches = []
+    for field, container, idx in all_containers:
+        img = container.get("image", "")
+        if not img.startswith(ecr_url) or img.startswith(f"{ecr_url}/{prefix}/"):
+            continue
+        new_img = f"{ecr_url}/{prefix}/{img[len(ecr_url) + 1:]}"
+        patches.append({"op": "replace", "path": f"/spec/template/spec/{field}/{idx}/image", "value": new_img})
+        print(f"    {img} → {new_img}")
+    if not patches:
+        print(f"  [{namespace}/{name}] already pull-through — skip")
+        return
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
+        tf.write(json.dumps(patches))
+        tf_path = tf.name
+    try:
+        run_command(f"{kubectl} patch {kind} {name} -n {namespace} --type=json --patch-file={tf_path}")
+    finally:
+        os.unlink(tf_path)
+    run_command(f"{kubectl} rollout status {kind}/{name} -n {namespace} --timeout=180s")
+
+
 def set_pull_through(deploy, namespace, prefix, ecr_url):
     out, _ = run_command(
         f"{kubectl} get deployment {deploy} -n {namespace} "
@@ -282,7 +318,6 @@ def run(new_co_version):
     # ── Phase 2: migrate cloud-provisioner components ─────────────────────────
 
     print("\n--- Phase 2: migrate cloud-provisioner components to ECR pull-through ---\n")
-    print("[INFO] Flux, tigera-operator and Calico are excluded — keos upgrade already handles them.\n")
 
     print("[INFO] CAPI controllers (k8s registry):")
     set_pull_through("capi-controller-manager",                       "capi-system",                       "k8s", ecr_url)
@@ -332,13 +367,51 @@ def run(new_co_version):
         )
         print("OK")
 
+    print("[INFO] Tigera operator (quay registry):")
+    migrate_workload("deployment", "tigera-operator", "tigera-operator", "quay", ecr_url)
+
+    print("[INFO] Calico (quay registry via Installation CR):", end=" ", flush=True)
+    out, _ = run_command(f"{kubectl} get installation default -o json", allow_errors=True)
+    if not out.strip():
+        print("Installation CR not found — skip")
+    else:
+        inst = json.loads(out)
+        current_path = inst.get("spec", {}).get("imagePath", "")
+        target_path = "quay/calico"
+        if current_path == target_path:
+            print("already pull-through — skip")
+        else:
+            run_command(
+                f"{kubectl} patch installation default --type=merge "
+                f"-p '{{\"spec\":{{\"imagePath\":\"{target_path}\"}}}}'"
+            )
+            print(f"OK ({current_path!r} → {target_path!r})")
+            # Wait for tigera-operator to reconcile and update the DaemonSet template
+            # before calling rollout status (which would return immediately otherwise).
+            print("[INFO] Waiting for tigera-operator to update calico-node template...", flush=True)
+            expected_prefix = f"{ecr_url}/quay/"
+            deadline = time.time() + 120
+            while time.time() < deadline:
+                ds_img, _ = run_command(
+                    f"{kubectl} get daemonset calico-node -n calico-system "
+                    f"-o jsonpath='{{.spec.template.spec.containers[0].image}}'",
+                    allow_errors=True
+                )
+                if ds_img.strip().startswith(expected_prefix):
+                    break
+                time.sleep(5)
+            else:
+                raise RuntimeError("Timeout: tigera-operator did not update calico-node template")
+            run_command(f"{kubectl} rollout status daemonset/calico-node -n calico-system --timeout=240s")
+            run_command(f"{kubectl} rollout status deployment/calico-typha -n calico-system --timeout=180s", allow_errors=True)
+            run_command(f"{kubectl} rollout status deployment/calico-kube-controllers -n calico-system --timeout=180s")
+            print("OK")
+
+    print("[INFO] Flux (ghcr registry):")
+    migrate_workload("deployment", "helm-controller",   "kube-system", "ghcr", ecr_url)
+    migrate_workload("deployment", "source-controller", "kube-system", "ghcr", ecr_url)
+
     print("\n[OK] Migration completed.")
-    print("\nVerification — images without pull-through prefix (expected: only 602401143452/*):")
-    print(
-        f"  {kubectl} get pods -A "
-        r"-o jsonpath='{range .items[*]}{.metadata.namespace}{\"\\t\"}{.spec.containers[0].image}{\"\\n\"}{end}'"
-        r" | sort -u | grep -v 'keos/dockerhub/\|keos/ecrpublic/\|keos/ghcr/\|keos/k8s/\|keos/quay/\|keos/stratio/\|602401143452'"
-    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
