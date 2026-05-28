@@ -136,14 +136,14 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 | v1.34.1
 
 | *cluster-operator*
-| *0.5.2*
+| *0.6.2*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
-| 0.5.2
+| 0.6.2
 
 | *Installed by Cluster API - CAPI Component*
 | *v1.10.8*
