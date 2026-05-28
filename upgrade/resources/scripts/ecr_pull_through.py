@@ -4,8 +4,8 @@
 ##############################################################
 # Author: Stratio Clouds <clouds-integration@stratio.com>    #
 # Purpose: ECR pull-through cache migration                  #
-#   prepare - Upgrade cluster-operator + enable pull-through #
-#   migrate - Migrate cloud-provisioner components           #
+#   - Upgrade cluster-operator                               #
+#   - Enable ecr_pull_through_cache_enabled in KeosCluster   #
 ##############################################################
 
 import argparse
@@ -145,60 +145,6 @@ def wait_keoscluster_provisioned(timeout=300):
     print("OK")
 
 
-def migrate_workload(kind, name, namespace, prefix, ecr_url):
-    """Migrate all containers and initContainers of a workload to pull-through prefix."""
-    out, _ = run_command(
-        f"{kubectl} get {kind} {name} -n {namespace} -o json",
-        allow_errors=True
-    )
-    if not out.strip():
-        print(f"  [{namespace}/{name}] NOT FOUND — skip")
-        return
-    spec = json.loads(out)
-    pod_spec = spec.get("spec", {}).get("template", {}).get("spec", {})
-    all_containers = (
-        [("containers", c, i) for i, c in enumerate(pod_spec.get("containers") or [])] +
-        [("initContainers", c, i) for i, c in enumerate(pod_spec.get("initContainers") or [])]
-    )
-    patches = []
-    for field, container, idx in all_containers:
-        img = container.get("image", "")
-        if not img.startswith(ecr_url) or img.startswith(f"{ecr_url}/{prefix}/"):
-            continue
-        new_img = f"{ecr_url}/{prefix}/{img[len(ecr_url) + 1:]}"
-        patches.append({"op": "replace", "path": f"/spec/template/spec/{field}/{idx}/image", "value": new_img})
-        print(f"    {img} → {new_img}")
-    if not patches:
-        print(f"  [{namespace}/{name}] already pull-through — skip")
-        return
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
-        tf.write(json.dumps(patches))
-        tf_path = tf.name
-    try:
-        run_command(f"{kubectl} patch {kind} {name} -n {namespace} --type=json --patch-file={tf_path}")
-    finally:
-        os.unlink(tf_path)
-    run_command(f"{kubectl} rollout status {kind}/{name} -n {namespace} --timeout=180s")
-
-
-def set_pull_through(deploy, namespace, prefix, ecr_url):
-    out, _ = run_command(
-        f"{kubectl} get deployment {deploy} -n {namespace} "
-        f"-o jsonpath='{{.spec.template.spec.containers[0].image}}'",
-        allow_errors=True
-    )
-    img = out.strip()
-    if not img:
-        print(f"  [{namespace}/{deploy}] NOT FOUND — skip")
-        return
-    if img.startswith(f"{ecr_url}/{prefix}/"):
-        print(f"  [{namespace}/{deploy}] already pull-through — skip")
-        return
-    new_img = f"{ecr_url}/{prefix}/{img[len(ecr_url) + 1:]}"
-    run_command(f"{kubectl} set image deployment/{deploy} -n {namespace} '*={new_img}'")
-    run_command(f"{kubectl} rollout status deployment/{deploy} -n {namespace} --timeout=180s")
-    print(f"  [{namespace}/{deploy}] {img} → {new_img}")
-
 
 # ── Main flow ─────────────────────────────────────────────────────────────────
 
@@ -333,103 +279,7 @@ def run(new_co_version, helm_registry_override=None):
     else:
         print("[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster")
 
-    # ── Phase 2: migrate cloud-provisioner components ─────────────────────────
-
-    print("\n--- Phase 2: migrate cloud-provisioner components to ECR pull-through ---\n")
-
-    print("[INFO] CAPI controllers (k8s registry):")
-    set_pull_through("capi-controller-manager",                       "capi-system",                       "k8s", ecr_url)
-    set_pull_through("capi-kubeadm-bootstrap-controller-manager",     "capi-kubeadm-bootstrap-system",     "k8s", ecr_url)
-    set_pull_through("capi-kubeadm-control-plane-controller-manager", "capi-kubeadm-control-plane-system", "k8s", ecr_url)
-
-    print("[INFO] CAPA controller (k8s registry):")
-    set_pull_through("capa-controller-manager", "capa-system", "k8s", ecr_url)
-
-    print("[INFO] cert-manager (quay registry):")
-    for deploy in ["cert-manager", "cert-manager-cainjector", "cert-manager-webhook"]:
-        set_pull_through(deploy, "cert-manager", "quay", ecr_url)
-
-    print("[INFO] cluster-autoscaler (k8s registry):")
-    set_pull_through("cluster-autoscaler-clusterapi-cluster-autoscaler", "kube-system", "k8s", ecr_url)
-
-    print("[INFO] aws-load-balancer-controller (ecrpublic registry):")
-    set_pull_through("aws-load-balancer-controller", "kube-system", "ecrpublic", ecr_url)
-
-    print("[INFO] kube-rbac-proxy sidecar (quay registry via ConfigMap):", end=" ", flush=True)
-    old_rbac = f"{ecr_url}/kubebuilder/kube-rbac-proxy"
-    new_rbac = f"{ecr_url}/quay/brancz/kube-rbac-proxy"
-    cm_values_out, _ = run_command(
-        f"{kubectl} get configmap 00-cluster-operator-helm-chart-default-values "
-        f"-n kube-system -o jsonpath='{{.data.values\\.yaml}}'",
-        allow_errors=True
-    )
-    if new_rbac in cm_values_out:
-        print("already pull-through — skip")
-    elif old_rbac not in cm_values_out:
-        print(f"SKIP (pattern not found in ConfigMap)")
-    else:
-        cm_out, _ = run_command(
-            f"{kubectl} get configmap 00-cluster-operator-helm-chart-default-values -n kube-system -o json"
-        )
-        cm = json.loads(cm_out)
-        cm["data"]["values.yaml"] = cm["data"]["values.yaml"].replace(old_rbac, new_rbac)
-        apply_configmap(cm)
-        ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        run_command(
-            f"{kubectl} annotate helmrelease cluster-operator -n kube-system "
-            f"reconcile.fluxcd.io/requestedAt={ts} --overwrite"
-        )
-        run_command(
-            f"{kubectl} rollout status deployment keoscluster-controller-manager "
-            f"-n kube-system --timeout=180s"
-        )
-        print("OK")
-
-    print("[INFO] Tigera operator (quay registry):")
-    migrate_workload("deployment", "tigera-operator", "tigera-operator", "quay", ecr_url)
-
-    print("[INFO] Calico (quay registry via Installation CR):", end=" ", flush=True)
-    out, _ = run_command(f"{kubectl} get installation default -o json", allow_errors=True)
-    if not out.strip():
-        print("Installation CR not found — skip")
-    else:
-        inst = json.loads(out)
-        current_path = inst.get("spec", {}).get("imagePath", "")
-        target_path = "quay/calico"
-        if current_path == target_path:
-            print("already pull-through — skip")
-        else:
-            run_command(
-                f"{kubectl} patch installation default --type=merge "
-                f"-p '{{\"spec\":{{\"imagePath\":\"{target_path}\"}}}}'"
-            )
-            print(f"OK ({current_path!r} → {target_path!r})")
-            # Wait for tigera-operator to reconcile and update the DaemonSet template
-            # before calling rollout status (which would return immediately otherwise).
-            print("[INFO] Waiting for tigera-operator to update calico-node template...", flush=True)
-            expected_prefix = f"{ecr_url}/quay/"
-            deadline = time.time() + 120
-            while time.time() < deadline:
-                ds_img, _ = run_command(
-                    f"{kubectl} get daemonset calico-node -n calico-system "
-                    f"-o jsonpath='{{.spec.template.spec.containers[0].image}}'",
-                    allow_errors=True
-                )
-                if ds_img.strip().startswith(expected_prefix):
-                    break
-                time.sleep(5)
-            else:
-                raise RuntimeError("Timeout: tigera-operator did not update calico-node template")
-            run_command(f"{kubectl} rollout status daemonset/calico-node -n calico-system --timeout=240s")
-            run_command(f"{kubectl} rollout status deployment/calico-typha -n calico-system --timeout=180s", allow_errors=True)
-            run_command(f"{kubectl} rollout status deployment/calico-kube-controllers -n calico-system --timeout=180s")
-            print("OK")
-
-    print("[INFO] Flux (ghcr registry):")
-    migrate_workload("deployment", "helm-controller",   "kube-system", "ghcr", ecr_url)
-    migrate_workload("deployment", "source-controller", "kube-system", "ghcr", ecr_url)
-
-    print("\n[OK] Migration completed.")
+    print("\n[OK] cluster-operator upgrade and ECR pull-through flag enabled.")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
