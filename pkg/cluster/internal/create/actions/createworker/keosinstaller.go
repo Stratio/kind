@@ -27,9 +27,10 @@ import (
 
 type KEOSDescriptor struct {
 	DockerRegistry struct {
-		AuthRequired bool   `yaml:"auth_required"`
-		Type         string `yaml:"type"`
-		URL          string `yaml:"url"`
+		AuthRequired              bool   `yaml:"auth_required"`
+		Type                      string `yaml:"type"`
+		URL                       string `yaml:"url"`
+		ECRPullThroughCacheEnabled bool  `yaml:"ecr_pull_through_cache_enabled,omitempty"`
 	} `yaml:"docker_registry"`
 	HelmRepository struct {
 		AuthRequired bool   `yaml:"auth_required"`
@@ -97,6 +98,7 @@ func createKEOSDescriptor(keosCluster commons.KeosCluster, storageClass string) 
 			keosDescriptor.DockerRegistry.URL = registry.URL
 			keosDescriptor.DockerRegistry.AuthRequired = registry.AuthRequired
 			keosDescriptor.DockerRegistry.Type = registry.Type
+			keosDescriptor.DockerRegistry.ECRPullThroughCacheEnabled = registry.ECRPullThroughCacheEnabled
 		}
 	}
 
