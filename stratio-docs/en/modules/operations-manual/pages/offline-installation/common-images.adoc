@@ -77,17 +77,17 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 
 |
 |
-| quay.io/calico/whisker:v3.31.5
+| quay.io/calico/whisker
 | v3.31.5
 
 |
 |
-| quay.io/calico/whisker-backend:v3.31.5
+| quay.io/calico/whisker-backend
 | v3.31.5
 
 |
 |
-| quay.io/calico/goldmane:v3.31.5
+| quay.io/calico/goldmane
 | v3.31.5
 
 |
