@@ -202,14 +202,17 @@ def set_pull_through(deploy, namespace, prefix, ecr_url):
 
 # ── Main flow ─────────────────────────────────────────────────────────────────
 
-def run(new_co_version):
+def run(new_co_version, helm_registry_override=None):
     keos_cluster = get_keos_cluster()
     ecr_url = get_keos_registry_url(keos_cluster)
-    helm_repo_url = get_helm_repository_url(keos_cluster)
+    helm_repo_url_current = get_helm_repository_url(keos_cluster)
+    answer = input(f"The current Helm registry is: {helm_repo_url_current}. Press ENTER to use it or specify a different one: ")
+    helm_repo_url = helm_registry_override or (answer.strip() if answer.strip() else helm_repo_url_current)
     kc_name = keos_cluster["metadata"]["name"]
     kc_ns = keos_cluster["metadata"]["namespace"]
 
     print(f"[INFO] Cluster: {kc_name} / ECR: {ecr_url}")
+    print(f"[INFO] Helm registry: {helm_repo_url}")
 
     # ── Phase 1: upgrade cluster-operator + enable pull-through ──────────────
 
@@ -269,6 +272,21 @@ def run(new_co_version):
     )
     apply_configmap(cm)
     print("OK")
+
+    if helm_repo_url != helm_repo_url_current:
+        print(f"[INFO] Patching KeosCluster helm_repository.url to {helm_repo_url}", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} "
+            f"--type=json -p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{helm_repo_url}\"}}]'"
+        )
+        print("OK")
+
+        print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch helmrepository keos -n kube-system "
+            f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
+        )
+        print("OK")
 
     print("[INFO] Patching HelmRelease cluster-operator chart version", end=" ", flush=True)
     run_command(
@@ -429,6 +447,10 @@ def parse_args():
                         help="Kubeconfig file path (or set $KUBECONFIG)")
     parser.add_argument("--cluster-operator", required=True,
                         help="Target cluster-operator version (e.g. 0.5.3)")
+    parser.add_argument("--helm-registry",
+                        help="Override Helm registry URL for pulling the cluster-operator chart "
+                             "(e.g. oci://963353511234.dkr.ecr.eu-west-1.amazonaws.com/helm-devel). "
+                             "Defaults to the helm_repository.url in the KeosCluster spec.")
     return parser.parse_args()
 
 
@@ -462,7 +484,7 @@ if __name__ == '__main__':
     configure_aws_credentials(vault_secrets_data)
 
     try:
-        run(args.cluster_operator)
+        run(args.cluster_operator, helm_registry_override=args.helm_registry)
     except Exception as e:
         print(f"\n[ERROR] {e}")
         sys.exit(1)
