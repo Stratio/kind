@@ -31,7 +31,7 @@ from io import StringIO
 from urllib.parse import urlparse
 
 CLOUD_PROVISIONER = "0.17.0-0.8"
-CLUSTER_OPERATOR = "0.6.1"
+CLUSTER_OPERATOR = "0.6.2"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.5.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.7"
 
@@ -730,9 +730,9 @@ def update_tigera_operator_image_tag_value(values_file):
             if values.get('tigeraOperator', {}).get('registry', '').startswith(registry_url) and \
                not values['tigeraOperator']['registry'].startswith(quay_registry):
                 values['tigeraOperator']['registry'] = quay_registry
-            if values.get('installation', {}).get('registry', '').startswith(registry_url) and \
-               not values['installation']['registry'].startswith(quay_registry):
+            if 'installation' in values:
                 values['installation']['registry'] = quay_registry
+                values['installation']['imagePath'] = 'calico'
             calico_image = values.get('calicoctl', {}).get('image', '')
             if calico_image.startswith(registry_url) and not calico_image.startswith(dockerhub_registry):
                 values['calicoctl']['image'] = calico_image.replace(
