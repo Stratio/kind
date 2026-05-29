@@ -276,20 +276,19 @@ def run(new_co_version, helm_registry_override=None):
     apply_configmap(cm)
     print("OK")
 
-    if helm_repo_url != helm_repo_url_current:
-        print(f"[INFO] Patching KeosCluster helm_repository.url to {helm_repo_url}", end=" ", flush=True)
-        run_command(
-            f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} "
-            f"--type=json -p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{helm_repo_url}\"}}]'"
-        )
-        print("OK")
+    print(f"[INFO] Patching KeosCluster helm_repository.url to {helm_repo_url}", end=" ", flush=True)
+    run_command(
+        f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} "
+        f"--type=json -p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{helm_repo_url}\"}}]'"
+    )
+    print("OK")
 
-        print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
-        run_command(
-            f"{kubectl} patch helmrepository keos -n kube-system "
-            f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
-        )
-        print("OK")
+    print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
+    run_command(
+        f"{kubectl} patch helmrepository keos -n kube-system "
+        f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
+    )
+    print("OK")
 
     print("[INFO] Patching HelmRelease cluster-operator chart version", end=" ", flush=True)
     run_command(
