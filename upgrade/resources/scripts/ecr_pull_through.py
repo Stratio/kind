@@ -152,8 +152,11 @@ def run(new_co_version, helm_registry_override=None):
     keos_cluster = get_keos_cluster()
     ecr_url = get_keos_registry_url(keos_cluster)
     helm_repo_url_current = get_helm_repository_url(keos_cluster)
-    answer = input(f"The current Helm registry is: {helm_repo_url_current}. Press ENTER to use it or specify a different one: ")
-    helm_repo_url = helm_registry_override or (answer.strip() if answer.strip() else helm_repo_url_current)
+    if helm_registry_override:
+        helm_repo_url = helm_registry_override
+    else:
+        answer = input(f"The current Helm registry is: {helm_repo_url_current}. Press ENTER to use it or specify a different one: ")
+        helm_repo_url = answer.strip() if answer.strip() else helm_repo_url_current
     kc_name = keos_cluster["metadata"]["name"]
     kc_ns = keos_cluster["metadata"]["namespace"]
 
