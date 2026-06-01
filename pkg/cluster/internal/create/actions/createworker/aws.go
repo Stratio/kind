@@ -190,7 +190,7 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	lbControllerManagerHelmParams := lbControllerHelmParams{
 		ClusterName: privateParams.KeosCluster.Metadata.Name,
 		Private:     privateParams.Private,
-		KeosRegUrl:  privateParams.KeosRegUrl,
+		KeosRegUrl:  commons.GetPrefixedRegistryURL("public.ecr.aws", privateParams.KeosRegUrl, privateParams.CentralECR),
 		AccountID:   accountID,
 		RoleName:    roleName,
 	}
@@ -244,7 +244,14 @@ spec:
     enableCSIPolicy: true
   nodes:
     extraPolicyAttachments:
-    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy`
+    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+    extraStatements:
+    - Action:
+        - "ecr:BatchImportUpstreamImage"
+        - "ecr:CreateRepository"
+      Effect: Allow
+      Resource:
+        - "*"`
 
 	// Create the eks.config file in the container
 	eksConfigPath := "/kind/eks.config"

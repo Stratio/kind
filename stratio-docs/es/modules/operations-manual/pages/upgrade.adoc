@@ -385,4 +385,3 @@ kubectl get machinepools -A
 kubectl get nodes
 # Verificar que los logs de CAPX no contengan errores tras la actualización
 ----
-
