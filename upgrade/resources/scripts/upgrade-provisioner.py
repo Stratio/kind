@@ -913,9 +913,8 @@ def upgrade_chart(chart_name, chart_data):
         with open(release_file, 'w') as f:
             f.write(helmrelease_yaml)
 
-        run_command(f"{kubectl} apply -f {repository_file}")
-
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
+        run_command(f"{kubectl} apply -f {repository_file} --server-side --force-conflicts")
         run_command(f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
 
         print("OK")
