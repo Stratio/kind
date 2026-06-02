@@ -68,10 +68,11 @@ For resource group-level permissions, the recommendation is:
 *** Deployment user: `Acrpull` on `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 *** _Control-plane_: `Acrpull` on `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 *** _Workers_: `Acrpull` on `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
-+
+
 * Certified operating systems
 +
 To ensure compatibility between the _control-plane_ and _worker_ nodes in unmanaged Azure environments, properly configured OS images must be used. It is recommended to generate them using the https://github.com/kubernetes-sigs/image-builder[Kubernetes Image Builder], the official tool from the Kubernetes project for creating cloud-optimized images. Refer to the https://image-builder.sigs.k8s.io/[official Image Builder documentation] to learn how to build custom images.
+
 The recommended OS is Ubuntu 22.04, which is set by default in the Azure controller.
 
 === Image considerations
@@ -365,51 +366,48 @@ scopes:
 
 === Docker repositories
 
-You must specify which Docker registries will be used during installation. This section allows configuring the registry URL, type, and whether authentication is required.
+The Docker repositories that will be used during installation must be specified. This section allows you to configure the repository URL, its type, and whether it requires authentication.
 
 [cols="1,4,2,1"]
 |===
-^|Name ^|Description ^|Example ^|Optional
+^| Name ^| Description ^| Example ^| Optional
 
-| _auth++_++required_
-| Indicates if authentication is required.
-| _false_
+| `auth_required`
+| Indicates whether the repository requires authentication.
+| `false`
 | No.
 
-| _type_
-| Docker registry type.
+| `type`
+| Docker repository type.
 | acr, ecr, gar, gcr, generic
-| No
+| No.
 
-| _url_
-| Registry URL.
+| `url`
+| Repository URL.
 | AABBCC.dkr.ecr.eu-west-1.amazonaws.com/keos
-| No
+| No.
 
-| _keos++_++registry_
-| Indicates if this registry is used for _Stratio KEOS_ images.
-| _true_
-| No (at least one must be marked _true_).
+| `keos_registry`
+| Indicates whether this repository is used for _Stratio KEOS_ images.
+| `true`
+| No. At least one repository must be marked as `keos_registry`.
 
-| _ecr++_++pull++_++through++_++cache++_++enabled_
-| Habilita el uso de ECR como _pull-through cache_ para las imágenes de _Stratio KEOS_. Solo aplica en AWS (EKS) con `type: ecr`. Debe configurarse en la instalación inicial del _cluster_.
-| _true_
-| Sí. Por defecto: _false_.
+| `ecr_pull_through_cache_enabled`
+| Enables ECR as a pull-through cache for _Stratio KEOS_ images. Only applies to AWS (EKS) with `type: ecr`. Must be configured during initial cluster installation.
+| `true`
+| Yes. Default: `false`.
 |===
 
-[NOTE]
-====
-El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no tiene efecto sobre los _workloads_ ya desplegados.
-====
+NOTE: The `ecr_pull_through_cache_enabled` parameter is a day-0 setting: it must be configured during cluster creation. Enabling it on an existing cluster does not affect workloads already deployed.
 
-==== Pre-requisitos para `ecr_pull_through_cache_enabled`
+==== Prerequisites for `ecr_pull_through_cache_enabled`
 
-Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, verifica que tu cuenta AWS cumple los siguientes requisitos:
+Before creating a cluster with `ecr_pull_through_cache_enabled: true`, verify that the AWS account meets the following requirements:
 
-* Reglas de _pull-through cache_ configuradas en Amazon ECR para los cinco _upstreams_ utilizados por _Stratio KEOS_: `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io` y `public.ecr.aws`.
-* Permisos IAM en el _node role_: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
+* Pull-through cache rules configured in Amazon ECR for the five upstreams used by _Stratio KEOS_: `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io`, and `public.ecr.aws`.
+* IAM permissions on the node role: `ecr:BatchImportUpstreamImage` and `ecr:CreateRepository`.
 
-Si tienes `spec.security.aws.create_iam: true` en el descriptor, _Stratio Cloud Provisioner_ añade estos permisos automáticamente al crear el _cluster_. Si gestionas los recursos IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ AWS CloudFormation con `clusterawsadm`:
+If you have `spec.security.aws.create_iam: true` in the descriptor, _Stratio Cloud Provisioner_ adds these permissions automatically when creating the cluster. If you manage IAM resources manually (`create_iam: false`) or need to enable them on an existing account, update the AWS CloudFormation stack with `clusterawsadm`:
 
 [source,bash]
 ----
@@ -772,6 +770,7 @@ This example includes:
 * Kubernetes 1.28.x.
 * Use of Docker registry of type GAR.
 * Use of Helm repository of type GAR.
+* _enable++_++secure++_++boot_ (enabled by default).
 * _nodes++_++identity_ (default node service account configurable only at create time).
 * scopes (list of access scopes for service account).
 * No DNS zone control (enabled by default).

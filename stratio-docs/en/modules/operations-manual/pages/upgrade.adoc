@@ -2,13 +2,13 @@
 
 == Description
 
-The `upgrade-provisioner.py` script automates Kubernetes cluster upgrades in the following environments:
+The `upgrade-provisioner.py` script automates the upgrade of Kubernetes clusters in the following environments:
 
 - *EKS* on AWS.
 - *Azure VMs*.
 - *GKE* on GCP.
 
-It allows you to upgrade the Kubernetes cluster version from the version installed by `cloud-provisioner 0.6.X` to the one provided by `cloud-provisioner 0.7.X`. To ensure a reproducible runtime environment, the Docker image `cloud-provisioner-upgrade` has been created, which includes the upgrade script and all necessary dependencies.
+It allows upgrading the Kubernetes cluster version from the version installed by `cloud-provisioner 0.6.X` to the one provided by `cloud-provisioner 0.7.X`. To ensure a reproducible execution environment, the `cloud-provisioner-upgrade` Docker image has been created to include the upgrade script and required dependencies.
 
 == Requirements
 
@@ -16,11 +16,11 @@ It allows you to upgrade the Kubernetes cluster version from the version install
 
 * _kubeconfig_ file with access to the cluster.
 * _secrets.yml_ file used during cluster creation.
-* Installed Docker tool, required to run the container.
+* Docker tool installed, required to run the container.
 
 === Permissions
 
-It is essential to xref:operations-manual:installation.adoc[review the documentation] to ensure that no additional permissions are required in the cluster.
+It is important to xref:operations-manual:installation.adoc[review the documentation] to ensure that no additional permissions are required on the cluster.
 
 == Running the script
 
@@ -42,23 +42,23 @@ docker run --rm -it -v <secrets.yml path>:/upgrade/secrets.yml -v <kubeconfig pa
 python3 upgrade-provisioner.py [OPTIONS]
 ----
 
-Key options:
+Main options:
 
 |===
-| Flag | Description | Default Value | Mandatory
+| Flag | Description | Default value | Required
 
 | `-p`, `--vault-password`
-| Specifies a file with the Vault password to decrypt secrets.
+| Specifies a file with the Vault password required to decrypt secrets.
 | None
 | Yes
 
 | `-y`, `--yes`
-| Skips task confirmations (automatic mode).
+| Does not require confirmation between tasks (automatic mode).
 | False
 | No
 
 | `-k`, `--kubeconfig`
-| Specifies the Kubectl configuration file to use.
+| Specifies the kubectl configuration file to use.
 | ~/.kube/config
 | No
 
@@ -67,8 +67,13 @@ Key options:
 | secrets.yml
 | No
 
+| `--enable-lb-controller`
+| Enables the load balancer controller on EKS (disabled by default).
+| False
+| No
+
 | `--disable-backup`
-| Disables backup before upgrading (enabled by default).
+| Disables the backup before upgrading (enabled by default).
 | False
 | No
 
@@ -78,7 +83,7 @@ Key options:
 | No
 
 | `--skip-k8s-intermediate-version`
-| Skips the upgrade of _workers_ to an intermediate Kubernetes version. Compatible only with EKS environments.
+| Skips upgrading workers to an intermediate Kubernetes version. Only compatible with EKS environments.
 | False
 | No
 
@@ -88,21 +93,21 @@ Key options:
 | No
 |===
 
-== Migración a ECR _pull-through cache_ en _clusters_ existentes
+== Migrating to ECR pull-through cache on existing clusters
 
-Si tienes un _cluster_ EKS existente y quieres activar el uso de ECR como _pull-through cache_, puedes usar el _script_ `ecr_pull_through.py`, incluido en el contenedor `cloud-provisioner-upgrade:0.7.X`.
+If you have an existing EKS cluster and want to enable ECR as a pull-through cache, you can use the `ecr_pull_through.py` script included in the `cloud-provisioner-upgrade:0.7.X` container.
 
-El _script_ realiza las siguientes acciones:
+The script performs the following actions:
 
-* Actualiza _Stratio Cloud Provisioner_ al _cluster-operator_ de la versión 0.5.x.
-* Activa el campo `ecr_pull_through_cache_enabled` en el `KeosCluster`.
-* Migra las referencias de imagen de los componentes del _cluster_ (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) para utilizar el _registry_ ECR con _pull-through_.
+* Upgrades _Stratio Cloud Provisioner_ to the _cluster-operator_ version 0.5.x.
+* Enables the `ecr_pull_through_cache_enabled` field in the `KeosCluster`.
+* Migrates the image references of the cluster components (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) to use the ECR registry with pull-through.
 
-=== Pre-requisitos
+=== Prerequisites
 
-Antes de ejecutar el _script_, verifica que tu cuenta AWS cumple los requisitos indicados en la sección xref:operations-manual:installation.adoc#_pre_requisitos_para_ecr_pull_through_cache_enabled[Pre-requisitos para `ecr_pull_through_cache_enabled`] del manual de instalación.
+Before running the script, verify that the AWS account meets the requirements listed in the xref:operations-manual:installation.adoc#_prerequisites_for_ecr_pull_through_cache_enabled[Prerequisites for `ecr_pull_through_cache_enabled`] section of the installation manual.
 
-=== Ejecución
+=== Execution
 
 [source,bash]
 ----
@@ -113,44 +118,41 @@ docker run --rm -it \
   python3 scripts/ecr_pull_through.py [OPTIONS]
 ----
 
-Opciones principales:
+Main options:
 
 |===
-| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+| Flag | Description | Default value | Required
 
 | `-p`, `--vault-password`
-| Archivo con la contraseña de Vault para descifrar secretos.
-| No tiene
-| Sí
+| File with the Vault password used to decrypt secrets.
+| None.
+| Yes.
 
 | `-k`, `--kubeconfig`
-| Archivo de configuración de Kubectl.
-| ~/.kube/config
-| No
+| kubectl configuration file.
+| _~/.kube/config_
+| No.
 
 | `-s`, `--secrets`
-| Archivo de secretos cifrados.
-| secrets.yml
-| No
+| Encrypted secrets file.
+| _secrets.yml_
+| No.
 
 | `--helm-registry`
-| URL del repositorio Helm a utilizar. Si no se indica, el _script_ muestra el valor actual del _cluster_ y permite introducir uno distinto de forma interactiva.
-| No tiene
-| No
+| URL of the Helm repository to use. If not specified, the script displays the cluster's current value and lets you enter a different value interactively.
+| None.
+| No.
 |===
 
-[NOTE]
-====
-Si el repositorio Helm del _cluster_ debe cambiar (por ejemplo, al migrar de un _universe_ a otro), puedes introducir la nueva URL cuando el _script_ la solicite, o indicarla directamente con `--helm-registry`. El _script_ actualiza el objeto `KeosCluster` y el `HelmRepository` de Flux para que el cambio sea efectivo de inmediato.
-====
+NOTE: If the cluster's Helm repository needs to change (for example, when migrating from one Universe to another), you can either enter the new URL when prompted by the script or specify it directly with `--helm-registry`. The script updates the `KeosCluster` object and the Flux `HelmRepository` so that the change takes effect immediately.
 
 == Required structure
 
-Ensure that the working directory includes the following:
+Make sure the working directory includes:
 
 * `upgrade-provisioner.py`: main script.
 * `templates/`: Jinja2 templates.
 * `files/`: additional files (configurations, Helm, etc.).
 * `requirements.txt`: required dependencies.
 * `secrets.yml`: cluster credentials.
-* `.kube/`: directory containing the `kubeconfig` file.
+* `.kube/`: directory with the _kubeconfig_ file.
