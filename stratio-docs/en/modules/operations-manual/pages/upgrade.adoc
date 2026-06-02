@@ -88,6 +88,62 @@ Key options:
 | No
 |===
 
+== Migración a ECR _pull-through cache_ en _clusters_ existentes
+
+Si tienes un _cluster_ EKS existente y quieres activar el uso de ECR como _pull-through cache_, puedes usar el _script_ `ecr_pull_through.py`, incluido en el contenedor `cloud-provisioner-upgrade:0.7.X`.
+
+El _script_ realiza las siguientes acciones:
+
+* Actualiza _Stratio Cloud Provisioner_ al _cluster-operator_ de la versión 0.5.x.
+* Activa el campo `ecr_pull_through_cache_enabled` en el `KeosCluster`.
+* Migra las referencias de imagen de los componentes del _cluster_ (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) para utilizar el _registry_ ECR con _pull-through_.
+
+=== Pre-requisitos
+
+Antes de ejecutar el _script_, verifica que tu cuenta AWS cumple los requisitos indicados en la sección xref:operations-manual:installation.adoc#_pre_requisitos_para_ecr_pull_through_cache_enabled[Pre-requisitos para `ecr_pull_through_cache_enabled`] del manual de instalación.
+
+=== Ejecución
+
+[source,bash]
+----
+docker run --rm -it \
+  -v <secrets.yml path>:/upgrade/secrets.yml \
+  -v <kubeconfig path>:/upgrade/.kube/config \
+  cloud-provisioner-upgrade:0.7.X \
+  python3 scripts/ecr_pull_through.py [OPTIONS]
+----
+
+Opciones principales:
+
+|===
+| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+
+| `-p`, `--vault-password`
+| Archivo con la contraseña de Vault para descifrar secretos.
+| No tiene
+| Sí
+
+| `-k`, `--kubeconfig`
+| Archivo de configuración de Kubectl.
+| ~/.kube/config
+| No
+
+| `-s`, `--secrets`
+| Archivo de secretos cifrados.
+| secrets.yml
+| No
+
+| `--helm-registry`
+| URL del repositorio Helm a utilizar. Si no se indica, el _script_ muestra el valor actual del _cluster_ y permite introducir uno distinto de forma interactiva.
+| No tiene
+| No
+|===
+
+[NOTE]
+====
+Si el repositorio Helm del _cluster_ debe cambiar (por ejemplo, al migrar de un _universe_ a otro), puedes introducir la nueva URL cuando el _script_ la solicite, o indicarla directamente con `--helm-registry`. El _script_ actualiza el objeto `KeosCluster` y el `HelmRepository` de Flux para que el cambio sea efectivo de inmediato.
+====
+
 == Required structure
 
 Ensure that the working directory includes the following:
