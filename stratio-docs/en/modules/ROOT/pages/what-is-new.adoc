@@ -14,3 +14,4 @@ The main new features in this version of _Stratio Cloud Provisioner_ are:
 * Update of AWS components: CAPA (v2.9.2), AWS Load Balancer Controller (v1.14.1), Cluster Autoscaler (v1.34.1), and EKS addons (`aws-ebs-csi-driver`, CoreDNS, `kube-proxy`, and `vpc-cni`).
 * Update of Azure components: CAPZ (v1.21.1), Azure Service Operator (v2.11.0), CSI Azure Disk (v1.33.5), CSI Azure File (v1.34.1), `azure-cloud-controller-manager`, and `cloud-node-manager` (v1.34.2).
 * Resolution of vulnerabilities in _cloud-provisioner_ components.
+* Se añade el parámetro `ecr_pull_through_cache_enabled` al descriptor del _cluster_ para habilitar ECR como _pull-through cache_ en entornos de AWS (EKS).
