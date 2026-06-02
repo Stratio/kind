@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.17.0-0.8.5 (upcoming)
 
+* [PLT-4154] Fix vulnerabilities: CAPI v1.10.10, CAPA v2.9.3, CAPZ v1.21.3, Calico v3.31.5, cert-manager v1.20.2, FluxCD 2.17.2 (flux-cli v2.7.5), cluster-operator 0.6.2
 * [PLT-4161] Backport ecr_pull_through_cache_enabled to 0.17.0-0.8.5
 
 ## 0.17.0-0.8.4 (2026-03-25)
