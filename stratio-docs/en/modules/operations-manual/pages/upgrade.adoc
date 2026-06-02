@@ -385,3 +385,57 @@ kubectl get machinepools -A
 kubectl get nodes
 # Verify that CAPX logs do not contain errors after the upgrade
 ----
+
+== Enabling ECR pull-through cache on existing clusters
+
+If you have an existing EKS cluster and want to enable ECR as a pull-through cache, you can use the `ecr_pull_through.py` script included in the `cloud-provisioner-upgrade:0.17.0-0.8.X` container.
+
+The script only enables the flag on the cluster:
+
+* Upgrades _Stratio Cloud Provisioner_ to the _cluster-operator_ version 0.6.x.
+* Enables the `ecr_pull_through_cache_enabled` field in the `KeosCluster`.
+
+NOTE: The migration of the cluster components' image references (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) is performed by `upgrade-provisioner.py` during the upgrade to 0.8.X.
+
+=== Prerequisites
+
+Before running the script, verify that the AWS account meets the requirements listed in the xref:operations-manual:installation.adoc#_prerequisites_for_ecr_pull_through_cache_enabled[Prerequisites for `ecr_pull_through_cache_enabled`] section of the installation manual.
+
+=== Execution
+
+[source,bash]
+----
+docker run --rm -it \
+    -v <secrets.yml path>:/upgrade/secrets.yml \
+    -v <kubeconfig path>:/upgrade/.kube/config \
+    cloud-provisioner-upgrade:0.17.0-0.8.X \
+    python3 upgrade/resources/scripts/ecr_pull_through.py [OPTIONS]
+----
+
+Main options:
+
+|===
+| Flag | Description | Default value | Required
+
+| `-p`, `--vault-password`
+| File with the Vault password used to decrypt secrets.
+| None.
+| Yes.
+
+| `-k`, `--kubeconfig`
+| kubectl configuration file.
+| _~/.kube/config_
+| No.
+
+| `-s`, `--secrets`
+| Encrypted secrets file.
+| _secrets.yml_
+| No.
+
+| `--helm-registry`
+| URL of the Helm repository to use. If not specified, the script displays the cluster's current value and lets you enter a different value interactively.
+| None.
+| No.
+|===
+
+NOTE: If the cluster's Helm repository needs to change (for example, when migrating from one Universe to another), you can either enter the new URL when prompted by the script or specify it directly with `--helm-registry`. The script updates the `KeosCluster` object and the Flux `HelmRepository` so that the change takes effect immediately.
