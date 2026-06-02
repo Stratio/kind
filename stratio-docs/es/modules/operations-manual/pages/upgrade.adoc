@@ -390,7 +390,7 @@ kubectl get nodes
 
 Si tienes un _cluster_ EKS existente y quieres activar el uso de ECR como _pull-through cache_, puedes usar el _script_ `ecr_pull_through.py`, incluido en el contenedor `cloud-provisioner-upgrade:0.17.0-0.8.X`.
 
-El _script_ realiza únicamente la activación del flag en el _cluster_:
+El _script_ se limita a activar el _flag_ en el _cluster_:
 
 * Actualiza _Stratio Cloud Provisioner_ al _cluster-operator_ de la versión 0.6.x.
 * Activa el campo `ecr_pull_through_cache_enabled` en el `KeosCluster`.
@@ -399,7 +399,7 @@ NOTE: La migración de las referencias de imagen de los componentes del _cluster
 
 === Prerrequisitos
 
-Antes de ejecutar el _script_, verifica que la cuenta de AWS cumpla los requisitos indicados en la sección xref:operations-manual:installation.adoc#_prerrequisitos_para_ecr_pull_through_cache_enabled[Prerrequisitos para `ecr_pull_through_cache_enabled`] del manual de instalación.
+Antes de ejecutar el _script_, verifica que la cuenta de AWS cumple los requisitos indicados en la sección xref:operations-manual:installation.adoc#_prerrequisitos_para_ecr_pull_through_cache_enabled[Prerrequisitos para `ecr_pull_through_cache_enabled`] del manual de instalación.
 
 === Ejecución
 
@@ -438,4 +438,4 @@ Opciones principales:
 | No.
 |===
 
-NOTE: Si el repositorio de Helm del _cluster_ debe cambiar (por ejemplo, al migrar de un _universe_ a otro), puedes introducir la nueva URL cuando el _script_ la solicite, o indicarla directamente con `--helm-registry`. El _script_ actualiza el objeto `KeosCluster` y el `HelmRepository` de Flux para que el cambio sea efectivo de inmediato.
+NOTE: Si el repositorio de Helm del _cluster_ debe cambiar (por ejemplo, al migrar de un Universo a otro), puedes introducir la nueva URL cuando el _script_ la solicite o indicarla directamente con `--helm-registry`. El _script_ actualiza el objeto `KeosCluster` y el `HelmRepository` de Flux para que el cambio entre en vigor de inmediato.

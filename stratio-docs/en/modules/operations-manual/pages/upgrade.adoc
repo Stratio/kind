@@ -386,22 +386,22 @@ kubectl get nodes
 # Verify that CAPX logs do not contain errors after the upgrade
 ----
 
-== Activación de ECR _pull-through cache_ en _clusters_ existentes
+== Enabling ECR pull-through cache on existing clusters
 
-Si tienes un _cluster_ EKS existente y quieres activar el uso de ECR como _pull-through cache_, puedes usar el _script_ `ecr_pull_through.py`, incluido en el contenedor `cloud-provisioner-upgrade:0.17.0-0.8.X`.
+If you have an existing EKS cluster and want to enable ECR as a pull-through cache, you can use the `ecr_pull_through.py` script included in the `cloud-provisioner-upgrade:0.17.0-0.8.X` container.
 
-El _script_ realiza únicamente la activación del flag en el _cluster_:
+The script only enables the flag on the cluster:
 
-* Actualiza _Stratio Cloud Provisioner_ al _cluster-operator_ de la versión 0.6.x.
-* Activa el campo `ecr_pull_through_cache_enabled` en el `KeosCluster`.
+* Upgrades _Stratio Cloud Provisioner_ to the _cluster-operator_ version 0.6.x.
+* Enables the `ecr_pull_through_cache_enabled` field in the `KeosCluster`.
 
-NOTE: La migración de las referencias de imagen de los componentes del _cluster_ (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) la realiza `upgrade-provisioner.py` durante el proceso de actualización a 0.8.X.
+NOTE: The migration of the cluster components' image references (CAPI, CAPA, _cert-manager_, Flux, Calico, Tigera) is performed by `upgrade-provisioner.py` during the upgrade to 0.8.X.
 
-=== Prerrequisitos
+=== Prerequisites
 
-Antes de ejecutar el _script_, verifica que la cuenta de AWS cumpla los requisitos indicados en la sección xref:operations-manual:installation.adoc#_prerrequisitos_para_ecr_pull_through_cache_enabled[Prerrequisitos para `ecr_pull_through_cache_enabled`] del manual de instalación.
+Before running the script, verify that the AWS account meets the requirements listed in the xref:operations-manual:installation.adoc#_prerequisites_for_ecr_pull_through_cache_enabled[Prerequisites for `ecr_pull_through_cache_enabled`] section of the installation manual.
 
-=== Ejecución
+=== Execution
 
 [source,bash]
 ----
@@ -412,30 +412,30 @@ docker run --rm -it \
     python3 upgrade/resources/scripts/ecr_pull_through.py [OPTIONS]
 ----
 
-Opciones principales:
+Main options:
 
 |===
-| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+| Flag | Description | Default value | Required
 
 | `-p`, `--vault-password`
-| Fichero con la contraseña de Vault para descifrar secretos.
-| No tiene.
-| Sí.
+| File with the Vault password used to decrypt secrets.
+| None.
+| Yes.
 
 | `-k`, `--kubeconfig`
-| Fichero de configuración de Kubectl.
+| kubectl configuration file.
 | _~/.kube/config_
 | No.
 
 | `-s`, `--secrets`
-| Fichero de secretos cifrados.
+| Encrypted secrets file.
 | _secrets.yml_
 | No.
 
 | `--helm-registry`
-| URL del repositorio de Helm que se utilizará. Si no se indica, el _script_ muestra el valor actual del _cluster_ y permite introducir uno distinto de forma interactiva.
-| No tiene.
+| URL of the Helm repository to use. If not specified, the script displays the cluster's current value and lets you enter a different value interactively.
+| None.
 | No.
 |===
 
-NOTE: Si el repositorio de Helm del _cluster_ debe cambiar (por ejemplo, al migrar de un _universe_ a otro), puedes introducir la nueva URL cuando el _script_ la solicite, o indicarla directamente con `--helm-registry`. El _script_ actualiza el objeto `KeosCluster` y el `HelmRepository` de Flux para que el cambio sea efectivo de inmediato.
+NOTE: If the cluster's Helm repository needs to change (for example, when migrating from one Universe to another), you can either enter the new URL when prompted by the script or specify it directly with `--helm-registry`. The script updates the `KeosCluster` object and the Flux `HelmRepository` so that the change takes effect immediately.
