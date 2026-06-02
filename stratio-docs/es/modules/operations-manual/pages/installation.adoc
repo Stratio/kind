@@ -366,51 +366,48 @@ scopes:
 
 === Repositorios Docker
 
-Es necesario indicar los repositorios Docker que se utilizarán durante la instalación. Este apartado permite configurar la URL del repositorio, su tipo y si requiere autenticación.
+Es necesario indicar los repositorios de Docker que se utilizarán durante la instalación. Este apartado permite configurar la URL del repositorio, su tipo y si requiere autenticación.
 
 [cols="1,4,2,1"]
 |===
-^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
+^| Nombre ^| Descripción ^| Ejemplo ^| Opcional
 
-| _auth++_++required_
+| `auth_required`
 | Indica si el repositorio requiere autenticación.
-| _false_
+| `false`
 | No.
 
-| _type_
+| `type`
 | Tipo de repositorio Docker.
 | acr, ecr, gar, gcr, generic
-| No
+| No.
 
-| _url_
+| `url`
 | URL del repositorio.
 | AABBCC.dkr.ecr.eu-west-1.amazonaws.com/keos
-| No
+| No.
 
-| _keos++_++registry_
+| `keos_registry`
 | Indica si este repositorio se utiliza para las imágenes de _Stratio KEOS_.
-| _true_
-| No. Al menos un repositorio debe estar marcado como _keos++_++registry_.
+| `true`
+| No. Al menos un repositorio debe estar marcado como `keos_registry`.
 
-| _ecr++_++pull++_++through++_++cache++_++enabled_
-| Habilita el uso de ECR como _pull-through cache_ para las imágenes de _Stratio KEOS_. Solo aplica en AWS (EKS) con `type: ecr`. Debe configurarse en la instalación inicial del _cluster_.
-| _true_
-| Sí. Por defecto: _false_.
+| `ecr_pull_through_cache_enabled`
+| Habilita el uso de ECR como _pull-through cache_ para las imágenes de _Stratio KEOS_. Solo aplica a AWS (EKS) con `type: ecr`. Debe configurarse durante la instalación inicial del _cluster_.
+| `true`
+| Sí. Por defecto: `false`.
 |===
 
-[NOTE]
-====
-El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no tiene efecto sobre los _workloads_ ya desplegados.
-====
+NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
 
-==== Pre-requisitos para `ecr_pull_through_cache_enabled`
+==== Prerrequisitos para `ecr_pull_through_cache_enabled`
 
-Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, verifica que tu cuenta AWS cumple los siguientes requisitos:
+Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, verifica que la cuenta AWS cumple los siguientes requisitos:
 
 * Reglas de _pull-through cache_ configuradas en Amazon ECR para los cinco _upstreams_ utilizados por _Stratio KEOS_: `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io` y `public.ecr.aws`.
-* Permisos IAM en el _node role_: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
+* Permisos de IAM en el _node role_: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
 
-Si tienes `spec.security.aws.create_iam: true` en el descriptor, _Stratio Cloud Provisioner_ añade estos permisos automáticamente al crear el _cluster_. Si gestionas los recursos IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ AWS CloudFormation con `clusterawsadm`:
+Si tienes `spec.security.aws.create_iam: true` en el descriptor, _Stratio Cloud Provisioner_ añade estos permisos automáticamente al crear el _cluster_. Si gestionas los recursos IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ de AWS CloudFormation con `clusterawsadm`:
 
 [source,bash]
 ----
@@ -418,30 +415,30 @@ cat > /tmp/eks.config << 'EOF'
 apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
 kind: AWSIAMConfiguration
 spec:
-  bootstrapUser:
-    enable: false
-  eks:
-    enable: true
-    iamRoleCreation: false
-    defaultControlPlaneRole:
-        disable: false
-  controlPlane:
-    enableCSIPolicy: true
-  nodes:
-    extraPolicyAttachments:
-    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
-    extraStatements:
-    - Action:
-        - "ecr:BatchImportUpstreamImage"
-        - "ecr:CreateRepository"
-      Effect: Allow
-      Resource:
-        - "*"
+  bootstrapUser:
+    enable: false
+  eks:
+    enable: true
+    iamRoleCreation: false
+    defaultControlPlaneRole:
+        disable: false
+  controlPlane:
+    enableCSIPolicy: true
+  nodes:
+    extraPolicyAttachments:
+    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+    extraStatements:
+    - Action:
+        - "ecr:BatchImportUpstreamImage"
+        - "ecr:CreateRepository"
+      Effect: Allow
+      Resource:
+        - "*"
 EOF
 
 clusterawsadm bootstrap iam create-cloudformation-stack \
-  --config /tmp/eks.config \
-  --region <region>
+  --config /tmp/eks.config \
+  --region <region>
 ----
 
 === Uso de `role_arn` en el descriptor de credenciales
