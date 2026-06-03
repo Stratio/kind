@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.17.0-0.8.6 (upcoming)
 
-* [PLT-4154] Downgrade Calico v3.31.5→v3.30.2 for compatibility
+* [PLT-4154] Downgrade Calico v3.31.5→v3.30.2 and FluxCD flux-cli v2.8.7→v2.7.5 for compatibility
 
 ## 0.17.0-0.8.5 (upcoming)
 
