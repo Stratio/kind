@@ -31,9 +31,9 @@ core:
       cluster-operator: 0.6.2
     flux:
       flux-cli: v2.7.5
-      helm-controller: v1.5.4
-      kustomize-controller: v1.8.5
-      source-controller: v1.8.4
+      helm-controller: v1.4.5
+      kustomize-controller: v1.7.3
+      source-controller: v1.7.4
     kind:
       cloud-provisioner: 0.17.0-0.8.0
       coredns: v1.12.1
