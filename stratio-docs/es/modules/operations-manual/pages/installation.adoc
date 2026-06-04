@@ -409,6 +409,8 @@ Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, verifica
 
 Si tienes `spec.security.aws.create_iam: true` en el descriptor, _Stratio Cloud Provisioner_ añade estos permisos automáticamente al crear el _cluster_. Si gestionas los recursos IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ de AWS CloudFormation con `clusterawsadm`:
 
+NOTE: El usuario de AWS con el que ejecutas `clusterawsadm` debe tener los permisos recogidos en el fichero xref:attachment$stratio-aws-temp-policy.json[stratio-aws-temp-policy.json].
+
 [source,bash]
 ----
 cat > /tmp/eks.config << 'EOF'
