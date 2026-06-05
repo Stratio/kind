@@ -2,6 +2,7 @@
 
 ## 0.17.0-0.7.5 (upcoming)
 
+* [Fix] Fix clusterawsadm YAML corruption when writing eks.config and add missing IAM permissions (PutRolePolicy, DeleteRolePolicy, GetRolePolicy, ListRolePolicies) to stratio-aws-temp-policy
 * [PLT-4162] Add ECR pull-through cache migration script; bump cluster-operator to 0.5.3
 * Remove DoAT on jenkinsfile
 
