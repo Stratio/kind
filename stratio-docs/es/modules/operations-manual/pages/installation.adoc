@@ -393,7 +393,6 @@ Es necesario indicar los repositorios Docker que se utilizarán durante la insta
 | No. Al menos un repositorio debe estar marcado como _keos++_++registry_.
 |===
 
-=======
 NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
 
 ==== Prerrequisitos para `ecr_pull_through_cache_enabled`
