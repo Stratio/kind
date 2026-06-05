@@ -393,7 +393,6 @@ You must specify which Docker registries will be used during installation. This 
 | No (at least one must be marked _true_).
 |===
 
-=======
 NOTE: The `ecr_pull_through_cache_enabled` parameter is a day-0 setting: it must be configured during cluster creation. Enabling it on an existing cluster does not affect workloads already deployed.
 
 ==== Prerequisites for `ecr_pull_through_cache_enabled`
