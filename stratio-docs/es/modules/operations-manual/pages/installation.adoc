@@ -393,7 +393,6 @@ Es necesario indicar los repositorios Docker que se utilizarán durante la insta
 | No. Al menos un repositorio debe estar marcado como _keos++_++registry_.
 |===
 
-<<<<<<< HEAD
 =======
 NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
 
@@ -440,7 +439,6 @@ clusterawsadm bootstrap iam create-cloudformation-stack \
   --region <region>
 ----
 
->>>>>>> 89e4172a (Fix branch 0.17.0 0.8 clusterawsadm yaml quotes (#922))
 === Uso de `role_arn` en el descriptor de credenciales
 
 También puedes definir el `role_arn` directamente en el descriptor de credenciales para usar automáticamente _assume role_:
