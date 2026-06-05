@@ -393,7 +393,6 @@ You must specify which Docker registries will be used during installation. This 
 | No (at least one must be marked _true_).
 |===
 
-<<<<<<< HEAD
 =======
 NOTE: The `ecr_pull_through_cache_enabled` parameter is a day-0 setting: it must be configured during cluster creation. Enabling it on an existing cluster does not affect workloads already deployed.
 
@@ -440,7 +439,6 @@ clusterawsadm bootstrap iam create-cloudformation-stack \
   --region <region>
 ----
 
->>>>>>> 89e4172a (Fix branch 0.17.0 0.8 clusterawsadm yaml quotes (#922))
 === Using `role_arn` in the credentials descriptor
 
 You can also define `role_arn` directly in the credentials descriptor to automatically use the _assume role_:
