@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.17.0-0.8.5 (upcoming)
+## 0.17.0-0.8.5 (2026-06-09)
 
 * [PLT-4238] Make Calico Whisker and Goldmane observability components optional via `calico.observability_enabled` descriptor field (default: disabled)
 * [Fix] Fix clusterawsadm YAML corruption when writing eks.config and add missing IAM permissions (PutRolePolicy, DeleteRolePolicy, GetRolePolicy, ListRolePolicies) to stratio-aws-temp-policy
