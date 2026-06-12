@@ -22,7 +22,7 @@
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
+| quay.io/brancz/kube-rbac-proxy
 | v0.13.1
 
 |

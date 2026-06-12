@@ -133,7 +133,7 @@ Estas son las imágenes necesarias que se usan en los _charts_ instalados por _S
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
+| quay.io/brancz/kube-rbac-proxy
 | v0.15.0
 
 | *Installado por Cluster API - CAPI Component*

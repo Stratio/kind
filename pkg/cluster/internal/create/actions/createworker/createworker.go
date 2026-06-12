@@ -337,7 +337,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"  infrastructure-azure/azureserviceoperator:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/k8s\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/kube-rbac-proxy:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + keosRegistry.url + "/kubebuilder\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: " + keosRegistry.url + "/brancz\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-azure/nmi:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/oss/azure/aad-pod-identity\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +

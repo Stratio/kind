@@ -133,7 +133,7 @@ These are the required images used in the charts installed by _Stratio Cloud Pro
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
+| quay.io/brancz/kube-rbac-proxy
 | v0.15.0
 
 | *Installed by Cluster API - CAPI Component*
