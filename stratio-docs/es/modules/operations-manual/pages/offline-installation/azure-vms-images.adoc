@@ -22,7 +22,7 @@
 
 |
 |
-| gcr.io/kubebuilder/kube-rbac-proxy
+| quay.io/brancz/kube-rbac-proxy
 | v0.13.1
 
 |
@@ -59,7 +59,6 @@
 |
 | registry.k8s.io/etcd
 | v3.5.X
-
 
 | *azuredisk-csi-driver*
 | *v1.31.2*
