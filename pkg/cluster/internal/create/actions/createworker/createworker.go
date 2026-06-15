@@ -364,6 +364,16 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
+	if !privateParams.Private && provider.capxProvider == "azure" {
+		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"  infrastructure-azure/kube-rbac-proxy:\" >> /root/.cluster-api/clusterctl.yaml && " +
+			"echo \"    repository: quay.io/brancz\" >> /root/.cluster-api/clusterctl.yaml"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to add kube-rbac-proxy image override for azure")
+		}
+	}
+
 	err = provider.installCAPXLocal(n, *a.clusterConfig, providerParams)
 	if err != nil {
 		return err
