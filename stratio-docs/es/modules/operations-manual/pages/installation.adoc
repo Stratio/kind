@@ -43,6 +43,21 @@ Para GKE, el sistema operativo predeterminado es Container-Optimized OS (COS) y 
 +
 El despliegue de _Stratio KEOS_ en GKE debe realizarse mediante un _bastion_ que facilite la comunicación con el _cluster_. Para ello, es necesario crear un _bastion_ en la misma red que el _cluster_.
 
+* Bastion: requisito cgroup v2 (Kubernetes ≥ 1.35).
++
+A partir de Kubernetes 1.35, la VM del _bastion_ debe tener cgroup v2 habilitado. El preflight check del kubelet (`system-validators v1.12.1`) lanza un error — no una advertencia — si detecta cgroup v1 en el host al ejecutar kubelet v1.35 o posterior. Para habilitar cgroup v2 en el _bastion_:
++
+[source,bash]
+----
+sudo sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=1 cgroup_no_v1=all"/' /etc/default/grub
+sudo update-grub
+sudo reboot
+----
++
+Tras el reinicio, verificar con: `stat -fc %T /sys/fs/cgroup/` (resultado esperado: `cgroup2fs`).
++
+Referencia: https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.35.md[Kubernetes v1.35 CHANGELOG].
+
 === Azure no gestionado
 
 * Permisos
