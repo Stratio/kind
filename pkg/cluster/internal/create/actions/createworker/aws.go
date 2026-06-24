@@ -268,6 +268,23 @@ spec:
         disable: false
         extraPolicyAttachments:
         - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+        extraStatements:
+        - Action:
+            - "autoscaling:DescribeAutoScalingGroups"
+            - "autoscaling:DescribeAutoScalingInstances"
+            - "autoscaling:DescribeLaunchConfigurations"
+            - "autoscaling:DescribeScalingActivities"
+            - "autoscaling:DescribeTags"
+            - "autoscaling:SetDesiredCapacity"
+            - "autoscaling:TerminateInstanceInAutoScalingGroup"
+            - "ec2:DescribeImages"
+            - "ec2:DescribeInstanceTypes"
+            - "ec2:DescribeLaunchTemplateVersions"
+            - "ec2:GetInstanceTypesFromInstanceRequirements"
+            - "eks:DescribeNodegroup"
+          Effect: Allow
+          Resource:
+            - "*"
   controlPlane:
     enableCSIPolicy: true
   nodes:

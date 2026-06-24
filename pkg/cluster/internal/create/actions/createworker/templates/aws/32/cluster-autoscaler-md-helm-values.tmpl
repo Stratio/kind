@@ -1,0 +1,13 @@
+autoDiscovery:
+  clusterName: {{ $.KeosCluster.Metadata.Name }}
+  namespace: cluster-{{ $.KeosCluster.Metadata.Name }}
+  labels:
+  - autoscaler-backend: clusterapi
+cloudProvider: clusterapi
+nameOverride: clusterapi-cluster-autoscaler
+fullnameOverride: cluster-autoscaler-clusterapi-cluster-autoscaler
+extraArgs:
+  leader-elect-resource-name: cluster-autoscaler-md
+image:
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
+replicaCount: 1
