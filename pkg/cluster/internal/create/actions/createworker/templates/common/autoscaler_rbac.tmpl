@@ -35,3 +35,32 @@ subjects:
 - kind: ServiceAccount
   name: cluster-autoscaler-clusterapi-cluster-autoscaler
   namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-autoscaler-md
+  name: cluster-autoscaler-md-leader-election
+  namespace: kube-system
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  resourceNames: ["cluster-autoscaler-md"]
+  verbs: ["get", "watch", "list", "delete", "update", "create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-autoscaler-md
+  name: cluster-autoscaler-md-leader-election
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler-md-leader-election
+subjects:
+- kind: ServiceAccount
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: kube-system

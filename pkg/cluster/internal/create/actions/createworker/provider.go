@@ -763,7 +763,7 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 	return nil
 }
 
-func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEntry, privateParams PrivateParams, capiClustersNamespace string, moveManagement bool) error {
+func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEntry, privateParams PrivateParams, capiClustersNamespace string, moveManagement bool, hasMachinePool bool, hasMachineDeployment bool) error {
 	helmValuesCAFile := "/kind/cluster-autoscaler-helm-values.yaml"
 	clusterAutoscalerEntry := chartsList["cluster-autoscaler"]
 	clusterAutoscalerHelmReleaseParams := fluxHelmReleaseParams{
@@ -781,7 +781,13 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 	if privateParams.CentralECR {
 		privateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
 	}
-	helmValuesCA, err := getManifest("common", "cluster-autoscaler-helm-values.tmpl", majorVersion, privateParams)
+
+	// EKS clusters with MachinePools use cloudProvider:aws (templates/aws/); all others use cloudProvider:clusterapi (templates/common/)
+	caTemplateDir := "common"
+	if hasMachinePool {
+		caTemplateDir = "aws"
+	}
+	helmValuesCA, err := getManifest(caTemplateDir, "cluster-autoscaler-helm-values.tmpl", majorVersion, privateParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CA helm values")
 	}
@@ -794,6 +800,31 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 	if err := configureHelmRelease(n, kubeconfigPath, "flux2_helmrelease.tmpl", clusterAutoscalerHelmReleaseParams, privateParams.KeosCluster.Spec.HelmRepository); err != nil {
 		return err
 	}
+
+	// Deploy CA-2 (cloudProvider:clusterapi) for mixed EKS clusters (MachinePools + MachineDeployments)
+	if hasMachinePool && hasMachineDeployment {
+		helmValuesMDFile := "/kind/cluster-autoscaler-md-helm-values.yaml"
+		clusterAutoscalerMDParams := fluxHelmReleaseParams{
+			HelmReleaseName: "cluster-autoscaler-md",
+			ChartRepoRef:    clusterAutoscalerHelmReleaseParams.ChartRepoRef,
+			ChartName:       "cluster-autoscaler",
+			ChartNamespace:  clusterAutoscalerEntry.Namespace,
+			ChartVersion:    clusterAutoscalerEntry.Version,
+		}
+		helmValuesMD, err := getManifest("aws", "cluster-autoscaler-md-helm-values.tmpl", majorVersion, privateParams)
+		if err != nil {
+			return errors.Wrap(err, "failed to get CA-2 helm values")
+		}
+		c = "echo '" + helmValuesMD + "' > " + helmValuesMDFile
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to create CA-2 helm values file")
+		}
+		if err := configureHelmRelease(n, kubeconfigPath, "flux2_helmrelease.tmpl", clusterAutoscalerMDParams, privateParams.KeosCluster.Spec.HelmRepository); err != nil {
+			return err
+		}
+	}
+
 	if !moveManagement {
 		autoscalerRBACPath := "/kind/autoscaler_rbac.yaml"
 

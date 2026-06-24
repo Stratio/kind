@@ -1037,7 +1037,19 @@ spec:
 				ctx.Status.Start("Installing cluster-autoscaler in workload cluster 💻")
 				defer ctx.Status.End(false)
 
-				err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement)
+				if awsEKSEnabled && hasMachinePool {
+					c := fmt.Sprintf("kubectl --kubeconfig %s -n kube-system create secret generic cluster-autoscaler-aws-credentials"+
+						" --from-literal=AWS_ACCESS_KEY_ID=%s --from-literal=AWS_SECRET_ACCESS_KEY=%s",
+						kubeconfigPath,
+						providerParams.Credentials["AccessKey"],
+						providerParams.Credentials["SecretKey"])
+					_, err = commons.ExecuteCommand(n, c, 5, 3)
+					if err != nil {
+						return errors.Wrap(err, "failed to create cluster-autoscaler-aws-credentials secret")
+					}
+				}
+
+				err = deployClusterAutoscaler(n, chartsList, privateParams, capiClustersNamespace, a.moveManagement, hasMachinePool, hasMachineDeployment)
 				if err != nil {
 					return errors.Wrap(err, "failed to install cluster-autoscaler in workload cluster")
 				}
