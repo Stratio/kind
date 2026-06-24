@@ -24,6 +24,29 @@ The currently recommended operating system for this provider is Ubuntu 22.04.
 * AWS CloudFormation
 +
 WARNING: If you haven’t created the CloudFormation stack or manually created the IAM prerequisites in the account, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
++
+When using EKS with managed node groups (_MachinePools_), the CloudFormation stack automatically grants the required cluster-autoscaler permissions to the `nodes.cluster-api-provider-aws.sigs.k8s.io` IAM role. Additionally, the provisioning user (`cloud-provisioner-eks` or equivalent) must have the following permissions to allow the cluster-autoscaler to manage Auto Scaling Groups directly:
++
+[source,json]
+----
+{
+  "Sid": "ClusterAutoscaler",
+  "Effect": "Allow",
+  "Action": [
+    "autoscaling:DescribeAutoScalingGroups",
+    "autoscaling:DescribeAutoScalingInstances",
+    "autoscaling:DescribeLaunchConfigurations",
+    "autoscaling:DescribeScalingActivities",
+    "autoscaling:DescribeTags",
+    "autoscaling:SetDesiredCapacity",
+    "autoscaling:TerminateInstanceInAutoScalingGroup",
+    "ec2:GetInstanceTypesFromInstanceRequirements"
+  ],
+  "Resource": "*"
+}
+----
++
+These actions are included in the downloadable permanent permissions file above.
 
 === GKE
 

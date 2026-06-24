@@ -153,6 +153,21 @@
               "autoscaling:DeleteTags"
           ],
           "Resource": "arn:aws:autoscaling:*:${AWS_ACCOUNT_ID}:autoScalingGroup:*:autoScalingGroupName/*"
+      },
+      {
+          "Sid": "ClusterAutoscaler",
+          "Effect": "Allow",
+          "Action": [
+              "autoscaling:DescribeAutoScalingGroups",
+              "autoscaling:DescribeAutoScalingInstances",
+              "autoscaling:DescribeLaunchConfigurations",
+              "autoscaling:DescribeScalingActivities",
+              "autoscaling:DescribeTags",
+              "autoscaling:SetDesiredCapacity",
+              "autoscaling:TerminateInstanceInAutoScalingGroup",
+              "ec2:GetInstanceTypesFromInstanceRequirements"
+          ],
+          "Resource": "*"
       }
   ]
 }
