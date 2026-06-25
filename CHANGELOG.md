@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0-0.7.5 (2026-06-15)
+## 0.17.0-0.7.5 (2026-06-25)
 
 * [PLT-4261] Fix kube-rbac-proxy image registry: gcr.io/kubebuilder → quay.io/brancz (cluster-operator sidecar v0.15.0 and CAPZ sidecar v0.13.1)
 * [Fix] Fix clusterawsadm YAML corruption when writing eks.config and add missing IAM permissions (PutRolePolicy, DeleteRolePolicy, GetRolePolicy, ListRolePolicies) to stratio-aws-temp-policy
