@@ -6,7 +6,7 @@
 
 * Roles y políticas
 +
-Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en varios servicios como EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Aunque el uso de estas acciones puede variar según el tipo de instalación, el proveedor verifica que el usuario indicado cuente con los permisos requeridos para garantizar el correcto funcionamiento.
+Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en varios servicios como EC2, ECR, EKS, Elastic Load Balancing (ELB), etc. Aunque el uso de estas acciones puede variar según el tipo de instalación, el proveedor verifica que el usuario indicado cuenta con los permisos requeridos para garantizar el correcto funcionamiento.
 +
 ** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
 ** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
@@ -23,9 +23,9 @@ El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04
 
 * AWS CloudFormation
 +
-WARNING: Si no has creado el _stack_ de AWS CloudFormation o no has creado manualmente los requisitos de IAM previamente en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` como _true_ (por defecto es _false_).
+WARNING: Si no has creado el _stack_ de AWS CloudFormation o no has creado manualmente los requisitos de IAM en la cuenta, debes establecer el parámetro `spec.security.aws.create_iam` en "true" (por defecto es "false").
 +
-Al usar EKS con grupos de nodos gestionados (_MachinePools_), el _stack_ de CloudFormation añade automáticamente los permisos necesarios para el cluster-autoscaler al rol IAM `nodes.cluster-api-provider-aws.sigs.k8s.io`. Adicionalmente, el usuario de aprovisionamiento (`cloud-provisioner-eks` o equivalente) debe contar con los siguientes permisos para que el cluster-autoscaler pueda gestionar los Auto Scaling Groups directamente:
+Al usar EKS con grupos de nodos gestionados (_MachinePools_), el _stack_ de CloudFormation añade automáticamente los permisos necesarios para el _cluster-autoscaler_ al rol IAM `nodes.cluster-api-provider-aws.sigs.k8s.io`. Además, el usuario de aprovisionamiento (`cloud-provisioner-eks` o equivalente) debe contar con los siguientes permisos para que el _cluster-autoscaler_ gestione directamente los Auto Scaling Groups:
 +
 [source,json]
 ----
@@ -46,7 +46,7 @@ Al usar EKS con grupos de nodos gestionados (_MachinePools_), el _stack_ de Clou
 }
 ----
 +
-Estos permisos están incluidos en el fichero de permisos permanentes descargable indicado arriba.
+El fichero de permisos permanentes descargable indicado arriba incluye estos permisos.
 
 === GKE
 
@@ -83,7 +83,7 @@ Referencia: https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANG
 
 * Permisos
 +
-Para aprovisionar en Azure no gestionado, necesitas una cuenta con todos los permisos requeridos, al igual que en otros proveedores soportados. Además, debes definir:
+Para aprovisionar en Azure no gestionado, necesitas una cuenta con todos los permisos requeridos, al igual que en otros proveedores compatibles. Además, debes definir:
 +
 ** Un rol para los _workers_ del _cluster_ en `spec.security.nodes_identity`.
 ** Un rol para el _control-plane_ en `spec.security.control_plane_identity`.
@@ -115,13 +115,13 @@ El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por
 
 Refiriéndose al _control-plane_, en EKS y GKE no se podrá indicar una imagen, pero en Azure no gestionado sí.
 
-Para los nodos _worker_, en Azure no gestionado, es opcional indicar la imagen (al no indicarla, el _controller_ asigna una disponible proporcionada por el proveedor _cloud_).
+Para los nodos _worker_ en Azure no gestionado, es opcional indicar la imagen (si no se indica, el _controller_ asigna una imagen disponible proporcionada por el proveedor de _cloud_).
 
 Al crear la imagen para el _cluster_, se deberán tener en cuenta las necesidades del sistema operativo para las aplicaciones que lo requieran (_systemd units, DaemonSets_, etc.) y la versión de Kubernetes a utilizar.
 
 ==== Elasticsearch
 
-Para soportar los despliegues de Elasticsearch, el sistema operativo deberá contar con el parámetro `max_map_count = 262144` del _sysctl_, como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
+Para soportar los despliegues de Elasticsearch, el sistema operativo deberá contar con el parámetro `max_map_count = 262144` en _sysctl_, como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
 
 Las imágenes de Amazon Linux 2 *utilizadas por EKS* ya incluyen este parámetro y su valor.
 
@@ -267,9 +267,9 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 
 === Credenciales
 
-En la primera ejecución, las credenciales para el aprovisionamiento en el proveedor _cloud_ se indicarán en este apartado.
+En la primera ejecución, las credenciales de aprovisionamiento del proveedor _cloud_ se indicarán en este apartado.
 
-Estos secretos se cifran con una _passphrase_ solicitada durante el aprovisionamiento en el fichero _secrets.yml_, eliminándose todo el apartado de credenciales del descriptor. En ejecuciones posteriores, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, donde se leen las credenciales.
+Estos secretos se cifran con una _passphrase_ solicitada durante el aprovisionamiento en el fichero _secrets.yml_ y se elimina todo el apartado de credenciales del descriptor. En ejecuciones posteriores, simplemente se solicita la _passphrase_ para descifrar el fichero de secretos, en el que se leen las credenciales.
 
 Los siguientes campos son considerados secretos del aprovisionamiento:
 
@@ -293,12 +293,12 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 |No
 
 |_github++_++token_
-|_Token_ de GitHub. Se puede utilizar un _Fine-grained token_ o un _token_ tipo _classic_ y no necesita ningún permiso. Para generarlo, ve a: 'Settings' → 'Developer settings' → 'Personal access tokens'.
+|_Token_ de GitHub. Se puede utilizar un _Fine-grained token_ o un _token_ de tipo _classic_ y no se necesita ningún permiso. Para generarlo, ve a: 'Settings' → 'Developer settings' → 'Personal access tokens'.
 |_github++_++pat++_++11APW_
 |Sí
 
 |_docker++_++registries_
-|_Registries_ de Docker accesibles por los nodos. Para EKS no es necesaria la autenticación, ya que se realiza automáticamente con las credenciales del usuario.
+|_Registries_ de Docker accesibles desde los nodos. Para EKS no es necesaria la autenticación, ya que se realiza automáticamente mediante las credenciales del usuario.
 |Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí, para _registries_ no autenticados.
 
@@ -310,7 +310,7 @@ Los siguientes campos son considerados secretos del aprovisionamiento:
 
 === Credenciales para registros y repositorios
 
-Es necesario proporcionar credenciales para acceder a los registros de Docker y a los repositorios de Helm cuando requieren autenticación.
+Es necesario proporcionar credenciales para acceder a los registros de Docker y a los repositorios de Helm cuando estos requieren autenticación.
 
 ==== Credenciales para registros Docker
 
@@ -360,7 +360,7 @@ NOTE: Cualquier cambio en _spec.credentials_ debe incluir todas las credenciales
 
 === Seguridad
 
-El bloque `security` centraliza la configuración de identidades y controles de acceso para los recursos del _cluster_ y se adapta a los distintos proveedores _cloud_. Permite definir identidades tanto para el _control-plane_ como para los nodos e incluye opciones específicas para AWS y GCP.
+El bloque `security` centraliza la configuración de identidades y controles de acceso para los recursos del _cluster_ y se adapta a los distintos proveedores de _cloud_. Permite definir identidades tanto para el _control-plane_ como para los nodos e incluye opciones específicas para AWS y GCP.
 
 [cols="1,4,2,1,1"]
 |===
@@ -402,7 +402,7 @@ scopes:
 
 === Repositorios Docker
 
-Es necesario indicar los repositorios Docker que se utilizarán durante la instalación. Este apartado permite configurar la URL del repositorio, su tipo y si requiere autenticación.
+Es necesario indicar los repositorios de Docker que se utilizarán durante la instalación. Este apartado permite configurar la URL del repositorio, su tipo y si requiere autenticación.
 
 [cols="1,4,2,1"]
 |===
@@ -414,7 +414,7 @@ Es necesario indicar los repositorios Docker que se utilizarán durante la insta
 | No.
 
 | _type_
-| Tipo de repositorio Docker.
+| Tipo de repositorio de Docker.
 | acr, ecr, gar, gcr, generic
 | No
 
@@ -429,7 +429,7 @@ Es necesario indicar los repositorios Docker que se utilizarán durante la insta
 | No. Al menos un repositorio debe estar marcado como _keos++_++registry_.
 |===
 
-NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
+NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo al crear el _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
 
 ==== Prerrequisitos para `ecr_pull_through_cache_enabled`
 
@@ -491,14 +491,14 @@ NOTE: Los prerrequisitos son los mismos que los indicados en la sección xref:op
 
 === Repositorio de Helm
 
-Como prerrequisito de instalación, se debe indicar el repositorio Helm desde el que se pueda extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si es autenticado.
+Como prerrequisito de instalación, se debe indicar el repositorio de Helm desde el que extraer el _chart_ del _Cluster Operator_. Este apartado permite indicar la URL del repositorio, su tipo y si está autenticado.
 
 [cols="1,4,2,1"]
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 | _auth++_++required_
-| Indica si el repositorio es autenticado.
+| Indica si el repositorio está autenticado.
 | _false_
 | Sí. Por defecto: _false_.
 
@@ -514,15 +514,15 @@ Como prerrequisito de instalación, se debe indicar el repositorio Helm desde el
 | Sí. Por defecto: _generic_.
 |===
 
-NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca se autentican. La autenticación se realizará mediante las credenciales utilizadas en el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios que se soportan en la versión a utilizar.
+NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca se autentican. La autenticación se realizará con las credenciales utilizadas durante el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios que se soportan en la versión a utilizar.
 
 === Redes
 
-Como se ha mencionado anteriormente, el instalador permite utilizar elementos de red del proveedor _cloud_ creados previamente (por ejemplo, por un equipo de seguridad de redes), lo que posibilita las arquitecturas que mejor se adapten a las necesidades.
+Como se ha mencionado anteriormente, el instalador permite utilizar elementos de red del proveedor _cloud_ creados previamente (por ejemplo, por un equipo de seguridad de redes), lo que posibilita arquitecturas que mejor se adapten a las necesidades.
 
-Tanto el VPC como las _subnets_ deberán estar creados en el proveedor de _cloud_. Las _subnets_ podrán ser privadas o públicas, pero en el último caso deberán contar con un _NAT gateway_ y un _Internet Gateway_ en el mismo VPC. En caso de indicar _subnets_ de ambos tipos, los nodos _worker_ se desplegarán en _subnets_ privadas.
+Tanto el VPC como las _subnets_ deberán estar creados en el proveedor de _cloud_. Las _subnets_ podrán ser privadas o públicas, pero en el último caso deberán contar con un _NAT gateway_ y un _Internet Gateway_ en la misma VPC. En caso de indicar _subnets_ de ambos tipos, los nodos _worker_ se desplegarán en _subnets_ privadas.
 
-_Stratio KEOS_ no gestionará el ciclo de vida de los objetos previamente creados.
+_Stratio KEOS_ no gestionará el ciclo de vida de los objetos ya creados.
 
 [cols="1,4,2,1"]
 |===
@@ -548,7 +548,7 @@ a|
 
 === _control-plane_
 
-En este apartado se indican las particularidades del _control-plane_ de Kubernetes.
+En este apartado se describen las particularidades del _control-plane_ de Kubernetes.
 
 [cols="^1,4,3,^1"]
 |===
@@ -597,9 +597,9 @@ cluster_security:
 
 === Nodos _worker_
 
-En este apartado se especifican los grupos de nodos _worker_ y sus características.
+En este apartado se especifican los grupos de nodos _worker_ y sus características correspondientes.
 
-Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://docs.aws.amazon.com/es_es/eks/latest/userguide/eks-optimized-ami.html[creación de AMI personalizada para EKS] ^[English]^.
+Las imágenes utilizadas deberán estar respaldadas por EKS. Consulta la https://docs.aws.amazon.com/es_es/eks/latest/userguide/eks-optimized-ami.html[creación de AMI personalizada para EKS] ^[English]^.
 
 [cols="1,4,2,1"]
 |===
@@ -611,7 +611,7 @@ Las imágenes utilizadas deberán estar soportadas por EKS. Consulta la https://
 |No
 
 |_quantity_
-|Cantidad de nodos del grupo. Se recomienda que sea múltiplo de 3 para no tener zonas desbalanceadas.
+|Cantidad de nodos del grupo. Se recomienda que sea un múltiplo de 3 para evitar zonas desbalanceadas.
 |15
 |No
 
@@ -655,7 +655,7 @@ labels:
 
 |_additional++_++labels_
 |Conjunto opcional de etiquetas adicionales que se aplicarán a los grupos de nodos (_node pools_), además de las etiquetas configuradas por defecto. +
-Este campo solo está disponible en despliegues sobre GKE.
+Este campo solo está disponible en los despliegues de GKE.
 a|
 
 [source,yaml]
@@ -683,23 +683,23 @@ root_volume:
 |Sí
 
 |_ssh++_++key_
-|Clave SSH pública para acceder a los nodos _worker_. Debe estar creada en AWS previamente. Se recomienda no añadir ninguna clave SSH a los nodos.
+|Clave SSH pública para acceder a los nodos _worker_. Debe estar creada previamente en AWS. Se recomienda no añadir ninguna clave SSH a los nodos.
 |prod-key
 |Sí
 |===
 
-NOTE: Se ha implementado la opción de establecer un _min++_++size_ igual a cero, lo que permite que el autoescalado pueda incrementar o disminuir el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores, ya que permite la definición de un grupo de _workers_ sin instanciar ningún recurso en el proveedor _cloud_ que no sea necesario.
+NOTE: Se ha implementado la opción de establecer un _min++_++size_ igual a cero, lo que permite que el autoescalado incremente o disminuya el número de nodos hasta alcanzar cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores, ya que permite definir un grupo de _workers_ sin instanciar en el proveedor _cloud_ ningún recurso innecesario.
 
 === _Stratio KEOS_
 
-Los parámetros para la fase del _keos-installer_ se indicarán en este apartado.
+Los parámetros de la fase del _keos-installer_ se indicarán en este apartado.
 
 [cols="1,4,2,1"]
 |===
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_flavour_
-|_Flavour_ de instalación que indica el tamaño del _cluster_ y la resiliencia. Por defecto, es "production".
+|_Flavour_ de instalación que indica el tamaño del _cluster_ y su resiliencia. Por defecto, es "production".
 |development
 |Sí
 
@@ -711,7 +711,7 @@ Los parámetros para la fase del _keos-installer_ se indicarán en este apartado
 
 === Ejemplo de descriptor
 
-Se presentan dos casos de descriptor para demostrar la capacidad de _Stratio Cloud Provisioner_ en ambos proveedores _cloud_ soportados.
+Se presentan dos casos de descriptor para demostrar la capacidad de _Stratio Cloud Provisioner_ en ambos proveedores _cloud_ compatibles.
 
 ==== EKS
 
@@ -719,8 +719,8 @@ En este ejemplo se pueden ver las siguientes particularidades:
 
 * _Cluster_ en AWS con _control-plane_ gestionado (EKS).
 * Kubernetes versión 1.26.x (EKS no tiene en cuenta la versión _patch_).
-* Uso de ECR como _Docker registry_ (no necesita credenciales).
-* Uso de VPC y _subnets_ personalizadas (creadas anteriormente). Este apartado es opcional.
+* Uso de ECR como _Docker registry_ (no requiere credenciales).
+* Uso de VPC y _subnets_ personalizadas (previamente creadas). Este apartado es opcional.
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Se habilitan los _logs_ del _API Server_ en EKS.
 * Grupos de nodos _worker_ con múltiples casuísticas:
@@ -731,7 +731,7 @@ En este ejemplo se pueden ver las siguientes particularidades:
 ** En una zona fija.
 ** Con personalizaciones en el disco.
 ** Con instancias tipo _spot_.
-** Casos de distribución en AZs: balanceado y desbalanceado.
+** Casos de distribución en AZs: balanceados y desbalanceados.
 
 [source,yaml]
 ----
@@ -819,10 +819,10 @@ En este ejemplo se pueden ver las siguientes particularidades:
 * _Cluster_ en GCP con _control-plane_ gestionado.
 * Kubernetes versión 1.28.x.
 * Uso de un _Docker registry_ tipo _gar_.
-* Uso de un repositorio de Helm tipo _gar_.
+* Uso de un repositorio de Helm de tipo _gar_.
 * _enable++_++secure++_++boot_ (habilitado por defecto).
-* _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en tiempo de creación del _cluster_).
-* _scopes_ (lista de alcances que estarán disponibles para esta cuenta de servicio).
+* _nodes++_++identity_ (cuenta de servicio predeterminada para los nodos). (Sólo configurables en el momento de la creación del _cluster_.)
+* _scopes_ (lista de alcances disponibles para esta cuenta de servicio).
 * Sin control de la zona DNS (habilitado por defecto).
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Características del _control-plane_: solo configurables en tiempo de creación del _cluster_.
@@ -967,7 +967,7 @@ spec:
 En este ejemplo se pueden ver las siguientes particularidades:
 
 * _Cluster_ en Azure con _control-plane_ no gestionado.
-* Uso de ACR como _Docker registry_ (no necesita credenciales).
+* Uso de ACR como _Docker registry_ (no requiere credenciales).
 * Uso de un CIDR específico para _pods_.
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Características de las máquinas virtuales para el _control-plane_:
@@ -1051,9 +1051,9 @@ El binario ofrece actualmente las siguientes opciones:
 - `--avoid-creation`: no crea el _cluster_ _worker_, solo el _cluster_ local.
 - `--build-stratio-image`: en lugar de descargar la imagen de _Stratio Cloud Provisioner_, la construye localmente y la utiliza. Esta opción está pensada solo para desarrollo.
 - `--delete-previous`: elimina el contenedor del _cluster_ local si ya existe.
-- `-d, --descriptor <string>`: permite especificar el nombre del descriptor ubicado en el directorio actual u otro. Por defecto: _cluster.yaml_.
+- `-d, --descriptor <string>`: permite especificar el nombre del descriptor, ya sea en el directorio actual o en otro. Por defecto: _cluster.yaml_.
 - `-h, --help`: muestra la ayuda del comando.
-- `--keep-mgmt`: mantiene la gestión del _cluster_ en kind (solo en entornos *no productivos*).
+- `--keep-mgmt`: mantiene la gestión del _cluster_ en Kind (solo en entornos *no productivos*).
 - `--local-stratio-image-version <string>`: sobrescribe la versión local de la imagen de _Stratio Cloud Provisioner_ cuando se utiliza `use-local-stratio-image`.
 - `-n, --name <string>`: nombre del _cluster_; sobrescribe la variable `KIND_CLUSTER_NAME`. Valor por defecto: _kind_.
 - `--retain`: conserva los nodos para depuración en caso de error al crear el _cluster_.
@@ -1102,19 +1102,19 @@ The cluster has been installed successfully. Please refer to the documents below
 
 Una vez finalizado el proceso, tendrás los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
 
-NOTE: Dado que el fichero descriptor para la instalación (_keos.yaml_) se regenera en cada ejecución, se realiza un _backup_ del anterior en el directorio local con la fecha correspondiente (p.ej. _keos.yaml.2023-07-05@11:19:17~_).
+NOTE: Dado que el fichero descriptor de la instalación (_keos.yaml_) se regenera en cada ejecución, se realiza un _backup_ del anterior en el directorio local con la fecha correspondiente (p.ej. _keos.yaml.2023-07-05@11:19:17~_).
 
 === Balanceador de carga
 
-Debido a un error en los distintos _controllers_ (solucionado en ramas master pero aún sin _release_), el balanceador de carga creado en los proveedores _cloud_ de GCP y Azure para el _API Server_ de los _clusters_ con _control-planes_ no gestionados se genera con un _health check_ basado en TCP.
+Debido a un error en los distintos _controllers_ (solucionado en las ramas master, pero aún sin _release_), el balanceador de carga creado en los proveedores _cloud_ de GCP y Azure para el _API Server_ de los _clusters_ con _control-planes_ no gestionados se configura con un _health check_ basado en TCP.
 
-Eventualmente, esto podría generar problemas en las peticiones en caso de fallo de alguno de los nodos del _control-plane_, dado que el balanceador de carga enviará peticiones a los nodos del _control-plane_ cuyo puerto responda pero no pueda atender peticiones.
+Eventualmente, esto podría generar problemas con las peticiones en caso de fallo de alguno de los nodos del _control-plane_, dado que el balanceador de carga enviará peticiones a los nodos del _control-plane_ cuyos puertos respondan, pero no podrá atenderlas.
 
 Para evitar este problema, se deberá modificar el _health check_ del balanceador de carga creado, utilizando el protocolo HTTPS y la ruta _/readyz_. El puerto deberá mantenerse, siendo para GCP el 443 y para Azure el 6443.
 
 === Etiquetas automáticas en GKE
 
-GKE aplica automáticamente varias etiquetas a los recursos del _cluster_, como instancias de máquinas virtuales de Compute Engine, discos persistentes y aceleradores (TPU). Ejemplo:
+GKE aplica automáticamente varias etiquetas a los recursos del _cluster_, como las instancias de máquinas virtuales de Compute Engine, los discos persistentes y los aceleradores (TPU). Ejemplo:
 
 - `goog-gke-node-pool-provisioning-model`: "on-demand". Indica el modelo de aprovisionamiento del grupo de nodos (_node pool_).
 
@@ -1128,7 +1128,7 @@ TIP: Consulta la documentación oficial de Google para más información sobre l
 
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
-En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizado por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
+En _clusters_ de EKS es posible desplegar un controlador (_aws-load-balancer-controller_) encargado de la creación de _Elastic Load Balancers_, utilizados por objetos tales como _Ingress_ y _Service_ de tipo _LoadBalancer_.
 
 Dado que este despliegue no está habilitado por defecto, deberá indicarse con `spec.eks_lb_controller` a "true" en el recurso _ClusterConfig_ del descriptor del _cluster_.
 
