@@ -23,9 +23,9 @@ The currently recommended operating system for this provider is Ubuntu 22.04.
 
 * AWS CloudFormation
 +
-WARNING: If you haven’t created the CloudFormation stack or manually created the IAM prerequisites in the account, you must set the `spec.security.aws.create_iam` parameter to _true_ (default is _false_).
+WARNING: If you have not created the AWS CloudFormation stack or have not manually created the IAM requirements in the account, you must set the `spec.security.aws.create_iam` parameter to "true" (the default is "false").
 +
-When using EKS with managed node groups (_MachinePools_), the CloudFormation stack automatically grants the required cluster-autoscaler permissions to the `nodes.cluster-api-provider-aws.sigs.k8s.io` IAM role. Additionally, the provisioning user (`cloud-provisioner-eks` or equivalent) must have the following permissions to allow the cluster-autoscaler to manage Auto Scaling Groups directly:
+When using EKS with managed node groups (_MachinePools_), the CloudFormation stack automatically adds the permissions required for _cluster-autoscaler_ to the `nodes.cluster-api-provider-aws.sigs.k8s.io` IAM role. In addition, the provisioning user (`cloud-provisioner-eks` or equivalent) must have the following permissions so that _cluster-autoscaler_ can directly manage the Auto Scaling Groups:
 +
 [source,json]
 ----
@@ -46,7 +46,7 @@ When using EKS with managed node groups (_MachinePools_), the CloudFormation sta
 }
 ----
 +
-These actions are included in the downloadable permanent permissions file above.
+The downloadable permanent-permissions file referenced above includes these permissions.
 
 === GKE
 
@@ -62,7 +62,6 @@ In GKE, the service account used to provision clusters must have the following s
 In GKE, the default operating system is Container-Optimized OS (COS), and no specific image needs to be specified.
 
 * Enable the Google Kubernetes Engine API for GKE.
-
 * Bastion.
 +
 To deploy _Stratio KEOS_ on GKE, you need a bastion to facilitate communication with the cluster. Create it on the same network as the cluster.
@@ -403,7 +402,7 @@ scopes:
 
 === Docker repositories
 
-You must specify which Docker registries will be used during installation. This section allows configuring the registry URL, type, and whether authentication is required.
+You must specify which Docker registries will be used during installation. This section allows you to configure the registry URL, type, and whether authentication is required.
 
 [cols="1,4,2,1"]
 |===
@@ -519,7 +518,7 @@ NOTE: OCI registries (providers such as ECR, GAR, or ACR) are never authenticate
 
 === Networks
 
-As previously mentioned, the installer supports the use of pre‑created cloud provider network elements (e.g., those created by a network security team), enabling optimal architectural choices.
+As previously mentioned, the installer supports using pre‑created cloud provider network elements (e.g., those created by a network security team), enabling optimal architectural choices.
 
 Both the VPC and subnets must already exist. Subnets may be public or private, but public subnets must include a NAT gateway and an Internet Gateway in the same VPC. If both types are indicated, worker nodes are deployed into private subnets.
 
@@ -575,7 +574,6 @@ a|
 ----
 cluster_network:
   private_cluster:
-
 
 master_authorized_networks_config:
 
@@ -822,6 +820,7 @@ This example includes:
 * Kubernetes 1.28.x.
 * Use of Docker registry of type GAR.
 * Use of Helm repository of type GAR.
+* _enable++_++secure++_++boot_ (enabled by default).
 * _nodes++_++identity_ (default node service account configurable only at creation time).
 * Scopes (list of access scopes for service account).
 * No DNS zone control (enabled by default).
