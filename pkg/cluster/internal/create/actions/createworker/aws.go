@@ -294,7 +294,7 @@ spec:
 	c = "clusterawsadm bootstrap iam create-cloudformation-stack --config " + eksConfigPath
 
 	_, err = commons.ExecuteCommand(n, c, 5, 3, envVars)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "No updates are to be performed") {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
 	return nil

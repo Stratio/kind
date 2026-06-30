@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.0 (upcoming)
 
+* [PLT-4334] Fix cloud-provisioner crash when CloudFormation stack has no updates to perform (ignore "No updates are to be performed" error from clusterawsadm as success)
 * [PLT-4131] Add kubeconfig secret recovery runbooks for GKE (CAPG), EKS (CAPA) and Azure VMs (CAPZ/KCP) in docs/
 * [PLT-4264] Downgrade flux2 chart 2.18.4→2.17.2 and components (helm-controller v1.4.5, source-controller v1.7.4, kustomize-controller v1.7.3, flux-cli v2.7.5) for all providers and k8s supported minors
 * [PLT-4303] Downgrade CoreDNS: EKS addon v1.13.1-eksbuild.1 (k8s 1.35), GKE image v1.13.1 (k8s 1.35)
