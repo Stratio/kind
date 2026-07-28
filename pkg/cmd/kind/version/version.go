@@ -37,8 +37,11 @@ func Version(useGitCommit bool) string {
 			v = gitTag
 		} else {
 			// Build semver pre-release: SNAPSHOT[.commitCount]
+			// PLT-4515: only append the commit count for a real continuous-dev
+			// SNAPSHOT build. Named labels (milestones, BUILD, ...) already fully
+			// identify the build and must not get an extra ".N" suffix appended.
 			preRelease := versionPreRelease
-			if gitCommitCount != "" {
+			if versionPreRelease == "SNAPSHOT" && gitCommitCount != "" {
 				preRelease += "." + gitCommitCount
 			}
 			v += "-" + preRelease
@@ -62,8 +65,9 @@ func DisplayVersion() string {
 const versionCore = "0.9.0"
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
-// Semantic Versioning 2.0.0
-const versionPreRelease = "SNAPSHOT"
+// Semantic Versioning 2.0.0. It is a var (not const) so PLT-4515 tests can vary
+// it directly; change-version.sh still sets it via sed before compilation.
+var versionPreRelease = "SNAPSHOT"
 
 // gitTag is the git tag used to build the kind binary, if available.
 // It is injected at build time.

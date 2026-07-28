@@ -116,3 +116,69 @@ func TestVersion(t *testing.T) {
 		})
 	}
 }
+
+// TestVersionPreReleaseLabels covers PLT-4515: change-version.sh now propagates
+// the real pre-release label (milestone, BUILD, or empty for a final release)
+// instead of hardcoding SNAPSHOT, and Version() must only append gitCommitCount
+// for a real "SNAPSHOT" continuous-dev build, never for a named label.
+func TestVersionPreReleaseLabels(t *testing.T) {
+	tests := []struct {
+		name              string
+		versionPreRelease string
+		gitCommitCount    string
+		want              string
+	}{
+		{
+			name:              "Final release: empty pre-release, no suffix at all",
+			versionPreRelease: "",
+			gitCommitCount:    "mocked-count",
+			want:              versionCore,
+		},
+		{
+			name:              "Milestone label: commit count must NOT be appended",
+			versionPreRelease: "m.3",
+			gitCommitCount:    "mocked-count",
+			want:              versionCore + "-m.3",
+		},
+		{
+			name:              "BUILD label: commit count must NOT be appended",
+			versionPreRelease: "BUILD",
+			gitCommitCount:    "mocked-count",
+			want:              versionCore + "-BUILD",
+		},
+		{
+			name:              "Milestone label without a commit count: unaffected",
+			versionPreRelease: "M",
+			gitCommitCount:    "",
+			want:              versionCore + "-M",
+		},
+		{
+			name:              "Real SNAPSHOT: commit count IS appended (unchanged behavior)",
+			versionPreRelease: "SNAPSHOT",
+			gitCommitCount:    "mocked-count",
+			want:              versionCore + "-SNAPSHOT.mocked-count",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preReleaseBackup := versionPreRelease
+			versionPreRelease = tt.versionPreRelease
+			defer func() {
+				versionPreRelease = preReleaseBackup
+			}()
+
+			gitCommitCountBackup := gitCommitCount
+			gitCommitCount = tt.gitCommitCount
+			defer func() {
+				gitCommitCount = gitCommitCountBackup
+			}()
+
+			// useGitCommit=false and gitCommit="" throughout: isolates the
+			// pre-release/commit-count logic from the "+hash" build metadata,
+			// already covered by TestVersion above.
+			if got := Version(false); got != tt.want {
+				t.Errorf("Version() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
