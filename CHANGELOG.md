@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.0 (upcoming)
 
+* [PLT-4603] Allow `ami_type: BOTTLEROCKET_x86_64_NVIDIA` for EKS MachinePool worker nodes (was rejected by the CLI validator, only `BOTTLEROCKET_x86_64` was accepted)
 * [PLT-4562] Bump Calico v3.31.5→v3.31.6, tigera-operator controller v1.40.11→v1.40.13 (k8s 1.35 only) to resolve vulnerabilities
 * [PLT-4509] Remove redundant ENIConfig generation for EKS clusters using pods_cidr; CAPA already creates it natively with the correct security group, and the manual step could overwrite it with an incorrect one
 * [PLT-4515] Fix change-version.sh hardcoding versionPreRelease to SNAPSHOT regardless of the version passed by the release pipeline; the binary now reports its real milestone/release/pre-release version (e.g. `0.9.0-m.3`) instead of always `X.Y.Z-SNAPSHOT.N+hash`
