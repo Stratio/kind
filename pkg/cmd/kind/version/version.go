@@ -67,7 +67,7 @@ const versionCore = "0.9.0"
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0. It is a var (not const) so PLT-4515 tests can vary
 // it directly; change-version.sh still sets it via sed before compilation.
-var versionPreRelease = "BUILD"
+var versionPreRelease = "SNAPSHOT"
 
 // gitTag is the git tag used to build the kind binary, if available.
 // It is injected at build time.
