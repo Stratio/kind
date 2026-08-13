@@ -62,7 +62,7 @@ func DisplayVersion() string {
 
 // versionCore is the core portion of the kind CLI version per Semantic Versioning 2.0.0
 
-const versionCore = "0.9.0"
+const versionCore = "0.9.1"
 
 // versionPreRelease is the base pre-release portion of the kind CLI version per
 // Semantic Versioning 2.0.0. It is a var (not const) so PLT-4515 tests can vary
