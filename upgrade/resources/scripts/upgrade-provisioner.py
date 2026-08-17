@@ -964,8 +964,11 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
     import glob
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Locating and downloading the chart is not best-effort: if the configured helm
+        # repository doesn't have this chart/version, CRDs silently stay outdated and the
+        # new chart version may run against a stale CRD schema — abort the upgrade instead.
+        try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
                 if ".dkr.ecr." in registry:
@@ -975,26 +978,32 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
             run_command(pull_cmd)
+        except Exception as e:
+            print("FAILED")
+            raise Exception(f"could not pull chart {chart_name} {chart_version} from {repo_url} to apply its CRDs: {e}") from e
 
-            tarballs = glob.glob(f"{tmpdir}/*.tgz")
-            if not tarballs:
-                print("SKIP (no tarball found)")
-                return
+        tarballs = glob.glob(f"{tmpdir}/*.tgz")
+        if not tarballs:
+            print("SKIP (no tarball found)")
+            return
 
-            tarball = tarballs[0]
-            run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
+        tarball = tarballs[0]
+        run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
 
-            crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
-            if not crd_files:
-                print("SKIP (no CRDs in chart)")
-                return
+        crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
+        if not crd_files:
+            print("SKIP (no CRDs in chart)")
+            return
 
+        # Applying individual CRD files IS best-effort: a given CRD may have no real
+        # schema change in this version, so a single kubectl apply failure here shouldn't
+        # block the whole upgrade the way a missing/unreachable chart should.
+        try:
             for crd_file in crd_files:
                 run_command(f"{kubectl} apply -f {crd_file}")
-
-        print("OK")
-    except Exception as e:
-        print(f"WARN ({e}) — continuing without CRD update")
+            print("OK")
+        except Exception as e:
+            print(f"WARN ({e}) — continuing without CRD update")
 
 
 def wait_for_helmrelease_ready(release_name, namespace, timeout="3m"):
