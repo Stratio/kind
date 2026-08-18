@@ -13,6 +13,7 @@ Para el aprovisionamiento automatizado en EKS, es necesario ejecutar acciones en
 +
 Para el despliegue de EKS, se deberá crear manualmente el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 +
+[[eks_nodegroup_permissions]]
 NOTE: Si el _cluster_ incluye grupos de tipo _MachinePool_ (_nodegroups_ gestionados por EKS), el usuario de despliegue necesita permisos adicionales: `eks:CreateNodegroup`, `eks:DescribeNodegroup`, `eks:DeleteNodegroup`, `autoscaling:DescribeAutoScalingGroups` e `iam:CreateServiceLinkedRole`. Estos permisos ya están incluidos en el fichero _stratio-eks-policy.json_.
 
 * Sistemas operativos certificados
@@ -534,15 +535,31 @@ En este apartado se indican las particularidades del _control-plane_ de Kubernet
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Opcionalmente, incluye el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_mp++_++role++_++name_). Si se especifica, _Stratio Cloud Provisioner_ asigna ese rol a todos los grupos de nodos sin crear uno nuevo.
+|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_mp++_++role++_++name_) — si el _cluster_ va a tener grupos `MachinePool`, este campo debe indicarse siempre; sin él, cada _nodegroup_ recibe un rol IAM dinámico distinto (`capa_<hash>`) que no se admite dejar así.
 a|
 
 [source,yaml]
 ----
 logging:
   api_server: true
-mp_role_name: "eks-nodegroup-role"
 ----
+
+[[mp_role_name_ownership]]
+IMPORTANT: Quién crea el rol indicado en `mp_role_name` depende de `security.aws.create_iam`:
+
+* **Con `create_iam: true`** — _Stratio Cloud Provisioner_ ya crea automáticamente el rol `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` como parte de su propio _stack_ de CloudFormation. Basta con indicar ese mismo nombre, literal, para que `MachinePool` lo use en vez de crear un rol dinámico por _nodegroup_:
++
+[source,yaml]
+----
+security:
+  aws:
+    create_iam: true
+control_plane:
+  aws:
+    mp_role_name: "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+----
+
+* **Con `create_iam: false`** — el rol no lo crea nadie automáticamente; es responsabilidad del usuario crearlo antes de la instalación, con un nombre a su elección (no tiene que coincidir con el anterior) y como mínimo estas políticas (las que EKS exige a cualquier nodo _worker_, con independencia de _Stratio Cloud Provisioner_): `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`. Indicar aquí un rol que no existe hace fallar la creación de cualquier `MachinePool` al primer intento.
 
 |Sí
 
@@ -725,7 +742,7 @@ En este ejemplo se aprecian las siguientes particularidades:
 ** Con etiquetas de Kubernetes.
 ** Con rangos de autoescalado.
 ** En una zona fija.
-** Con personalizaciones en el disco.
+** Con personalizaciones en el disco (aplican solo al grupo _MachineDeployment_ con AMI personalizada; ver nota tras el ejemplo).
 ** Con instancias tipo _spot_.
 ** Casos de distribución en AZs: balanceado y desbalanceado.
 
@@ -821,6 +838,34 @@ spec:
       labels:
         workload: custom
 ----
+
+NOTE: El grupo `eks-prod-xlarge` es un grupo _MachinePool_ (sin `node++_++image`). En _MachinePool_, `root++_++volume.type` y `root++_++volume.encrypted` no tienen efecto: EKS gestiona el volumen raíz del _nodegroup_ sin exponer esas opciones salvo que se use una plantilla de lanzamiento (_Launch Template_) de AWS, no soportada actualmente. Estos campos solo aplican a grupos _MachineDeployment_ con AMI personalizada, como `eks-prod-custom-ami` en este mismo ejemplo.
+
+==== Limitaciones conocidas — _MachinePool_ (EKS)
+
+[%header,cols="2,3"]
+|===
+| Limitación
+| Nota
+
+| AMI personalizada (`ami++_++id`) no soportada en _MachinePool_
+| Usa `ami++_++type` o cambia a _MachineDeployment_ (`node++_++image`) si necesitas una AMI específica.
+
+| Volumen CRI separado (`cri++_++volume`) no soportado en _MachinePool_
+| Usa disco único, o _MachineDeployment_ si es imprescindible.
+
+| `AL2023` no disponible como `ami++_++type` en _MachinePool_
+| Usa `BOTTLEROCKET++_++*`/`AL2++_++*` en _MachinePool_, o _MachineDeployment_ con `node++_++image` para AL2023.
+
+| Un solo tipo de instancia por _MachinePool_ (sin _fallback_ a otro tipo dentro del mismo grupo)
+| Crea varios grupos con `spot: true` y distinto `size` para lograr redundancia.
+
+| `quantity: 0` en creación directa, o combinado con `labels`/`taints`, puede requerir ajustes
+| Usa `max++_++size` igual o mayor al número de AZs; evita definir `labels`/`taints` en grupos a 0.
+
+| Instancias EC2 de _MachinePool_ sin _tag_ `Name` visible en la consola de AWS
+| Son identificables por los _tags_ `kubernetes.io/cluster/<nombre>` y `eks:nodegroup-name`.
+|===
 
 ==== GKE
 
