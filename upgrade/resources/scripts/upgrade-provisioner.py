@@ -639,6 +639,40 @@ def preflight_cluster_health_checks(keos_cluster, cluster_name, provider):
         if paused:
             print(f"    [INFO] Paused MachineDeployments (template changes won't roll out until unpaused): {', '.join(paused)}")
 
+    # 6. Stale ENIConfig security group (pods_cidr custom networking, PLT-4509 legacy).
+    #    cloud-provisioner < 0.9.0-m.5 wrote ENIConfig objects with a hardcoded lookup of the
+    #    VPC's literal "default" security group instead of the real cluster one (removed in
+    #    Skind commit 5010a9de). MachineDeployment nodes never show the symptom because CAPA's
+    #    AWSMachine reconciler (ensureSecurityGroups/UpdateInstanceSecurityGroups) self-heals
+    #    the SG of every ENI on each reconcile — AWSManagedMachinePool has no equivalent, so a
+    #    MachinePool added after this upgrade would inherit the stale SG and lose connectivity.
+    #    Self-corrects here, not a blocking problem — only the ENIConfig is touched, never a
+    #    live ENI (no cluster upgrading from < 0.9.0-m.5 can have a MachinePool yet).
+    if provider == "aws" and get_pods_cidr(keos_cluster):
+        real_sg, _ = run_command(
+            f"aws eks describe-cluster --name {cluster_name} "
+            "--query cluster.resourcesVpcConfig.clusterSecurityGroupId --output text",
+            allow_errors=True
+        )
+        real_sg = (real_sg or "").strip()
+        if real_sg:
+            eniconfig_json, _ = run_command(f"{kubectl} get eniconfig -o json", allow_errors=True)
+            if eniconfig_json:
+                try:
+                    eniconfigs = json.loads(eniconfig_json).get("items", [])
+                except Exception:
+                    eniconfigs = []
+                for ec in eniconfigs:
+                    ec_name = ec["metadata"]["name"]
+                    current_sgs = ec.get("spec", {}).get("securityGroups", [])
+                    if current_sgs and current_sgs[0] != real_sg:
+                        print(f"    [WARN] ENIConfig {ec_name} has a stale security group ({current_sgs[0]}, expected {real_sg}) — fixing")
+                        run_command(
+                            f'{kubectl} patch eniconfig {ec_name} --type=merge '
+                            f'-p \'{{"spec":{{"securityGroups":["{real_sg}"]}}}}\'',
+                            allow_errors=True
+                        )
+
     if not problems:
         print("    OK: no issues found")
         return
