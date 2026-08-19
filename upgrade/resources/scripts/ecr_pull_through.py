@@ -354,9 +354,9 @@ def run(new_co_version, helm_registry_override=None):
     print(f"[INFO] Cluster: {kc_name} / ECR: {ecr_url}")
     print(f"[INFO] Helm registry: {helm_repo_url}")
 
-    # ── Phase 1: upgrade cluster-operator + enable pull-through ──────────────
+    # ── Upgrade cluster-operator + enable pull-through ────────────────────────
 
-    print("\n--- Phase 1: cluster-operator upgrade + ecr_pull_through_cache_enabled ---\n")
+    print("\n--- cluster-operator upgrade + ecr_pull_through_cache_enabled ---\n")
 
     print("[INFO] Detecting current cluster-operator version from ConfigMap", end=" ", flush=True)
     out, _ = run_command(
