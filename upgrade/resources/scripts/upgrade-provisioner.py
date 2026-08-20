@@ -43,11 +43,9 @@ CLOUD_PROVISIONER = "0.9.0"
 # patch digit used when patching the CR is always ".0" (EKS/GKE ignore it, it's not a
 # real "install this exact point release" version).
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.0"
+CLUSTER_OPERATOR = "0.7.0-PLT-4265-01.4"
 CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.5.X"
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.17.0-0.8"
-
-AWS_LOAD_BALANCER_CONTROLLER_CHART = "1.11.0"
 
 CLUSTERCTL = "v1.10.10"
 
@@ -641,6 +639,40 @@ def preflight_cluster_health_checks(keos_cluster, cluster_name, provider):
         if paused:
             print(f"    [INFO] Paused MachineDeployments (template changes won't roll out until unpaused): {', '.join(paused)}")
 
+    # 6. Stale ENIConfig security group (pods_cidr custom networking, PLT-4509 legacy).
+    #    cloud-provisioner < 0.9.0-m.5 wrote ENIConfig objects with a hardcoded lookup of the
+    #    VPC's literal "default" security group instead of the real cluster one (removed in
+    #    Skind commit 5010a9de). MachineDeployment nodes never show the symptom because CAPA's
+    #    AWSMachine reconciler (ensureSecurityGroups/UpdateInstanceSecurityGroups) self-heals
+    #    the SG of every ENI on each reconcile — AWSManagedMachinePool has no equivalent, so a
+    #    MachinePool added after this upgrade would inherit the stale SG and lose connectivity.
+    #    Self-corrects here, not a blocking problem — only the ENIConfig is touched, never a
+    #    live ENI (no cluster upgrading from < 0.9.0-m.5 can have a MachinePool yet).
+    if provider == "aws" and get_pods_cidr(keos_cluster):
+        real_sg, _ = run_command(
+            f"aws eks describe-cluster --name {cluster_name} "
+            "--query cluster.resourcesVpcConfig.clusterSecurityGroupId --output text",
+            allow_errors=True
+        )
+        real_sg = (real_sg or "").strip()
+        if real_sg:
+            eniconfig_json, _ = run_command(f"{kubectl} get eniconfig -o json", allow_errors=True)
+            if eniconfig_json:
+                try:
+                    eniconfigs = json.loads(eniconfig_json).get("items", [])
+                except Exception:
+                    eniconfigs = []
+                for ec in eniconfigs:
+                    ec_name = ec["metadata"]["name"]
+                    current_sgs = ec.get("spec", {}).get("securityGroups", [])
+                    if current_sgs and current_sgs[0] != real_sg:
+                        print(f"    [WARN] ENIConfig {ec_name} has a stale security group ({current_sgs[0]}, expected {real_sg}) — fixing")
+                        run_command(
+                            f'{kubectl} patch eniconfig {ec_name} --type=merge '
+                            f'-p \'{{"spec":{{"securityGroups":["{real_sg}"]}}}}\'',
+                            allow_errors=True
+                        )
+
     if not problems:
         print("    OK: no issues found")
         return
@@ -964,8 +996,11 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
     import glob
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Locating and downloading the chart is not best-effort: if the configured helm
+        # repository doesn't have this chart/version, CRDs silently stay outdated and the
+        # new chart version may run against a stale CRD schema — abort the upgrade instead.
+        try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
                 if ".dkr.ecr." in registry:
@@ -975,26 +1010,32 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
             run_command(pull_cmd)
+        except Exception as e:
+            print("FAILED")
+            raise Exception(f"could not pull chart {chart_name} {chart_version} from {repo_url} to apply its CRDs: {e}") from e
 
-            tarballs = glob.glob(f"{tmpdir}/*.tgz")
-            if not tarballs:
-                print("SKIP (no tarball found)")
-                return
+        tarballs = glob.glob(f"{tmpdir}/*.tgz")
+        if not tarballs:
+            print("SKIP (no tarball found)")
+            return
 
-            tarball = tarballs[0]
-            run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
+        tarball = tarballs[0]
+        run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
 
-            crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
-            if not crd_files:
-                print("SKIP (no CRDs in chart)")
-                return
+        crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
+        if not crd_files:
+            print("SKIP (no CRDs in chart)")
+            return
 
+        # Applying individual CRD files IS best-effort: a given CRD may have no real
+        # schema change in this version, so a single kubectl apply failure here shouldn't
+        # block the whole upgrade the way a missing/unreachable chart should.
+        try:
             for crd_file in crd_files:
                 run_command(f"{kubectl} apply -f {crd_file}")
-
-        print("OK")
-    except Exception as e:
-        print(f"WARN ({e}) — continuing without CRD update")
+            print("OK")
+        except Exception as e:
+            print(f"WARN ({e}) — continuing without CRD update")
 
 
 def wait_for_helmrelease_ready(release_name, namespace, timeout="3m"):
@@ -1231,6 +1272,13 @@ def upgrade_charts(charts, chart_current_versions=None):
     # reverting to the chart's own (possibly wrong/outdated) default values on any
     # run where the chart version already matches the target. Never skip these.
     never_skip = {"cluster-autoscaler", "tigera-operator"}
+    if is_ecr_pull_through_enabled(keos_cluster):
+        # ECR pull-through cache rewrites each chart's image repository path
+        # inside create_default_values() (called from upgrade_chart() below).
+        # A chart already at its target version would otherwise be SKIPped
+        # here and keep its pre-pull-through image path forever — never skip
+        # any chart while pull-through is active, so every path gets checked.
+        never_skip = set(charts.keys())
     try:
         print(f"[INFO] Updating charts versions:")
         for chart_name, chart_data in charts.items():
@@ -1783,6 +1831,50 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
     print("OK")
     return True
 
+def verify_control_plane_patch_propagated(cluster_name, target_minor, timeout_seconds=120, poll_interval=10):
+    '''Verify cluster-operator actually propagated the k8s_version bump to the
+    AWSManagedControlPlane object before entering the long AWS-side wait.
+
+    Known cluster-operator gap (controllers/keoscluster_controller.go, "Step 2" of
+    Reconcile): if the cluster-operator.stratio.com/last-configuration annotation is
+    missing/empty on the reconcile that runs right after bump_k8s_version() patches
+    KeosCluster.spec.k8s_version — e.g. because keoscluster-controller-manager was
+    restarted mid-upgrade by this same script (stop -> patch -> start) and the
+    annotation was reset in between — the reconciler treats that pass as a first-time
+    sync: it writes the annotation to match the already-bumped spec and returns
+    WITHOUT ever comparing against the previous k8s_version or patching
+    AWSManagedControlPlane. KeosCluster.spec.k8s_version ends up bumped while the real
+    infrastructure object — and therefore AWS itself — never receives the change, and
+    no EKS update is ever started. Without this check, wait_for_k8s_version_bump()
+    below would silently poll AWS for up to 90 minutes for a version bump that was
+    never actually requested. Confirmed live 2026-08-17 against eks-4265-hprod-2:
+    AWSManagedControlPlane.spec.version stayed at the old version and `aws eks
+    list-updates` showed zero version updates for the entire wait window; manually
+    resetting the annotation's embedded k8s_version to the old value made the very
+    next reconcile detect the diff and patch the control plane correctly.'''
+
+    target_version = f"v{target_minor}.0"
+    print(f"[INFO] Verifying cluster-operator propagated the bump to AWSManagedControlPlane (timeout {timeout_seconds}s):", end=" ", flush=True)
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        output, _ = run_command(
+            f"{kubectl} -n cluster-{cluster_name} get awsmanagedcontrolplane {cluster_name}-control-plane -o jsonpath='{{.spec.version}}'",
+            allow_errors=True
+        )
+        if output.strip() == target_version:
+            print("OK")
+            return
+        time.sleep(poll_interval)
+    raise Exception(
+        f"cluster-operator never propagated k8s_version to AWSManagedControlPlane "
+        f"(still not {target_version} after {timeout_seconds}s) — keoscluster-controller-manager "
+        f"likely reset its diff-tracking annotation (cluster-operator.stratio.com/last-configuration) "
+        f"on restart and treated this reconcile as a first-time sync instead of detecting the "
+        f"k8s_version change. Check the annotation and keoscluster-controller-manager logs before retrying "
+        f"— do not just re-run this script, the patched KeosCluster spec already matches the target "
+        f"so a plain re-run would SKIP the bump step entirely."
+    )
+
 def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minutes=90):
     '''Wait for a k8s_version bump initiated by bump_k8s_version() to fully land.
 
@@ -1799,6 +1891,7 @@ def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minu
     the AWS one here if a plain ready=true wait proves insufficient once tested live.'''
 
     if provider == "aws":
+        verify_control_plane_patch_propagated(cluster_name, target_minor)
         print(f"[INFO] Waiting for the real EKS control plane to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
         deadline = time.time() + timeout_minutes * 60
         while time.time() < deadline:
@@ -2461,9 +2554,22 @@ if __name__ == '__main__':
     run_command(command)
     print("OK")
 
-    stop_keoscluster_controller()
+    print("[INFO] Verifying KeosCluster is ready/Provisioned before this critical section:", end=" ", flush=True)
+    ready_output, _ = run_command(
+        f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.status.ready}} {{.status.phase}}'",
+        allow_errors=True
+    )
+    ready_parts = ready_output.split()
+    if len(ready_parts) != 2 or ready_parts[0] != "true" or ready_parts[1] != "Provisioned":
+        print("FAILED")
+        raise Exception(
+            f"KeosCluster is not ready/Provisioned before this critical section "
+            f"(status: '{ready_output}') — refusing to proceed on top of an unsettled cluster. "
+            f"Investigate and re-run once status.ready=true and status.phase=Provisioned."
+        )
+    print("OK")
 
-    k8s_version_bumped = False
+    stop_keoscluster_controller()
 
     # Best-effort restore of webhooks/controller on failure before re-raising
     try:
@@ -2495,8 +2601,16 @@ if __name__ == '__main__':
         restore_capi_capx_ha_replicas(provider)
 
         # -------------------------------------------------
-        # k8s_version bump (single patch to the final target, see bump_k8s_version()
-        # docstring) — must run while disable_keoscluster_webhooks() is still in effect
+        # k8s_version bump — back to the pattern verified live end-to-end on
+        # 2026-08-13 against eks-4265-hprod-1 (real AWS control plane reached
+        # ACTIVE/1.35, independently confirmed via `aws eks describe-cluster`):
+        # patch while the controller is still stopped and webhooks still disabled,
+        # in the SAME critical section as the CAPI providers upgrade above. The
+        # controller only starts once, at the very end, after the patch already
+        # landed. A same-day alternative (patch with the controller left running,
+        # added 2026-08-17 to work around a suspected cold-start issue) reproduced
+        # the same silent-skip symptom 2 more times despite added safeguards — so
+        # reverting to the one design with a real, independently-verified success.
         # -------------------------------------------------
         k8s_version_bumped = bump_k8s_version(keos_cluster, cluster_name, config["k8s_version"], config["start_from_k8s_version"], config["dry_run"])
     except Exception as e:
@@ -2514,9 +2628,6 @@ if __name__ == '__main__':
             print("[ERROR] Cluster may be left with KeosCluster webhooks disabled and the controller stopped — manual intervention required")
         raise e
 
-    print("[INFO] Restoring KEOSCluster webhooks and starting controller...")
-    keos_cluster, cluster_config = get_keos_cluster_cluster_config()
-    provider = keos_cluster["spec"]["infra_provider"]
     restore_keoscluster_webhooks()
     start_keoscluster_controller()
     print("[INFO] Resuming cluster-operator helmrelease:", end =" ", flush=True)
@@ -2537,8 +2648,6 @@ if __name__ == '__main__':
         print(f"[DEBUG] HelmRelease details:\n{status_output}")
         print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
         raise e
-
-    cluster_name = keos_cluster["metadata"]["name"]
 
     if k8s_version_bumped:
         # A k8s_version bump can take much longer than the generic 5m wait below —
