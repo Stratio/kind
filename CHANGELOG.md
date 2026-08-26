@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.0 (2026-08-13)
 
+* [PLT-4444] Fix cloud-provisioner stack vulnerabilities
 * [PLT-4265] Auto-fix stale `ENIConfig` security groups in `upgrade-provisioner.py` pre-flight checks (PLT-4509 regression on clusters upgraded from before the fix); add `--restore` to `ecr_pull_through.py`; replace `migrate-workers-to-machinepool.py` with the simpler, read-only `activate-capa-machinepool-features.py`
 
 * [PLT-4265] Harden `upgrade-provisioner.py` for the cloud-provisioner 0.9.0/K8s 1.35 upgrade path: add `k8s_version` bump support, pre-flight health checks, and controlled recovery on failure; align component versions and dependencies
