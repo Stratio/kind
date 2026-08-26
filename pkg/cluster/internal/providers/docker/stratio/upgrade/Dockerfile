@@ -24,8 +24,8 @@ ENV CLUSTER_TOPOLOGY=true \
 # Tool versions
 ARG CLUSTERCTL=v1.10.10
 ARG YQ_VERSION=v4.45.1
-ARG KUBECTL_VERSION=1.35.7
-ARG HELM_VERSION=3.15.2
+ARG KUBECTL_VERSION=1.35.8
+ARG HELM_VERSION=4.2.4
 ARG CAPA=v2.9.3
 ARG CAPG=1.6.1-0.4.0
 ARG CAPZ=v1.21.3
@@ -158,7 +158,7 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases && \
 # =========================
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
-COPY ${UPGRADE_DIR}/migrate-workers-to-machinepool.py /upgrade
+COPY ${UPGRADE_DIR}/activate-capa-machinepool-features.py /upgrade
 COPY ${UPGRADE_DIR}/ecr_pull_through.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
