@@ -76,7 +76,7 @@ RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -
     apt-get update && \
     apt-get install -y --no-install-recommends \
         google-cloud-cli \
-        google-cloud-sdk-gke-gcloud-auth-plugin && \
+        google-cloud-cli-gke-gcloud-auth-plugin && \
     rm -rf /var/lib/apt/lists/*
 
 # =========================

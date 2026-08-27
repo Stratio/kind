@@ -5,6 +5,7 @@ metadata:
   namespace: {{ ChartNamespace }}
 spec:
   releaseName: {{ ReleaseName }}
+  timeout: {{ HelmReleaseTimeout }}
   chart:
     spec:
       chart: {{ ChartName }}
