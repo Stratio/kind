@@ -20,32 +20,52 @@ import (
 	"testing"
 )
 
-func Test_removePrereleaseHash(t *testing.T) {
+func Test_removeReleaseCandidateSuffix(t *testing.T) {
 	cases := []struct {
 		image    string
 		expected string
 	}{
-		// semver: hash suffix is stripped
+		// semver: release candidate suffix is stripped
+		{
+			image:    "registry.example.com/cloud-provisioner:0.9.0-rc.1",
+			expected: "registry.example.com/cloud-provisioner:0.9.0",
+		},
+		{
+			image:    "registry.example.com/cloud-provisioner:0.9.0-rc.12",
+			expected: "registry.example.com/cloud-provisioner:0.9.0",
+		},
+		// no registry prefix
+		{
+			image:    "cloud-provisioner:0.9.0-rc.1",
+			expected: "cloud-provisioner:0.9.0",
+		},
+		// registry with a port
+		{
+			image:    "registry.example.com:5000/cloud-provisioner:0.9.0-rc.1",
+			expected: "registry.example.com:5000/cloud-provisioner:0.9.0",
+		},
+		// the old -<githash> prerelease format is no longer produced by the CI
+		// and must be left untouched
 		{
 			image:    "registry.example.com/cloud-provisioner:0.9.0-8214d23",
-			expected: "registry.example.com/cloud-provisioner:0.9.0",
+			expected: "registry.example.com/cloud-provisioner:0.9.0-8214d23",
 		},
-		{
-			image:    "registry.example.com/cloud-provisioner:0.9.0-abc1234def",
-			expected: "registry.example.com/cloud-provisioner:0.9.0",
-		},
-		// semver: pre-release identifiers must NOT be stripped
+		// semver: other pre-release identifiers must NOT be stripped
 		{
 			image:    "registry.example.com/cloud-provisioner:0.9.0-SNAPSHOT",
 			expected: "registry.example.com/cloud-provisioner:0.9.0-SNAPSHOT",
+		},
+		{
+			image:    "registry.example.com/cloud-provisioner:0.9.0-SNAPSHOT.2",
+			expected: "registry.example.com/cloud-provisioner:0.9.0-SNAPSHOT.2",
 		},
 		{
 			image:    "registry.example.com/cloud-provisioner:0.9.0-alpha.1",
 			expected: "registry.example.com/cloud-provisioner:0.9.0-alpha.1",
 		},
 		{
-			image:    "registry.example.com/cloud-provisioner:0.9.0-m.3",
-			expected: "registry.example.com/cloud-provisioner:0.9.0-m.3",
+			image:    "registry.example.com/cloud-provisioner:0.9.0-m.9",
+			expected: "registry.example.com/cloud-provisioner:0.9.0-m.9",
 		},
 		{
 			image:    "registry.example.com/cloud-provisioner:0.9.0-PR42-SNAPSHOT",
@@ -67,9 +87,9 @@ func Test_removePrereleaseHash(t *testing.T) {
 		tc := tc
 		t.Run(tc.image, func(t *testing.T) {
 			t.Parallel()
-			got := removePrereleaseHash(tc.image)
+			got := removeReleaseCandidateSuffix(tc.image)
 			if got != tc.expected {
-				t.Errorf("removePrereleaseHash(%q) = %q, want %q", tc.image, got, tc.expected)
+				t.Errorf("removeReleaseCandidateSuffix(%q) = %q, want %q", tc.image, got, tc.expected)
 			}
 		})
 	}
