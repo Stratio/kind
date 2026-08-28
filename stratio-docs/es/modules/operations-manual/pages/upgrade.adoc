@@ -683,6 +683,7 @@ kubectl get machinepools -A
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 kubectl logs -n capi-system deploy/capi-controller-manager --since=30m | grep -i error
 kubectl logs -n capa-system deploy/capa-controller-manager --since=30m | grep -i error
+kubectl logs -n capz-system deploy/capz-controller-manager --since=30m | grep -i error
 ----
 +
 NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores transitorios en los _logs_ de `capa-controller-manager` — `InvalidParameterException: Addon version specified is not supported` al actualizar addons EKS (p. ej. `kube-proxy`) mientras el plano de control real de AWS aún no llegó al _minor_ intermedio necesario, y `connection to the workload cluster is down` durante la ventana de actualización del propio plano de control. Ambos se autorresuelven solos en los minutos siguientes sin intervención, una vez `AWSManagedControlPlane.status.conditions[EKSAddonsConfigured]` pasa a `True`. Solo trátalos como problema real si persisten más allá de la ventana de actualización.
