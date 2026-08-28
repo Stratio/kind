@@ -506,13 +506,7 @@ IMPORTANT: Si el fallo de `clusterctl` ocurrió dentro de la sección crítica, 
 kubectl scale deployment capi-controller-manager -n capi-system --replicas=2
 ----
 
-* **`HelmRelease` de `cluster-operator` con `spec.suspend: true`** — la sección crítica lo suspende y lo reactiva al finalizar; si el fallo interrumpió ese ciclo antes de la reactivación, cualquier paso posterior que espere a que el `HelmRelease` refleje un cambio de versión se queda esperando indefinidamente sin ningún mensaje de error. Compruébalo y reactívalo si hace falta:
-+
-[source,bash]
-----
-kubectl get helmrelease cluster-operator -n kube-system -o jsonpath='{.spec.suspend}'
-kubectl patch helmrelease cluster-operator -n kube-system --type=merge -p '{"spec":{"suspend":false}}'
-----
+* **`HelmRelease` de `cluster-operator` con `spec.suspend: true`** — la sección crítica lo suspende y lo reactiva al finalizar; si el fallo interrumpió ese ciclo antes de la reactivación, el propio _script_ lo detecta y lo reactiva automáticamente al inicio del siguiente reintento (verás un `[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting` en la consola) — no requiere intervención manual.
 
 ==== Fallo del chequeo de salud de un _chart_ (`unhealthy pod(s)`)
 
