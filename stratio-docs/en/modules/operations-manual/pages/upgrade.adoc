@@ -39,6 +39,8 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 *** _azurefile-csi-driver_: `1.35.6`
 *** _cloud-provider-azure_: `1.35.3`
 
+NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada para el _minor_ de Kubernetes **actual** del _cluster_ (no el de destino) — el propio _chart_ puede referenciar un _tag_ todavía no publicado para algunos _minors_. Si el _minor_ actual no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
+
 == Requisitos
 
 * Técnicos:
@@ -140,6 +142,7 @@ kubectl get helmrelease -A
 +
 --
 * Verifica `KeosCluster.status.ready`, salud de los _pods_ de todo el _cluster_ (`CrashLoopBackOff`/`ImagePullBackOff`/`ErrImagePull`/`CreateContainerConfigError`), réplicas HA de `capi`/`capa`/`capg`/`capz` (deben ser 2) y `Machine` atascadas fuera de sus fases normales.
+* En Azure VMs, comprueba además que exista el `ClusterRoleBinding kubeadm:apiserver-kubelet-client` — si falta, lo crea automáticamente (sin intervención manual); su ausencia puede colgar indefinidamente un _bump_ de `k8s_version` al fallar el chequeo de salud de _etcd_ de CAPI.
 * **No comprueba el estado de los `HelmRelease` directamente** — solo el de los _pods_ como proxy indirecto. Por eso la comprobación manual de arriba (`kubectl get helmrelease -A`) sigue siendo necesaria, no es redundante.
 * Si encuentra algún problema, **aborta la actualización antes de empezar**, salvo que se indique `--skip-preflight-checks` (asumiendo el riesgo) o `--dry-run` (que solo informa de que abortaría).
 --
@@ -426,12 +429,17 @@ Opciones principales:
 | No
 
 | `--k8s-version`
-| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.35`). Se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ igual que ya hace el resto del _script_ para `clusterctl`.
+| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.35`). En AWS/GCP se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms>>) — el valor de este _flag_ sigue siendo el _minor_ final, no cambia cómo se usa.
 | 1.35
 | No
 
+| `--node-image-map`
+| **Obligatorio en Azure VMs** para un _bump_ de `k8s_version`; no aplica a AWS/GCP. JSON con la imagen de VM de cada _minor_ intermedio, p. ej. `{"1.33":"<id>","1.34":"<id>","1.35":"<id>"}`. Cada valor debe ser un _resource ID_ completo de Azure (`/subscriptions/...`), no un nombre de imagen suelto — el _script_ lo valida y aborta si no lo es.
+|
+| Solo Azure
+
 | `--start-from-k8s-version`
-| Omite la confirmación Y/N previa al _bump_ de `k8s_version` (ver <<_prompts_interactivos>>). El _bump_ en sí sigue siendo un único _patch_ a `--k8s-version`, no un mecanismo de reanudación desde un paso intermedio.
+| Omite la confirmación Y/N previa al _bump_ de `k8s_version` (ver <<_prompts_interactivos>>). En AWS/GCP el _bump_ sigue siendo un único _patch_ a `--k8s-version`; en Azure sigue siendo una secuencia de _patches_ minor a minor, no un mecanismo de reanudación desde un paso intermedio.
 | False
 | No
 
@@ -563,13 +571,29 @@ clusterctl upgrade apply \
   --infrastructure <proveedor>:<versión> \
   --wait-providers
 ----
++
+NOTE: En Azure VMs el comando incluye además `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>` — EKS y GKE gestionan su propio plano de control y no necesitan actualizar estos _providers_, pero Azure VMs usa `KubeadmControlPlane` (CAPI _core_), que sí es un _provider_ más a actualizar.
 
 . *Actualización de la versión de Kubernetes* (si `KeosCluster.spec.k8s_version` cambia respecto a la versión actual)
-** Parchea `KeosCluster.spec.k8s_version` con la nueva versión.
-** Restaura los _webhooks_ de _keoscluster_ e inicia de nuevo el _deployment_ de _keoscluster-controller_.
-** Verifica que _cluster-operator_ haya propagado el cambio al recurso de plano de control gestionado por el proveedor (`AWSManagedControlPlane` en EKS) antes de continuar.
+** En AWS/GCP: parchea `KeosCluster.spec.k8s_version` directamente con la versión final. Restaura los _webhooks_ de _keoscluster_ e inicia de nuevo el _deployment_ de _keoscluster-controller_. Verifica que _cluster-operator_ haya propagado el cambio al recurso de plano de control gestionado por el proveedor (`AWSManagedControlPlane` en EKS) antes de continuar.
+** En Azure VMs: secuencia de _patches_, uno por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso — ver <<_bump_de_k8s_version_en_azure_vms>>.
 
-IMPORTANT: Este paso solo actualiza el **plano de control**. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente "pineados" a su versión de Kubernetes anterior — _cluster-operator_ salta el _bump_ para ellos explícitamente, no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>).
+IMPORTANT: En AWS/GCP este paso solo actualiza el **plano de control**. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente "pineados" a su versión de Kubernetes anterior — _cluster-operator_ salta el _bump_ para ellos explícitamente, no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>> — EKS únicamente). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control.
+
+[[_bump_de_k8s_version_en_azure_vms]]
+==== Bump de `k8s_version` en Azure VMs
+
+A diferencia de AWS/GCP, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el plano de control de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_ — que pertenece a CAPI _core_, no a `KeosCluster` — rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS ese mismo trabajo lo hace AWS internamente tras un único _patch_ — no es que Azure "vaya más despacio", es que aquí el _script_ hace explícitamente lo que en EKS es invisible.
+
+Esto tiene implicaciones prácticas directas:
+
+* **`--node-image-map` es obligatorio** para cualquier _bump_ de `k8s_version` en Azure — un JSON con la imagen de VM de cada _minor_ intermedio (ver tabla de _flags_ más arriba). Sin él, el _script_ aborta antes de tocar nada.
+* El proceso completo tarda más que en EKS/GKE — son N actualizaciones secuenciales del plano de control (con su espera de convergencia y un margen de asentamiento entre pasos), no una sola.
+* Durante todo el _bump_, el _script_ aplica y revierte automáticamente dos cambios temporales, sin intervención manual:
+** Amplía la `GlobalNetworkPolicy` de Calico que permite tráfico desde el plano de control, para que la conectividad no se rompa mientras hay nodos de control plane con versiones mixtas durante la transición.
+** Retira temporalmente la entrada `nodes.capsule.clastix.io` del _webhook_ de validación de `capsule` — si se deja activa, bloquea el `kubeadm join` de las nuevas réplicas del plano de control (mismo mecanismo que causaba PLT-3295).
++
+Si el _script_ se interrumpe a mitad de un _bump_, ambos cambios pueden quedar aplicados — no se restauran solos. Comprueba `kubectl get globalnetworkpolicy allow-all-traffic-from-control-plane -o yaml` y `kubectl get validatingwebhookconfigurations capsule-validating-webhook-configuration` antes de relanzar.
 
 . *Post-actualización*
 ** Reanuda el _HelmRelease_ de _cluster-operator_.
@@ -718,6 +742,8 @@ Este cambio no afecta a los `MachinePool` que ya existan — solo a los que se c
 
 ===== Si el _role_ no existe todavía en un _cluster_ con `create_iam: true`
 
+WARNING: Esta sección aplica solo a _clusters_ **ya existentes**, cuyo _stack_ de CloudFormation se creó antes de que _Stratio Cloud Provisioner_ soportara `security.aws.nodegroup_extra_policy_arn`. Para instalaciones **nuevas**, indica ese campo directamente en el descriptor — ver xref:operations-manual:installation.adoc#nodegroup_extra_policy_arn[]; el resto de esta sección no aplica en ese caso.
+
 El _stack_ de CloudFormation de un _cluster_ con `security.aws.create_iam: true` incluye el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` desde que _Stratio Cloud Provisioner_ empezó a generar esa configuración por defecto (`AWSIAMConfiguration`, bloque `spec.eks.managedMachinePool`). Un _cluster_ cuyo _stack_ se creó antes de eso puede no tenerlo todavía. Compruébalo:
 
 [source,bash]
@@ -742,6 +768,8 @@ spec:
         disable: false
     managedMachinePool:
         disable: false
+        extraPolicyAttachments:
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
   controlPlane:
     enableCSIPolicy: true
   nodes:
@@ -776,7 +804,7 @@ aws iam create-policy \
   --policy-document file:///tmp/ecr-pull-through-mp-policy.json
 ----
 
-Y añade el ARN devuelto al bloque `managedMachinePool.extraPolicyAttachments`, para que los nodos `MachinePool` también tengan estos permisos.
+Añade el ARN devuelto al bloque `managedMachinePool.extraPolicyAttachments` **junto a** `AmazonEBSCSIDriverPolicy` (ver ejemplo más arriba), no en sustitución — `ManagedPolicyArns` en CloudFormation es una lista de reemplazo completo: si listas solo el ARN nuevo, `AmazonEBSCSIDriverPolicy` se desadjunta del rol en el siguiente `update-cloudformation-stack`.
 
 ==== Migrar un grupo de nodos
 

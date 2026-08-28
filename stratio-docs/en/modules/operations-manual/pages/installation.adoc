@@ -553,6 +553,9 @@ En ambos casos el resultado es el mismo _stack_ de CloudFormation con el mismo n
 
 `mp_role_name` solo es necesario si se quiere usar un rol IAM propio, con un nombre distinto al del rol por defecto — en ese caso, es responsabilidad del usuario crearlo antes de la instalación con, como mínimo, estas políticas (las que EKS exige a cualquier nodo _worker_, con independencia de _Stratio Cloud Provisioner_): `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`. Indicar aquí un rol que no existe hace fallar la creación de cualquier `MachinePool` al primer intento.
 
+[[nodegroup_extra_policy_arn]]
+IMPORTANT: Si el _cluster_ va a tener `docker_registries[].ecr_pull_through_cache_enabled: true`, los nodos `MachinePool` necesitan además los permisos `ecr:BatchImportUpstreamImage`/`ecr:CreateRepository`. El rol `eks-nodegroup` (a diferencia de `nodes`) **no admite políticas inline** — solo políticas gestionadas por ARN. Con `security.aws.create_iam: true`, crea antes una política IAM independiente con esos permisos e indícala en `security.aws.nodegroup_extra_policy_arn`; _Stratio Cloud Provisioner_ la adjunta automáticamente al rol `eks-nodegroup` (junto a `AmazonEBSCSIDriverPolicy`) durante la instalación. Este campo **solo aplica a instalaciones nuevas** — en un _cluster_ ya existente con el _stack_ IAM creado antes de esta funcionalidad, hay que adjuntar la política a mano (ver xref:operations-manual:upgrade.adoc#_migración_a_ecr_pull_through_cache[]).
+
 |Yes
 
 |_gcp_
