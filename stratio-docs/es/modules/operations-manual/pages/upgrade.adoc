@@ -628,11 +628,20 @@ watch -n2 kubectl get helmreleases -A
 watch -n2 kubectl get providers -A
 ----
 
-* Durante la actualización de la versión de Kubernetes, el _script_ no muestra progreso mientras espera a que la infraestructura real del proveedor _cloud_ complete el cambio. En EKS, sigue el estado real del plano de control directamente en AWS:
+* Durante la actualización de la versión de Kubernetes, el _script_ no muestra progreso mientras espera a que la infraestructura real del proveedor _cloud_ complete el cambio.
++
+** En EKS, sigue el estado real del plano de control directamente en AWS:
 +
 [source,bash]
 ----
 watch -n30 aws eks describe-cluster --name <nombre-cluster> --query 'cluster.{status:status,version:version}' --output table
+----
++
+** En Azure VMs, sigue la convergencia real del `KubeadmControlPlane` (el mismo objeto que vigila internamente el _script_, ver <<_bump_de_k8s_version_en_azure_vms>>):
++
+[source,bash]
+----
+watch -n30 kubectl get kubeadmcontrolplane <nombre-cluster>-control-plane -n cluster-<nombre-cluster> -o jsonpath='{.status.version} ready={.status.ready} {.status.updatedReplicas}/{.status.replicas}'
 ----
 
 == Verificación final
@@ -688,7 +697,7 @@ kubectl logs -n capz-system deploy/capz-controller-manager --since=30m | grep -i
 +
 NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores transitorios en los _logs_ de `capa-controller-manager` — `InvalidParameterException: Addon version specified is not supported` al actualizar addons EKS (p. ej. `kube-proxy`) mientras el plano de control real de AWS aún no llegó al _minor_ intermedio necesario, y `connection to the workload cluster is down` durante la ventana de actualización del propio plano de control. Ambos se autorresuelven solos en los minutos siguientes sin intervención, una vez `AWSManagedControlPlane.status.conditions[EKSAddonsConfigured]` pasa a `True`. Solo trátalos como problema real si persisten más allá de la ventana de actualización.
 +
-*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. Los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>); no lo trates como un fallo de la actualización.
+*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. En AWS/GCP, los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>, EKS únicamente); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto al plano de control (ver <<_bump_de_k8s_version_en_azure_vms>>).
 
 == _Clusters_ EKS con _MachinePools_
 

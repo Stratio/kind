@@ -535,7 +535,7 @@ En este apartado se indican las particularidades del _control-plane_ de Kubernet
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_mp++_++role++_++name_). Es opcional: si no se indica, y la cuenta AWS ya está preparada para EKS (ver más abajo), se usa automáticamente un rol por defecto.
+|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_MachinePool_) (_mp++_++role++_++name_). Es opcional: si no se indica, y la cuenta AWS ya está preparada para EKS (ver más abajo), se usa automáticamente un rol por defecto.
 a|
 
 [source,yaml]
