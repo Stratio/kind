@@ -291,7 +291,8 @@ type Security struct {
 	ControlPlaneIdentity string `yaml:"control_plane_identity,omitempty"`
 	NodesIdentity        string `yaml:"nodes_identity,omitempty"`
 	AWS                  struct {
-		CreateIAM bool `yaml:"create_iam" validate:"boolean"`
+		CreateIAM               bool   `yaml:"create_iam" validate:"boolean"`
+		NodegroupExtraPolicyARN string `yaml:"nodegroup_extra_policy_arn,omitempty"`
 	} `yaml:"aws,omitempty"`
 	GCP struct {
 		Scopes []string `yaml:"scopes,omitempty"`
@@ -416,10 +417,10 @@ type DockerRegistryCredentials struct {
 }
 
 type DockerRegistry struct {
-	AuthRequired         bool   `yaml:"auth_required" validate:"boolean"`
-	Type                 string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
-	URL                  string `yaml:"url" validate:"required"`
-	KeosRegistry         bool   `yaml:"keos_registry" validate:"boolean"`
+	AuthRequired               bool   `yaml:"auth_required" validate:"boolean"`
+	Type                       string `yaml:"type" validate:"required,oneof='acr' 'ecr' 'gar' 'gcr' 'generic'"`
+	URL                        string `yaml:"url" validate:"required"`
+	KeosRegistry               bool   `yaml:"keos_registry" validate:"boolean"`
 	ECRPullThroughCacheEnabled bool   `yaml:"ecr_pull_through_cache_enabled" validate:"boolean"`
 }
 
