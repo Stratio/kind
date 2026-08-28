@@ -171,6 +171,7 @@ Asegúrate de que el directorio de trabajo incluya (solo lo que se monta desde e
 * `secrets.yml`: credenciales del _cluster_.
 * `.kube/config`: archivo _kubeconfig_ del _cluster_.
 * `backup/`: directorio para copias de seguridad (puede estar vacío inicialmente).
+* `.aws/` (solo AWS): directorio con `config` y `credentials` — sin él, cualquier llamada del _script_ a la API de AWS falla (ver <<_ejecución_del_contenedor_de_actualización>>).
 
 == Notas importantes
 
@@ -581,7 +582,7 @@ NOTE: En Azure VMs el comando incluye además `--bootstrap kubeadm:<versión>` y
 IMPORTANT: En AWS/GCP este paso solo actualiza el **plano de control**. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente "pineados" a su versión de Kubernetes anterior — _cluster-operator_ salta el _bump_ para ellos explícitamente, no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>> — EKS únicamente). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control.
 
 [[_bump_de_k8s_version_en_azure_vms]]
-==== Bump de `k8s_version` en Azure VMs
+=== Bump de `k8s_version` en Azure VMs
 
 A diferencia de AWS/GCP, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el plano de control de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_ — que pertenece a CAPI _core_, no a `KeosCluster` — rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS ese mismo trabajo lo hace AWS internamente tras un único _patch_ — no es que Azure "vaya más despacio", es que aquí el _script_ hace explícitamente lo que en EKS es invisible.
 
