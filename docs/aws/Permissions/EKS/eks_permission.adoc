@@ -71,6 +71,8 @@ cloud-provisioner create cluster --name <cluster-name> --vault-password xxxxxx -
 | iam:RemoveUserFromGroup | Attempting to remove IAM user from IAM group | Grants permission to remove the specified IAM user from the specified IAM group. |  * | cloud-provisioner
 |===
 
+NOTE: The `eks-nodegroup` role created by this CloudFormation stack only accepts managed policy ARNs, not inline statements. If your cluster uses `docker_registries[].ecr_pull_through_cache_enabled: true`, `MachinePool` nodes need `ecr:BatchImportUpstreamImage`/`ecr:CreateRepository` permissions that this stack does not grant by default. Create a customer-managed IAM policy with those permissions beforehand, and set its ARN in `security.aws.nodegroup_extra_policy_arn` so `cloud-provisioner` attaches it to `eks-nodegroup` when `create_iam: true`.
+
 ==== Deployment
 
 [options="header"]

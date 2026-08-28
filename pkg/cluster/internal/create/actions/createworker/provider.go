@@ -548,7 +548,8 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		keosCluster.Spec.Credentials = commons.Credentials{}
 		keosCluster.Spec.StorageClass = commons.StorageClass{}
 		keosCluster.Spec.Security.AWS = struct {
-			CreateIAM bool "yaml:\"create_iam\" validate:\"boolean\""
+			CreateIAM               bool   "yaml:\"create_iam\" validate:\"boolean\""
+			NodegroupExtraPolicyARN string "yaml:\"nodegroup_extra_policy_arn,omitempty\""
 		}{}
 		if keosCluster.Spec.InfraProvider != "azure" || (keosCluster.Spec.InfraProvider == "azure" && !keosCluster.Spec.ControlPlane.Managed) {
 			keosCluster.Spec.ControlPlane.Azure = commons.AzureCP{}
