@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.1 (upcoming)
+## 0.9.1 (2026-08-28)
 
 * Bump `DEPENDENCIES`: `kind.cloud-provisioner` 0.17.0-0.8.0 → 0.9.1, `charts.cluster-operator` 0.5.2 → 0.7.1; sync `docs/images/commons/imagenes-kind.txt` to match
 * Fix the node image tag resolving to the release candidate image (e.g. `cloud-provisioner:0.9.0-rc.1` instead of `:0.9.0`) on promoted release binaries; the prerelease-stripping regex only covered the retired `-<githash>` format and not the current `-rc.N` one
