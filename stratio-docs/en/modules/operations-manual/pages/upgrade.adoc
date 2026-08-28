@@ -266,6 +266,20 @@ docker run \
   cloud-provisioner-upgrade:0.17.0-0.8.X
 ----
 
+=== Fallo del chequeo de salud de un _chart_ (`unhealthy pod(s)`)
+
+`upgrade-provisioner.py` comprueba, justo después de actualizar cada _chart_, que sus _pods_ estén realmente sanos (no solo que Flux marque el `HelmRelease` como `Ready`). Esa comprobación es una foto puntual tomada inmediatamente después del `helm upgrade` — si en ese instante el _rollout_ todavía tiene un _pod_ de la versión anterior en proceso de terminar, el _script_ puede interpretarlo como un fallo real y abortar con un mensaje del tipo `[ERROR] Error updating chart: N unhealthy pod(s) for release <chart>`.
+
+**Antes de asumir que el _cluster_ quedó en mal estado**, comprueba el estado real del _chart_ afectado:
+
+[source,bash]
+----
+kubectl get helmrelease <chart> -n <namespace>
+kubectl get pods -n <namespace>
+----
+
+Si el `HelmRelease` ya refleja la versión destino y los _pods_ están `Running`, el _chart_ se aplicó correctamente — el fallo fue solo de la comprobación del _script_, no del _cluster_. En ese caso, **relanza `upgrade-provisioner.py` con el mismo comando**: el diseño del _script_ es idempotente a nivel de _chart_ (compara la versión actual contra la destino antes de tocar nada), así que los _charts_ ya actualizados se saltan automáticamente y la ejecución continúa desde donde se quedó.
+
 == Upgrade process overview
 
 The script executes the following workflow:

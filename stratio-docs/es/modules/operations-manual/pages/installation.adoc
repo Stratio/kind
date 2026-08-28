@@ -535,7 +535,7 @@ En este apartado se indican las particularidades del _control-plane_ de Kubernet
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_mp++_++role++_++name_) — si el _cluster_ va a tener grupos `MachinePool`, este campo debe indicarse siempre; sin él, cada _nodegroup_ recibe un rol IAM dinámico distinto (`capa_<hash>`) que no se admite dejar así.
+|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_mp++_++role++_++name_). Es opcional: si no se indica, y la cuenta AWS ya está preparada para EKS (ver más abajo), se usa automáticamente un rol por defecto.
 a|
 
 [source,yaml]
@@ -545,21 +545,14 @@ logging:
 ----
 
 [[mp_role_name_ownership]]
-IMPORTANT: Quién crea el rol indicado en `mp_role_name` depende de `security.aws.create_iam`:
+IMPORTANT: Si `mp_role_name` no se indica, CAPA busca automáticamente el rol por defecto `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. Este rol lo crea el comando `clusterawsadm bootstrap iam create-cloudformation-stack`, ejecutado sobre la cuenta AWS de dos formas posibles:
 
-* **Con `create_iam: true`** — _Stratio Cloud Provisioner_ ya crea automáticamente el rol `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` como parte de su propio _stack_ de CloudFormation. Basta con indicar ese mismo nombre, literal, para que `MachinePool` lo use en vez de crear un rol dinámico por _nodegroup_:
-+
-[source,yaml]
-----
-security:
-  aws:
-    create_iam: true
-control_plane:
-  aws:
-    mp_role_name: "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
-----
+* **Automáticamente por _Stratio Cloud Provisioner_** cuando `security.aws.create_iam: true` — invoca ese mismo comando como parte de la instalación.
+* **Manualmente por el usuario**, como preparación previa de la cuenta AWS para EKS/CAPA (prerrequisito habitual en cuentas ya usadas con versiones anteriores), con `security.aws.create_iam: false`.
 
-* **Con `create_iam: false`** — el rol no lo crea nadie automáticamente; es responsabilidad del usuario crearlo antes de la instalación, con un nombre a su elección (no tiene que coincidir con el anterior) y como mínimo estas políticas (las que EKS exige a cualquier nodo _worker_, con independencia de _Stratio Cloud Provisioner_): `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`. Indicar aquí un rol que no existe hace fallar la creación de cualquier `MachinePool` al primer intento.
+En ambos casos el resultado es el mismo _stack_ de CloudFormation con el mismo nombre de rol, así que no hace falta volver a ejecutarlo ni indicar `mp_role_name` si la cuenta ya pasó por ese _bootstrap_ alguna vez.
+
+`mp_role_name` solo es necesario si se quiere usar un rol IAM propio, con un nombre distinto al del rol por defecto — en ese caso, es responsabilidad del usuario crearlo antes de la instalación con, como mínimo, estas políticas (las que EKS exige a cualquier nodo _worker_, con independencia de _Stratio Cloud Provisioner_): `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`. Indicar aquí un rol que no existe hace fallar la creación de cualquier `MachinePool` al primer intento.
 
 |Sí
 
@@ -733,7 +726,7 @@ En este ejemplo se aprecian las siguientes particularidades:
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Se habilitan los _logs_ del _API Server_ en EKS.
 * Uso de grupos de nodos gestionados por EKS (_MachinePool_): los grupos sin _node++_++image_ se crean como _MachinePools_ con una AMI gestionada por EKS.
-* Rol IAM preexistente para los grupos de nodos (_mp++_++role++_++name_): _Stratio Cloud Provisioner_ lo asigna sin crear uno nuevo.
+* Rol IAM fijo para los grupos de nodos gestionados (_mp++_++role++_++name_): con `create++_++iam: true`, _Stratio Cloud Provisioner_ ya crea el rol `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` como parte de su propio _stack_ de CloudFormation; se indica aquí con el nombre completo para que `MachinePool` lo use en vez de crear un rol dinámico por _nodegroup_.
 * Coexistencia de grupos gestionados (_MachinePool_) y grupos con AMI personalizada (_MachineDeployment_): el grupo con _node++_++image_ se crea como _MachineDeployment_ (EC2 autogestionado).
 * Grupos de nodos _worker_ con varias casuísticas:
 ** Diferentes tipos de instancia.
@@ -793,12 +786,12 @@ spec:
     version: 1.3.x
   security:
     aws:
-      create_iam: false
+      create_iam: true
   control_plane:
     aws:
       logging:
         api_server: true
-      mp_role_name: "eks-nodegroup-role"
+      mp_role_name: "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
     managed: true
   worker_nodes:
     - name: eks-prod-xlarge
@@ -852,16 +845,16 @@ NOTE: El grupo `eks-prod-xlarge` es un grupo _MachinePool_ (sin `node++_++image`
 | Usa `ami++_++type` o cambia a _MachineDeployment_ (`node++_++image`) si necesitas una AMI específica.
 
 | Volumen CRI separado (`cri++_++volume`) no soportado en _MachinePool_
-| Usa disco único, o _MachineDeployment_ si es imprescindible.
+|
 
-| `AL2023` no disponible como `ami++_++type` en _MachinePool_
-| Usa `BOTTLEROCKET++_++*`/`AL2++_++*` en _MachinePool_, o _MachineDeployment_ con `node++_++image` para AL2023.
+| `ami++_++type` en _MachinePool_ solo admite `BOTTLEROCKET++_++x86++_++64`/`BOTTLEROCKET++_++x86++_++64++_++NVIDIA`
+|
 
 | Un solo tipo de instancia por _MachinePool_ (sin _fallback_ a otro tipo dentro del mismo grupo)
-| Crea varios grupos con `spot: true` y distinto `size` para lograr redundancia.
+|
 
-| `quantity: 0` en creación directa, o combinado con `labels`/`taints`, puede requerir ajustes
-| Usa `max++_++size` igual o mayor al número de AZs; evita definir `labels`/`taints` en grupos a 0.
+| `quantity: 0` requiere `max++_++size >= 1`; en modo balanceado (varias AZs), `max++_++size` debe ser ≥ número de AZs
+|
 
 | Instancias EC2 de _MachinePool_ sin _tag_ `Name` visible en la consola de AWS
 | Son identificables por los _tags_ `kubernetes.io/cluster/<nombre>` y `eks:nodegroup-name`.

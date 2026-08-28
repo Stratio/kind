@@ -15,10 +15,10 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 === Qué se actualiza
 
 * *Componentes comunes* a todas las plataformas:
-** _cluster-operator_: `0.7.0`
+** _cluster-operator_: `0.7.1`
 ** _cert-manager_: `v1.20.2`
 ** _flux2_: `2.17.2`
-** _tigera-operator_: `v3.31.6`
+** _tigera-operator_: `v3.31.7`
 ** _cluster-autoscaler_: `9.57.0`
 
 * *Cluster API Core*
@@ -35,8 +35,8 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 ** EKS (si está instalado):
 *** _aws-load-balancer-controller_: `3.4.0`
 ** Azure VMs:
-*** _azuredisk-csi-driver_: `1.34.4`
-*** _azurefile-csi-driver_: `1.35.3`
+*** _azuredisk-csi-driver_: `1.34.5`
+*** _azurefile-csi-driver_: `1.35.6`
 *** _cloud-provider-azure_: `1.35.3`
 
 == Requisitos
@@ -48,7 +48,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 ** Disponer de credenciales AWS válidas para el _cluster_ (`~/.aws/config` y `~/.aws/credentials`). El contenedor fija `AWS_CONFIG_FILE=/upgrade/.aws/config` y `AWS_SHARED_CREDENTIALS_FILE=/upgrade/.aws/credentials`, por lo que el directorio `.aws` debe montarse en el contenedor; sin él, cualquier llamada del _script_ a la API de AWS falla.
 +
 NOTE: Al arrancar, el _script_ valida la conectividad (`kubectl get ns`) y, si falla, regenera el _kubeconfig_ automáticamente para EKS/GKE (no para Azure). Esto arregla un _kubeconfig_ desactualizado, pero no una credencial AWS caducada.
-** Tener un directorio local llamado `backup` para copias de seguridad (se montará en el contenedor en `/upgrade/backup`), creado dentro del mismo directorio de trabajo que el resto de la estructura (ver <<_estructura_necesaria>>). Usa siempre este mismo nombre en todos los _clusters_/clientes, para que la ubicación sea predecible al dar soporte. El _script_ gestiona su propia estructura de subcarpetas dentro de este directorio, una por ejecución con marca de tiempo; no es necesario que el directorio esté vacío ni recrearlo entre ejecuciones — basta con que exista como punto de montaje.
+** Tener un directorio local llamado `backup` para copias de seguridad (se montará en el contenedor en `/upgrade/backup`), creado dentro del mismo directorio de trabajo que el resto de la estructura (ver <<_estructura_necesaria>>). Usa siempre este mismo nombre en todos los _clusters_/clientes, para que la ubicación sea predecible al dar soporte. El _script_ gestiona su propia estructura de subcarpetas dentro de este directorio (una por ejecución con marca de tiempo, anidada dentro de un nivel `upgrade/` adicional — la ruta real de cada copia es `/upgrade/backup/upgrade/<marca_de_tiempo>/`); no es necesario que el directorio esté vacío ni recrearlo entre ejecuciones — basta con que exista como punto de montaje.
 ** Comprobar que el repositorio de Helm de *destino* publica ya el _chart_ de _cluster-operator_ en la versión objetivo. _Cluster-operator_ resuelve siempre su _chart_ desde `KeosCluster.spec.helm_repository.url` (a diferencia del resto de componentes, cuyo origen sí depende de `ClusterConfig.spec.private_helm_repo` — ver <<_uso_del_flag_private>>).
 +
 IMPORTANT: El repositorio a verificar **no es necesariamente el que el _cluster_ tiene configurado hoy**. El _script_ pregunta interactivamente si quieres indicar uno nuevo (ver <<_prompts_interactivos>>); si respondes con uno distinto, ese pasa a ser el repositorio real usado durante toda la actualización, incluido el _chart_ de _cluster-operator_. Verifica el _chart_ en el repositorio que realmente vayas a usar en esta ejecución, no solo en el que aparece con el siguiente comando:
@@ -505,6 +505,20 @@ kubectl get helmrelease cluster-operator -n kube-system -o jsonpath='{.spec.susp
 kubectl patch helmrelease cluster-operator -n kube-system --type=merge -p '{"spec":{"suspend":false}}'
 ----
 
+==== Fallo del chequeo de salud de un _chart_ (`unhealthy pod(s)`)
+
+`upgrade-provisioner.py` comprueba, justo después de actualizar cada _chart_, que sus _pods_ estén realmente sanos (no solo que Flux marque el `HelmRelease` como `Ready`). Esa comprobación es una foto puntual tomada inmediatamente después del `helm upgrade` — si en ese instante el _rollout_ todavía tiene un _pod_ de la versión anterior en proceso de terminar, el _script_ puede interpretarlo como un fallo real y abortar con un mensaje del tipo `[ERROR] Error updating chart: N unhealthy pod(s) for release <chart>`.
+
+**Antes de asumir que el _cluster_ quedó en mal estado**, comprueba el estado real del _chart_ afectado:
+
+[source,bash]
+----
+kubectl get helmrelease <chart> -n <namespace>
+kubectl get pods -n <namespace>
+----
+
+Si el `HelmRelease` ya refleja la versión destino y los _pods_ están `Running`, el _chart_ se aplicó correctamente — el fallo fue solo de la comprobación del _script_, no del _cluster_. En ese caso, **relanza `upgrade-provisioner.py` con el mismo comando**: el diseño del _script_ es idempotente a nivel de _chart_ (compara la versión actual contra la destino antes de tocar nada), así que los _charts_ ya actualizados se saltan automáticamente y la ejecución continúa desde donde se quedó.
+
 == Descripción general del proceso de actualización
 
 El _script_ ejecuta el siguiente flujo de trabajo:
@@ -740,7 +754,29 @@ clusterawsadm bootstrap iam create-cloudformation-stack \
   --region <region>
 ----
 
-Si el _cluster_ también tiene `ecr_pull_through_cache_enabled: true`, añade además las políticas de esa configuración (ver <<_migración_a_ecr_pull_through_cache>>) al mismo bloque `managedMachinePool.extraPolicyAttachments`, para que los nodos `MachinePool` también las tengan.
+Si el _cluster_ también tiene `ecr_pull_through_cache_enabled: true`, los nodos `MachinePool` necesitan los mismos permisos ECR (`ecr:BatchImportUpstreamImage`, `ecr:CreateRepository`) que ya tiene el rol `nodes` (ver <<_migración_a_ecr_pull_through_cache>>). A diferencia de `nodes`, el _role_ `eks-nodegroup` **no admite políticas inline** (`extraStatements`) — solo políticas gestionadas por ARN. Crea antes una política IAM independiente con esos permisos:
+
+[source,bash]
+----
+cat > /tmp/ecr-pull-through-mp-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": ["ecr:BatchImportUpstreamImage", "ecr:CreateRepository"],
+      "Effect": "Allow",
+      "Resource": ["*"]
+    }
+  ]
+}
+EOF
+
+aws iam create-policy \
+  --policy-name ecr-pull-through-cache-machinepool \
+  --policy-document file:///tmp/ecr-pull-through-mp-policy.json
+----
+
+Y añade el ARN devuelto al bloque `managedMachinePool.extraPolicyAttachments`, para que los nodos `MachinePool` también tengan estos permisos.
 
 ==== Migrar un grupo de nodos
 
