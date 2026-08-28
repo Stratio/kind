@@ -249,9 +249,15 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	return nil
 }
 
-func createCloudFormationStack(n nodes.Node, envVars []string) error {
+func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string) error {
 	var c string
 	var err error
+
+	// managedMachinePool only accepts managed policy ARNs (no inline extraStatements like "nodes" below); the ARN must already exist, this only attaches it.
+	managedMachinePoolExtraPolicyAttachments := "        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+	if nodegroupExtraPolicyARN != "" {
+		managedMachinePoolExtraPolicyAttachments += "\n        - " + nodegroupExtraPolicyARN
+	}
 
 	eksConfigData := `
 apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
@@ -267,7 +273,7 @@ spec:
     managedMachinePool:
         disable: false
         extraPolicyAttachments:
-        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+` + managedMachinePoolExtraPolicyAttachments + `
   controlPlane:
     enableCSIPolicy: true
   nodes:
