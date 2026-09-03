@@ -1181,7 +1181,7 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None):
     '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
 
     import tempfile
@@ -1207,6 +1207,8 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
                 pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
+                if repo_username and repo_password:
+                    pull_cmd += f" --username {repo_username} --password {repo_password}"
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1387,7 +1389,7 @@ def upgrade_chart(chart_name, chart_data):
         }
 
         if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema)
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password)
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
