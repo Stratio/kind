@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+* [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
+
 ## 0.9.1 (2026-08-28)
 
 * Bump `DEPENDENCIES`: `kind.cloud-provisioner` 0.17.0-0.8.0 → 0.9.1, `charts.cluster-operator` 0.5.2 → 0.7.1; sync `docs/images/commons/imagenes-kind.txt` to match
