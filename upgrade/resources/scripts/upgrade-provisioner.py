@@ -38,7 +38,7 @@ CLOUD_PROVISIONER = "0.9.1"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.1"
+CLUSTER_OPERATOR = "0.7.2"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
@@ -105,7 +105,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.7.1",
+        "version": "0.7.2",
         "namespace": "kube-system",
         "repo": ""
     },
