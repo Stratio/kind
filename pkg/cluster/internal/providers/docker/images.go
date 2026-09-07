@@ -65,11 +65,11 @@ func ensureNodeImages(logger log.Logger, status *cli.Status, cfg *config.Cluster
 			if dockerRegUrl != "" {
 				friendlyImageName = strings.Join([]string{dockerRegUrl, friendlyImageName}, "/stratio/")
 			}
-			// NOTE: In our CICD pipeline, when releasing a prerelease version, the compiled binary is simply retagged and
-			// the release artifact contains the prerelease version (with hash) instead of the final release version.
-			// To ensure we always reference the release image when pulling from the registry, we remove the prerelease hash.
-			// If you want to test a prerelease image with a hash, use the --build-stratio-image or --use-local-stratio-image flags.
-			friendlyImageName = removePrereleaseHash(friendlyImageName)
+			// NOTE: In our CICD pipeline, when releasing a release candidate, the compiled binary is simply retagged and
+			// the release artifact contains the release candidate version (e.g. 0.9.0-rc.1) instead of the final release version.
+			// To ensure we always reference the release image when pulling from the registry, we remove the -rc.N suffix.
+			// If you want to test a release candidate image, use the --build-stratio-image or --use-local-stratio-image flags.
+			friendlyImageName = removeReleaseCandidateSuffix(friendlyImageName)
 			status.Start(fmt.Sprintf("Ensuring node image (%s) 🖼", friendlyImageName))
 			if _, err := pullIfNotPresent(logger, friendlyImageName, 4); err != nil {
 				status.End(false)
@@ -142,7 +142,6 @@ func tag(logger log.Logger, image string, tag string) error {
 	return nil
 }
 
-
 // pull pulls an image, retrying up to retries times
 func pull(logger log.Logger, image string, retries int) error {
 	logger.V(1).Infof("Pulling image: %s ...", image)
@@ -171,14 +170,13 @@ func sanitizeImage(image string) (string, string) {
 	return image, image
 }
 
-
-// removePrereleaseHash removes a final dash+hash (e.g., -8214d23) from the image tag,
-// leaving e.g. cloud-provisioner:0.9.0-8214d23 -> cloud-provisioner:0.9.0
-func removePrereleaseHash(image string) string {
-    // Matches a git commit hash suffix (7+ hex chars) after a semver tag and removes it
-    re := regexp.MustCompile(`^(.+:\d+\.\d+\.\d+)-[a-fA-F0-9]{7,}$`)
-    if matches := re.FindStringSubmatch(image); len(matches) == 2 {
-        return matches[1]
-    }
-    return image
+// removeReleaseCandidateSuffix removes a final -rc.N suffix from the image tag,
+// leaving e.g. cloud-provisioner:0.9.0-rc.1 -> cloud-provisioner:0.9.0
+func removeReleaseCandidateSuffix(image string) string {
+	// Matches a release candidate suffix after a semver tag and removes it
+	re := regexp.MustCompile(`^(.+:\d+\.\d+\.\d+)-rc\.\d+$`)
+	if matches := re.FindStringSubmatch(image); len(matches) == 2 {
+		return matches[1]
+	}
+	return image
 }

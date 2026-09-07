@@ -53,6 +53,10 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 		return err
 	}
 
+	if err := validateAWSSecurity(spec); err != nil {
+		return err
+	}
+
 	cfg, err := commons.AWSGetConfig(ctx, providerSecrets)
 	if err != nil {
 		return err
@@ -245,6 +249,21 @@ func validateAWSCredentials(spec commons.KeosSpec) error {
 	var isAWSRoleARN = regexp.MustCompile(`^arn:aws:iam::\d{12}:role/[\w+=,.@-]+$`).MatchString
 	if spec.Credentials.AWS.RoleARN != nil && *spec.Credentials.AWS.RoleARN != "" && !isAWSRoleARN(*spec.Credentials.AWS.RoleARN) {
 		return errors.New("spec.credentials.aws.roleARN: Invalid value: must have the format arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME")
+	}
+	return nil
+}
+
+func validateAWSSecurity(spec commons.KeosSpec) error {
+	arn := spec.Security.AWS.NodegroupExtraPolicyARN
+	if arn == "" {
+		return nil
+	}
+	var isAWSPolicyARN = regexp.MustCompile(`^arn:aws:iam::\d{12}:policy/[\w+=,.@-]+$`).MatchString
+	if !isAWSPolicyARN(arn) {
+		return errors.New("spec.security.aws.nodegroup_extra_policy_arn: Invalid value: must have the format arn:aws:iam::ACCOUNT_ID:policy/POLICY_NAME")
+	}
+	if !spec.Security.AWS.CreateIAM {
+		return errors.New("spec.security.aws.nodegroup_extra_policy_arn requires spec.security.aws.create_iam to be true")
 	}
 	return nil
 }

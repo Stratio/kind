@@ -217,41 +217,41 @@ var commonsCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
 		"32": {
 			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 		"33": {
 			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 		"34": {
 			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
 		"35": {
 			"managed": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 			"unmanaged": {
-				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.20.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.1", Namespace: "cert-manager", Pull: true, Reconcile: true},
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
@@ -548,7 +548,8 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		keosCluster.Spec.Credentials = commons.Credentials{}
 		keosCluster.Spec.StorageClass = commons.StorageClass{}
 		keosCluster.Spec.Security.AWS = struct {
-			CreateIAM bool "yaml:\"create_iam\" validate:\"boolean\""
+			CreateIAM               bool   "yaml:\"create_iam\" validate:\"boolean\""
+			NodegroupExtraPolicyARN string "yaml:\"nodegroup_extra_policy_arn,omitempty\""
 		}{}
 		if keosCluster.Spec.InfraProvider != "azure" || (keosCluster.Spec.InfraProvider == "azure" && !keosCluster.Spec.ControlPlane.Managed) {
 			keosCluster.Spec.ControlPlane.Azure = commons.AzureCP{}

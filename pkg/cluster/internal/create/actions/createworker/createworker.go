@@ -45,10 +45,10 @@ type action struct {
 }
 
 type KeosRegistry struct {
-	url                  string
-	user                 string
-	pass                 string
-	registryType         string
+	url                        string
+	user                       string
+	pass                       string
+	registryType               string
 	ecrPullThroughCacheEnabled bool
 }
 
@@ -433,7 +433,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("[CAPA] Ensuring IAM security 👮")
 			defer ctx.Status.End(false)
 
-			err = createCloudFormationStack(n, provider.capxEnvVars)
+			err = createCloudFormationStack(n, provider.capxEnvVars, a.keosCluster.Spec.Security.AWS.NodegroupExtraPolicyARN)
 			if err != nil {
 				return errors.Wrap(err, "failed to create the IAM security")
 			}
@@ -624,7 +624,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Enabling CoreDNS as DNS server 📡")
 			defer ctx.Status.End(false)
 
-				coreDNSPrivateParams := privateParams
+			coreDNSPrivateParams := privateParams
 			coreDNSPrivateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
 			gcpCoreDNSTemplate, err := getManifest(a.keosCluster.Spec.InfraProvider, "coredns_deployment.tmpl", majorVersion, coreDNSPrivateParams)
 
