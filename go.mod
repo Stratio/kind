@@ -1,8 +1,6 @@
 module sigs.k8s.io/kind
 
-go 1.25.0
-
-toolchain go1.25.11
+go 1.26.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
@@ -24,7 +22,7 @@ require (
 	github.com/sosedoff/ansible-vault-go v0.1.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/term v0.45.0
 	google.golang.org/api v0.149.0
 	gopkg.in/yaml.v3 v3.0.1
