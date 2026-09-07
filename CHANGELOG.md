@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.9.2 (upcoming)
 
+* [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
 * [PLT-4759] Fix `apply_chart_crds` failing with 401 Unauthorized when pulling chart CRDs from a `generic` Helm repository with `auth_required: true`; `repo_username`/`repo_password` are now propagated to the `helm pull` command
 
 ## 0.9.1 (2026-08-28)
