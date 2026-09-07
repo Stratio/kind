@@ -1181,7 +1181,7 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None):
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False):
     '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
 
     import tempfile
@@ -1189,9 +1189,11 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Locating and downloading the chart is not best-effort: if the configured helm
-        # repository doesn't have this chart/version, CRDs silently stay outdated and the
-        # new chart version may run against a stale CRD schema — abort the upgrade instead.
+        # Locating and downloading the chart is read-only (login + pull), so it still runs in
+        # dry-run mode: it lets us report which CRDs *would* be applied. Only the actual
+        # `kubectl apply` below is skipped. If the configured helm repository doesn't have this
+        # chart/version, CRDs silently stay outdated and the new chart version may run against a
+        # stale CRD schema — abort the upgrade instead of treating this as best-effort.
         try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
@@ -1225,6 +1227,10 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
         if not crd_files:
             print("SKIP (no CRDs in chart)")
+            return
+
+        if dry_run:
+            print(f"DRY-RUN (would apply {len(crd_files)} CRD file(s))")
             return
 
         # Applying individual CRD files IS best-effort: a given CRD may have no real
@@ -1389,7 +1395,7 @@ def upgrade_chart(chart_name, chart_data):
         }
 
         if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password)
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
