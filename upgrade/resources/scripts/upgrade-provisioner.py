@@ -17,6 +17,7 @@ import os
 import sys
 import json
 import subprocess
+import shlex
 import yaml
 import base64
 import logging
@@ -1222,7 +1223,7 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
                 if repo_username and repo_password:
-                    pull_cmd += f" --username {repo_username} --password {repo_password}"
+                    pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
