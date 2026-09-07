@@ -10,6 +10,8 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 
 Permite actualizar la versión del _cluster_ de Kubernetes desde la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.9.X`.
 
+IMPORTANT: Solo se admite partir de _clusters_ con `KeosCluster.spec.k8s_version` en `1.32`. El _webhook_ de _cluster-operator_ (`api/v1beta1/keoscluster_webhook.go`, lista `k8sVersionSupported`) valida esta restricción en cada actualización del recurso, no solo cuando cambia `k8s_version` — un _cluster_ por debajo de `1.32` queda sin poder actualizarse una vez este proceso instala la versión de _cluster-operator_ correspondiente. Si tu _cluster_ está en una versión anterior, actualiza primero el _k8s_version_ a `1.32` con la versión de _cloud-provisioner_/_cluster-operator_ que tengas instalada actualmente, antes de iniciar este procedimiento.
+
 Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.9.X`, que incluye el _script_ de actualización y todas las dependencias necesarias (Python 3, AWS CLI v2, Azure CLI, Google Cloud SDK, `kubectl`, `helm` y `clusterctl`, entre otras). La ruta completa de descarga depende de dónde esté publicada (registro privado ECR/ACR/GAR, o el Nexus de Stratio para trabajo interno) — ver <<_ejecución_del_contenedor_de_actualización>>.
 
 === Qué se actualiza
