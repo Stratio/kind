@@ -98,10 +98,10 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.4.0
+      cluster-api-gcp-controller: 1.6.1-0.4.1
     manifests:
-      metadata.yaml: 1.6.1-0.4.0
-      infrastructure-components.yaml: 1.6.1-0.4.0
+      metadata.yaml: 1.6.1-0.4.1
+      infrastructure-components.yaml: 1.6.1-0.4.1
   managed:
     images:
       coredns: v1.13.1
