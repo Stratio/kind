@@ -381,6 +381,16 @@ python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
 }' 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
 ----
 
+NOTE: Ejemplo de imágenes ya probadas para un _bump_ `1.32`→`1.35` (Community Gallery `stratioK8s`, consumibles fuera de la suscripción del propio _cluster_):
+[source,json]
+----
+{
+  "1.33": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.33.13",
+  "1.34": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.34.3",
+  "1.35": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.35.8"
+}
+----
+
 Cada valor debe ser un _resource ID_ completo de Azure (`/subscriptions/...`), no un nombre de imagen suelto — el _script_ lo valida y aborta si no lo es. Añade `--private` si los _charts_ e imágenes se sirven desde un registro privado (ver <<_uso_del_flag_private>>). La redirección final es opcional pero recomendable: el _script_ no genera ningún registro propio y `/upgrade/backup` es un volumen montado desde el _host_, así que el archivo sobrevive al contenedor.
 
 Para ver todas las opciones disponibles:
