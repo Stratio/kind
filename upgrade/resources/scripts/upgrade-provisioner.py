@@ -45,12 +45,24 @@ CLUSTER_OPERATOR = "0.7.1"
 # compute_helm_release_timeout() below replaces this constant; kept as fallback only.
 HELM_RELEASE_TIMEOUT_FALLBACK = "15m"
 
+# In --dry-run every mutating call (apply/patch/scale/...) is intercepted by run_command()
+# and never actually changes cluster state, so waiting minutes for a Ready/health condition
+# that cannot change is pure dead time. These checks still run for real against the CURRENT
+# live state (legitimate pre-flight validation) — only their timeout/poll budget shrinks.
+DRY_RUN_HELM_RELEASE_TIMEOUT = "30s"
+DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS = 30
+DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT = "30s"
+DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS = 30
+
 _helm_release_timeout_cache = None
 
 def compute_helm_release_timeout():
     '''Scale the Flux HelmRelease timeout with the real, current node count (workers + CP).'''
     global _helm_release_timeout_cache
     if _helm_release_timeout_cache is not None:
+        return _helm_release_timeout_cache
+    if config["dry_run"]:
+        _helm_release_timeout_cache = DRY_RUN_HELM_RELEASE_TIMEOUT
         return _helm_release_timeout_cache
     nodes_output, _ = run_command(f"{kubectl} get nodes --no-headers", allow_errors=True)
     node_count = len(nodes_output.strip().splitlines()) if nodes_output else 0
@@ -1257,9 +1269,12 @@ def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
         )
         raise Exception(f"HelmRelease {namespace}/{release_name} not Ready: {status_output}") from e
 
-def check_release_pods_healthy(chart_name, release_name, namespace, timeout_seconds=300, poll_interval=5):
+def check_release_pods_healthy(chart_name, release_name, namespace, timeout_seconds=None, poll_interval=5):
     '''Best-effort check that the release's pods are actually healthy, not just Ready in Flux.
-    Retries for up to timeout_seconds — a rollout in progress can transiently look unhealthy.'''
+    Retries for up to timeout_seconds — a rollout in progress can transiently look unhealthy.
+    In --dry-run nothing is actually rolling out, so the retry budget shrinks accordingly.'''
+    if timeout_seconds is None:
+        timeout_seconds = DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS if config["dry_run"] else 300
 
     def get_pods():
         for selector in (f"app.kubernetes.io/instance={release_name}", f"app.kubernetes.io/name={chart_name}", f"k8s-app={chart_name}"):
@@ -2854,7 +2869,8 @@ if __name__ == '__main__':
         print("OK")
 
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
-    command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+    cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
+    command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
     try:
         run_command(command)
         print("OK")
@@ -2877,8 +2893,9 @@ if __name__ == '__main__':
 
         print("[INFO] Verifying KeosCluster is ready/Provisioned before this critical section:", end=" ", flush=True)
         # 60s wasn't enough margin for the last Machine of a MachineDeployment to finish
-        # replacing (seen live 2026-08-26: took 95s) — raised to 5min.
-        deadline = time.time() + 300
+        # replacing (seen live 2026-08-26: took 95s) — raised to 5min. Still a real read of
+        # current state in --dry-run, just with a short budget since nothing here mutates.
+        deadline = time.time() + (DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS if config["dry_run"] else 300)
         while True:
             ready_output, _ = run_command(
                 f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.status.ready}} {{.status.phase}}'",
@@ -2959,7 +2976,8 @@ if __name__ == '__main__':
     print("OK")
 
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
-    command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+    cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
+    command = kubectl + f" wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
     try:
         run_command(command)
         print("OK")
