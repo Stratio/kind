@@ -256,6 +256,8 @@ docker run \
 
 Dentro del contenedor, lanza el _script_ que corresponda con los _flags_ oportunos — ver <<_migración_a_ecr_pull_through_cache>> o <<upgrade_provisioner_sintaxis>> según el caso.
 
+NOTE: El montaje `-v ~/.aws:/upgrade/.aws` **no es necesario en Azure ni en GCP** — ambos _scripts_ obtienen las credenciales del propio `secrets.yml` y las configuran ellos mismos (`az login --service-principal` para Azure, `configure_gcp_credentials()` para GCP) antes de la primera llamada al CLI del proveedor, sin leer nunca ese directorio. Omítelo en esos dos _providers_.
+
 NOTE: Ninguno de los dos _scripts_ genera un archivo de registro propio con marca de tiempo; toda su salida va a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un archivo, por ejemplo añadiendo `2>&1 | tee upgrade-$(date +%Y%m%d-%H%M%S).log` al comando anterior.
 
 == Migración a ECR _pull-through cache_
