@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.0 (upcoming)
 
-* [PLT-4667] Rewrite the EKS upgrade guide (`upgrade.adoc`) against the real 0.9.0 flow; document the fixed `mp_role_name` IAM role requirement for MachinePool and known MachinePool limitations
+* [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
 
 * [PLT-4265] Harden `upgrade-provisioner.py` for the cloud-provisioner 0.9.0/K8s 1.35 upgrade path: add `k8s_version` bump support, pre-flight health checks, and controlled recovery on failure; align component versions and dependencies
 * [PLT-4603] Allow `ami_type: BOTTLEROCKET_x86_64_NVIDIA` for EKS MachinePool worker nodes (was rejected by the CLI validator, only `BOTTLEROCKET_x86_64` was accepted)

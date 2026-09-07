@@ -366,6 +366,19 @@ Dentro del contenedor, ejecuta:
 python3 upgrade-provisioner.py -p <vault-password>
 ----
 
+En un _cluster_ de Azure VMs, un _bump_ de `k8s_version` necesita además el mapa de imágenes de VM por _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms>>):
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
+  "1.33": "<resource-id-de-la-imagen-de-1.33>",
+  "1.34": "<resource-id-de-la-imagen-de-1.34>",
+  "1.35": "<resource-id-de-la-imagen-de-1.35>"
+}' 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
+----
+
+Cada valor debe ser un _resource ID_ completo de Azure (`/subscriptions/...`), no un nombre de imagen suelto — el _script_ lo valida y aborta si no lo es. Añade `--private` si los _charts_ e imágenes se sirven desde un registro privado (ver <<_uso_del_flag_private>>). La redirección final es opcional pero recomendable: el _script_ no genera ningún registro propio y `/upgrade/backup` es un volumen montado desde el _host_, así que el archivo sobrevive al contenedor.
+
 Para ver todas las opciones disponibles:
 
 [source,bash]
@@ -582,7 +595,9 @@ A diferencia de AWS/GCP, en Azure VMs el _script_ no puede aplicar un único _pa
 
 Esto tiene implicaciones prácticas directas:
 
-* **`--node-image-map` es obligatorio** para cualquier _bump_ de `k8s_version` en Azure — un JSON con la imagen de VM de cada _minor_ intermedio (ver tabla de _flags_ más arriba). Sin él, el _script_ aborta antes de tocar nada.
+* **`--node-image-map` es obligatorio** para cualquier _bump_ de `k8s_version` en Azure — un JSON con la imagen de VM de cada _minor_ intermedio (ver tabla de _flags_ más arriba). Sin él, el _script_ aborta antes de tocar nada. Cada paso necesita la imagen de **su** _minor_, no la del destino final: CAPI exige que una máquina nueva coincida exactamente con la versión del plano de control en el momento de crearla.
++
+IMPORTANT: La imagen correspondiente al _minor_ **1.33** debe estar construida con `kubeadm` **v1.33.13 o superior**. Los _patches_ anteriores de 1.33 resuelven _etcd_ `3.5.21`, dentro del rango `3.5.20`-`3.5.23` afectado por el _bug_ `etcd-io/etcd#20793`: al cruzar a 1.34 —el _minor_ que introduce _etcd_ 3.6.x— las réplicas nuevas del plano de control se registran como _learners_ y nunca llegan a promocionarse (`etcdserver: can only promote a learner member which is in sync with leader`), el `MachineHealthCheck` las remedia por tiempo de espera agotado y el ciclo se repite de forma indefinida. Con `kubeadm` v1.33.13 la imagen arranca _etcd_ `3.5.24-0`, fuera de ese rango, y el paso converge con normalidad.
 * El proceso completo tarda más que en EKS/GKE — son N actualizaciones secuenciales del plano de control (con su espera de convergencia y un margen de asentamiento entre pasos), no una sola.
 * Durante todo el _bump_, el _script_ aplica y revierte automáticamente dos cambios temporales, sin intervención manual:
 ** Amplía la `GlobalNetworkPolicy` de Calico que permite tráfico desde el plano de control, para que la conectividad no se rompa mientras hay nodos de control plane con versiones mixtas durante la transición.
