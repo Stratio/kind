@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.2 (upcoming)
 
 * [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
+* [PLT-4444] Vulnerabilidades Clouds 15.1
 
 ## 0.9.1 (2026-08-28)
 

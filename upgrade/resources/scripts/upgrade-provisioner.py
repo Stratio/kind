@@ -90,7 +90,7 @@ CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.0"
 CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
     "1.32": "v1.34.2",
     "1.34": "v1.34.2",
-    "1.35": "v1.35.5",
+    "1.35": "v1.35.8",
 }
 
 common_charts = {
