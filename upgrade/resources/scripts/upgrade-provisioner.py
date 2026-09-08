@@ -2239,10 +2239,18 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
-    '''Wait for the real CP rollout to converge on target_version, not just spec.version.'''
+    '''Wait for the real CP rollout to converge on target_version, not just spec.version.
+
+    Callers always pass a bare "vMAJOR.MINOR.0" target (the step/resume version), but
+    status.version reports the real installed patch (e.g. "v1.32.9" from a node_image
+    pinned to a later patch release) — comparing for exact equality against ".0" never
+    matches once the cluster has any patch != 0, hanging here for the full timeout on
+    every resume and every step. Match by minor prefix instead — replica-count checks
+    below still guard against a stale/incomplete rollout.'''
 
     kcp_name = cluster_name + "-control-plane"
     cp_namespace = "cluster-" + cluster_name
+    target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2]) + "."
     print(f"[INFO] Waiting for the real control plane to reach {target_version} (timeout {timeout_minutes}m):", end=" ", flush=True)
     deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
@@ -2258,7 +2266,7 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
             ready_replicas = status.get("readyReplicas")
             updated_replicas = status.get("updatedReplicas")
             converged = (
-                status.get("version") == target_version and
+                status.get("version", "").startswith(target_minor_prefix) and
                 status.get("ready") is True and
                 replicas == ready_replicas == updated_replicas == desired_replicas
             )
