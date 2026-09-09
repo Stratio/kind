@@ -1,7 +1,7 @@
 core:
   binaries:
     clusterctl: v1.10.10
-    helm: v3.13.1
+    helm: v3.19.0
   images:
     calico:
       cni: v3.31.7
@@ -28,7 +28,7 @@ core:
       cert-manager-webhook: v1.21.1
     cluster-autoscaler: v1.35.0
     cluster-operator:
-      cluster-operator: 0.7.0
+      cluster-operator: 0.7.2
     flux:
       flux-cli: v2.7.5
       helm-controller: v1.4.5
@@ -46,7 +46,7 @@ core:
   charts:
     cert-manager: v1.21.1
     cluster-autoscaler: 9.57.0
-    cluster-operator: 0.7.1
+    cluster-operator: 0.7.2
     flux: 2.17.2
     tigera-operator: v3.31.7
 aws:
@@ -60,9 +60,9 @@ aws:
       infrastructure-components.yaml: v2.9.3
   managed:
     addons:
-      aws-ebs-csi-driver: v1.61.1-eksbuild.1
-      coredns: v1.13.1-eksbuild.1
-      kube-proxy: v1.35.3-eksbuild.11
+      aws-ebs-csi-driver: v1.64.0-eksbuild.1
+      coredns: v1.13.2-eksbuild.11
+      kube-proxy: v1.35.3-eksbuild.18
       vpc-cni: v1.20.1-eksbuild.1
     charts:
       aws-load-balancer-controller: 3.4.0
