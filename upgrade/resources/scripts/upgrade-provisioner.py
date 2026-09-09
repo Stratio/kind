@@ -2887,9 +2887,7 @@ if __name__ == '__main__':
         print("OK")
 
         print("[INFO] Verifying KeosCluster is ready/Provisioned before this critical section:", end=" ", flush=True)
-        # 60s wasn't enough margin for the last Machine of a MachineDeployment to finish
-        # replacing (seen live 2026-08-26: took 95s) — raised to 5min. Still a real read of
-        # current state in --dry-run, just with a short budget since nothing here mutates.
+        # Raised to 5min (seen live 2026-08-26: 95s to replace) — real read of current state even in --dry-run, just a short budget since nothing here mutates.
         deadline = time.time() + (DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS if config["dry_run"] else 300)
         while True:
             ready_output, _ = run_command(
