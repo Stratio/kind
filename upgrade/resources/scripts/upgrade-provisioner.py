@@ -1131,6 +1131,13 @@ def update_tigera_operator_image_tag_value(values_file):
         values['calicoctl']['tag'] = TIGERA_OPERATOR_CALICOCTL_VERSION
         values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
 
+        # The chart defaults whisker/goldmane to true, so an upgrade from a chart older than
+        # v3.30 installs them unasked; force both from the descriptor instead.
+        observability_enabled = keos_cluster["spec"].get("calico", {}).get("observability_enabled", False)
+        # setdefault, not assignment: the chart passes the sibling keys on as the CR spec.
+        values.setdefault('whisker', {})['enabled'] = observability_enabled
+        values.setdefault('goldmane', {})['enabled'] = observability_enabled
+
         # Apply ECR pull-through prefixes to registry fields.
         # The registry URL is stored separately from the image path in tigera values,
         # so string substitution in create_default_values() never matches — must be done here.
