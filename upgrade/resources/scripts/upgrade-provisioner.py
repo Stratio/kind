@@ -46,10 +46,7 @@ CLUSTER_OPERATOR = "0.7.1"
 # compute_helm_release_timeout() below replaces this constant; kept as fallback only.
 HELM_RELEASE_TIMEOUT_FALLBACK = "15m"
 
-# In --dry-run every mutating call (apply/patch/scale/...) is intercepted by run_command()
-# and never actually changes cluster state, so waiting minutes for a Ready/health condition
-# that cannot change is pure dead time. These checks still run for real against the CURRENT
-# live state (legitimate pre-flight validation) — only their timeout/poll budget shrinks.
+# In --dry-run, mutating calls are intercepted by run_command() and never change cluster state, so these checks still run for real against current live state but with a shrunk timeout/poll budget instead of waiting on a condition that cannot change.
 DRY_RUN_HELM_RELEASE_TIMEOUT = "30s"
 DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS = 30
 DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT = "30s"
@@ -1202,11 +1199,7 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Locating and downloading the chart is read-only (login + pull), so it still runs in
-        # dry-run mode: it lets us report which CRDs *would* be applied. Only the actual
-        # `kubectl apply` below is skipped. If the configured helm repository doesn't have this
-        # chart/version, CRDs silently stay outdated and the new chart version may run against a
-        # stale CRD schema — abort the upgrade instead of treating this as best-effort.
+        # Locating/downloading the chart is read-only so it still runs in dry-run to report which CRDs would be applied (only `kubectl apply` below is skipped); abort the upgrade if the chart/version isn't found instead of leaving CRDs silently stale.
         try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
@@ -2239,14 +2232,7 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
-    '''Wait for the real CP rollout to converge on target_version, not just spec.version.
-
-    Callers always pass a bare "vMAJOR.MINOR.0" target (the step/resume version), but
-    status.version reports the real installed patch (e.g. "v1.32.9" from a node_image
-    pinned to a later patch release) — comparing for exact equality against ".0" never
-    matches once the cluster has any patch != 0, hanging here for the full timeout on
-    every resume and every step. Match by minor prefix instead — replica-count checks
-    below still guard against a stale/incomplete rollout.'''
+    '''Wait for the real CP rollout to converge on target_version's minor.'''
 
     kcp_name = cluster_name + "-control-plane"
     cp_namespace = "cluster-" + cluster_name
