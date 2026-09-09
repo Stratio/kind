@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-4766] Stop the upgrade from deploying Calico Whisker and Goldmane; force both from `calico.observability_enabled` (default `false`) instead of inheriting the chart's `true` default
+* [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
+
+## 0.9.1 (2026-08-28)
+
 * Bump `DEPENDENCIES`: `kind.cloud-provisioner` 0.17.0-0.8.0 → 0.9.1, `charts.cluster-operator` 0.5.2 → 0.7.1; sync `docs/images/commons/imagenes-kind.txt` to match
 * Fix the node image tag resolving to the release candidate image (e.g. `cloud-provisioner:0.9.0-rc.1` instead of `:0.9.0`) on promoted release binaries; the prerelease-stripping regex only covered the retired `-<githash>` format and not the current `-rc.N` one
 * Add `security.aws.nodegroup_extra_policy_arn` to attach a customer-managed IAM policy ARN to the `eks-nodegroup` role when `create_iam: true` (e.g. for ECR pull-through cache permissions, which that role can't receive as an inline statement)
