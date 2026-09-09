@@ -7,8 +7,8 @@ All notable changes to this project will be documented in this file.
 * [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
 
 ## 0.9.2 (2026-09-09)
->>>>>>> d8ffa744 (Sync DEPENDENCIES and docs/images with the versions pinned in code (#963))
 
+* Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2
 * [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
 * [PLT-4759] Fix `apply_chart_crds` failing with 401 Unauthorized when pulling chart CRDs from a `generic` Helm repository with `auth_required: true`; `repo_username`/`repo_password` are now propagated to the `helm pull` command
 * [PLT-4766] Stop the upgrade from deploying Calico Whisker and Goldmane; force both from `calico.observability_enabled` (default `false`) instead of inheriting the chart's `true` default
