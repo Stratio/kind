@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+<<<<<<< HEAD
+=======
+* Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2
+* [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
+* [PLT-4759] Fix `apply_chart_crds` failing with 401 Unauthorized when pulling chart CRDs from a `generic` Helm repository with `auth_required: true`; `repo_username`/`repo_password` are now propagated to the `helm pull` command
+>>>>>>> ace749c3 (Bump upgrade-provisioner.py versions: cluster-operator 0.7.2, cloud-provisioner 0.9.2 (#961))
 * [PLT-4766] Stop the upgrade from deploying Calico Whisker and Goldmane; force both from `calico.observability_enabled` (default `false`) instead of inheriting the chart's `true` default
 * [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
 
