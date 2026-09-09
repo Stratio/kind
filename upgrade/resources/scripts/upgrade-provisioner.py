@@ -17,6 +17,7 @@ import os
 import sys
 import json
 import subprocess
+import shlex
 import yaml
 import base64
 import logging
@@ -45,12 +46,21 @@ CLUSTER_OPERATOR = "0.7.1"
 # compute_helm_release_timeout() below replaces this constant; kept as fallback only.
 HELM_RELEASE_TIMEOUT_FALLBACK = "15m"
 
+# In --dry-run, mutating calls are intercepted by run_command() and never change cluster state, so these checks still run for real against current live state but with a shrunk timeout/poll budget instead of waiting on a condition that cannot change.
+DRY_RUN_HELM_RELEASE_TIMEOUT = "30s"
+DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS = 30
+DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT = "30s"
+DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS = 30
+
 _helm_release_timeout_cache = None
 
 def compute_helm_release_timeout():
     '''Scale the Flux HelmRelease timeout with the real, current node count (workers + CP).'''
     global _helm_release_timeout_cache
     if _helm_release_timeout_cache is not None:
+        return _helm_release_timeout_cache
+    if config["dry_run"]:
+        _helm_release_timeout_cache = DRY_RUN_HELM_RELEASE_TIMEOUT
         return _helm_release_timeout_cache
     nodes_output, _ = run_command(f"{kubectl} get nodes --no-headers", allow_errors=True)
     node_count = len(nodes_output.strip().splitlines()) if nodes_output else 0
@@ -1188,7 +1198,7 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False):
     '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
 
     import tempfile
@@ -1196,9 +1206,7 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Locating and downloading the chart is not best-effort: if the configured helm
-        # repository doesn't have this chart/version, CRDs silently stay outdated and the
-        # new chart version may run against a stale CRD schema — abort the upgrade instead.
+        # Locating/downloading the chart is read-only so it still runs in dry-run to report which CRDs would be applied (only `kubectl apply` below is skipped); abort the upgrade if the chart/version isn't found instead of leaving CRDs silently stale.
         try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
@@ -1214,6 +1222,8 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
                 pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
             else:
                 pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
+                if repo_username and repo_password:
+                    pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1230,6 +1240,10 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema):
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
         if not crd_files:
             print("SKIP (no CRDs in chart)")
+            return
+
+        if dry_run:
+            print(f"DRY-RUN (would apply {len(crd_files)} CRD file(s))")
             return
 
         # Applying individual CRD files IS best-effort: a given CRD may have no real
@@ -1256,9 +1270,12 @@ def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
         )
         raise Exception(f"HelmRelease {namespace}/{release_name} not Ready: {status_output}") from e
 
-def check_release_pods_healthy(chart_name, release_name, namespace, timeout_seconds=300, poll_interval=5):
+def check_release_pods_healthy(chart_name, release_name, namespace, timeout_seconds=None, poll_interval=5):
     '''Best-effort check that the release's pods are actually healthy, not just Ready in Flux.
-    Retries for up to timeout_seconds — a rollout in progress can transiently look unhealthy.'''
+    Retries for up to timeout_seconds — a rollout in progress can transiently look unhealthy.
+    In --dry-run nothing is actually rolling out, so the retry budget shrinks accordingly.'''
+    if timeout_seconds is None:
+        timeout_seconds = DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS if config["dry_run"] else 300
 
     def get_pods():
         for selector in (f"app.kubernetes.io/instance={release_name}", f"app.kubernetes.io/name={chart_name}", f"k8s-app={chart_name}"):
@@ -1394,7 +1411,7 @@ def upgrade_chart(chart_name, chart_data):
         }
 
         if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema)
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
@@ -2222,10 +2239,11 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
-    '''Wait for the real CP rollout to converge on target_version, not just spec.version.'''
+    '''Wait for the real CP rollout to converge on target_version's minor.'''
 
     kcp_name = cluster_name + "-control-plane"
     cp_namespace = "cluster-" + cluster_name
+    target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2]) + "."
     print(f"[INFO] Waiting for the real control plane to reach {target_version} (timeout {timeout_minutes}m):", end=" ", flush=True)
     deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
@@ -2241,7 +2259,7 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
             ready_replicas = status.get("readyReplicas")
             updated_replicas = status.get("updatedReplicas")
             converged = (
-                status.get("version") == target_version and
+                status.get("version", "").startswith(target_minor_prefix) and
                 status.get("ready") is True and
                 replicas == ready_replicas == updated_replicas == desired_replicas
             )
@@ -2853,7 +2871,8 @@ if __name__ == '__main__':
         print("OK")
 
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
-    command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+    cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
+    command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
     try:
         run_command(command)
         print("OK")
@@ -2875,9 +2894,8 @@ if __name__ == '__main__':
         print("OK")
 
         print("[INFO] Verifying KeosCluster is ready/Provisioned before this critical section:", end=" ", flush=True)
-        # 60s wasn't enough margin for the last Machine of a MachineDeployment to finish
-        # replacing (seen live 2026-08-26: took 95s) — raised to 5min.
-        deadline = time.time() + 300
+        # Raised to 5min (seen live 2026-08-26: 95s to replace) — real read of current state even in --dry-run, just a short budget since nothing here mutates.
+        deadline = time.time() + (DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS if config["dry_run"] else 300)
         while True:
             ready_output, _ = run_command(
                 f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.status.ready}} {{.status.phase}}'",
@@ -2958,7 +2976,8 @@ if __name__ == '__main__':
     print("OK")
 
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
-    command = kubectl + " wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout=5m"
+    cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
+    command = kubectl + f" wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
     try:
         run_command(command)
         print("OK")
