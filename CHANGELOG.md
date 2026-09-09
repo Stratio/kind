@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.2 (upcoming)
+## 0.9.2 (2026-09-09)
 
 * Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2
 * [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
