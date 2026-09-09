@@ -2,7 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## 0.10.0 (upcoming)
+=======
+## 0.9.3 (upcoming)
+
+* [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
+
+## 0.9.2 (2026-09-09)
+>>>>>>> d8ffa744 (Sync DEPENDENCIES and docs/images with the versions pinned in code (#963))
 
 * [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
 * [PLT-4759] Fix `apply_chart_crds` failing with 401 Unauthorized when pulling chart CRDs from a `generic` Helm repository with `auth_required: true`; `repo_username`/`repo_password` are now propagated to the `helm pull` command
