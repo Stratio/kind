@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.2 (upcoming)
 
+* [PLT-4766] Stop the upgrade from deploying Calico Whisker and Goldmane; force both from `calico.observability_enabled` (default `false`) instead of inheriting the chart's `true` default
 * [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
 
 ## 0.9.1 (2026-08-28)
