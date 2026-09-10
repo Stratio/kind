@@ -1,0 +1,774 @@
+= Upgrade from 0.7.x to 0.9.x
+
+This fact sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.7.x to 0.9.x, the upgrade that accompanies the move to Universe 15.1 from 14.8.x, 14.9.x, or 14.10.x on cloud deployments. It includes the Kubernetes jump from 1.32 to 1.35, which in these environments is _Stratio Cloud Provisioner_'s responsibility and not _Stratio KEOS_'. Use it to plan the maintenance window, to know what to prepare beforehand, and to know what to check afterwards.
+
+Each section answers one question and links to the page that details the procedure. When the maintenance window starts, follow the xref:operations-manual:upgrade.adoc[upgrade procedure] step by step.
+
+IMPORTANT: _Stratio Cloud Provisioner_ owns the cluster's infrastructure and its Kubernetes version, so *its window goes first*: the _Stratio KEOS_ upgrade from 1.2.x to 1.4 comes afterwards, in a separate window. See <<modules,Relationship with other modules>>.
+
+[#summary]
+
+== Summary
+
+IMPORTANT: *The upgrade does not stop the cluster, but it does replace every worker node.* The infrastructure is immutable: raising a node's Kubernetes version does not upgrade it in place, it creates a new one and retires the old one. Every workload with a single replica is down while it is rescheduled and, unlike on-premise installations, here *a badly sized Pod Disruption Budget blocks the node drain*: the component that drains is Cluster API, which honors the eviction API and never forces. Size the window by the number of nodes and review the PDBs before opening it.
+
+IMPORTANT: *In the cloud there are two windows.* This upgrade leaves the cluster on Kubernetes 1.35 with _Stratio KEOS_ still on 1.2.x; the final state arrives with the _Stratio KEOS_ window, which comes afterwards.
+
+The table answers, with one row per decision, what you need in order to size the window:
+
+[cols="2,3,1", options="header"]
+|===
+| Question | Answer | Detail
+
+| How much downtime is there in the worst case?
+| *None at cluster level, but there is per component.* On EKS and on GKE the control plane is raised by the provider, with no node replacement. On Azure VMs the `KubeadmControlPlane` replicas are replaced one at a time, and with them the etcd members: with three replicas the _API Server_ keeps answering. Worker nodes are replaced group by group, and every workload hosted on them is rescheduled; the ones with a single replica are down until they start on another node.
+| <<outage,Downtime>>
+
+| What does the duration depend on?
+| On the *number of nodes* and on the *number of minor version jumps*, which are three: 1.32 → 1.33 → 1.34 → 1.35. On Azure VMs the control plane goes through all three explicitly, with a settle time between them; on EKS and on GKE the provider steps them internally.
+| <<phases,Steps>>
+
+| How long is the maintenance window in total?
+| Pending. No duration has been measured. The script reports the real elapsed time when it finishes, so the first run in preproduction already gives you a figure to plan with.
+| <<phases,Steps>>
+
+| Can the work be split across several windows?
+| *No, except for the Kubernetes jump.* It is a single run that chains the charts, Cluster API, and the version jump, with a critical section in which `cluster-operator`'s webhooks are disabled: you have to reach the end. The only separable part is the Kubernetes jump, which asks for its own confirmation and can be left for another window by answering no.
+| <<phases,Steps>>
+
+| Does anything stop working until another module is upgraded?
+| *Yes, by design of the order.* When this window closes, _Stratio KEOS_ 1.2.x keeps running on Kubernetes 1.35 until its own upgrade runs. That is an expected intermediate state, not a final one.
+| <<modules,Relationship with other modules>>
+
+| Does the data model change, and is a backup needed?
+| There is no application data migration: the provider's volumes survive the node replacement. The backup of the Cluster API objects *is taken by the script itself* at the start, and does not have to be requested.
+| <<data,Data and consistency>>
+
+| Can you go back at any point?
+| *No.* There is no version rollback: `cluster-operator`'s webhook rejects lowering `k8s_version`, and there is no procedure for downgrading the Cluster API providers. Before launching the script, not continuing is enough; afterwards, the way out is forwards.
+| <<rollback,Rollback>>
+
+| Does the previous version work on Universe 15.1?
+| _Stratio Cloud Provisioner_ does not run inside the cluster as one more application: it is the tool that provisions it and the `cluster-operator` that reconciles it. What matters is that the modules running on top, _Stratio KEOS_ 1.2.x included, keep working on the upgraded cluster.
+| <<coexistence,Version coexistence>>
+
+| What is the overall risk?
+| *High.* There is no rollback, the Kubernetes jump is irreversible, a badly sized PDB blocks the drain with nothing forcing it, on Azure VMs the control plane's network policy is temporarily opened, and there is a critical section where a failure can leave the cluster with `cluster-operator`'s webhooks disabled and its controller stopped.
+| <<known-issues,Known issues>>
+|===
+
+.Message to communicate
+[caption=]
+====
+The platform raises the cluster's Kubernetes version. It does not stop: nodes are replaced one by one with new ones running the new version, and applications are rescheduled between them. Services with a single replica will be unresponsive for a few minutes when their turn to change node comes, so it is worth checking beforehand that everything important has more than one. The window is sized by the number of nodes in the cluster. After this intervention a second one will be needed, the _Stratio KEOS_ upgrade, for the environment to reach its final version.
+====
+
+[#scope]
+
+== Scope of the upgrade
+
+All three source Universes carry _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32, so the procedure is the same for all three.
+
+The supported source version is 0.7.x, which is the one the upgrade script itself declares. Note that *nothing validates it*: the script does not check which version the cluster comes from, so running it against an earlier source does not abort, it simply is not supported. If the cluster comes from an earlier version, upgrade it to 0.7.x first.
+
+The upgrade is only supported on three environments, and any other combination of provider and control-plane type is rejected:
+
+* *EKS* on Amazon Web Services, with a managed control plane.
+* *Azure VMs* on Microsoft Azure, with an unmanaged control plane. Microsoft AKS is not supported.
+* *GKE* on Google Cloud Platform, with a managed control plane.
+
+Out of scope for this fact sheet is the migration of `MachineDeployment` node groups to `MachinePool`, which is a separate, assisted, EKS-only operation that comes after this upgrade: see xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with MachinePools].
+
+[#components]
+
+=== Components and upgrade order
+
+The upgrade is a single run of `upgrade-provisioner.py`, which walks the components in a fixed order. The order matters and cannot be altered: each block depends on the previous one.
+
+[cols="4%,18%,34%,18%,26%", options="header"]
+|===
+| Order | Block | Components | Own storage | Why it goes in that position
+
+| 1
+| Cluster charts
+| cert-manager, cluster-autoscaler, `cluster-operator`, flux2, and the Tigera operator, which governs Calico. Plus, depending on the provider: aws-load-balancer-controller on EKS — only if it is installed — and the disk and file CSI drivers and the Azure cloud provider on Azure VMs.
+| None.
+| Cluster API is deployed on top of `cert-manager`, and the rest of the process relies on Flux to reconcile the charts. They have to be on their new version before touching the providers.
+
+| 2
+| Cluster API and its provider
+| The Cluster API core and its bootstrap and control-plane providers, plus the matching infrastructure provider: CAPA on Amazon Web Services, CAPZ on Microsoft Azure, or CAPG on Google Cloud Platform.
+| None.
+| It is what materializes the Kubernetes version jump: without the providers upgraded, the target version cannot be reconciled.
+
+| 3
+| Kubernetes
+| The control plane and every worker node group, from version 1.32 to 1.35.
+| The control plane's etcd, on Azure VMs only. On EKS and on GKE it belongs to the provider.
+| It goes last because it is carried out by the components of the two previous blocks: `cluster-operator` translates the `k8s_version` change and Cluster API replaces the machines.
+|===
+
+Target versions for 0.9.x:
+
+[cols="2,1,3", options="header"]
+|===
+| Component | Target version | Notes
+
+| Cluster API, bootstrap, and control plane
+| v1.10.10
+| `clusterctl` v1.10.10 has to be in the `PATH`; the script checks it and aborts if it is older.
+
+| CAPA, CAPZ, and CAPG
+| v2.9.3, v1.21.3, and 1.6.1-0.4.0
+| Only the cluster's own provider is upgraded.
+
+| `cluster-operator`
+| 0.7.2
+| Supported from 0.5.x. It is what reconciles the `KeosCluster` and propagates the version change.
+
+| cert-manager
+| v1.21.1
+|
+
+| flux2
+| 2.17.2
+| 0.9.0 deliberately lowered it from 2.18.4.
+
+| Tigera operator
+| v3.31.7, with controller v1.40.15
+| It governs Calico.
+
+| cluster-autoscaler
+| 9.57.0
+| With its image pinned at v1.35.0 because of a scale-down issue: see <<known-issues,Known issues>>.
+
+| aws-load-balancer-controller
+| 3.4.0
+| EKS only, and only if it is installed.
+
+| Azure controllers
+| azuredisk-csi-driver 1.34.5, azurefile-csi-driver 1.35.6, and cloud-provider-azure 1.35.3
+| Azure VMs only.
+
+| Kubernetes
+| 1.35
+| `cluster-operator` 0.7.2 supports versions 1.32, 1.33, 1.34, and 1.35.
+|===
+
+NOTE: The script reads the installed versions and shows the planned change for every component before applying anything, so the comparison against what is in the cluster does not have to be done by hand.
+
+The components that determine the impact of the window are the ones that cannot simply be replaced:
+
+[cols="2,2,2,3", options="header"]
+|===
+| Component | Storage | Replicas and high availability | What happens to it during the upgrade
+
+| The control plane's etcd, on Azure VMs
+| Disk of each control-plane node.
+| One per node; quorum.
+| Its members *are replaced* as the control plane rolls, replica by replica. It does not apply on EKS or GKE: etcd belongs to the provider.
+
+| Cluster API and provider controllers
+| None.
+| 2 replicas, with a PDB that requires at least one available.
+| `clusterctl` reinstalls them with a single replica, so the script takes them back to two when it finishes. Were they left at one, that PDB could block the drain of their node.
+
+| cluster-autoscaler
+| None.
+| 2 replicas.
+| It is scaled to zero at the start and restored at the end: *there is no autoscaling for the whole window*.
+
+| Application volumes
+| Provider disks.
+| As defined by each application.
+| They survive the node replacement: they are detached from the retired node and attached to the new one. See <<work-in-flight,Work in flight during the window>>.
+|===
+
+[#modules]
+
+=== Relationship with other modules
+
+_Stratio Cloud Provisioner_ sits below everything else: it creates the cluster and raises its Kubernetes version. That is why its window is the first one in the Universe sequence.
+
+[cols="2,2,4,4", options="header"]
+|===
+| Related module | What the relationship is | When upgrading _Stratio Cloud Provisioner_ | When upgrading the related module
+
+| _Stratio KEOS_
+| It is installed on the cluster that _Stratio Cloud Provisioner_ provisions and, in the cloud, delegates the Kubernetes version to it.
+| *It goes first.* When this window closes, _Stratio KEOS_ 1.2.x stays on Kubernetes 1.35 until its own upgrade. Its workloads are rescheduled like any other when the nodes are replaced.
+| The _Stratio KEOS_ upgrade from 1.2.x to 1.4 goes *after* this one, in its own window, and does not touch the Kubernetes version again. See its planning fact sheet.
+
+| `cluster-operator`
+| It is not a separate module: it is the controller that _Stratio Cloud Provisioner_ deploys in the cluster to reconcile the `KeosCluster` object.
+| It is upgraded as part of this intervention, from 0.5.x to 0.7.2, and during the critical section it is stopped and its webhooks disabled.
+| It is not upgraded separately.
+
+| _Stratio Command Center_ and the data modules
+| They run on the cluster.
+| No impact of their own beyond their workloads being rescheduled when the nodes are replaced. The ones with a single replica are down while they start on another node.
+| No impact on _Stratio Cloud Provisioner_. Each one is upgraded according to its own fact sheet, after _Stratio KEOS_.
+|===
+
+Upgrade the platform in this order: first _Stratio Cloud Provisioner_, in its own window; then _Stratio KEOS_; and last the data modules, each according to its fact sheet.
+
+[#coexistence]
+
+=== Version coexistence
+
+[cols="2,1,3", options="header"]
+|===
+| Scenario | Supported? | Limitations
+
+| _Stratio KEOS_ 1.2.x on Kubernetes 1.35
+| Yes, as an intermediate state
+| It is the expected result of closing this window before the _Stratio KEOS_ one. It is not a final state: complete it with the _Stratio KEOS_ upgrade to 1.4.
+
+| The control plane and the worker nodes on different Kubernetes versions
+| Yes
+| Up to 3 minor versions apart, and never with the workers ahead, per the Version Skew Policy. It is a transient state of the upgrade itself: the control plane goes up first and the node groups follow, one at a time.
+
+| `MachineDeployment` and `MachinePool` groups in the same cluster
+| Yes, on EKS
+| A descriptor can combine both group types. What does not exist is an automatic migration from one to the other: see <<regressions,Regressions to expect>>.
+
+| Charts already upgraded with Cluster API still on its previous version
+| Yes, transiently
+| It is the state the cluster is left in between blocks 1 and 2 of the run itself. If the script fails there, the cluster stays like that until it is relaunched.
+|===
+
+[#execution]
+
+== Executing the upgrade
+
+[#before]
+
+=== Before the window
+
+[cols="3,1,3", options="header"]
+|===
+| What must be ready | When | How to check it is done
+
+| The upgrade container for the target version, with the working directory mounted: the secrets file encrypted with Ansible Vault that was used to create the cluster, the kubeconfig, the templates, and a local directory for the backups.
+| Mandatory, right before
+| The container starts and `upgrade-provisioner.py --help` answers. Follow the xref:operations-manual:upgrade.adoc[upgrade procedure].
+
+| `clusterctl` v1.10.10 available in the container's `PATH`, along with `kubectl`, `helm`, and `jq`.
+| Mandatory, right before
+| The script checks it as its first step and aborts if the version is older.
+
+| Access to the _API Server_ with the cluster's kubeconfig. On Amazon Web Services and on Google Cloud Platform the script refreshes it by itself if it has expired; *on Microsoft Azure it does not*: the file's credentials have to be updated by hand and the script relaunched.
+| Mandatory, right before
+| `kubectl get ns` answers with that kubeconfig.
+
+| The Vault password for the secrets file, and valid provider credentials inside it.
+| Mandatory, beforehand
+| The script decrypts the file and configures the provider CLI without errors.
+
+| The cluster in a stable state: the `KeosCluster` with `ready = true` and phase `Provisioned`, every node `Ready`, machines in `Running`, no `MachineDeployment` with unavailable replicas, `MachinePools` in `Running`, and the Cluster API, provider, and `cluster-operator` pods healthy.
+| Mandatory, right before
+| The script's pre-flight health checks finish with no findings. If it finds any, it aborts: it only continues if explicitly told to accept the risk.
+
+| The Pod Disruption Budgets of your workloads reviewed. Here this is a real prerequisite and not a recommendation: a resource with a single replica and a PDB that requires at least one available *prevents* its node from being drained, and the drain is never forced.
+| Mandatory, beforehand
+| Every resource with such a PDB has more than one replica, or its PDB has been temporarily removed. On EKS, check the `coredns` PDB in the `kube-system` namespace as well.
+
+| The `cluster-operator` image and chart for the target version published in the cluster's container registry and Helm repository, if they are private.
+| Mandatory if the environment uses private repositories
+| The artifacts are pulled from the registry and repository configured in the `KeosCluster`.
+
+| On Azure VMs, the virtual machine image map for *every intermediate minor version*, with full resource identifiers. The version jump cannot be launched without it.
+| Mandatory on Azure VMs
+| The JSON file has one entry per minor version between the current one and 1.35, and all of them point to an image that exists.
+
+| On EKS, version 1.35 confirmed as supported by the provider, cluster add-ons included.
+| Mandatory on EKS
+| The EKS add-on version query includes 1.35.
+
+| A dry run of the upgrade, which runs the checks and shows the planned changes without applying any of them.
+| Recommended, beforehand
+| The dry run finishes with no findings and the change plan is the expected one.
+
+| The _Stratio KEOS_ window already booked for after this one. The cluster does not reach its final state until both are done.
+| Mandatory, when planning
+| Both windows are on the calendar, in order.
+
+| The upgrade rehearsed in a preproduction environment with a representative node topology. As a general recommendation, the order of environments is development, testing, preproduction, and production last.
+| Recommended, weeks before
+| The closing checks pass in that environment before production is scheduled, and its real elapsed time is used to size the window.
+|===
+
+[#phases]
+
+=== Steps from start to finish
+
+The following steps are the sequence of a single run of `upgrade-provisioner.py`, except the first and the last. The script walks them by itself: the "Own window?" column says whether the step can be taken out of the window, not whether it is launched separately.
+
+[cols="3%,15%,38%,14%,16%,14%", options="header"]
+|===
+| # | Step | What happens and what stops working | Phase duration | Loss of service | Own window?
+
+| 1
+| Preparation
+| Everything listed in <<before,Before the window>>, the dry run included. Nothing stops working.
+| Days or weeks
+| None
+| Yes, days before
+
+| 2
+| Validation and health checks
+| The script validates `clusterctl`, the kubeconfig, and the secrets, configures the provider CLI, and checks the state of the cluster. If it finds anything, it aborts before touching a thing. On Amazon Web Services it also fixes, by itself, a stale security group in the pod network configuration.
+| Pending
+| None
+| No
+
+| 3
+| Backup
+| The cluster's Cluster API objects, the Capsule webhooks, and the secrets of the Cluster API and provider namespaces are exported to disk. Nothing stops working.
+| Pending
+| None
+| No
+
+| 4
+| Environment preparation
+| Autoscaling is turned off — cluster-autoscaler to zero replicas — and the Capsule webhooks are relaxed so that tenant isolation does not block the upgrade. *From here to the end there is no autoscaling.*
+| Pending
+| None
+| No
+
+| 5
+| Cluster charts
+| The base charts and the provider charts are upgraded through Flux, one at a time. Each component restarts when its turn comes, so the ones with a single replica are briefly out of service. When it finishes, the Capsule webhooks are restored.
+| Pending
+| Brief cuts as each component is replaced
+| No
+
+| 6
+| Cluster API and its provider
+| The *critical section* begins: `cluster-operator`'s reconciliation is suspended, its controller is stopped, its webhooks are disabled, the `ClusterConfig` is updated with the new versions, and the Cluster API providers are upgraded. When it finishes, their controllers are taken back to two replicas. While it lasts, *the `KeosCluster` is not reconciled*: any change to the descriptor goes unapplied.
+| Pending
+| None directly
+| No
+
+| 7
+| Kubernetes jump
+| The step that dominates the window. On EKS and on GKE a single version change is applied and the provider steps the three minor versions internally. On Azure VMs it is stepped explicitly, minor version by minor version, waiting at each one for the control plane and every node group to converge. The control plane goes up first and then each node group, one at a time: nodes are replaced with new ones running the target version. It asks for its own confirmation, so it is the only step that can be left for another window.
+| Pending
+| That of the workloads on each node being replaced
+| Yes
+
+| 8
+| Closing
+| `cluster-operator`'s webhooks are re-enabled, its controller is started, its reconciliation is resumed, and autoscaling is returned to two replicas. The critical section ends.
+| Pending
+| None
+| No
+
+| 9
+| Verification
+| The checks in <<checks,Post-upgrade checks>>. Nothing stops working.
+| Pending
+| None
+| No
+
+| 10
+| The _Stratio KEOS_ window
+| The _Stratio KEOS_ upgrade from 1.2.x to 1.4, which is a separate intervention with its own fact sheet. Until it is done, the cluster has Kubernetes 1.35 and _Stratio KEOS_ 1.2.x.
+| Its own fact sheet
+| The one its fact sheet declares
+| Yes
+
+| TOTAL
+|
+| The window is dominated by step 7.
+| Pending
+| Only that of the workloads with a single replica, when their node is replaced
+|
+|===
+
+WARNING: *No duration has been measured yet, so all of them read "Pending".* Before committing to a window, measure them in a preproduction environment with a representative node topology: the script reports the real elapsed time when it finishes.
+
+The only figures that are fixed are the limits beyond which the script stops waiting, and they are worth knowing because they mark when a phase is considered failed rather than slow:
+
+* *90 minutes* for each convergence wait: the control plane's and each node group's. When it runs out, the script aborts.
+* *Each chart's timeout scales with the size of the cluster*, with a minimum of 15 minutes and two more minutes per node.
+* *90 seconds of settle time* between minor versions on Azure VMs, so that the control-plane rotation does not drag `cluster-operator`'s controller with it.
+
+NOTE: The commands and options for each step are in the xref:operations-manual:upgrade.adoc[upgrade procedure], which is the normative source: this fact sheet describes the impact, not the execution.
+
+[#providers]
+
+=== Differences by provider
+
+What changes between environments is not the sequence, but who raises the control plane and with how much intervention:
+
+[cols="1,2,2,2,2", options="header"]
+|===
+| Environment | Control plane | How Kubernetes is raised | Its own prerequisites | Degree of validation
+
+| EKS, on Amazon Web Services
+| Managed by the provider. Its etcd belongs to Amazon Web Services and is not touched.
+| A single version change is applied and the provider steps the three minor versions internally. The wait is done against the EKS API, not against the `KeosCluster` status, because the latter reads as ready between minor versions.
+| Confirm that the provider supports 1.35, cluster add-ons included. Review the `coredns` PDB.
+| The most exercised path.
+
+| Azure VMs, on Microsoft Azure
+| Unmanaged: `KubeadmControlPlane` replicas on discrete machines, with their own etcd.
+| It is stepped explicitly, minor version by minor version. Each step changes the version and the machine image of the control plane and of the node groups, and waits for the control plane and the nodes to converge by checking the real version of their kubelets. A direct jump leaves control-plane replicas stuck on the previous etcd.
+| The machine image map per minor version. The kubeconfig has to be refreshed by hand if it has expired. During the jump, the network policy that protects the control plane is opened to the VPC and pod networks, and Capsule's node webhook is removed; both are restored when it finishes, even if the step fails.
+| Validated, and the one that requires the most manual steps.
+
+| GKE, on Google Cloud Platform
+| Managed by the provider. Its etcd belongs to Google Cloud Platform and is not touched.
+| A single version change is applied and the provider steps it. The wait is done on the `KeosCluster` status.
+| The provider's CRDs require their conversion webhooks to be cleaned up first, which the script does by itself.
+| *The least validated of the three.* The version jump's wait has not been checked in a real environment: see <<known-issues,Known issues>>.
+|===
+
+[#no-return]
+
+=== Point of no return
+
+The point of no return is *the Kubernetes version jump*, and it is crossed in step 7. There is no downgrade operation:
+
+[cols="2,1,2,2", options="header"]
+|===
+| What changes | Step | How you know it has been passed | When it applies
+
+| The control plane's Kubernetes version
+| 7
+| The control plane reports the target version: on EKS and on GKE, in the provider's API; on Azure VMs, in the `KubeadmControlPlane`.
+| Always.
+
+| The members of the control plane's etcd
+| 7
+| The control-plane nodes are new ones and the etcd members, different ones.
+| On Azure VMs only. On EKS and on GKE etcd belongs to the provider.
+
+| The Cluster API CRDs and controllers
+| 6
+| The providers report the target versions.
+| Always.
+|===
+
+* *What stops being possible from then on.* Going back to the previous Kubernetes version: `cluster-operator`'s webhook rejects any `k8s_version` lower than the installed one, and the script itself aborts if the target is lower than the current version. There is no procedure for downgrading the Cluster API providers either.
+* *What can be done before crossing it.* Up to and including step 6, the cluster keeps its Kubernetes version: the charts and Cluster API are already upgraded, but the nodes have not been touched. It is the last point at which the intervention can stop without having altered the data plane.
+
+[#data]
+
+=== Data and consistency
+
+* *What changes in the data model.* Nothing in application data. What changes is the infrastructure: the nodes are replaced and, on Azure VMs, with them the members of the control plane's etcd. The Cluster API CRDs move to the 0.9.x versions, which converts the existing objects.
+* *Is a mandatory backup needed beforehand?* The script takes it at the start, and it does not have to be requested: it exports to disk the Cluster API objects, the Capsule webhooks, and the secrets of the Cluster API and provider namespaces. It is worth not disabling it and keeping that directory until the window is closed.
+* *What that backup covers and what it does not.* It serves to rebuild the infrastructure objects if they are corrupted or deleted. *It does not serve to go back to the previous version*: the objects it contains describe the cluster as it was, but restoring them downgrades neither Kubernetes nor the providers.
+* *What happens to the volumes.* The provider's disks survive the node replacement: they are detached from the retired node and attached to the new one. What lives on a node's local disk, by contrast, is lost with it.
+* *Can the data be left in an intermediate state?* The cluster can, the data cannot. If the process is interrupted, it may be left with the new charts and the old providers, or with the control plane on the target version and some node groups still on the previous one. Both are supported states and are resolved by completing the upgrade.
+* *What to do if something fails halfway.* Fix the cause and relaunch, with one important caveat covered in <<rollback,Rollback>>: if the version change has already been written to the descriptor but never propagated, a relaunch skips it.
+* *How to check the data is fine after migrating.* The `KeosCluster` returns to `ready` and to phase `Provisioned`, every node reports the target version, and the applications with volumes start again. It is covered in <<checks,Post-upgrade checks>>.
+
+[#outage]
+
+=== Downtime and availability
+
+* *What has been done to reduce it.* Preparation and the backup happen inside the run but before anything is touched. The control plane keeps serving: on EKS and on GKE the provider raises it without replacing nodes, and on Azure VMs its replicas are replaced one at a time. Node groups are upgraded one at a time, waiting for each one to converge before moving on to the next. And each node is replaced by bringing the new one up first and retiring the old one afterwards, so the configured node count is maintained at all times.
+* *What cannot be avoided, and why.* The node replacement. The infrastructure is immutable: there is no way to raise a node's kubelet version without replacing it, so its workloads are necessarily rescheduled. The real impact depends on how the applications are sized, more than on the upgrade process.
+* *What determines the impact on each service.* The number of replicas. A service with several replicas spread across nodes is not interrupted; one with a single replica is down while it starts on another node.
+* *The most important warning about PDBs.* Here the component that drains the nodes is Cluster API, which honors the eviction API and *never forces the eviction*. A Pod Disruption Budget that cannot be satisfied does not delay the drain: it blocks it, and with it the upgrade of the node group, until the 90-minute limit runs out and the script aborts. This is a fundamental difference from the _Stratio KEOS_ upgrade on on-premise installations, where the drain ends up being forced.
+* *What happens to autoscaling.* It is off from step 4 to step 8. If the cluster's load grows during the window, no nodes are added.
+* *Who is notified, and how far in advance.* Announce that applications will be rescheduled, which services with a single replica will be unresponsive for a few minutes, and that there will be no autoscaling during the intervention. Follow each environment's change management policy: _Stratio Cloud Provisioner_ imposes no notice period.
+* *What happens if a step fails.* The script aborts. If the failure falls inside the critical section, before aborting it attempts a controlled recovery: it re-enables `cluster-operator`'s webhooks, starts its controller, and resumes its reconciliation. If that recovery also fails, the cluster is left with the webhooks disabled and the controller stopped, and they have to be restored by hand before anything else.
+* *Recommendation for planning the window.* Measure the complete run in preproduction with a similar node count and communicate a range, not an exact figure. And count on step 7 being the one that rules: on Azure VMs it is three full rotations of the control plane and of every node group.
+
+[#work-in-flight]
+
+=== Work in flight during the window
+
+Since the cluster is not stopped to upgrade it, this table summarizes what happens to work already running and how it recovers:
+
+[cols="2,4,2,4", options="header"]
+|===
+| What may be running | What happens to it | What to do beforehand | How it recovers afterwards
+
+| Workloads with several replicas spread across nodes
+| They carry on unaffected: the replicas on the node being retired are rescheduled onto others and the service is never left without instances.
+| Nothing
+| Nothing needed.
+
+| Workloads with a single replica
+| They are down from the moment their node is drained until they start on another one. This is the real impact of the window.
+| Add a second replica to anything that cannot be interrupted, or accept the cut and announce it.
+| Kubernetes starts them again on its own. Check they ended up in `Running`.
+
+| Workloads with a Pod Disruption Budget that cannot be satisfied
+| *They block the drain of their node*, and with it the upgrade of its whole node group. Nothing forces the eviction.
+| Review them: it is the most important prerequisite in <<before,Before the window>>.
+| It does not recover on its own. The PDB or the replica count has to be fixed and the upgrade relaunched.
+
+| Pods with exclusive-access volumes
+| They are rescheduled, but do not start until the volume is detached from the retired node and attached to the new one, which lengthens their unavailability.
+| Nothing, but count on these services taking longer to come back than the rest.
+| They start on their own once the volume is available. If one stays waiting, check the volume's state.
+
+| DaemonSets
+| They are excluded from the node drain and go away with the node; the new node brings them up again.
+| Nothing
+| Nothing needed.
+
+| Running Jobs and CronJobs
+| Those running on a node being retired are interrupted. If they are not idempotent, repeating them may duplicate data.
+| Avoid launching long jobs during the window, and review which ones can be repeated without side effects.
+| Check the state of the ones that were running and relaunch them if appropriate.
+
+| Changes to the cluster descriptor
+| They are not applied: during the critical section, `cluster-operator` is stopped and its webhooks disabled. A change made in that period goes unreconciled and can be mistaken for an upgrade failure.
+| Do not touch the `KeosCluster` during the window, and warn whoever might. Bear in mind, too, that it must never be modified with `kubectl apply`: see <<known-issues,Known issues>>.
+| Apply the change again once the window is closed and `cluster-operator` is back.
+
+| Node autoscaling
+| It does not happen: autoscaling is off for the whole intervention.
+| If you expect a load peak, size the node groups before the window.
+| It comes back on its own at the end of step 8. Check it has recovered its replicas.
+
+| _API Server_ calls and external orchestrators
+| On EKS and on GKE they are not interrupted. On Azure VMs they fail during the seconds in which each control-plane replica is replaced; with a single replica, the cut lasts for its whole replacement.
+| Pause external orchestration during the window so that it does not pile up failed attempts.
+| Relaunch the affected flows from the orchestrator.
+
+| _Stratio KEOS_ monitoring and centralized logging
+| They lose samples and events while their own pods are rescheduled from one node to another.
+| Nothing
+| They recover on their own, but the gap in the time series is not backfilled.
+|===
+
+[#post-upgrade]
+
+== After the upgrade
+
+[#regressions]
+
+=== Regressions to expect
+
+None of these regressions blocks the upgrade, but each one affects specific functionality:
+
+[cols="1,1,2,1", options="header"]
+|===
+| What stops working or changes | Cause | How to resolve it | In the meantime
+
+| Calico's observability components, Whisker and Goldmane
+| 0.9.2 stopped deploying them during the upgrade and forces them to the descriptor's default value, which is disabled.
+| Enable them explicitly in the cluster descriptor if you need them.
+| They are not deployed, even though the Calico chart ships them.
+
+| Node groups remain `MachineDeployment` on EKS
+| EKS-managed node groups are only created on new clusters: the upgrade does not convert existing groups.
+| Migrating them is a separate, assisted, phased operation that comes after this upgrade: see xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with MachinePools].
+| The existing groups keep working as self-managed instances.
+
+| The flux2 version ends up below the one 0.8.x shipped
+| 0.9.0 deliberately lowered it from 2.18.4 to 2.17.2.
+| Nothing: it is the target version for this version of _Stratio Cloud Provisioner_.
+| Flux works normally on the pinned version.
+
+| Autoscaling does not come back on its own if the upgrade aborts
+| The script turns it off at the start and restores it in the closing step, which does not run if it aborts earlier.
+| Take it back to its replicas by hand and check the deployment is available again.
+| The cluster does not add or remove nodes based on load.
+|===
+
+[#checks]
+
+=== Post-upgrade checks
+
+There is no install verification page to defer to, so this table is the closing criterion. The window closes when every blocking check passes:
+
+[cols="4%,26%,42%,12%", options="header"]
+|===
+| # | Check | Expected result | Blocking?
+
+| 1
+| The `KeosCluster`
+| It reports `ready = true` and phase `Provisioned` again.
+| Yes
+
+| 2
+| The nodes
+| All of them report the target version and none is left out of `Ready`. Each group's node count is the configured one.
+| Yes
+
+| 3
+| Machines and node groups
+| Every machine in `Running`, the `MachineDeployments` with their replicas ready and none unavailable, and the `MachinePools` in `Running`.
+| Yes
+
+| 4
+| The control plane
+| On EKS and on GKE, the provider's API reports the cluster active on the target version. On Azure VMs, the `KubeadmControlPlane` has converged and the registered etcd members match the control-plane nodes.
+| Yes
+
+| 5
+| Cluster API and its provider
+| The controllers report the target versions, are on two replicas, and their logs show no errors after the upgrade.
+| Yes
+
+| 6
+| The charts
+| Every `HelmRelease` object is reconciled on the target versions and no pod is left in a state other than `Running` or `Completed`.
+| Yes
+
+| 7
+| `cluster-operator`
+| Its `HelmRelease` is ready and not suspended, its controller is available, and its validating and mutating webhooks are active.
+| Yes
+
+| 8
+| Autoscaling
+| The cluster-autoscaler deployment is back to its replicas and available.
+| Yes
+
+| 9
+| Applications with volumes
+| They have started again and their volumes are attached to the new nodes.
+| Yes
+
+| 10
+| The Capsule webhooks
+| They are back to their original configuration, without the temporary filters the upgrade applies to them. On Azure VMs, check the node webhook has been restored as well.
+| Yes
+
+| 11
+| The control plane's network policy, on Azure VMs
+| It is restricted again to the addresses of the control-plane nodes, instead of allowing the whole VPC and pod networks.
+| Yes
+
+| 12
+| The cluster add-ons on EKS
+| They are on the versions that correspond to 1.35.
+| No
+|===
+
+These tasks are left pending after the window:
+
+[cols="2,3,2", options="header"]
+|===
+| Task | What has to be done | What does not work until it is done
+
+| Upgrade _Stratio KEOS_ to 1.4
+| Run its upgrade according to its own planning fact sheet, in a window after this one.
+| The cluster stays on Kubernetes 1.35 with _Stratio KEOS_ 1.2.x, which is an expected intermediate state but not the final one.
+
+| Keep the backup directory
+| Store it outside the upgrade container, which is ephemeral.
+| Nothing immediately, but the backup of the infrastructure objects from before the intervention is lost.
+
+| Migrate the node groups to managed groups, on EKS
+| Follow the assisted migration procedure, which comes after this upgrade.
+| The existing groups remain self-managed instances.
+
+| Upgrade the data modules
+| Each one according to its own fact sheet, after _Stratio KEOS_.
+| The modules stay on their previous version.
+|===
+
+[#problems]
+
+== If something goes wrong
+
+[#rollback]
+
+=== Rollback
+
+*There is no rollback procedure.* It is the most important limitation of this intervention: the way out is always forwards, and what determines the options is the moment at which it is decided.
+
+[cols="2,1,4,2", options="header"]
+|===
+| Point in the process | Possible? | What is done | How long it takes and whether data is lost
+
+| Before launching the script, during preparation
+| Yes
+| Nothing: no cluster component has been modified. Not continuing is enough.
+| Immediate. No data is lost.
+
+| During steps 2 to 4
+| Yes, almost entirely
+| The script aborts on its own and only two things are left to revert by hand: the autoscaling replicas and, if the run died midway, the Capsule webhooks.
+| Minutes (estimated). No data is lost.
+
+| A chart fails in step 5
+| Partially
+| Fix the cause and relaunch: the script walks the charts again and skips the ones already on the target version. Those already upgraded stay as they are, without being downgraded.
+| Depends on the charts left (estimated). No data is lost.
+
+| Step 6 fails inside the critical section
+| Forwards only
+| The script attempts a controlled recovery: it re-enables `cluster-operator`'s webhooks, starts its controller, and resumes its reconciliation. *Check that recovery completed*: if it also fails, the webhooks have to be re-enabled and the controller started by hand before anything else. Then fix the cause and relaunch.
+| Minutes (estimated). No data is lost.
+
+| The Kubernetes jump fails halfway, in step 7
+| Forwards only
+| Fix the cause and relaunch. It is safe: each step checks the real state before acting and skips whatever is already on the target version. *With one critical exception:* if the version change was already written to the descriptor but never propagated to the infrastructure, a relaunch skips the step because the descriptor already matches the target. Review `cluster-operator`'s tracking annotation and its logs before retrying.
+| Depends on the nodes left (estimated). No data is lost.
+
+| After the control plane's version goes up
+| No
+| There is no possible downgrade. The cluster stays on the new version and the upgrade of any remaining node groups has to be completed.
+| Not applicable. No data is lost.
+|===
+
+And what is *not* reversible under any circumstances: *the Kubernetes version*. `cluster-operator`'s webhook rejects any version lower than the installed one and the script itself aborts if the target is lower than the current version. There is no procedure for downgrading the Cluster API providers or the `cluster-operator` either.
+
+So what is the backup the script takes for: rebuilding the Cluster API objects if they are corrupted or deleted, not going back to the previous version. See <<data,Data and consistency>>.
+
+[#known-issues]
+
+=== Known issues
+
+[cols="2,2,3,2", options="header"]
+|===
+| Warning or issue | When it shows up | What to do | Reference
+
+| A Pod Disruption Budget that cannot be satisfied blocks the drain of its node
+| In step 7, when replacing the nodes of a group
+| Fix the resource's replica count or remove its PDB temporarily, and relaunch. There is no forced eviction: the phase keeps waiting until the script aborts at 90 minutes. On EKS, review the `coredns` PDB in the `kube-system` namespace beforehand.
+| xref:operations-manual:operations-manual.adoc#_kubernetes_upgrade[Kubernetes upgrade]
+
+| The version jump is written to the descriptor but never propagated
+| In step 7, if `cluster-operator`'s controller restarted in the middle of the upgrade
+| Do not simply relaunch the script: since the descriptor already matches the target, the step would be skipped. Review `cluster-operator`'s tracking annotation and its logs before retrying.
+| <<rollback,Rollback>>
+
+| `cluster-operator`'s reconciliation is left suspended after an interrupted run
+| On relaunch, after a run died inside the critical section
+| The script detects it and resumes it by itself before waiting. If you do not get to relaunch it, resume it by hand: while it stays suspended, no descriptor change is applied.
+| <<outage,Downtime and availability>>
+
+| Modifying the `KeosCluster` with `kubectl apply`
+| At any time, outside the window too
+| Do not do it: `cluster-operator` detects the annotation `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
+| xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with MachinePools]
+
+| On GKE, the version jump's wait is not validated in a real environment
+| In step 7, on Google Cloud Platform
+| Follow the state of the `KeosCluster` and of the nodes yourself during the step, instead of taking the wait at face value, and reserve slack in the window.
+| <<providers,Differences by provider>>
+
+| cluster-autoscaler's scale-down on EKS managed groups
+| After the window, when removing nodes from a managed group
+| Nothing: the cluster-autoscaler image is pinned precisely to work around the problem. It is a known and accepted risk until the fix lands in a published release.
+| Issue `kubernetes/autoscaler#9693`
+
+| On Azure, an expired kubeconfig aborts the run
+| In step 2
+| Update the file's credentials by hand and launch the script again. Unlike on Amazon Web Services and on Google Cloud Platform, here it is not refreshed automatically.
+| <<before,Before the window>>
+
+| On Azure, the control plane's network policy is left open during the jump
+| Throughout step 7
+| Nothing while it lasts: it is required for the new control-plane replicas to join the cluster. Check when closing the window that it has been restricted again, because while it is open it allows traffic from the whole VPC and pod networks.
+| <<checks,Post-upgrade checks>>
+|===
+
+TIP: Keep the script's full output. It reports every step, the planned version change of every component, and the total time, so it is what lets you know exactly where the upgrade stopped and in what state, instead of reconstructing it afterwards.
+
+*What counts as blocking.* Any of the checks marked as such in <<checks,Post-upgrade checks>> failing, and in particular the control plane not having converged, nodes being left on the previous version, or `cluster-operator` not having recovered its webhooks and its reconciliation. Everything else can be resolved with the window already closed.
+
+*What to do if a step takes longer than expected.* The script reports every wait and its limit, so the first thing is to check whether it is still making progress: in step 7, if new nodes with the target version keep appearing, it is going fine even if it is slow. If it is not progressing, find the cause before interrupting — the most frequent one is a PDB that cannot be satisfied or a new node that never reaches `Ready` — because interrupting halfway through the jump leaves the cluster with nodes on two versions and, if it happens inside the critical section, with `cluster-operator` stopped.
