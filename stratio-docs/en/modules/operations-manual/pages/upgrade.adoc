@@ -29,7 +29,7 @@ To ensure reproducible execution, the Docker image `cloud-provisioner-upgrade:0.
 * *Platform-specific infrastructure providers*:
 ** CAPA (AWS): `v2.9.3`
 ** CAPZ (Azure): `v1.21.3`
-** CAPG (GCP): `1.6.1-0.4.0`
+** CAPG (GCP): `1.6.1-0.4.1`
 
 * *Platform-specific charts*:
 ** EKS (if installed):
@@ -359,7 +359,7 @@ kubectl get pods -A -o json \
 +
 ** CAPI → `v1.10.10`
 ** CAPA → `v2.9.3`
-** CAPG → `1.6.1-0.4.0`
+** CAPG → `1.6.1-0.4.1`
 ** CAPZ → `v1.21.3`
 
 * Verify chart versions.
