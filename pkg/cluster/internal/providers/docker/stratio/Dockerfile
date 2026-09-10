@@ -1,4 +1,4 @@
-FROM kindest/node:v1.35.5
+FROM kindest/node:v1.35.8
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
@@ -12,7 +12,7 @@ ENV CLUSTERAWSADM=v2.9.3
 ENV HELM=v3.19.0
 ENV AWSCLI_VERSION=2.30.6
 ARG CAPA=v2.9.3
-ARG CAPG=1.6.1-0.4.0
+ARG CAPG=1.6.1-0.4.1
 ARG CAPZ=v1.21.3
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 

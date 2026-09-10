@@ -83,7 +83,7 @@ CAPI = "v1.10.10"
 CAPI_KUBEADM_BOOTSTRAP = "v1.10.10"
 CAPI_KUBEADM_CONTROL_PLANE = "v1.10.10"
 CAPA = "v2.9.3"
-CAPG = "1.6.1-0.4.0"
+CAPG = "1.6.1-0.4.1"
 CAPZ = "v1.21.3"
 
 TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.31.7"
@@ -100,7 +100,7 @@ CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.0"
 CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
     "1.32": "v1.34.2",
     "1.34": "v1.34.2",
-    "1.35": "v1.35.5",
+    "1.35": "v1.35.8",
 }
 
 common_charts = {
@@ -110,7 +110,7 @@ common_charts = {
         "repo": "https://charts.jetstack.io"
     },
     "cluster-autoscaler": {
-        "version": "9.57.0",
+        "version": "9.59.0",
         "namespace": "kube-system",
         "repo": "https://kubernetes.github.io/autoscaler"
     },
@@ -147,7 +147,7 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "1.35.6",
+        "version": "1.35.7",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
     },
@@ -1376,7 +1376,7 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
         # elif release_name == "cluster-autoscaler" and provider == "aws":
-        #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.57.0/v1.35.0)
+        #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.59.0/v1.35.0)
         #     update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
