@@ -1,7 +1,7 @@
 core:
   binaries:
     clusterctl: v1.10.10
-    helm: v3.13.1
+    helm: v3.19.0
   images:
     calico:
       cni: v3.31.7
@@ -62,9 +62,9 @@ aws:
       infrastructure-components.yaml: v2.9.3
   managed:
     addons:
-      aws-ebs-csi-driver: v1.61.1-eksbuild.1
-      coredns: v1.13.1-eksbuild.1
-      kube-proxy: v1.35.3-eksbuild.11
+      aws-ebs-csi-driver: v1.64.0-eksbuild.1
+      coredns: v1.13.2-eksbuild.11
+      kube-proxy: v1.35.3-eksbuild.18
       vpc-cni: v1.20.1-eksbuild.1
     charts:
       aws-load-balancer-controller: 3.4.0
