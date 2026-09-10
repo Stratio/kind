@@ -1,1 +1,1 @@
-stratio-releases.repo.stratio.com/stratio/cluster-operator:0.7.2
+stratio-releases.repo.stratio.com/stratio/cluster-operator:0.7.3
