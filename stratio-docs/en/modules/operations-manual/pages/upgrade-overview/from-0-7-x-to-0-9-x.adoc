@@ -41,7 +41,7 @@ The table answers, with one row per decision, what you need in order to size the
 | <<modules,Relationship with other modules>>
 
 | Does the data model change, and is a backup needed?
-| There is no application data migration: the provider's volumes survive the node replacement. The backup of the Cluster API objects *is taken by the script itself* at the start, and does not have to be requested.
+| There is no application data migration: the provider's volumes survive the node replacement. What does change, *on Azure VMs only*, is the control plane's etcd, which goes from the v3.5 series to the v3.6 series and cannot be reverted. The backup of the Cluster API objects *is taken by the script itself* at the start, and does not have to be requested.
 | <<data,Data and consistency>>
 
 | Can you go back at any point?
@@ -157,6 +157,8 @@ Target versions for 0.9.x:
 
 NOTE: The script reads the installed versions and shows the planned change for every component before applying anything, so the comparison against what is in the cluster does not have to be done by hand.
 
+IMPORTANT: On cloud deployments, *Calico and Flux belong to _Stratio Cloud Provisioner_*: it deploys them when it creates the cluster and upgrades them in this window. The _Stratio KEOS_ upgrade skips them on these environments, so their version comes from here. It is another reason why this window goes before that one: its system services are deployed through this Flux.
+
 The components that determine the impact of the window are the ones that cannot simply be replaced:
 
 [cols="2,2,2,3", options="header"]
@@ -166,7 +168,7 @@ The components that determine the impact of the window are the ones that cannot 
 | The control plane's etcd, on Azure VMs
 | Disk of each control-plane node.
 | One per node; quorum.
-| Its members *are replaced* as the control plane rolls, replica by replica. It does not apply on EKS or GKE: etcd belongs to the provider.
+| Its members *are replaced* as the control plane rolls, replica by replica, and the etcd version *goes from the v3.5 series to the v3.6 series*, with no way back. It does not apply on EKS or GKE: etcd belongs to the provider.
 
 | Cluster API and provider controllers
 | None.
@@ -196,8 +198,8 @@ _Stratio Cloud Provisioner_ sits below everything else: it creates the cluster a
 
 | _Stratio KEOS_
 | It is installed on the cluster that _Stratio Cloud Provisioner_ provisions and, in the cloud, delegates the Kubernetes version to it.
-| *It goes first.* When this window closes, _Stratio KEOS_ 1.2.x stays on Kubernetes 1.35 until its own upgrade. Its workloads are rescheduled like any other when the nodes are replaced.
-| The _Stratio KEOS_ upgrade from 1.2.x to 1.4 goes *after* this one, in its own window, and does not touch the Kubernetes version again. See its planning fact sheet.
+| *It goes first*, and not only as a planning choice: in the cloud, Calico and Flux are deployed and upgraded by _Stratio Cloud Provisioner_, not by _Stratio KEOS_, and version 1.4's system services are deployed through that Flux. When this window closes, _Stratio KEOS_ 1.2.x stays on Kubernetes 1.35 until its own upgrade. Its workloads are rescheduled like any other when the nodes are replaced.
+| The _Stratio KEOS_ upgrade from 1.2.x to 1.4 goes *after* this one, in its own window, and does not touch the Kubernetes version again. See the xref:stratio-keos:operations-guide:cluster-operation/upgrade-overview/from-1-2-x-to-1-4-x.adoc[_Stratio KEOS_ planning fact sheet].
 
 | `cluster-operator`
 | It is not a separate module: it is the controller that _Stratio Cloud Provisioner_ deploys in the cluster to reconcile the `KeosCluster` object.
@@ -273,9 +275,9 @@ Upgrade the platform in this order: first _Stratio Cloud Provisioner_, in its ow
 | Mandatory, beforehand
 | Every resource with such a PDB has more than one replica, or its PDB has been temporarily removed. On EKS, check the `coredns` PDB in the `kube-system` namespace as well.
 
-| The `cluster-operator` image and chart for the target version published in the cluster's container registry and Helm repository, if they are private.
+| The target version's artifacts published in the cluster's container registry and Helm repository, with valid credentials. The script pulls each chart's CRDs from the Helm repository, so expired credentials abort the chart phase halfway.
 | Mandatory if the environment uses private repositories
-| The artifacts are pulled from the registry and repository configured in the `KeosCluster`.
+| The artifacts are pulled from the registry and repository configured in the `KeosCluster`, with the credentials it declares.
 
 | On Azure VMs, the virtual machine image map for *every intermediate minor version*, with full resource identifiers. The version jump cannot be launched without it.
 | Mandatory on Azure VMs
@@ -440,10 +442,10 @@ The point of no return is *the Kubernetes version jump*, and it is crossed in st
 | The control plane reports the target version: on EKS and on GKE, in the provider's API; on Azure VMs, in the `KubeadmControlPlane`.
 | Always.
 
-| The members of the control plane's etcd
+| The control plane's etcd, which goes *from the v3.5 series to the v3.6 series*
 | 7
-| The control-plane nodes are new ones and the etcd members, different ones.
-| On Azure VMs only. On EKS and on GKE etcd belongs to the provider.
+| The etcd containers on the control-plane nodes report a version in the v3.6 series, and their members are different ones: the nodes have been replaced.
+| On Azure VMs only. On EKS and on GKE etcd belongs to the provider and is not touched.
 
 | The Cluster API CRDs and controllers
 | 6
@@ -451,20 +453,22 @@ The point of no return is *the Kubernetes version jump*, and it is crossed in st
 | Always.
 |===
 
-* *What stops being possible from then on.* Going back to the previous Kubernetes version: `cluster-operator`'s webhook rejects any `k8s_version` lower than the installed one, and the script itself aborts if the target is lower than the current version. There is no procedure for downgrading the Cluster API providers either.
+IMPORTANT: On Azure VMs the control plane's etcd is managed by kubeadm and its version is set by the target Kubernetes minor, not by the repository: 1.32 goes with the v3.5 series and 1.35 with the v3.6 series. The jump therefore crosses an *etcd major-series upgrade, which cannot be reverted once applied*, just as it happens on _Stratio KEOS_ on-premise installations. Confirm before the window which etcd version kubeadm deploys on the target minor.
+
+* *What stops being possible from then on.* Going back to the previous Kubernetes version: `cluster-operator`'s webhook rejects any `k8s_version` lower than the installed one, and the script itself aborts if the target is lower than the current version. There is no procedure for downgrading the Cluster API providers either, nor, on Azure VMs, for going back to etcd's v3.5 series.
 * *What can be done before crossing it.* Up to and including step 6, the cluster keeps its Kubernetes version: the charts and Cluster API are already upgraded, but the nodes have not been touched. It is the last point at which the intervention can stop without having altered the data plane.
 
 [#data]
 
 === Data and consistency
 
-* *What changes in the data model.* Nothing in application data. What changes is the infrastructure: the nodes are replaced and, on Azure VMs, with them the members of the control plane's etcd. The Cluster API CRDs move to the 0.9.x versions, which converts the existing objects.
+* *What changes in the data model.* Nothing in application data. What changes is the infrastructure: the nodes are replaced and, on Azure VMs, with them the members of the control plane's etcd, which also *goes from the v3.5 series to the v3.6 series*, an irreversible change of storage format. See <<no-return,Point of no return>>. The Cluster API CRDs move to the 0.9.x versions, which converts the existing objects.
 * *Is a mandatory backup needed beforehand?* The script takes it at the start, and it does not have to be requested: it exports to disk the Cluster API objects, the Capsule webhooks, and the secrets of the Cluster API and provider namespaces. It is worth not disabling it and keeping that directory until the window is closed.
 * *What that backup covers and what it does not.* It serves to rebuild the infrastructure objects if they are corrupted or deleted. *It does not serve to go back to the previous version*: the objects it contains describe the cluster as it was, but restoring them downgrades neither Kubernetes nor the providers.
 * *What happens to the volumes.* The provider's disks survive the node replacement: they are detached from the retired node and attached to the new one. What lives on a node's local disk, by contrast, is lost with it.
 * *Can the data be left in an intermediate state?* The cluster can, the data cannot. If the process is interrupted, it may be left with the new charts and the old providers, or with the control plane on the target version and some node groups still on the previous one. Both are supported states and are resolved by completing the upgrade.
 * *What to do if something fails halfway.* Fix the cause and relaunch, with one important caveat covered in <<rollback,Rollback>>: if the version change has already been written to the descriptor but never propagated, a relaunch skips it.
-* *How to check the data is fine after migrating.* The `KeosCluster` returns to `ready` and to phase `Provisioned`, every node reports the target version, and the applications with volumes start again. It is covered in <<checks,Post-upgrade checks>>.
+* *How to check the data is fine after migrating.* The `KeosCluster` returns to `ready` and to phase `Provisioned`, every node reports the target version, and the applications with volumes start again. On Azure VMs, in addition, the control plane's etcd answers, forms quorum, and its registered members match the control-plane nodes. It is covered in <<checks,Post-upgrade checks>>.
 
 [#outage]
 
@@ -538,6 +542,16 @@ Since the cluster is not stopped to upgrade it, this table summarizes what happe
 | They lose samples and events while their own pods are rescheduled from one node to another.
 | Nothing
 | They recover on their own, but the gap in the time series is not backfilled.
+
+| Open sessions on the Stratio interfaces
+| They are closed when the ingress controller changes node, which happens at some point during step 7 without it being possible to choose when.
+| Warn users that they will have to log in again.
+| Log in again.
+
+| _Stratio KEOS_ scheduled backups
+| A backup that coincides with its node being replaced is interrupted.
+| Do not overlap the window with their schedule. By default they run at 00:00, 00:05, and 00:10.
+| Run the backup by hand once the window is over.
 |===
 
 [#post-upgrade]
@@ -602,7 +616,7 @@ There is no install verification page to defer to, so this table is the closing 
 
 | 4
 | The control plane
-| On EKS and on GKE, the provider's API reports the cluster active on the target version. On Azure VMs, the `KubeadmControlPlane` has converged and the registered etcd members match the control-plane nodes.
+| On EKS and on GKE, the provider's API reports the cluster active on the target version. On Azure VMs, the `KubeadmControlPlane` has converged, etcd answers and forms quorum on the v3.6 series, and its registered members match the control-plane nodes.
 | Yes
 
 | 5
