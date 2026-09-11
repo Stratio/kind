@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.3 (2026-09-11)
 
 * [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
+* [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
 
 ## 0.9.2 (2026-09-09)
 

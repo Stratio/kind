@@ -1,0 +1,36 @@
+= Upgrade planning
+
+This page is a decision index, not a procedure. Use it to choose the fact sheet for your upgrade path and to plan the maintenance window. On the day of the intervention, see the xref:operations-manual:upgrade.adoc[upgrade procedure] to execute it step by step.
+
+Each upgrade path has its own fact sheet, which indicates how long the service is unavailable, what stops working, the upgrade order relative to the other modules, and whether you can go back. The fact sheets are written for those who plan and execute the upgrade in each environment: they gather the decisions, the durations, and the impacts, and refer to the procedure that describes each step.
+
+IMPORTANT: _Stratio Cloud Provisioner_ owns the cluster's infrastructure and its Kubernetes version, so *its window is the first one in the sequence*: the _Stratio KEOS_ one comes afterwards, and the data modules' ones last.
+
+TIP: Start with the summary section of the fact sheet. It answers, at a glance, everything you need to decide the maintenance window.
+
+== Available upgrade paths
+
+[cols="1,1,1,2", options="header"]
+|===
+| Source Universe | Source version | Target version | Fact sheet
+
+| 14.8.x, 14.9.x, 14.10.x
+| 0.7.x, with Kubernetes 1.32
+| 0.9.x, with Kubernetes 1.35
+| xref:operations-manual:upgrade-overview/from-0-7-x-to-0-9-x.adoc[Upgrade from 0.7.x to 0.9.x]
+
+| Prior to 14.8.x
+| Prior to 0.7.x
+| Any
+| No fact sheet: you have to reach 0.7.x first with the documentation for that version.
+|===
+
+NOTE: The path covers both the upgrade of the components _Stratio Cloud Provisioner_ deploys — Cluster API, its providers, and the cluster charts — and the Kubernetes version jump, because both happen in the same run of the upgrade script.
+
+== How to read a fact sheet
+
+Every fact sheet follows the same structure, so that the impact of each upgrade is described in the same terms:
+
+* *The answers are brief.* Each row gives a yes, a no, or a figure, and the last column refers to the section or the page that develops it in full.
+* *No field is left empty.* When something does not apply, the fact sheet says so and explains why, instead of letting you find out in the environment.
+* *The detail stays on the procedure pages.* The fact sheet links to them instead of reproducing them, and leaves as `Pending` any duration that has not been measured.
