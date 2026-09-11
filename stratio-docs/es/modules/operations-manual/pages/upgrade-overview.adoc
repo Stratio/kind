@@ -1,0 +1,36 @@
+= Planificación de la actualización
+
+Esta página es un índice de decisión, no un procedimiento. Utilízala para elegir la ficha aplicable a tu ruta de actualización y para planificar la ventana de mantenimiento. Cuando llegues al día de la intervención, consulta el xref:operations-manual:upgrade.adoc[procedimiento de actualización] para ejecutarlo paso a paso.
+
+Cada ruta de actualización tiene su propia ficha, que indica cuánto tiempo el servicio deja de estar disponible, qué deja de funcionar, en qué orden se actualiza respecto a los demás módulos y si puedes volver atrás. Las fichas están escritas para quienes planifican y ejecutan la actualización en cada entorno: recogen las decisiones, las duraciones y los impactos, y remiten al procedimiento que describe cada paso.
+
+IMPORTANT: _Stratio Cloud Provisioner_ es el dueño de la infraestructura del _cluster_ y de su versión de Kubernetes, así que *su ventana es la primera de la secuencia*: la de _Stratio KEOS_ va después y las de los módulos de datos, al final.
+
+TIP: Empieza por la sección de resumen de la ficha. Responde, de un vistazo, a todo lo que necesitas para decidir la ventana de mantenimiento.
+
+== Rutas de actualización disponibles
+
+[cols="1,1,1,2", options="header"]
+|===
+| Universo de origen | Versión de origen | Versión de destino | Ficha
+
+| 14.8.x, 14.9.x, 14.10.x
+| 0.7.x, con Kubernetes 1.32
+| 0.9.x, con Kubernetes 1.35
+| xref:operations-manual:upgrade-overview/from-0-7-x-to-0-9-x.adoc[Actualización de 0.7.x a 0.9.x]
+
+| Anteriores a 14.8.x
+| Anteriores a 0.7.x
+| Cualquiera
+| Sin ficha: hay que llegar primero a la 0.7.x con la documentación de esa versión.
+|===
+
+NOTE: La ruta cubre a la vez la actualización de los componentes que despliega _Stratio Cloud Provisioner_ —Cluster API, sus proveedores y los _charts_ del _cluster_— y el salto de versión de Kubernetes, porque las dos cosas ocurren en la misma ejecución del _script_ de actualización.
+
+== Cómo se lee una ficha
+
+Cada ficha sigue la misma estructura, de modo que el impacto de cada actualización se describa en los mismos términos:
+
+* *Las respuestas son breves.* Cada fila indica un sí, un no o una cifra, y la última columna remite a la sección o a la página que lo desarrolla por completo.
+* *Ningún campo queda vacío.* Cuando algo no aplica, la ficha lo indica y explica por qué, en lugar de dejar que lo descubras en el entorno.
+* *El detalle se queda en las páginas de procedimiento.* La ficha las enlaza en lugar de reproducirlas y deja como `Pendiente` toda duración que no se haya medido.
