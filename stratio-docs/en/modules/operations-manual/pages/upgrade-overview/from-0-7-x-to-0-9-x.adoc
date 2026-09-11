@@ -132,7 +132,6 @@ Target versions for 0.9.x:
 
 | flux2
 | 2.17.2
-| 0.9.0 deliberately lowered it from 2.18.4.
 
 | Tigera operator
 | v3.31.7, with controller v1.40.15
@@ -577,11 +576,6 @@ None of these regressions blocks the upgrade, but each one affects specific func
 | EKS-managed node groups are only created on new clusters: the upgrade does not convert existing groups.
 | Migrating them is a separate, assisted, phased operation that comes after this upgrade: see xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with MachinePools].
 | The existing groups keep working as self-managed instances.
-
-| The flux2 version ends up below the one 0.8.x shipped
-| 0.9.0 deliberately lowered it from 2.18.4 to 2.17.2.
-| Nothing: it is the target version for this version of _Stratio Cloud Provisioner_.
-| Flux works normally on the pinned version.
 
 | Autoscaling does not come back on its own if the upgrade aborts
 | The script turns it off at the start and restores it in the closing step, which does not run if it aborts earlier.
