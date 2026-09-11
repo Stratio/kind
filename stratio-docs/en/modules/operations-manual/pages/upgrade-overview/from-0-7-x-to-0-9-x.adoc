@@ -250,6 +250,10 @@ Upgrade the platform in this order: first _Stratio Cloud Provisioner_, in its ow
 |===
 | What must be ready | When | How to check it is done
 
+| A dry run of the upgrade, which runs the checks and shows the planned changes without applying any of them.
+| Recommended, beforehand
+| The dry run finishes with no findings and the change plan is the expected one.
+
 | The upgrade container for the target version, with the working directory mounted: the secrets file encrypted with Ansible Vault that was used to create the cluster, the kubeconfig, the templates, and a local directory for the backups.
 | Mandatory, right before
 | The container starts and `upgrade-provisioner.py --help` answers. Follow the xref:operations-manual:upgrade.adoc[upgrade procedure].
@@ -285,10 +289,6 @@ Upgrade the platform in this order: first _Stratio Cloud Provisioner_, in its ow
 | On EKS, version 1.35 confirmed as supported by the provider, cluster add-ons included.
 | Mandatory on EKS
 | The EKS add-on version query includes 1.35.
-
-| A dry run of the upgrade, which runs the checks and shows the planned changes without applying any of them.
-| Recommended, beforehand
-| The dry run finishes with no findings and the change plan is the expected one.
 
 | The _Stratio KEOS_ window already booked for after this one. The cluster does not reach its final state until both are done.
 | Mandatory, when planning

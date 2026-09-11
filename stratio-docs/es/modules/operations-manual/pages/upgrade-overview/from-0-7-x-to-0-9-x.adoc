@@ -250,6 +250,10 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 |===
 | Qué tiene que estar listo | Cuándo | Cómo se comprueba que está hecho
 
+| Un ensayo en vacío de la actualización, que ejecuta las comprobaciones y muestra los cambios previstos sin aplicar ninguno.
+| Recomendado, antes
+| El ensayo termina sin hallazgos y el plan de cambios es el esperado.
+
 | El contenedor de actualización de la versión de destino, con el directorio de trabajo montado: el fichero de secretos cifrado con Ansible Vault que se usó al crear el _cluster_, el _kubeconfig_, las plantillas y un directorio local para las copias de seguridad.
 | Obligatorio, justo antes
 | El contenedor arranca y `upgrade-provisioner.py --help` responde. Sigue el xref:operations-manual:upgrade.adoc[procedimiento de actualización].
@@ -285,10 +289,6 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 | En EKS, la versión 1.35 confirmada como soportada por el proveedor, incluidos los complementos del _cluster_.
 | Obligatorio en EKS
 | La consulta de versiones de complementos de EKS incluye la 1.35.
-
-| Un ensayo en vacío de la actualización, que ejecuta las comprobaciones y muestra los cambios previstos sin aplicar ninguno.
-| Recomendado, antes
-| El ensayo termina sin hallazgos y el plan de cambios es el esperado.
 
 | La ventana de _Stratio KEOS_ ya reservada para después de esta. El _cluster_ no queda en su estado final hasta que se hacen las dos.
 | Obligatorio, al planificar
