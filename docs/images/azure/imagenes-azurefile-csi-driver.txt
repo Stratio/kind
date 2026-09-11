@@ -1,4 +1,4 @@
-mcr.microsoft.com/oss/v2/kubernetes-csi/azurefile-csi:v1.35.6
+mcr.microsoft.com/oss/v2/kubernetes-csi/azurefile-csi:v1.35.7
 mcr.microsoft.com/oss/v2/kubernetes-csi/csi-node-driver-registrar:v2.17.0
 mcr.microsoft.com/oss/v2/kubernetes-csi/csi-provisioner:v6.3.0
 mcr.microsoft.com/oss/v2/kubernetes-csi/csi-resizer:v2.2.0
