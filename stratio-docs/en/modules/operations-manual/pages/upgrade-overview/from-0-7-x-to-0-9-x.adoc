@@ -392,7 +392,7 @@ WARNING: *No duration has been measured yet, so all of them read "Pending".* Bef
 The only figures that are fixed are the limits beyond which the script stops waiting, and they are worth knowing because they mark when a phase is considered failed rather than slow:
 
 * *90 minutes* for each convergence wait: the control plane's and each node group's. When it runs out, the script aborts.
-* *Each chart's timeout scales with the size of the cluster*: 15 minutes, or 5 plus two minutes per node if that is higher.
+* *Each chart's timeout scales with the size of the cluster*: the higher of 15 minutes and 5 plus two minutes per node.
 * *90 seconds of settle time* between minor versions on Azure VMs, so that the control-plane rotation does not drag `cluster-operator`'s controller with it.
 
 NOTE: The commands and options for each step are in the xref:operations-manual:upgrade.adoc[upgrade procedure], which is the normative source: this fact sheet describes the impact, not the execution.

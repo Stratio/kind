@@ -392,7 +392,7 @@ WARNING: *Ninguna duración está medida todavía, así que todas figuran como �
 Los únicos números que sí están fijados son los límites a partir de los cuales el _script_ deja de esperar, y conviene conocerlos porque marcan cuándo una fase se considera fallida en lugar de lenta:
 
 * *90 minutos* por cada espera de convergencia: la del plano de control y la de cada grupo de nodos. Al agotarse, el _script_ aborta.
-* *El _timeout_ de cada _chart_ escala con el tamaño del _cluster_*: 15 minutos, o 5 más dos minutos por nodo si es mayor.
+* *El _timeout_ de cada _chart_ escala con el tamaño del _cluster_*: el mayor entre 15 minutos y 5 más dos minutos por nodo.
 * *90 segundos de asentamiento* entre versiones menores en Azure VMs, para que la rotación del plano de control no arrastre al _controller_ de `cluster-operator`.
 
 NOTE: Los comandos y las opciones de cada paso están en el xref:operations-manual:upgrade.adoc[procedimiento de actualización], que es la fuente normativa: esta ficha describe el impacto, no la ejecución.
