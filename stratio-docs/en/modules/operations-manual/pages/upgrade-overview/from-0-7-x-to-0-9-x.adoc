@@ -266,9 +266,9 @@ Upgrade the platform in this order: first _Stratio Cloud Provisioner_, in its ow
 | Mandatory, beforehand
 | The script decrypts the file and configures the provider CLI without errors.
 
-| The cluster in a stable state: the `KeosCluster` with `ready = true` and phase `Provisioned`, every node `Ready`, machines in `Running`, no `MachineDeployment` with unavailable replicas, `MachinePools` in `Running`, and the Cluster API, provider, and `cluster-operator` pods healthy.
+| The cluster in a healthy state, verified in two separate points of the run: `KeosCluster.status.ready = true` and no cluster-wide pod in `CrashLoopBackOff`/`ImagePullBackOff`/`ErrImagePull`/`CreateContainerConfigError` (pre-flight check, before anything is touched); and, later, `status.phase = Provisioned` together with `ready = true` again, checked right before the critical section — after the charts have already been upgraded, not before. The CAPI/CAPX controller-manager Deployments must be at 2 available replicas, and no `Machine` stuck outside `Running`/`Provisioning`/`Pending`/`ScalingUp`. Node `Ready` status and `MachineDeployment` unavailable-replica counts are not checked by the script — verify them yourself beforehand.
 | Mandatory, right before
-| The script's pre-flight health checks finish with no findings. If it finds any, it aborts: it only continues if explicitly told to accept the risk.
+| The pre-flight health checks finish with no findings, and later the critical-section check confirms `ready`/`Provisioned` again. If either finds a problem, the script aborts (the pre-flight one only continues if explicitly told to accept the risk).
 
 | The Pod Disruption Budgets of your workloads reviewed. Here this is a real prerequisite and not a recommendation: a resource with a single replica and a PDB that requires at least one available *prevents* its node from being drained, and the drain is never forced.
 | Mandatory, beforehand

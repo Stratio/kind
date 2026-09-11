@@ -266,9 +266,9 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 | Obligatorio, antes
 | El _script_ descifra el fichero y configura la CLI del proveedor sin errores.
 
-| El _cluster_ en estado estable: el `KeosCluster` con `ready = true` y fase `Provisioned`, todos los nodos `Ready`, las máquinas en `Running`, ningún `MachineDeployment` con réplicas no disponibles, los `MachinePools` en `Running` y los _pods_ de Cluster API, del proveedor y de `cluster-operator` sanos.
+| El _cluster_ en estado saludable, comprobado en dos puntos distintos de la ejecución: `KeosCluster.status.ready = true` y ningún _pod_ del _cluster_ en `CrashLoopBackOff`/`ImagePullBackOff`/`ErrImagePull`/`CreateContainerConfigError` (comprobación previa, antes de tocar nada); y, más tarde, `status.phase = Provisioned` junto con `ready = true` de nuevo, comprobado justo antes de la sección crítica — después de haber actualizado ya los _charts_, no antes. Los `Deployment` de CAPI/CAPX deben estar con 2 réplicas disponibles, y ninguna `Machine` atascada fuera de `Running`/`Provisioning`/`Pending`/`ScalingUp`. El estado `Ready` de los nodos y el número de réplicas no disponibles de los `MachineDeployment` no los comprueba el _script_ — verifícalos tú antes.
 | Obligatorio, justo antes
-| Las comprobaciones de salud previas del _script_ terminan sin hallazgos. Si encuentra alguno, aborta: solo continúa si se le pide explícitamente asumir el riesgo.
+| Las comprobaciones de salud previas terminan sin hallazgos, y más tarde la comprobación de la sección crítica confirma de nuevo `ready`/`Provisioned`. Si cualquiera de las dos encuentra un problema, el _script_ aborta (la previa solo continúa si se le pide explícitamente asumir el riesgo).
 
 | Los _Pod Disruption Budgets_ de tus cargas revisados. Aquí es un prerrequisito de verdad y no una recomendación: un recurso con una sola réplica y un PDB que exija al menos una disponible *impide* vaciar su nodo, y el vaciado no se fuerza en ningún momento.
 | Obligatorio, antes
