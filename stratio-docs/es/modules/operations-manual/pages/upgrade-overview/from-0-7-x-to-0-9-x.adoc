@@ -132,7 +132,6 @@ Versiones de destino de la 0.9.x:
 
 | flux2
 | 2.17.2
-| La 0.9.0 la bajó a propósito desde la 2.18.4.
 
 | Operador de Tigera
 | v3.31.7, con el controlador v1.40.15
@@ -577,11 +576,6 @@ Ninguna de estas regresiones bloquea la actualización, pero sí afecta a funcio
 | Los grupos gestionados por EKS solo se crean en _clusters_ nuevos: la actualización no convierte los grupos existentes.
 | Migrarlos es una operación aparte, asistida y por fases, posterior a esta actualización: consulta los xref:operations-manual:upgrade.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
 | Los grupos existentes siguen funcionando como instancias autogestionadas.
-
-| La versión de flux2 queda por debajo de la que traía la 0.8.x
-| La 0.9.0 la bajó a propósito de la 2.18.4 a la 2.17.2.
-| Nada: es la versión de destino de esta versión de _Stratio Cloud Provisioner_.
-| Flux funciona con normalidad en la versión fijada.
 
 | El autoescalado no vuelve solo si la actualización aborta
 | El _script_ lo apaga al empezar y lo restaura en el paso de cierre, que no se ejecuta si aborta antes.
