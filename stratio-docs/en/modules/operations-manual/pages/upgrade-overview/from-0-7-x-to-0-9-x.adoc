@@ -151,7 +151,7 @@ Target versions for 0.9.x:
 
 | Kubernetes
 | 1.35
-| `cluster-operator` 0.7.2 supports versions 1.32, 1.33, 1.34, and 1.35.
+| `cluster-operator` 0.7.3 supports versions 1.32, 1.33, 1.34, and 1.35.
 |===
 
 NOTE: The script reads the installed versions and shows the planned change for every component before applying anything, so the comparison against what is in the cluster does not have to be done by hand.
@@ -202,7 +202,7 @@ _Stratio Cloud Provisioner_ sits below everything else: it creates the cluster a
 
 | `cluster-operator`
 | It is not a separate module: it is the controller that _Stratio Cloud Provisioner_ deploys in the cluster to reconcile the `KeosCluster` object.
-| It is upgraded as part of this intervention, from 0.5.x to 0.7.2, and during the critical section it is stopped and its webhooks disabled.
+| It is upgraded as part of this intervention, from 0.5.x to 0.7.3, and during the critical section it is stopped and its webhooks disabled.
 | It is not upgraded separately.
 
 | _Stratio Command Center_ and the data modules
