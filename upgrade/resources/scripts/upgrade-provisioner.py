@@ -75,6 +75,12 @@ CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.5.X"
 # Cushion after each minor step converges — CP churn can trigger transient
 # leader-election loss in keoscluster-controller-manager mid-step.
 STEP_SETTLE_SECONDS = 90
+
+# Azure only: how long to wait before the first orphan-resource check (avoids racing a
+# legitimately in-progress new CP replica that hasn't registered yet) and how often to
+# repeat it inside wait_for_capi_kcp_version's 10s polling loop (PLT-4792).
+CP_ORPHAN_CHECK_GRACE_SECONDS = 300
+CP_ORPHAN_CHECK_INTERVAL_SECONDS = 60
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.7.X"
 
 CLUSTERCTL = "v1.10.10"
@@ -2036,11 +2042,20 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
         except Exception as e:
             raise Exception(f"--node-image-map is not valid JSON: {e}")
 
-        bad_images = {k: v for k, v in image_map.items() if not str(v).startswith("/subscriptions/")}
+        # Must mirror isNodeImage in cluster-operator api/v1beta1/keoscluster_webhook.go
+        node_image_re = re.compile(
+            r'(?:^/subscriptions/[\w-]+/resourceGroups/[\w.-]+/providers/Microsoft\.Compute/images/[\w.-]+\Z)'
+            r'|(?:^/CommunityGalleries/[\w.-]+/images/[\w.-]+/versions/[\w.-]+\Z)',
+            re.IGNORECASE | re.ASCII,
+        )
+        bad_images = {k: v for k, v in image_map.items() if not node_image_re.match(str(v))}
         if bad_images:
             raise Exception(
-                f"--node-image-map values must be full Azure resource IDs (starting with "
-                f"'/subscriptions/...'), not bare image names: {bad_images}"
+                "--node-image-map values must have the format "
+                "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.Compute/images/[IMAGE_NAME] "
+                "or /CommunityGalleries/[GALLERY_ID]/Images/[REPO_NAME]/Versions/[IMAGE_VERSION]. "
+                "A Compute Gallery (SIG) resource ID is not accepted by the KeosCluster webhook and, because "
+                f"this script disables that webhook, it would be persisted and break every later reconcile: {bad_images}"
             )
 
         major, minor = current_minor
@@ -2238,6 +2253,63 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
+def cleanup_orphaned_cp_resources(cluster_name, dry_run):
+    '''Azure only: remove a CP etcd member or Node left behind when cluster-api's Machine
+    controller silently skips its cleanup on delete (PLT-4792, cluster-api#13221 family +
+    machine_controller.go errNilNodeRef). Listing is read-only; removals skip under dry_run.'''
+
+    cp_namespace = "cluster-" + cluster_name
+
+    machine_output, _ = run_command(
+        f"{kubectl} get machine -n {cp_namespace} -l cluster.x-k8s.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        machines = json.loads(machine_output).get("items", [])
+    except (ValueError, TypeError):
+        return  # transient kubectl failure — retried on the next interval, not worth aborting the bump over
+    live_machine_names = {m["metadata"]["name"] for m in machines}
+
+    running_node = next(
+        (m["status"]["nodeRef"]["name"] for m in machines
+         if m.get("status", {}).get("phase") == "Running" and m.get("status", {}).get("nodeRef")),
+        None
+    )
+    if running_node:
+        etcdctl = (
+            f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
+            "--endpoints=https://127.0.0.1:2379 "
+            "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
+            "--cert=/etc/kubernetes/pki/etcd/server.crt "
+            "--key=/etc/kubernetes/pki/etcd/server.key "
+        )
+        member_output, _ = run_command(etcdctl + "member list -w json", allow_errors=True)
+        try:
+            members = json.loads(member_output).get("members", [])
+        except (ValueError, TypeError):
+            members = []
+        orphan_members = [m for m in members if not m.get("name") or m["name"] not in live_machine_names]
+        if orphan_members and len(orphan_members) < len(members):
+            for member in orphan_members:
+                print(f"[WARN] Orphaned etcd member with no matching Machine: {member.get('name') or member['ID']}")
+                if not dry_run:
+                    run_command(etcdctl + f"member remove {member['ID']:x}", allow_errors=True)
+
+    node_output, _ = run_command(
+        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        nodes = json.loads(node_output).get("items", [])
+    except (ValueError, TypeError):
+        nodes = []
+    for node in nodes:
+        node_name = node["metadata"]["name"]
+        if node_name not in live_machine_names:
+            print(f"[WARN] Orphaned Node with no matching Machine: {node_name}")
+            if not dry_run:
+                run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
+
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     '''Wait for the real CP rollout to converge on target_version's minor.'''
 
@@ -2245,7 +2317,9 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     cp_namespace = "cluster-" + cluster_name
     target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2]) + "."
     print(f"[INFO] Waiting for the real control plane to reach {target_version} (timeout {timeout_minutes}m):", end=" ", flush=True)
-    deadline = time.time() + timeout_minutes * 60
+    loop_start = time.time()
+    deadline = loop_start + timeout_minutes * 60
+    last_orphan_check = loop_start
     while time.time() < deadline:
         output, _ = run_command(
             f"{kubectl} get kubeadmcontrolplane {kcp_name} -n {cp_namespace} -o json",
@@ -2268,6 +2342,10 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
         if converged:
             print("OK")
             return
+        now = time.time()
+        if now - loop_start > CP_ORPHAN_CHECK_GRACE_SECONDS and now - last_orphan_check > CP_ORPHAN_CHECK_INTERVAL_SECONDS:
+            cleanup_orphaned_cp_resources(cluster_name, config["dry_run"])
+            last_orphan_check = now
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for KubeadmControlPlane to converge on {target_version}")
 
