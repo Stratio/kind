@@ -499,7 +499,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
 
     patch_json = json.dumps(patch_helm_repository)
     command = f"{kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
-    execute_command(command, False, False)
+    execute_command(command, dry_run, False)
 
     patch_helmRepository = [
         {"op": "replace", "path": "/spec/url", "value": helm_repository},
@@ -511,7 +511,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
 
     if existing_helmrepo:
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
-        execute_command(command, False, False)
+        execute_command(command, dry_run, False)
 
     wait_for_keos_cluster(cluster_name, "10")
 
@@ -1212,7 +1212,20 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Locating/downloading the chart is read-only so it still runs in dry-run to report which CRDs would be applied (only `kubectl apply` below is skipped); abort the upgrade if the chart/version isn't found instead of leaving CRDs silently stale.
+        # Neither the registry login nor the actual chart pull run in dry-run — dry-run must
+        # not depend on network/registry state. Prints the resolved pull command instead, so
+        # the target repo (default or the one typed at the helm-repository prompt) is visible.
+        if repo_schema == "oci":
+            pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
+        else:
+            pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
+            if repo_username and repo_password:
+                pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
+
+        if dry_run:
+            print(f"DRY-RUN (would run: {redact_command(pull_cmd)})")
+            return
+
         try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
@@ -1225,11 +1238,6 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
                         f"az acr login --name {acr_name} --expose-token --output tsv --query accessToken | "
                         f"{helm} registry login {registry} --username 00000000-0000-0000-0000-000000000000 --password-stdin"
                     )
-                pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
-            else:
-                pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
-                if repo_username and repo_password:
-                    pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1246,10 +1254,6 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
         if not crd_files:
             print("SKIP (no CRDs in chart)")
-            return
-
-        if dry_run:
-            print(f"DRY-RUN (would apply {len(crd_files)} CRD file(s))")
             return
 
         # Applying individual CRD files IS best-effort: a given CRD may have no real
@@ -2020,21 +2024,8 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             steps.append(f"v{step_major}.{step_minor}.0")
         print(f"[INFO] Control plane will step through each minor in order: {' -> '.join([current_version] + steps)}")
 
-    if dry_run:
-        print("[INFO] Bumping k8s_version: DRY-RUN")
-        return False
-
-    if not start_from_k8s_version:
-        while True:
-            answer = input(f"Proceed with the k8s_version bump {current_version} -> {target_version}? [y/N]: ").strip().lower()
-            if answer in ("", "n", "no"):
-                print("[INFO] k8s_version bump: SKIP (not confirmed)")
-                return False
-            if answer in ("y", "yes"):
-                break
-            print("[WARN] Please answer 'y' or 'n'")
-
-    if provider == "azure":
+        # Validated here, ahead of the dry_run cutoff below, so a malformed --node-image-map
+        # is caught by a dry-run too, not only once a real bump is confirmed.
         if not node_image_map:
             raise Exception("provider=azure requires --node-image-map for a k8s_version bump")
         try:
@@ -2058,6 +2049,28 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
                 f"this script disables that webhook, it would be persisted and break every later reconcile: {bad_images}"
             )
 
+        # Same reasoning as the format check above: the per-minor completeness check the
+        # stepping loop does later (missing an entry for minor X.Y) is pure map lookup against
+        # `steps`, already computed — no reason to wait for a real run to catch a short map.
+        missing_minors = [s.lstrip("v").rsplit(".", 1)[0] for s in steps if s.lstrip("v").rsplit(".", 1)[0] not in image_map]
+        if missing_minors:
+            raise Exception(f"--node-image-map is missing an entry for minor(s): {', '.join(missing_minors)}")
+
+    if dry_run:
+        print("[INFO] Bumping k8s_version: DRY-RUN")
+        return False
+
+    if not start_from_k8s_version:
+        while True:
+            answer = input(f"Proceed with the k8s_version bump {current_version} -> {target_version}? [y/N]: ").strip().lower()
+            if answer in ("", "n", "no"):
+                print("[INFO] k8s_version bump: SKIP (not confirmed)")
+                return False
+            if answer in ("y", "yes"):
+                break
+            print("[WARN] Please answer 'y' or 'n'")
+
+    if provider == "azure":
         major, minor = current_minor
         target_major, target_minor_num = target_minor_tuple
 
