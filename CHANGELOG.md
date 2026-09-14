@@ -4,27 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
 * [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
 * [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
-* [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
-
-## 0.9.2 (2026-09-09)
-
 * Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2
 * [PLT-4760] Fix `apply_chart_crds` ignoring `--dry-run`: the chart pull/login still runs (read-only), but the CRD `kubectl apply` is now skipped with an explicit `DRY-RUN (would apply N CRD file(s))` message instead of silently reporting a false `OK` via `run_command`'s implicit mutating-keyword filter
 * [PLT-4759] Fix `apply_chart_crds` failing with 401 Unauthorized when pulling chart CRDs from a `generic` Helm repository with `auth_required: true`; `repo_username`/`repo_password` are now propagated to the `helm pull` command
 * [PLT-4766] Stop the upgrade from deploying Calico Whisker and Goldmane; force both from `calico.observability_enabled` (default `false`) instead of inheriting the chart's `true` default
 * [PLT-4751] Bump `kindest/local-path-provisioner` v20250214-acbabc1a → v20260820-69b56db7 in `pkg/build/nodeimage/const_storage.go`; sync `docs/images/commons/imagenes-kind.txt`
 * [PLT-4444] Vulnerabilidades Clouds 15.1
-
-## 0.9.1 (2026-08-28)
-
 * Bump `DEPENDENCIES`: `kind.cloud-provisioner` 0.17.0-0.8.0 → 0.9.1, `charts.cluster-operator` 0.5.2 → 0.7.1; sync `docs/images/commons/imagenes-kind.txt` to match
 * Fix the node image tag resolving to the release candidate image (e.g. `cloud-provisioner:0.9.0-rc.1` instead of `:0.9.0`) on promoted release binaries; the prerelease-stripping regex only covered the retired `-<githash>` format and not the current `-rc.N` one
 * Add `security.aws.nodegroup_extra_policy_arn` to attach a customer-managed IAM policy ARN to the `eks-nodegroup` role when `create_iam: true` (e.g. for ECR pull-through cache permissions, which that role can't receive as an inline statement)
 * [PLT-4665] Update Azure upgrade procedure
 * [PLT-4444] Fix cloud-provisioner stack vulnerabilities
 * [PLT-4265] Auto-fix stale `ENIConfig` security groups in `upgrade-provisioner.py` pre-flight checks (PLT-4509 regression on clusters upgraded from before the fix); add `--restore` to `ecr_pull_through.py`; replace `migrate-workers-to-machinepool.py` with the simpler, read-only `activate-capa-machinepool-features.py`
+
+## Previous development
+
+### Branched to branch-0.9 (2026-08-13)
+
 * [PLT-4265] Harden `upgrade-provisioner.py` for the cloud-provisioner 0.9.0/K8s 1.35 upgrade path: add `k8s_version` bump support, pre-flight health checks, and controlled recovery on failure; align component versions and dependencies
 * [PLT-4603] Allow `ami_type: BOTTLEROCKET_x86_64_NVIDIA` for EKS MachinePool worker nodes (was rejected by the CLI validator, only `BOTTLEROCKET_x86_64` was accepted)
 * [PLT-4562] Bump Calico v3.31.5→v3.31.6, tigera-operator controller v1.40.11→v1.40.13 (k8s 1.35 only) to resolve vulnerabilities
@@ -45,24 +44,10 @@ All notable changes to this project will be documented in this file.
 * [PLT-4154] Downgrade Calico v3.31.5→v3.30.2 and FluxCD flux-cli v2.8.7→v2.7.5 for compatibility
 * [PLT-4154] Fix vulnerabilities: CAPI v1.10.10, CAPA v2.9.3, CAPZ v1.21.3, Calico v3.31.5, cert-manager v1.20.2, FluxCD 2.17.2 (flux-cli v2.7.5), cluster-operator 0.6.2
 * [PLT-4161] Backport ecr_pull_through_cache_enabled to 0.17.0-0.8.5
-
-## 0.17.0-0.8.4 (2026-03-25)
-
 * [Fix]  Azure image to version V2, GKE coredns version to 1.11.3, Add whisker and goldmane images to list
-
-## 0.17.0-0.8.3 (2026-03-20)
-
 * [PLT-3877] -  cloud-provisioner upgrade,  update cluster-operator version
-
-## 0.17.0-0.8.2 (2026-03-19)
-
 * [PLT-3877] -  [Azure/EKS/GKE] Cloud-Provisioner upgrade
-
-## 0.17.0-0.8.1 (2026-03-13)
-
 * [PLT-3691] -  [Fix] Flux2 chart upgrading provisioner
-
-## Previous development
 
 ### Branched to branch-0.8 (2026-02-20)
 
