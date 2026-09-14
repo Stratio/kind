@@ -259,7 +259,7 @@ func ExecuteCommand(n nodes.Node, command string, timeout int, retries int, envV
 	if len(envVars) > 0 {
 		cmd.SetEnv(envVars[0]...)
 	}
-	retryConditions := []string{"dial tcp", "NotFound", "timed out waiting", "failed calling webhook.*timeout.*"}
+	retryConditions := []string{"dial tcp", "NotFound", "timed out waiting", "failed calling webhook.*timeout.*", "etcdserver:.*timed out", "etcdserver: leader changed"}
 	provisionCommands := strings.Contains(command, "kubectl") || strings.Contains(command, "helm") || strings.Contains(command, "clusterctl")
 	for i := 0; i < retries; i++ {
 		raw = bytes.Buffer{}
