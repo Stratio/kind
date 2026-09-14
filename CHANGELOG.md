@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
 * [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
 * [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
 * Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2

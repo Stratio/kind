@@ -10,6 +10,8 @@
 *** xref:operations-manual:offline-installation/azure-vms-images.adoc[]
 *** xref:operations-manual:offline-installation/gcp-gke-images.adoc[]
 *** xref:operations-manual:offline-installation/common-images.adoc[]
+** xref:operations-manual:upgrade-overview.adoc[]
+*** xref:operations-manual:upgrade-overview/from-0-7-x-to-0-9-x.adoc[]
 ** xref:operations-manual:upgrade.adoc[]
 ** xref:operations-manual:api-reference.adoc[]
 ** xref:operations-manual:credentials.adoc[]
