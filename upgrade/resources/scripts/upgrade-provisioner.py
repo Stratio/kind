@@ -2281,6 +2281,11 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
         machines = json.loads(machine_output).get("items", [])
     except (ValueError, TypeError):
         return  # transient kubectl failure — retried on the next interval, not worth aborting the bump over
+    if not machines:
+        # An empty result means the query itself failed transiently — a real CP always has
+        # at least one Machine. Otherwise every live control-plane Node gets flagged as
+        # orphaned and deleted (seen live 2026-09-14).
+        return
     live_machine_names = {m["metadata"]["name"] for m in machines}
 
     running_node = next(
