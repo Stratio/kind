@@ -35,11 +35,11 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.2"
+CLOUD_PROVISIONER = "0.9.3"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.2"
+CLUSTER_OPERATOR = "0.7.3"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
