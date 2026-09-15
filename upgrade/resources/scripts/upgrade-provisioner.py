@@ -121,7 +121,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.7.2",
+        "version": "0.7.3",
         "namespace": "kube-system",
         "repo": ""
     },
@@ -2309,9 +2309,14 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
         orphan_members = [m for m in members if not m.get("name") or m["name"] not in live_machine_names]
         if orphan_members and len(orphan_members) < len(members):
             for member in orphan_members:
-                print(f"[WARN] Orphaned etcd member with no matching Machine: {member.get('name') or member['ID']}")
+                member_id = member.get("name") or member["ID"]
+                print(f"[WARN] Orphaned etcd member with no matching Machine: {member_id}")
                 if not dry_run:
-                    run_command(etcdctl + f"member remove {member['ID']:x}", allow_errors=True)
+                    _, err = run_command(etcdctl + f"member remove {member['ID']:x}", allow_errors=True)
+                    if err:
+                        print(f"[WARN] Failed to remove orphaned etcd member {member_id}: {err.strip()}")
+                    else:
+                        print(f"[INFO] Removed orphaned etcd member {member_id}")
 
     node_output, _ = run_command(
         f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
@@ -2326,7 +2331,11 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
         if node_name not in live_machine_names:
             print(f"[WARN] Orphaned Node with no matching Machine: {node_name}")
             if not dry_run:
-                run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
+                _, err = run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
+                if err:
+                    print(f"[WARN] Failed to delete orphaned Node {node_name}: {err.strip()}")
+                else:
+                    print(f"[INFO] Deleted orphaned Node {node_name}")
 
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     '''Wait for the real CP rollout to converge on target_version's minor.'''
