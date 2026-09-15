@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.4 (upcoming)
+
+* [PLT-4792] `--node-image-map` validation now mirrors the `KeosCluster` webhook's `isNodeImage` regex exactly, rejecting an Azure Compute Gallery (SIG) resource ID that previously slipped through and could get persisted once the webhook was restored after a `k8s_version` bump
+* [PLT-4792] Azure `k8s_version` bump: clean up a control-plane etcd member or `Node` object left behind when cluster-api's `Machine` controller silently skips its cleanup on delete, before it blocks the next replacement `Machine` from joining
+
 ## 0.9.3 (2026-09-11)
 
 * [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
