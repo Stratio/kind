@@ -1357,7 +1357,8 @@ def upgrade_chart(chart_name, chart_data):
 
     if chart_name == "cluster-operator" or private_helm_repo:
         repo_name = "keos"
-        repo_url =  keos_cluster["spec"]["helm_repository"]["url"]
+        # In dry-run the KeosCluster is never patched, so read the value the operator typed.
+        repo_url = config.get("helm_repository_override") or keos_cluster["spec"]["helm_repository"]["url"]
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
@@ -2890,6 +2891,7 @@ if __name__ == '__main__':
     else:
         validate_helm_repository(helm_repository)
         update_helm_repository(cluster_name, helm_repository, config["dry_run"])
+        config["helm_repository_override"] = helm_repository
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     scale_cluster_autoscaler(0, config["dry_run"])
