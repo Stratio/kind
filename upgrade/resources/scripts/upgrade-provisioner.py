@@ -81,6 +81,9 @@ STEP_SETTLE_SECONDS = 90
 # repeat it inside wait_for_capi_kcp_version's 10s polling loop (PLT-4792).
 CP_ORPHAN_CHECK_GRACE_SECONDS = 300
 CP_ORPHAN_CHECK_INTERVAL_SECONDS = 60
+# A mid-join etcd member is indistinguishable from a leaked one except by how long it stays that
+# way (cluster-api#14197), so a candidate must hold the same state across this whole window.
+CP_ORPHAN_CONFIRM_SECONDS = 600
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.7.X"
 
 CLUSTERCTL = "v1.10.10"
@@ -2266,6 +2269,22 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
+_orphan_member_first_seen = {}
+_orphan_node_first_seen = {}
+
+def confirmed_orphans(candidates, key_of, tracker):
+    '''Track a first-seen timestamp per candidate across polls and return those that have held
+    the state for CP_ORPHAN_CONFIRM_SECONDS, oldest first. Candidates that recovered are dropped.'''
+
+    now = time.time()
+    keys = {key_of(c) for c in candidates}
+    for key in keys:
+        tracker.setdefault(key, now)
+    for stale in set(tracker) - keys:
+        del tracker[stale]
+    confirmed = [c for c in candidates if now - tracker[key_of(c)] >= CP_ORPHAN_CONFIRM_SECONDS]
+    return sorted(confirmed, key=lambda c: tracker[key_of(c)])
+
 def cleanup_orphaned_cp_resources(cluster_name, dry_run):
     '''Azure only: remove a CP etcd member or Node left behind when cluster-api's Machine
     controller silently skips its cleanup on delete (PLT-4792, cluster-api#13221 family +
@@ -2286,7 +2305,15 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
         # at least one Machine. Otherwise every live control-plane Node gets flagged as
         # orphaned and deleted (seen live 2026-09-14).
         return
-    live_machine_names = {m["metadata"]["name"] for m in machines}
+
+    # Match on Node names like cluster-api's own reconcileEtcdMembers does: an etcd member is
+    # named after the Node, which is not guaranteed to equal the Machine name.
+    live_node_names = {
+        m["status"]["nodeRef"]["name"] for m in machines
+        if m.get("status", {}).get("nodeRef")
+    }
+    if not live_node_names:
+        return  # every Machine is still provisioning — nothing can be judged orphaned yet
 
     running_node = next(
         (m["status"]["nodeRef"]["name"] for m in machines
@@ -2306,11 +2333,17 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
             members = json.loads(member_output).get("members", [])
         except (ValueError, TypeError):
             members = []
-        orphan_members = [m for m in members if not m.get("name") or m["name"] not in live_machine_names]
-        if orphan_members and len(orphan_members) < len(members):
-            for member in orphan_members:
-                member_id = member.get("name") or member["ID"]
-                print(f"[WARN] Orphaned etcd member with no matching Machine: {member_id}")
+        if members:
+            orphans = [m for m in members if m.get("name", "") not in live_node_names]
+            confirmed = confirmed_orphans(orphans, lambda m: m["ID"], _orphan_member_first_seen)
+            if orphans and not confirmed:
+                print(f"[INFO] {len(orphans)} etcd member(s) with no matching Node — holding until the confirmation window elapses")
+            elif confirmed and len(members) < 3:
+                print(f"[WARN] Orphaned etcd member(s) confirmed but only {len(members)} member(s) present — refusing to remove")
+            elif confirmed:
+                member = confirmed[0]
+                member_id = member.get("name") or f"{member['ID']:x}"
+                print(f"[WARN] Orphaned etcd member with no matching Node: {member_id}")
                 if not dry_run:
                     _, err = run_command(etcdctl + f"member remove {member['ID']:x}", allow_errors=True)
                     if err:
@@ -2325,17 +2358,31 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
     try:
         nodes = json.loads(node_output).get("items", [])
     except (ValueError, TypeError):
-        nodes = []
-    for node in nodes:
-        node_name = node["metadata"]["name"]
-        if node_name not in live_machine_names:
-            print(f"[WARN] Orphaned Node with no matching Machine: {node_name}")
-            if not dry_run:
-                _, err = run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
-                if err:
-                    print(f"[WARN] Failed to delete orphaned Node {node_name}: {err.strip()}")
-                else:
-                    print(f"[INFO] Deleted orphaned Node {node_name}")
+        return
+    if not nodes:
+        return
+
+    # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
+    orphan_nodes = [
+        n for n in nodes
+        if n["metadata"]["name"] not in live_node_names
+        and not any(c.get("type") == "Ready" and c.get("status") == "True"
+                    for c in n.get("status", {}).get("conditions", []))
+    ]
+    confirmed_nodes = confirmed_orphans(orphan_nodes, lambda n: n["metadata"]["name"], _orphan_node_first_seen)
+    if orphan_nodes and not confirmed_nodes:
+        print(f"[INFO] {len(orphan_nodes)} control-plane Node(s) with no matching Machine — holding until the confirmation window elapses")
+    elif confirmed_nodes and len(nodes) < 2:
+        print(f"[WARN] Orphaned Node(s) confirmed but only {len(nodes)} control-plane Node(s) present — refusing to delete")
+    elif confirmed_nodes:
+        node_name = confirmed_nodes[0]["metadata"]["name"]
+        print(f"[WARN] Orphaned Node with no matching Machine: {node_name}")
+        if not dry_run:
+            _, err = run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
+            if err:
+                print(f"[WARN] Failed to delete orphaned Node {node_name}: {err.strip()}")
+            else:
+                print(f"[INFO] Deleted orphaned Node {node_name}")
 
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     '''Wait for the real CP rollout to converge on target_version's minor.'''
