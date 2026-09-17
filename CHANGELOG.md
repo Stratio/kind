@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.4 (upcoming)
 
 * [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
+* [PLT-4792] Retry create cluster commands on transient etcd timeouts
 
 ## 0.9.3 (2026-09-11)
 
