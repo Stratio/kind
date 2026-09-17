@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## 0.10.0 (upcoming)
+=======
+## 0.9.4 (upcoming)
+
+* [PLT-4792] `--node-image-map` validation now mirrors the `KeosCluster` webhook's `isNodeImage` regex exactly, rejecting an Azure Compute Gallery (SIG) resource ID that previously slipped through and could get persisted once the webhook was restored after a `k8s_version` bump
+* [PLT-4792] Azure `k8s_version` bump: clean up a control-plane etcd member or `Node` object left behind when cluster-api's `Machine` controller silently skips its cleanup on delete, before it blocks the next replacement `Machine` from joining
+* [PLT-4792] That cleanup now matches cluster-api's own safety rules before removing anything: candidates are matched by `Node` name rather than `Machine` name, must hold the same state for 10 minutes straight (an etcd member mid-join is otherwise indistinguishable from a leaked one), are removed one per pass, and are left alone when too few etcd members or control-plane `Node`s remain or when the `Node` is still `Ready`
+* [PLT-4792] A dry-run now reports the Helm repository typed at the interactive prompt, instead of the one still recorded in the `KeosCluster` it deliberately does not patch in dry-run
+
+## 0.9.3 (2026-09-11)
+>>>>>>> 026f31e8 ([PLT-4792] Fix Azure node_image_map validation and clean up orphaned CP resources during a k8s_version bump (#971))
 
 * [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
 * [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
