@@ -35,11 +35,11 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.2"
+CLOUD_PROVISIONER = "0.9.3"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.2"
+CLUSTER_OPERATOR = "0.7.3"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
@@ -75,6 +75,15 @@ CLUSTER_OPERATOR_UPGRADE_SUPPORT = "0.5.X"
 # Cushion after each minor step converges — CP churn can trigger transient
 # leader-election loss in keoscluster-controller-manager mid-step.
 STEP_SETTLE_SECONDS = 90
+
+# Azure only: how long to wait before the first orphan-resource check (avoids racing a
+# legitimately in-progress new CP replica that hasn't registered yet) and how often to
+# repeat it inside wait_for_capi_kcp_version's 10s polling loop (PLT-4792).
+CP_ORPHAN_CHECK_GRACE_SECONDS = 300
+CP_ORPHAN_CHECK_INTERVAL_SECONDS = 60
+# A mid-join etcd member is indistinguishable from a leaked one except by how long it stays that
+# way (cluster-api#14197), so a candidate must hold the same state across this whole window.
+CP_ORPHAN_CONFIRM_SECONDS = 600
 CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE = "0.7.X"
 
 CLUSTERCTL = "v1.10.10"
@@ -115,7 +124,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.7.2",
+        "version": "0.7.3",
         "namespace": "kube-system",
         "repo": ""
     },
@@ -493,7 +502,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
 
     patch_json = json.dumps(patch_helm_repository)
     command = f"{kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
-    execute_command(command, False, False)
+    execute_command(command, dry_run, False)
 
     patch_helmRepository = [
         {"op": "replace", "path": "/spec/url", "value": helm_repository},
@@ -505,7 +514,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
 
     if existing_helmrepo:
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
-        execute_command(command, False, False)
+        execute_command(command, dry_run, False)
 
     wait_for_keos_cluster(cluster_name, "10")
 
@@ -1206,7 +1215,20 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
 
     print(f"[INFO] Applying CRDs for {chart_name} {chart_version}:", end=" ", flush=True)
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Locating/downloading the chart is read-only so it still runs in dry-run to report which CRDs would be applied (only `kubectl apply` below is skipped); abort the upgrade if the chart/version isn't found instead of leaving CRDs silently stale.
+        # Neither the registry login nor the actual chart pull run in dry-run — dry-run must
+        # not depend on network/registry state. Prints the resolved pull command instead, so
+        # the target repo (default or the one typed at the helm-repository prompt) is visible.
+        if repo_schema == "oci":
+            pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
+        else:
+            pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
+            if repo_username and repo_password:
+                pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
+
+        if dry_run:
+            print(f"DRY-RUN (would run: {redact_command(pull_cmd)})")
+            return
+
         try:
             if repo_schema == "oci":
                 registry = repo_url.replace("oci://", "").split("/")[0]
@@ -1219,11 +1241,6 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
                         f"az acr login --name {acr_name} --expose-token --output tsv --query accessToken | "
                         f"{helm} registry login {registry} --username 00000000-0000-0000-0000-000000000000 --password-stdin"
                     )
-                pull_cmd = f"{helm} pull {repo_url}/{chart_name} --version {chart_version} -d {tmpdir}"
-            else:
-                pull_cmd = f"{helm} pull {chart_name} --repo {repo_url} --version {chart_version} -d {tmpdir}"
-                if repo_username and repo_password:
-                    pull_cmd += f" --username {shlex.quote(repo_username)} --password {shlex.quote(repo_password)}"
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1240,10 +1257,6 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
         if not crd_files:
             print("SKIP (no CRDs in chart)")
-            return
-
-        if dry_run:
-            print(f"DRY-RUN (would apply {len(crd_files)} CRD file(s))")
             return
 
         # Applying individual CRD files IS best-effort: a given CRD may have no real
@@ -1344,7 +1357,8 @@ def upgrade_chart(chart_name, chart_data):
 
     if chart_name == "cluster-operator" or private_helm_repo:
         repo_name = "keos"
-        repo_url =  keos_cluster["spec"]["helm_repository"]["url"]
+        # In dry-run the KeosCluster is never patched, so read the value the operator typed.
+        repo_url = config.get("helm_repository_override") or keos_cluster["spec"]["helm_repository"]["url"]
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
@@ -2014,6 +2028,38 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             steps.append(f"v{step_major}.{step_minor}.0")
         print(f"[INFO] Control plane will step through each minor in order: {' -> '.join([current_version] + steps)}")
 
+        # Validated here, ahead of the dry_run cutoff below, so a malformed --node-image-map
+        # is caught by a dry-run too, not only once a real bump is confirmed.
+        if not node_image_map:
+            raise Exception("provider=azure requires --node-image-map for a k8s_version bump")
+        try:
+            image_map = json.loads(node_image_map) if isinstance(node_image_map, str) else node_image_map
+        except Exception as e:
+            raise Exception(f"--node-image-map is not valid JSON: {e}")
+
+        # Must mirror isNodeImage in cluster-operator api/v1beta1/keoscluster_webhook.go
+        node_image_re = re.compile(
+            r'(?:^/subscriptions/[\w-]+/resourceGroups/[\w.-]+/providers/Microsoft\.Compute/images/[\w.-]+\Z)'
+            r'|(?:^/CommunityGalleries/[\w.-]+/images/[\w.-]+/versions/[\w.-]+\Z)',
+            re.IGNORECASE | re.ASCII,
+        )
+        bad_images = {k: v for k, v in image_map.items() if not node_image_re.match(str(v))}
+        if bad_images:
+            raise Exception(
+                "--node-image-map values must have the format "
+                "/subscriptions/[SUBSCRIPTION_ID]/resourceGroups/[RESOURCE_GROUP]/providers/Microsoft.Compute/images/[IMAGE_NAME] "
+                "or /CommunityGalleries/[GALLERY_ID]/Images/[REPO_NAME]/Versions/[IMAGE_VERSION]. "
+                "A Compute Gallery (SIG) resource ID is not accepted by the KeosCluster webhook and, because "
+                f"this script disables that webhook, it would be persisted and break every later reconcile: {bad_images}"
+            )
+
+        # Same reasoning as the format check above: the per-minor completeness check the
+        # stepping loop does later (missing an entry for minor X.Y) is pure map lookup against
+        # `steps`, already computed — no reason to wait for a real run to catch a short map.
+        missing_minors = [s.lstrip("v").rsplit(".", 1)[0] for s in steps if s.lstrip("v").rsplit(".", 1)[0] not in image_map]
+        if missing_minors:
+            raise Exception(f"--node-image-map is missing an entry for minor(s): {', '.join(missing_minors)}")
+
     if dry_run:
         print("[INFO] Bumping k8s_version: DRY-RUN")
         return False
@@ -2029,20 +2075,6 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             print("[WARN] Please answer 'y' or 'n'")
 
     if provider == "azure":
-        if not node_image_map:
-            raise Exception("provider=azure requires --node-image-map for a k8s_version bump")
-        try:
-            image_map = json.loads(node_image_map) if isinstance(node_image_map, str) else node_image_map
-        except Exception as e:
-            raise Exception(f"--node-image-map is not valid JSON: {e}")
-
-        bad_images = {k: v for k, v in image_map.items() if not str(v).startswith("/subscriptions/")}
-        if bad_images:
-            raise Exception(
-                f"--node-image-map values must be full Azure resource IDs (starting with "
-                f"'/subscriptions/...'), not bare image names: {bad_images}"
-            )
-
         major, minor = current_minor
         target_major, target_minor_num = target_minor_tuple
 
@@ -2238,6 +2270,121 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
 
+_orphan_member_first_seen = {}
+_orphan_node_first_seen = {}
+
+def confirmed_orphans(candidates, key_of, tracker):
+    '''Track a first-seen timestamp per candidate across polls and return those that have held
+    the state for CP_ORPHAN_CONFIRM_SECONDS, oldest first. Candidates that recovered are dropped.'''
+
+    now = time.time()
+    keys = {key_of(c) for c in candidates}
+    for key in keys:
+        tracker.setdefault(key, now)
+    for stale in set(tracker) - keys:
+        del tracker[stale]
+    confirmed = [c for c in candidates if now - tracker[key_of(c)] >= CP_ORPHAN_CONFIRM_SECONDS]
+    return sorted(confirmed, key=lambda c: tracker[key_of(c)])
+
+def cleanup_orphaned_cp_resources(cluster_name, dry_run):
+    '''Azure only: remove a CP etcd member or Node left behind when cluster-api's Machine
+    controller silently skips its cleanup on delete (PLT-4792, cluster-api#13221 family +
+    machine_controller.go errNilNodeRef). Listing is read-only; removals skip under dry_run.'''
+
+    cp_namespace = "cluster-" + cluster_name
+
+    machine_output, _ = run_command(
+        f"{kubectl} get machine -n {cp_namespace} -l cluster.x-k8s.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        machines = json.loads(machine_output).get("items", [])
+    except (ValueError, TypeError):
+        return  # transient kubectl failure — retried on the next interval, not worth aborting the bump over
+    if not machines:
+        # An empty result means the query itself failed transiently — a real CP always has
+        # at least one Machine. Otherwise every live control-plane Node gets flagged as
+        # orphaned and deleted (seen live 2026-09-14).
+        return
+
+    # Match on Node names like cluster-api's own reconcileEtcdMembers does: an etcd member is
+    # named after the Node, which is not guaranteed to equal the Machine name.
+    live_node_names = {
+        m["status"]["nodeRef"]["name"] for m in machines
+        if m.get("status", {}).get("nodeRef")
+    }
+    if not live_node_names:
+        return  # every Machine is still provisioning — nothing can be judged orphaned yet
+
+    running_node = next(
+        (m["status"]["nodeRef"]["name"] for m in machines
+         if m.get("status", {}).get("phase") == "Running" and m.get("status", {}).get("nodeRef")),
+        None
+    )
+    if running_node:
+        etcdctl = (
+            f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
+            "--endpoints=https://127.0.0.1:2379 "
+            "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
+            "--cert=/etc/kubernetes/pki/etcd/server.crt "
+            "--key=/etc/kubernetes/pki/etcd/server.key "
+        )
+        member_output, _ = run_command(etcdctl + "member list -w json", allow_errors=True)
+        try:
+            members = json.loads(member_output).get("members", [])
+        except (ValueError, TypeError):
+            members = []
+        if members:
+            orphans = [m for m in members if m.get("name", "") not in live_node_names]
+            confirmed = confirmed_orphans(orphans, lambda m: m["ID"], _orphan_member_first_seen)
+            if orphans and not confirmed:
+                print(f"[INFO] {len(orphans)} etcd member(s) with no matching Node — holding until the confirmation window elapses")
+            elif confirmed and len(members) < 3:
+                print(f"[WARN] Orphaned etcd member(s) confirmed but only {len(members)} member(s) present — refusing to remove")
+            elif confirmed:
+                member = confirmed[0]
+                member_id = member.get("name") or f"{member['ID']:x}"
+                print(f"[WARN] Orphaned etcd member with no matching Node: {member_id}")
+                if not dry_run:
+                    _, err = run_command(etcdctl + f"member remove {member['ID']:x}", allow_errors=True)
+                    if err:
+                        print(f"[WARN] Failed to remove orphaned etcd member {member_id}: {err.strip()}")
+                    else:
+                        print(f"[INFO] Removed orphaned etcd member {member_id}")
+
+    node_output, _ = run_command(
+        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        nodes = json.loads(node_output).get("items", [])
+    except (ValueError, TypeError):
+        return
+    if not nodes:
+        return
+
+    # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
+    orphan_nodes = [
+        n for n in nodes
+        if n["metadata"]["name"] not in live_node_names
+        and not any(c.get("type") == "Ready" and c.get("status") == "True"
+                    for c in n.get("status", {}).get("conditions", []))
+    ]
+    confirmed_nodes = confirmed_orphans(orphan_nodes, lambda n: n["metadata"]["name"], _orphan_node_first_seen)
+    if orphan_nodes and not confirmed_nodes:
+        print(f"[INFO] {len(orphan_nodes)} control-plane Node(s) with no matching Machine — holding until the confirmation window elapses")
+    elif confirmed_nodes and len(nodes) < 2:
+        print(f"[WARN] Orphaned Node(s) confirmed but only {len(nodes)} control-plane Node(s) present — refusing to delete")
+    elif confirmed_nodes:
+        node_name = confirmed_nodes[0]["metadata"]["name"]
+        print(f"[WARN] Orphaned Node with no matching Machine: {node_name}")
+        if not dry_run:
+            _, err = run_command(f"{kubectl} delete node {node_name}", allow_errors=True)
+            if err:
+                print(f"[WARN] Failed to delete orphaned Node {node_name}: {err.strip()}")
+            else:
+                print(f"[INFO] Deleted orphaned Node {node_name}")
+
 def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     '''Wait for the real CP rollout to converge on target_version's minor.'''
 
@@ -2245,7 +2392,9 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
     cp_namespace = "cluster-" + cluster_name
     target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2]) + "."
     print(f"[INFO] Waiting for the real control plane to reach {target_version} (timeout {timeout_minutes}m):", end=" ", flush=True)
-    deadline = time.time() + timeout_minutes * 60
+    loop_start = time.time()
+    deadline = loop_start + timeout_minutes * 60
+    last_orphan_check = loop_start
     while time.time() < deadline:
         output, _ = run_command(
             f"{kubectl} get kubeadmcontrolplane {kcp_name} -n {cp_namespace} -o json",
@@ -2268,6 +2417,10 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
         if converged:
             print("OK")
             return
+        now = time.time()
+        if now - loop_start > CP_ORPHAN_CHECK_GRACE_SECONDS and now - last_orphan_check > CP_ORPHAN_CHECK_INTERVAL_SECONDS:
+            cleanup_orphaned_cp_resources(cluster_name, config["dry_run"])
+            last_orphan_check = now
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for KubeadmControlPlane to converge on {target_version}")
 
@@ -2738,6 +2891,7 @@ if __name__ == '__main__':
     else:
         validate_helm_repository(helm_repository)
         update_helm_repository(cluster_name, helm_repository, config["dry_run"])
+        config["helm_repository_override"] = helm_repository
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     scale_cluster_autoscaler(0, config["dry_run"])
