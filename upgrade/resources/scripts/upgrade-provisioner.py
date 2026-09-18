@@ -2188,6 +2188,7 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             # GKE only tolerates nodes 2 minors behind the CP, so workers must converge before
             # the next step, not at the end (live 2026-09-18: ended 3 minors behind).
             wait_for_gke_node_pool_convergence(cluster_name, step_key)
+            wait_for_keoscluster_settled(cluster_name)
         return True
 
     print(f"[INFO] Patching k8s_version to {target_version}:", end=" ", flush=True)
@@ -2356,6 +2357,25 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
             return
         time.sleep(10)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
+
+def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
+    '''Wait for cluster-operator to finish its own reconcile — not the same as the infrastructure
+    having converged. Patching the next step mid-reconcile left the control plane stuck once
+    (live 2026-09-18, 19s before it closed); Azure buys the same margin with a fixed sleep.'''
+
+    print(f"[INFO] Waiting for the KeosCluster to settle before the next step (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        output, _ = run_command(
+            f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} "
+            f"-o jsonpath='{{.status.ready}} {{.status.phase}}'",
+            allow_errors=True
+        )
+        if output.strip() == "true Provisioned":
+            print("OK")
+            return
+        time.sleep(15)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
 
 def wait_for_gke_node_pool_convergence(cluster_name, target_minor, timeout_minutes=90):
     '''GCP only: wait for every GKE node pool AND every real node to reach target_minor. GKE sets a
