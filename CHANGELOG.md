@@ -4,10 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.4 (upcoming)
 
-* [PLT-4792] `--node-image-map` validation now mirrors the `KeosCluster` webhook's `isNodeImage` regex exactly, rejecting an Azure Compute Gallery (SIG) resource ID that previously slipped through and could get persisted once the webhook was restored after a `k8s_version` bump
-* [PLT-4792] Azure `k8s_version` bump: clean up a control-plane etcd member or `Node` object left behind when cluster-api's `Machine` controller silently skips its cleanup on delete, before it blocks the next replacement `Machine` from joining
-* [PLT-4792] That cleanup now matches cluster-api's own safety rules before removing anything: candidates are matched by `Node` name rather than `Machine` name, must hold the same state for 10 minutes straight (an etcd member mid-join is otherwise indistinguishable from a leaked one), are removed one per pass, and are left alone when too few etcd members or control-plane `Node`s remain or when the `Node` is still `Ready`
-* [PLT-4792] A dry-run now reports the Helm repository typed at the interactive prompt, instead of the one still recorded in the `KeosCluster` it deliberately does not patch in dry-run
+* [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
+* [PLT-4792] Retry create cluster commands on transient etcd timeouts
 
 ## 0.9.3 (2026-09-11)
 
