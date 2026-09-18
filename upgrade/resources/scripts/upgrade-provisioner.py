@@ -1241,6 +1241,8 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
                         f"az acr login --name {acr_name} --expose-token --output tsv --query accessToken | "
                         f"{helm} registry login {registry} --username 00000000-0000-0000-0000-000000000000 --password-stdin"
                     )
+                elif ".pkg.dev" in registry:
+                    run_command(f"gcloud auth print-access-token | {helm} registry login {registry} --username oauth2accesstoken --password-stdin")
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1994,10 +1996,47 @@ def parse_k8s_minor(version):
         raise ValueError(f"Cannot parse k8s version: {version}")
     return (int(match.group(1)), int(match.group(2)))
 
+def resolve_gke_version(cluster_name, target_minor):
+    '''Resolve a real, currently-valid GKE version for target_minor (e.g. "1.35") — unlike EKS,
+    GKE never accepts a bare "X.Y.0" (confirmed live 2026-09-16: GCPManagedControlPlane rejects
+    it with "No valid versions with the prefix ... found").'''
+
+    gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+    project_id = gcp_creds['project_id']
+    location = gcp_creds.get('region') or gcp_creds.get('zone')
+
+    channel_output, _ = run_command(
+        f"gcloud container clusters describe {cluster_name} --zone {location} --project {project_id} "
+        f"--format='value(releaseChannel.channel)'",
+        allow_errors=True
+    )
+    channel = channel_output.strip()
+
+    config_output, _ = run_command(
+        f"gcloud container get-server-config --zone {location} --project {project_id} --format=json"
+    )
+    server_config = json.loads(config_output)
+
+    valid_versions = []
+    for c in server_config.get("channels", []):
+        if c.get("channel") == channel:
+            valid_versions = c.get("validVersions", [])
+            break
+    if not valid_versions:
+        valid_versions = server_config.get("validMasterVersions", [])
+
+    patches = sorted(
+        {v.split("-gke.")[0] for v in valid_versions if v.startswith(f"{target_minor}.")},
+        key=lambda v: int(v.rsplit(".", 1)[1])
+    )
+    if not patches:
+        raise Exception(f"No valid GKE version found for minor {target_minor} (channel '{channel}')")
+    return "v" + patches[-1]
+
 def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_version, dry_run, provider=None, node_image_map=None):
-    '''AWS/GCP: single patch to target_minor (CAPA/GKE step it internally, see
-    verify_control_plane_patch_propagated()). Azure: steps the CP one minor at a
-    time via node_image_map (2026-08-24: a direct jump stuck old-etcd CP replicas).'''
+    '''AWS: single patch (CAPA steps it internally). Azure/GCP: step one minor at a time —
+    Azure via node_image_map; GCP because GKE rejects a >1-minor master jump (confirmed live
+    2026-09-16, see Tasks/PLT-4792/Issues/gke-master-upgrade-single-minor-only.md).'''
 
     current_version = keos_cluster["spec"]["k8s_version"]
     current_minor = parse_k8s_minor(current_version)
@@ -2017,7 +2056,7 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
         # skip the critical section's controlled-recovery except block (webhooks stay disabled).
         raise Exception(f"Cluster k8s_version ({current_version}) is newer than the requested target (v{target_minor}.0) — downgrade is not supported")
 
-    target_version = f"v{target_minor}.0"
+    target_version = resolve_gke_version(cluster_name, target_minor) if provider == "gcp" else f"v{target_minor}.0"
     print(f"[INFO] Planned k8s_version bump: {current_version} -> {target_version}")
     if provider == "azure":
         steps = []
@@ -2125,6 +2164,26 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             capsule_nodes_webhook("restore", backup_dir, dry_run)
         return True
 
+    if provider == "gcp":
+        major, minor = current_minor
+        target_major, target_minor_num = target_minor_tuple
+        steps = []
+        while (major, minor) != (target_major, target_minor_num):
+            minor += 1
+            steps.append(f"{major}.{minor}")
+        print(f"[INFO] Control plane will step through each minor in order: {' -> '.join([current_version] + steps)}")
+        for step_key in steps:
+            step_version = resolve_gke_version(cluster_name, step_key)
+            print(f"[INFO] Stepping control plane to {step_version}:", end=" ", flush=True)
+            command = (
+                kubectl + " patch keoscluster " + cluster_name + " -n cluster-" + cluster_name +
+                " --type=merge -p '{\"spec\":{\"k8s_version\":\"" + step_version + "\"}}'"
+            )
+            run_command(command)
+            print("OK")
+            wait_for_k8s_version_bump(cluster_name, provider, step_key)
+        return True
+
     print(f"[INFO] Patching k8s_version to {target_version}:", end=" ", flush=True)
     command = (
         kubectl + " patch keoscluster " + cluster_name + " -n cluster-" + cluster_name +
@@ -2163,7 +2222,10 @@ def verify_control_plane_patch_propagated(cluster_name, target_minor, timeout_se
 def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minutes=90):
     '''Wait for a k8s_version bump to fully land. AWS: status.ready can read True transiently
     between CAPA's internal minor steps (observed live), so poll `aws eks describe-cluster`
-    directly instead. Azure reuses bump_k8s_version()'s own convergence check; GCP still uses the generic ready wait (unverified live).'''
+    directly instead. Azure reuses bump_k8s_version()'s own convergence check. GCP: same
+    transient-ready risk confirmed live 2026-09-16 (status.ready read True while
+    GCPManagedControlPlane was stuck in a permanent error loop) — poll `gcloud container
+    clusters describe` directly instead of the generic ready wait.'''
 
     if provider == "aws":
         verify_control_plane_patch_propagated(cluster_name, target_minor)
@@ -2184,6 +2246,25 @@ def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minu
     if provider == "azure":
         wait_for_capi_kcp_version(cluster_name, f"v{target_minor}.0", timeout_minutes)
         return
+
+    if provider == "gcp":
+        gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+        project_id = gcp_creds['project_id']
+        location = gcp_creds.get('region') or gcp_creds.get('zone')
+        print(f"[INFO] Waiting for the real GKE control plane to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
+        deadline = time.time() + timeout_minutes * 60
+        while time.time() < deadline:
+            output, _ = run_command(
+                f"gcloud container clusters describe {cluster_name} --zone {location} --project {project_id} "
+                f"--format='value(status,currentMasterVersion)'",
+                allow_errors=True
+            )
+            parts = output.split()
+            if len(parts) == 2 and parts[0] == "RUNNING" and parts[1].startswith(f"{target_minor}."):
+                print("OK")
+                return
+            time.sleep(30)
+        raise Exception(f"Timed out after {timeout_minutes}m waiting for the GKE control plane to reach {target_minor}")
 
     print(f"[INFO] Waiting for KeosCluster to be ready after k8s_version bump (timeout {timeout_minutes}m):", end=" ", flush=True)
     command = (
@@ -3097,15 +3178,15 @@ if __name__ == '__main__':
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(provider)
 
-        # Azure only: its controller is the only thing that writes
-        # KubeadmControlPlane.spec.version — must run for the stepped bump below.
-        # Stepping 1 minor at a time never trips the CAPI webhook, nothing to disable.
-        if provider == "azure":
+        # Azure/GCP step the CP one minor at a time and need the controller running to
+        # propagate each step (confirmed live 2026-09-16 for GCP: controlPlaneVersion never
+        # advanced with the controller stopped). AWS keeps it stopped for its single patch.
+        if provider in ("azure", "gcp"):
             start_keoscluster_controller()
 
-        # k8s_version bump — controller stays stopped until the end for AWS/GCP (see
-        # bump_k8s_version() docstring); Azure steps the CP one minor at a time
-        # instead (2026-08-24: a direct jump left old-etcd CP replicas stuck).
+        # k8s_version bump — controller stays stopped until the end for AWS only; Azure/GCP
+        # step the CP one minor at a time instead (2026-08-24: a direct jump stuck old-etcd CP
+        # replicas on Azure).
         k8s_version_bumped = bump_k8s_version(keos_cluster, cluster_name, config["k8s_version"], config["start_from_k8s_version"], config["dry_run"], provider=provider, node_image_map=config["node_image_map"])
     except Exception as e:
         print(f"[ERROR] Critical section failed ({e}) — attempting controlled recovery: restoring webhooks and controller before aborting")
