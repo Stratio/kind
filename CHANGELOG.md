@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.4 (2026-09-18)
 
+* [PLT-4666] GKE `k8s_version` bump: log in to a GAR helm registry before pulling charts, resolve a real GKE patch version from the cluster's release channel instead of sending a bare `X.Y.0` that GKE rejects, step the control plane one minor at a time (GKE refuses a larger jump), and keep `keoscluster-controller-manager` running during the stepping so each patch actually propagates
+* [PLT-4666] GKE `k8s_version` bump: wait for every node pool and every node's real `kubeletVersion` to reach each intermediate minor before stepping the control plane again — GKE only tolerates nodes two minors behind, and the node pool's declared `version` flips to the target as soon as the request is accepted, before any node has rolled. The same check now runs on the resume path, which previously verified worker convergence for Azure only
 * [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
 * [PLT-4792] Retry create cluster commands on transient etcd timeouts
 
