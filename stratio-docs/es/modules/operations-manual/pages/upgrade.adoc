@@ -471,6 +471,16 @@ Opciones principales:
 | False
 | No
 
+| `--control-plane-timeout`
+| Minutos que el _script_ espera, como máximo, a que el plano de control alcance cada _minor_ objetivo: el plano de control de EKS o GKE, o el `KubeadmControlPlane` en Azure VMs. Es un límite absoluto por cada espera. La duración de esta fase no depende del número de nodos de trabajo, así que solo hace falta subirlo si el proveedor _cloud_ tarda más de lo habitual en actualizar el plano de control. Debe ser un número entero positivo.
+| 90
+| No
+
+| `--node-convergence-timeout`
+| Minutos que la actualización de los nodos de trabajo puede pasar *sin avanzar* antes de que el _script_ aborte. No es un límite total: el plazo se reinicia cada vez que un nodo más (o, en GKE, un _node pool_ más) alcanza la versión objetivo. Así, un _cluster_ con muchos nodos o muchos grupos no agota el límite mientras el reemplazo siga progresando; solo lo agota un reemplazo detenido, por ejemplo por un _Pod Disruption Budget_ que impide vaciar un nodo. Súbelo solo si el reemplazo de un único nodo puede tardar más que este valor. Debe ser un número entero positivo.
+| 90
+| No
+
 | `--dry-run`
 | Simula la actualización sin aplicar cambios reales.
 | False
@@ -622,7 +632,7 @@ Si el _script_ se interrumpe a mitad de un _bump_, ambos cambios pueden quedar a
 . *Post-actualización*
 ** Reanuda el _HelmRelease_ de _cluster-operator_.
 ** Espera a que el _cluster-operator_ esté _ready_.
-** Espera a que la infraestructura real del proveedor _cloud_ alcance la nueva versión de Kubernetes (en EKS, hasta 90 minutos; AWS aplica los _minors_ de uno en uno de forma automática, por lo que un salto de varios _minors_ puede observarse como varias transiciones sucesivas `UPDATING` → `ACTIVE` antes de alcanzar la versión final).
+** Espera a que la infraestructura real del proveedor _cloud_ alcance la nueva versión de Kubernetes (hasta `--control-plane-timeout`, 90 minutos por defecto; en EKS, AWS aplica los _minors_ de uno en uno de forma automática, por lo que un salto de varios _minors_ puede observarse como varias transiciones sucesivas `UPDATING` → `ACTIVE` antes de alcanzar la versión final).
 ** Si no hubo _bump_ de `k8s_version` (la espera de ese caso ya la cubre el paso anterior), espera a que `KeosCluster.status.ready` sea `true`.
 ** Espera a que el _deployment_ `keoscluster-controller-manager` esté en estado `Available`.
 ** Restaura las réplicas de _cluster-autoscaler_ a 2.
