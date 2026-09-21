@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 * [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
 * [PLT-4792] Retry create cluster commands on transient etcd timeouts
+* [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
 
 ## 0.9.3 (2026-09-11)
 
