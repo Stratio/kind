@@ -391,8 +391,7 @@ WARNING: *No duration has been measured yet, so all of them read "Pending".* Bef
 
 The only figures that are fixed are the limits beyond which the script stops waiting, and they are worth knowing because they mark when a phase is considered failed rather than slow:
 
-* *90 minutos* por cada espera del plano de control. Al agotarse, el _script_ aborta. Se ajusta con `--control-plane-timeout`.
-* *90 minutos sin avance* en la actualización de los grupos de nodos. No es un límite total: el plazo se reinicia cada vez que un nodo más alcanza la nueva versión, así que la duración total puede crecer con el número de nodos y de grupos sin que el _script_ aborte. Solo aborta si el reemplazo se detiene. Se ajusta con `--node-convergence-timeout`.
+* *90 minutes* for each convergence wait: the control plane's and each node group's. When it runs out, the script aborts.
 * *Each chart's timeout scales with the size of the cluster*: the higher of 15 minutes and 5 plus two minutes per node.
 * *90 seconds of settle time* between minor versions on Azure VMs, so that the control-plane rotation does not drag `cluster-operator`'s controller with it.
 
@@ -477,7 +476,7 @@ IMPORTANT: On Azure VMs the control plane's etcd is managed by kubeadm and its v
 * *What has been done to reduce it.* Preparation and the backup happen inside the run but before anything is touched. The control plane keeps serving: on EKS and on GKE the provider raises it without replacing nodes, and on Azure VMs its replicas are replaced one at a time. Node groups are upgraded one at a time, waiting for each one to converge before moving on to the next. And each node is replaced by bringing the new one up first and retiring the old one afterwards, so the configured node count is maintained at all times.
 * *What cannot be avoided, and why.* The node replacement. The infrastructure is immutable: there is no way to raise a node's kubelet version without replacing it, so its workloads are necessarily rescheduled. The real impact depends on how the applications are sized, more than on the upgrade process.
 * *What determines the impact on each service.* The number of replicas. A service with several replicas spread across nodes is not interrupted; one with a single replica is down while it starts on another node.
-* *The most important warning about PDBs.* Here the component that drains the nodes is Cluster API, which honors the eviction API and *never forces the eviction*. A Pod Disruption Budget that cannot be satisfied does not delay the drain: it blocks it, and with it the upgrade of the node group, hasta que pasen 90 minutos sin que ningún nodo más se actualice y el _script_ aborte. This is a fundamental difference from the _Stratio KEOS_ upgrade on on-premise installations, where the drain ends up being forced.
+* *The most important warning about PDBs.* Here the component that drains the nodes is Cluster API, which honors the eviction API and *never forces the eviction*. A Pod Disruption Budget that cannot be satisfied does not delay the drain: it blocks it, and with it the upgrade of the node group, until the 90-minute limit runs out and the script aborts. This is a fundamental difference from the _Stratio KEOS_ upgrade on on-premise installations, where the drain ends up being forced.
 * *What happens to autoscaling.* It is off from before the charts step to step 8. If the cluster's load grows during the window, no nodes are added.
 * *Who is notified, and how far in advance.* Announce that applications will be rescheduled, which services with a single replica will be unresponsive for a few minutes, and that there will be no autoscaling during the intervention. Follow each environment's change management policy: _Stratio Cloud Provisioner_ imposes no notice period.
 * *What happens if a step fails.* The script aborts. If the failure falls inside the critical section, before aborting it attempts a controlled recovery: it re-enables `cluster-operator`'s webhooks, starts its controller, and resumes its reconciliation. If that recovery also fails, the cluster is left with the webhooks disabled and the controller stopped, and they have to be restored by hand before anything else.
@@ -737,7 +736,7 @@ So what is the backup the script takes for: rebuilding the Cluster API objects i
 
 | A Pod Disruption Budget that cannot be satisfied blocks the drain of its node
 | In step 7, when replacing the nodes of a group
-| Fix the resource's replica count or remove its PDB temporarily, and relaunch. There is no forced eviction: la fase se queda esperando hasta que el _script_ aborta tras 90 minutos sin avance (`--node-convergence-timeout`). On EKS, review the `coredns` PDB in the `kube-system` namespace beforehand.
+| Fix the resource's replica count or remove its PDB temporarily, and relaunch. There is no forced eviction: the phase keeps waiting until the script aborts at 90 minutes. On EKS, review the `coredns` PDB in the `kube-system` namespace beforehand.
 | xref:operations-manual:operations-manual.adoc#_kubernetes_upgrade[Kubernetes upgrade]
 
 | The version jump is written to the descriptor but never propagated
