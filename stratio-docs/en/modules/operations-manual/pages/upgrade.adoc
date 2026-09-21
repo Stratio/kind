@@ -725,8 +725,6 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo
 +
 NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás muchas operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo.
 
-NOTE: `KeosCluster.status.phase` indica por qué fase de su ciclo va _cluster-operator_, no el progreso real de la actualización. Si su _pod_ se reinicia, la fase puede retroceder sin que el _cluster_ pierda nada. Para seguir el avance, mira las versiones de los nodos.
-
 == Verificación final
 
 * Verificar imágenes de contenedor.
