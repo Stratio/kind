@@ -262,6 +262,10 @@ Dentro del contenedor, lanza el _script_ que corresponda con los _flags_ oportun
 
 NOTE: El montaje `-v ~/.aws:/upgrade/.aws` **no es necesario en Azure ni en GCP** — ambos _scripts_ obtienen las credenciales del propio `secrets.yml` y las configuran ellos mismos (`az login --service-principal` para Azure, `configure_gcp_credentials()` para GCP) antes de la primera llamada al CLI del proveedor, sin leer nunca ese directorio. Omítelo en esos dos _providers_.
 
+NOTE: En GKE, el _script_ reescribe el _kubeconfig_ montado al arrancar: sustituye la credencial estática por una que usa `gke-gcloud-auth-plugin` y obtiene un _token_ nuevo en cada llamada. Por eso no montes el fichero en solo lectura (`:ro`), porque el _script_ necesita escribir en él. Después de la ejecución, para usar ese _kubeconfig_ desde la máquina anfitriona necesitas `gcloud` y `gke-gcloud-auth-plugin` instalados y autenticados. Si quieres conservar el original, cópialo antes de lanzar el contenedor.
+
+NOTE: El contenedor usa la red de la máquina anfitriona (`--net host`). En un _cluster_ GKE con _endpoint_ privado, lánzalo desde una máquina que llegue a ese _endpoint_, por ejemplo dentro de la VPC del _cluster_. Esa máquina también necesita salida a las APIs de Google, porque el _script_ llama a `gcloud`.
+
 NOTE: Ninguno de los dos _scripts_ genera un archivo de registro propio con marca de tiempo; toda su salida va a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un archivo, por ejemplo añadiendo `2>&1 | tee upgrade-$(date +%Y%m%d-%H%M%S).log` al comando anterior.
 
 == Migración a ECR _pull-through cache_
