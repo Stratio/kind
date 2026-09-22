@@ -2440,6 +2440,60 @@ def wait_for_gke_node_pool_convergence(cluster_name, target_minor, stall_minutes
         time.sleep(30)
     raise Exception(f"No progress for {stall_minutes}m waiting for GKE node pools to reach {target_minor} ({best_progress} pool(s) + node(s) converged)")
 
+def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
+    '''Wait for cluster-operator to finish its own reconcile — not the same as the infrastructure
+    having converged. Patching the next step mid-reconcile left the control plane stuck once
+    (live 2026-09-18, 19s before it closed); Azure buys the same margin with a fixed sleep.'''
+
+    print(f"[INFO] Waiting for the KeosCluster to settle before the next step (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        output, _ = run_command(
+            f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} "
+            f"-o jsonpath='{{.status.ready}} {{.status.phase}}'",
+            allow_errors=True
+        )
+        if output.strip() == "true Provisioned":
+            print("OK")
+            return
+        time.sleep(15)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
+
+def wait_for_gke_node_pool_convergence(cluster_name, target_minor, timeout_minutes=90):
+    '''GCP only: wait for every GKE node pool AND every real node to reach target_minor. GKE sets a
+    pool's `version` to the target as soon as it accepts the request, before any node has rolled
+    (live 2026-09-18), so check the real kubeletVersion too — pools with 0 nodes have none.'''
+
+    gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+    project_id = gcp_creds['project_id']
+    location = gcp_creds.get('region') or gcp_creds.get('zone')
+    print(f"[INFO] Waiting for every GKE node pool and node to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        pools_output, _ = run_command(
+            f"gcloud container node-pools list --cluster {cluster_name} --zone {location} "
+            f"--project {project_id} --format='value(name,version,status)'",
+            allow_errors=True
+        )
+        nodes_output, _ = run_command(f"{kubectl} get nodes -o json", allow_errors=True)
+        pools = [line.split() for line in pools_output.splitlines() if line.strip()]
+        pools_converged = bool(pools) and all(
+            len(p) == 3 and p[2] == "RUNNING" and p[1].startswith(f"{target_minor}.") for p in pools
+        )
+        try:
+            nodes = json.loads(nodes_output).get("items", [])
+            kubelets_converged = all(
+                node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(f"v{target_minor}.")
+                for node in nodes
+            )
+        except (ValueError, TypeError):
+            kubelets_converged = False
+        if pools_converged and kubelets_converged:
+            print("OK")
+            return
+        time.sleep(30)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for GKE node pools to reach {target_minor}")
+
 _orphan_member_first_seen = {}
 _orphan_node_first_seen = {}
 
