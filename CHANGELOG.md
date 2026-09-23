@@ -4,25 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+* [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
+* [PLT-4854] `upgrade-provisioner.py`: new `--control-plane-timeout` and `--node-convergence-timeout` flags (both default to 90 minutes, unchanged). The node timeout now counts minutes without progress instead of total minutes: it restarts every time another node or GKE node pool reaches the target version, so a large cluster no longer aborts while its rollout is still advancing, and a stalled rollout still aborts after the same 90 minutes
+* [PLT-4666] Fix the GKE k8s_version bump: GAR helm login, resolve a valid GKE patch version per minor, step the control plane one minor at a time, wait for node pool/kubelet convergence and for KeosCluster to settle before each step
 * [PLT-4792] `--node-image-map` validation now mirrors the `KeosCluster` webhook's `isNodeImage` regex exactly, rejecting an Azure Compute Gallery (SIG) resource ID that previously slipped through and could get persisted once the webhook was restored after a `k8s_version` bump
 * [PLT-4792] Azure `k8s_version` bump: clean up a control-plane etcd member or `Node` object left behind when cluster-api's `Machine` controller silently skips its cleanup on delete, before it blocks the next replacement `Machine` from joining
 * [PLT-4792] That cleanup now matches cluster-api's own safety rules before removing anything: candidates are matched by `Node` name rather than `Machine` name, must hold the same state for 10 minutes straight (an etcd member mid-join is otherwise indistinguishable from a leaked one), are removed one per pass, and are left alone when too few etcd members or control-plane `Node`s remain or when the `Node` is still `Ready`
 * [PLT-4792] A dry-run now reports the Helm repository typed at the interactive prompt, instead of the one still recorded in the `KeosCluster` it deliberately does not patch in dry-run
 * [PLT-4769] Add an upgrade planning index (`operations-manual/upgrade-overview.adoc`) and, below it, the fact sheet for the 0.7.x to 0.9.x upgrade (`operations-manual/upgrade-overview/from-0-7-x-to-0-9-x.adoc`), covering scope, outage, phases, per-provider differences, point of no return, data, rollback and post-upgrade checks
-=======
-=======
-* [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
-* [PLT-4854] `upgrade-provisioner.py`: new `--control-plane-timeout` and `--node-convergence-timeout` flags (both default to 90 minutes, unchanged). The node timeout now counts minutes without progress instead of total minutes: it restarts every time another node or GKE node pool reaches the target version, so a large cluster no longer aborts while its rollout is still advancing, and a stalled rollout still aborts after the same 90 minutes
-* [PLT-4666] Fix the GKE k8s_version bump: GAR helm login, resolve a valid GKE patch version per minor, step the control plane one minor at a time, wait for node pool/kubelet convergence and for KeosCluster to settle before each step
->>>>>>> d8bca481 ([PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 (#979))
 * [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
 * [PLT-4792] Retry create cluster commands on transient etcd timeouts
 
 ## 0.9.3 (2026-09-11)
 
->>>>>>> cc291bda ([PLT-4795] Retry create cluster commands on transient etcd timeouts (#969))
 * [PLT-4667] Update upgrade documentation for cloud-provisioner 0.9
 * [Clouds] Sync `DEPENDENCIES` and `docs/images` with the versions pinned in code: EKS addons `aws-ebs-csi-driver` v1.64.0-eksbuild.1, `coredns` v1.13.2-eksbuild.11 and `kube-proxy` v1.35.3-eksbuild.18; `helm` v3.19.0; `aws-load-balancer-controller` image v3.4.0; `cluster-operator` image and chart 0.7.2
 * Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.1 → 0.9.2, `CLUSTER_OPERATOR` (and its `common_charts` entry) 0.7.1 → 0.7.2
