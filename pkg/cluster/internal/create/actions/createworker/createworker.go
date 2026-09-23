@@ -584,8 +584,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		if hasMachinePool {
-			// Wait for all the machine pools to be ready
-			c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=Ready --timeout=15m --all mp"
+			// Wait for all the machine pools to be ready. v1beta2 MachinePools publish no aggregate
+			// condition, so read the v1beta1 set CAPI keeps until v1beta1 is removed (CAPI v1.16).
+			c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath='{.status.deprecated.v1beta1.conditions[?(@.type==\"Ready\")].status}'=True --timeout=15m --all mp"
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
 				return errors.Wrap(err, "failed to create the worker Cluster")
@@ -599,7 +600,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 		if hasMachineDeployment {
 			// Wait for all the machine deployments to be ready
-			c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=Ready --timeout=15m --all md"
+			c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=Available --timeout=15m --all md"
 
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
