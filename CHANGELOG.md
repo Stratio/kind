@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.4 (2026-09-18)
 
+* [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
 * [PLT-4854] `upgrade-provisioner.py`: new `--control-plane-timeout` and `--node-convergence-timeout` flags (both default to 90 minutes, unchanged). The node timeout now counts minutes without progress instead of total minutes: it restarts every time another node or GKE node pool reaches the target version, so a large cluster no longer aborts while its rollout is still advancing, and a stalled rollout still aborts after the same 90 minutes
 * [PLT-4666] Fix the GKE k8s_version bump: GAR helm login, resolve a valid GKE patch version per minor, step the control plane one minor at a time, wait for node pool/kubelet convergence and for KeosCluster to settle before each step
 * [PLT-4795] `ExecuteCommand` now retries on transient `etcdserver` timeouts (`etcdserver:.*timed out`, `etcdserver: leader changed`) — a newly joined control-plane etcd member's raft catch-up window could abort `create cluster` at a later step (e.g. the CSI install) with `etcdserver: request timed out`, which the previous retry conditions never matched
