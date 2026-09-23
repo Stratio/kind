@@ -10,7 +10,11 @@
 #   - GKE                                                    #
 ##############################################################
 
+<<<<<<< HEAD
 __version__ = "0.9.2"
+=======
+__version__ = "0.9.4"
+>>>>>>> d8bca481 ([PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 (#979))
 
 import argparse
 import os
@@ -35,7 +39,7 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.3"
+CLOUD_PROVISIONER = "0.9.4"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
