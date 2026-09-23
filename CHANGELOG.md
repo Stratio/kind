@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.5 (upcoming)
+
+* [PLT-4793] Document the post-install and post-upgrade override of the cluster-autoscaler image to Stratio's `v1.35.2` build (MachinePool scale-down fix, kubernetes/autoscaler#9693) on EKS and Azure VMs
+
 ## 0.9.4 (2026-09-23)
 
 * [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
