@@ -786,7 +786,7 @@ NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores 
 
 == Actualización de _cluster-autoscaler_ tras la actualización
 
-IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS y Azure VMs, sustituye la imagen por la imagen propia de Stratio `v1.35.2` siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
+IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS con grupos _MachinePool_, sustituye la imagen por la imagen propia de Stratio `v1.35.2` siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
 
 == _Clusters_ EKS con _MachinePools_
 
