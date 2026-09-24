@@ -10,7 +10,7 @@
 #   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.9.2"
+__version__ = "0.9.4"
 
 import argparse
 import os
@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.3"
+CLOUD_PROVISIONER = "0.9.4"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
@@ -225,8 +225,16 @@ def parse_args():
     parser.add_argument("--k8s-version", help="Set the target k8s minor version to bump the cluster to (e.g. 1.35). Applied as a single patch to KeosCluster.spec.k8s_version — the KeosCluster webhook's +1-minor-per-patch limit is bypassed the same way the rest of this script already bypasses it for clusterctl", default=K8S_VERSION)
     parser.add_argument("--start-from-k8s-version", action="store_true", help="Skip the interactive Y/N confirmation before bumping k8s_version (the bump itself is still a single patch to --k8s-version, not a resume-from-intermediate-step mechanism)")
     parser.add_argument("--node-image-map", help='Azure only: JSON map of every intermediate minor to its VM image resource ID, e.g. \'{"1.33":"<id>","1.34":"<id>","1.35":"<id>"}\'. Required for a k8s_version bump on provider=azure — never hardcode a version-to-image table, the caller must supply the right image per minor')
+    parser.add_argument("--control-plane-timeout", type=positive_minutes, default=90, help="Minutes to wait for the control plane to reach each target minor (EKS/GKE control plane, KubeadmControlPlane on Azure). Absolute limit per wait")
+    parser.add_argument("--node-convergence-timeout", type=positive_minutes, default=90, help="Minutes the worker node rollout may go without progress (no further node or node pool reaching the target minor) before aborting. The limit restarts every time progress is made, so it does not depend on the number of nodes or node pools")
     args = parser.parse_args()
     return vars(args)
+
+def positive_minutes(value):
+    minutes = int(value)
+    if minutes <= 0:
+        raise argparse.ArgumentTypeError(f"must be a positive number of minutes, got {value}")
+    return minutes
 
 def backup(backup_dir, namespace, cluster_name, dry_run):
     '''Backup CAPX cluster move files, capsule webhooks and CAPI/CAPX namespace secrets'''
@@ -1241,6 +1249,8 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
                         f"az acr login --name {acr_name} --expose-token --output tsv --query accessToken | "
                         f"{helm} registry login {registry} --username 00000000-0000-0000-0000-000000000000 --password-stdin"
                     )
+                elif ".pkg.dev" in registry:
+                    run_command(f"gcloud auth print-access-token | {helm} registry login {registry} --username oauth2accesstoken --password-stdin")
             run_command(pull_cmd)
         except Exception as e:
             print("FAILED")
@@ -1994,10 +2004,47 @@ def parse_k8s_minor(version):
         raise ValueError(f"Cannot parse k8s version: {version}")
     return (int(match.group(1)), int(match.group(2)))
 
+def resolve_gke_version(cluster_name, target_minor):
+    '''Resolve a real, currently-valid GKE version for target_minor (e.g. "1.35") — unlike EKS,
+    GKE never accepts a bare "X.Y.0" (confirmed live 2026-09-16: GCPManagedControlPlane rejects
+    it with "No valid versions with the prefix ... found").'''
+
+    gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+    project_id = gcp_creds['project_id']
+    location = gcp_creds.get('region') or gcp_creds.get('zone')
+
+    channel_output, _ = run_command(
+        f"gcloud container clusters describe {cluster_name} --zone {location} --project {project_id} "
+        f"--format='value(releaseChannel.channel)'",
+        allow_errors=True
+    )
+    channel = channel_output.strip()
+
+    config_output, _ = run_command(
+        f"gcloud container get-server-config --zone {location} --project {project_id} --format=json"
+    )
+    server_config = json.loads(config_output)
+
+    valid_versions = []
+    for c in server_config.get("channels", []):
+        if c.get("channel") == channel:
+            valid_versions = c.get("validVersions", [])
+            break
+    if not valid_versions:
+        valid_versions = server_config.get("validMasterVersions", [])
+
+    patches = sorted(
+        {v.split("-gke.")[0] for v in valid_versions if v.startswith(f"{target_minor}.")},
+        key=lambda v: int(v.rsplit(".", 1)[1])
+    )
+    if not patches:
+        raise Exception(f"No valid GKE version found for minor {target_minor} (channel '{channel}')")
+    return "v" + patches[-1]
+
 def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_version, dry_run, provider=None, node_image_map=None):
-    '''AWS/GCP: single patch to target_minor (CAPA/GKE step it internally, see
-    verify_control_plane_patch_propagated()). Azure: steps the CP one minor at a
-    time via node_image_map (2026-08-24: a direct jump stuck old-etcd CP replicas).'''
+    '''AWS: single patch (CAPA steps it internally). Azure/GCP: step one minor at a time —
+    Azure via node_image_map; GCP because GKE rejects a >1-minor master jump (confirmed live
+    2026-09-16, see Tasks/PLT-4792/Issues/gke-master-upgrade-single-minor-only.md).'''
 
     current_version = keos_cluster["spec"]["k8s_version"]
     current_minor = parse_k8s_minor(current_version)
@@ -2011,13 +2058,16 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             for wn in keos_cluster["spec"].get("worker_nodes", []):
                 if wn.get("node_image"):
                     wait_for_capi_md_convergence(cluster_name, wn["name"], current_version)
+        elif provider == "gcp":
+            # Same resume case: the control plane is already at target but node pools may not be.
+            wait_for_gke_node_pool_convergence(cluster_name, target_minor)
         return False
     if current_minor > target_minor_tuple:
         # Plain Exception, not sys.exit(): SystemExit isn't an Exception subclass and would
         # skip the critical section's controlled-recovery except block (webhooks stay disabled).
         raise Exception(f"Cluster k8s_version ({current_version}) is newer than the requested target (v{target_minor}.0) — downgrade is not supported")
 
-    target_version = f"v{target_minor}.0"
+    target_version = resolve_gke_version(cluster_name, target_minor) if provider == "gcp" else f"v{target_minor}.0"
     print(f"[INFO] Planned k8s_version bump: {current_version} -> {target_version}")
     if provider == "azure":
         steps = []
@@ -2125,6 +2175,30 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
             capsule_nodes_webhook("restore", backup_dir, dry_run)
         return True
 
+    if provider == "gcp":
+        major, minor = current_minor
+        target_major, target_minor_num = target_minor_tuple
+        steps = []
+        while (major, minor) != (target_major, target_minor_num):
+            minor += 1
+            steps.append(f"{major}.{minor}")
+        print(f"[INFO] Control plane will step through each minor in order: {' -> '.join([current_version] + steps)}")
+        for step_key in steps:
+            step_version = resolve_gke_version(cluster_name, step_key)
+            print(f"[INFO] Stepping control plane to {step_version}:", end=" ", flush=True)
+            command = (
+                kubectl + " patch keoscluster " + cluster_name + " -n cluster-" + cluster_name +
+                " --type=merge -p '{\"spec\":{\"k8s_version\":\"" + step_version + "\"}}'"
+            )
+            run_command(command)
+            print("OK")
+            wait_for_k8s_version_bump(cluster_name, provider, step_key)
+            # GKE only tolerates nodes 2 minors behind the CP, so workers must converge before
+            # the next step, not at the end (live 2026-09-18: ended 3 minors behind).
+            wait_for_gke_node_pool_convergence(cluster_name, step_key)
+            wait_for_keoscluster_settled(cluster_name)
+        return True
+
     print(f"[INFO] Patching k8s_version to {target_version}:", end=" ", flush=True)
     command = (
         kubectl + " patch keoscluster " + cluster_name + " -n cluster-" + cluster_name +
@@ -2160,11 +2234,16 @@ def verify_control_plane_patch_propagated(cluster_name, target_minor, timeout_se
         f"so a plain re-run would SKIP the bump step entirely."
     )
 
-def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minutes=90):
+def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minutes=None):
     '''Wait for a k8s_version bump to fully land. AWS: status.ready can read True transiently
     between CAPA's internal minor steps (observed live), so poll `aws eks describe-cluster`
-    directly instead. Azure reuses bump_k8s_version()'s own convergence check; GCP still uses the generic ready wait (unverified live).'''
+    directly instead. Azure reuses bump_k8s_version()'s own convergence check. GCP: same
+    transient-ready risk confirmed live 2026-09-16 (status.ready read True while
+    GCPManagedControlPlane was stuck in a permanent error loop) — poll `gcloud container
+    clusters describe` directly instead of the generic ready wait.'''
 
+    if timeout_minutes is None:
+        timeout_minutes = config["control_plane_timeout"]
     if provider == "aws":
         verify_control_plane_patch_propagated(cluster_name, target_minor)
         print(f"[INFO] Waiting for the real EKS control plane to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
@@ -2184,6 +2263,25 @@ def wait_for_k8s_version_bump(cluster_name, provider, target_minor, timeout_minu
     if provider == "azure":
         wait_for_capi_kcp_version(cluster_name, f"v{target_minor}.0", timeout_minutes)
         return
+
+    if provider == "gcp":
+        gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+        project_id = gcp_creds['project_id']
+        location = gcp_creds.get('region') or gcp_creds.get('zone')
+        print(f"[INFO] Waiting for the real GKE control plane to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
+        deadline = time.time() + timeout_minutes * 60
+        while time.time() < deadline:
+            output, _ = run_command(
+                f"gcloud container clusters describe {cluster_name} --zone {location} --project {project_id} "
+                f"--format='value(status,currentMasterVersion)'",
+                allow_errors=True
+            )
+            parts = output.split()
+            if len(parts) == 2 and parts[0] == "RUNNING" and parts[1].startswith(f"{target_minor}."):
+                print("OK")
+                return
+            time.sleep(30)
+        raise Exception(f"Timed out after {timeout_minutes}m waiting for the GKE control plane to reach {target_minor}")
 
     print(f"[INFO] Waiting for KeosCluster to be ready after k8s_version bump (timeout {timeout_minutes}m):", end=" ", flush=True)
     command = (
@@ -2226,16 +2324,20 @@ def restore_keoscluster_webhooks():
         print(f"[ERROR] Error restoring KEOSCluster webhooks from backup: {e}")
         raise e
 
-def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_minutes=90):
+def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_minutes=None):
     '''Wait for every worker MachineDeployment of wn_name to converge on target_version —
     checks the real kubeletVersion on each Node, not just spec.version (a Machine can say
     the right version while still running the old node_image's kubelet, see PLAN.md).'''
 
+    if stall_minutes is None:
+        stall_minutes = config["node_convergence_timeout"]
     cp_namespace = "cluster-" + cluster_name
     target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2])
-    print(f"[INFO] Waiting for the real worker nodes ({wn_name}) to reach {target_version} (timeout {timeout_minutes}m):", end=" ", flush=True)
-    deadline = time.time() + timeout_minutes * 60
+    print(f"[INFO] Waiting for the real worker nodes ({wn_name}) to reach {target_version} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
+    best_progress = -1
+    deadline = time.time() + stall_minutes * 60
     while time.time() < deadline:
+        progress = best_progress
         output, _ = run_command(
             f"{kubectl} get machinedeployment -n {cp_namespace} -o json",
             allow_errors=True
@@ -2257,18 +2359,140 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, timeout_
                 node for node in json.loads(nodes_output).get("items", [])
                 if node.get("metadata", {}).get("name", "").startswith(f"{wn_name}-md-")
             ]
-            kubelet_converged = bool(wn_nodes) and all(
-                node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(target_minor_prefix)
-                for node in wn_nodes
+            progress = sum(
+                1 for node in wn_nodes
+                if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(target_minor_prefix)
             )
+            kubelet_converged = bool(wn_nodes) and progress == len(wn_nodes)
             converged = spec_converged and kubelet_converged and len(wn_nodes) == sum(md.get("status", {}).get("replicas", 0) for md in mds)
         except (ValueError, TypeError):
             converged = False
         if converged:
             print("OK")
             return
+        if progress > best_progress:
+            best_progress = progress
+            deadline = time.time() + stall_minutes * 60
         time.sleep(10)
-    raise Exception(f"Timed out after {timeout_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version}")
+    raise Exception(f"No progress for {stall_minutes}m waiting for worker nodes ({wn_name}) to reach {target_version} ({best_progress} node(s) converged)")
+
+def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
+    '''Wait for cluster-operator to finish its own reconcile — not the same as the infrastructure
+    having converged. Patching the next step mid-reconcile left the control plane stuck once
+    (live 2026-09-18, 19s before it closed); Azure buys the same margin with a fixed sleep.'''
+
+    print(f"[INFO] Waiting for the KeosCluster to settle before the next step (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        output, _ = run_command(
+            f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} "
+            f"-o jsonpath='{{.status.ready}} {{.status.phase}}'",
+            allow_errors=True
+        )
+        if output.strip() == "true Provisioned":
+            print("OK")
+            return
+        time.sleep(15)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
+
+def wait_for_gke_node_pool_convergence(cluster_name, target_minor, stall_minutes=None):
+    '''GCP only: wait for every GKE node pool AND every real node to reach target_minor. GKE sets a
+    pool's `version` to the target as soon as it accepts the request, before any node has rolled
+    (live 2026-09-18), so check the real kubeletVersion too — pools with 0 nodes have none.'''
+
+    gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+    project_id = gcp_creds['project_id']
+    location = gcp_creds.get('region') or gcp_creds.get('zone')
+    if stall_minutes is None:
+        stall_minutes = config["node_convergence_timeout"]
+    print(f"[INFO] Waiting for every GKE node pool and node to reach {target_minor} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
+    best_progress = -1
+    deadline = time.time() + stall_minutes * 60
+    while time.time() < deadline:
+        progress = best_progress
+        pools_output, _ = run_command(
+            f"gcloud container node-pools list --cluster {cluster_name} --zone {location} "
+            f"--project {project_id} --format='value(name,version,status)'",
+            allow_errors=True
+        )
+        nodes_output, _ = run_command(f"{kubectl} get nodes -o json", allow_errors=True)
+        pools = [line.split() for line in pools_output.splitlines() if line.strip()]
+        converged_pools = sum(
+            1 for p in pools if len(p) == 3 and p[2] == "RUNNING" and p[1].startswith(f"{target_minor}.")
+        )
+        pools_converged = bool(pools) and converged_pools == len(pools)
+        try:
+            nodes = json.loads(nodes_output).get("items", [])
+            converged_nodes = sum(
+                1 for node in nodes
+                if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(f"v{target_minor}.")
+            )
+            kubelets_converged = converged_nodes == len(nodes)
+            progress = converged_pools + converged_nodes
+        except (ValueError, TypeError):
+            kubelets_converged = False
+        if pools_converged and kubelets_converged:
+            print("OK")
+            return
+        if progress > best_progress:
+            best_progress = progress
+            deadline = time.time() + stall_minutes * 60
+        time.sleep(30)
+    raise Exception(f"No progress for {stall_minutes}m waiting for GKE node pools to reach {target_minor} ({best_progress} pool(s) + node(s) converged)")
+
+def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
+    '''Wait for cluster-operator to finish its own reconcile — not the same as the infrastructure
+    having converged. Patching the next step mid-reconcile left the control plane stuck once
+    (live 2026-09-18, 19s before it closed); Azure buys the same margin with a fixed sleep.'''
+
+    print(f"[INFO] Waiting for the KeosCluster to settle before the next step (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        output, _ = run_command(
+            f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} "
+            f"-o jsonpath='{{.status.ready}} {{.status.phase}}'",
+            allow_errors=True
+        )
+        if output.strip() == "true Provisioned":
+            print("OK")
+            return
+        time.sleep(15)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
+
+def wait_for_gke_node_pool_convergence(cluster_name, target_minor, timeout_minutes=90):
+    '''GCP only: wait for every GKE node pool AND every real node to reach target_minor. GKE sets a
+    pool's `version` to the target as soon as it accepts the request, before any node has rolled
+    (live 2026-09-18), so check the real kubeletVersion too — pools with 0 nodes have none.'''
+
+    gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
+    project_id = gcp_creds['project_id']
+    location = gcp_creds.get('region') or gcp_creds.get('zone')
+    print(f"[INFO] Waiting for every GKE node pool and node to reach {target_minor} (timeout {timeout_minutes}m):", end=" ", flush=True)
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        pools_output, _ = run_command(
+            f"gcloud container node-pools list --cluster {cluster_name} --zone {location} "
+            f"--project {project_id} --format='value(name,version,status)'",
+            allow_errors=True
+        )
+        nodes_output, _ = run_command(f"{kubectl} get nodes -o json", allow_errors=True)
+        pools = [line.split() for line in pools_output.splitlines() if line.strip()]
+        pools_converged = bool(pools) and all(
+            len(p) == 3 and p[2] == "RUNNING" and p[1].startswith(f"{target_minor}.") for p in pools
+        )
+        try:
+            nodes = json.loads(nodes_output).get("items", [])
+            kubelets_converged = all(
+                node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(f"v{target_minor}.")
+                for node in nodes
+            )
+        except (ValueError, TypeError):
+            kubelets_converged = False
+        if pools_converged and kubelets_converged:
+            print("OK")
+            return
+        time.sleep(30)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for GKE node pools to reach {target_minor}")
 
 _orphan_member_first_seen = {}
 _orphan_node_first_seen = {}
@@ -2385,9 +2609,11 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
             else:
                 print(f"[INFO] Deleted orphaned Node {node_name}")
 
-def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=90):
+def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=None):
     '''Wait for the real CP rollout to converge on target_version's minor.'''
 
+    if timeout_minutes is None:
+        timeout_minutes = config["control_plane_timeout"]
     kcp_name = cluster_name + "-control-plane"
     cp_namespace = "cluster-" + cluster_name
     target_minor_prefix = "v" + ".".join(target_version.lstrip("v").split(".")[:2]) + "."
@@ -3097,15 +3323,15 @@ if __name__ == '__main__':
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(provider)
 
-        # Azure only: its controller is the only thing that writes
-        # KubeadmControlPlane.spec.version — must run for the stepped bump below.
-        # Stepping 1 minor at a time never trips the CAPI webhook, nothing to disable.
-        if provider == "azure":
+        # Azure/GCP step the CP one minor at a time and need the controller running to
+        # propagate each step (confirmed live 2026-09-16 for GCP: controlPlaneVersion never
+        # advanced with the controller stopped). AWS keeps it stopped for its single patch.
+        if provider in ("azure", "gcp"):
             start_keoscluster_controller()
 
-        # k8s_version bump — controller stays stopped until the end for AWS/GCP (see
-        # bump_k8s_version() docstring); Azure steps the CP one minor at a time
-        # instead (2026-08-24: a direct jump left old-etcd CP replicas stuck).
+        # k8s_version bump — controller stays stopped until the end for AWS only; Azure/GCP
+        # step the CP one minor at a time instead (2026-08-24: a direct jump stuck old-etcd CP
+        # replicas on Azure).
         k8s_version_bumped = bump_k8s_version(keos_cluster, cluster_name, config["k8s_version"], config["start_from_k8s_version"], config["dry_run"], provider=provider, node_image_map=config["node_image_map"])
     except Exception as e:
         print(f"[ERROR] Critical section failed ({e}) — attempting controlled recovery: restoring webhooks and controller before aborting")
