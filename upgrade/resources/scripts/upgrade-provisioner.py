@@ -10,7 +10,7 @@
 #   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 import argparse
 import os
@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.4"
+CLOUD_PROVISIONER = "0.9.5"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
@@ -92,7 +92,7 @@ CAPI = "v1.10.10"
 CAPI_KUBEADM_BOOTSTRAP = "v1.10.10"
 CAPI_KUBEADM_CONTROL_PLANE = "v1.10.10"
 CAPA = "v2.9.3"
-CAPG = "1.6.1-0.4.1"
+CAPG = "1.6.1-0.4.2"
 CAPZ = "v1.21.3"
 
 TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.31.7"

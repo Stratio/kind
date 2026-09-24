@@ -35,7 +35,7 @@ core:
       kustomize-controller: v1.7.3
       source-controller: v1.7.4
     kind:
-      cloud-provisioner: 0.9.4
+      cloud-provisioner: 0.9.5
       coredns: v1.13.1
       etcd: 3.6.6-0
       kindnetd: v20260820-69b56db7
@@ -98,10 +98,10 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.4.1
+      cluster-api-gcp-controller: 1.6.1-0.4.2
     manifests:
-      metadata.yaml: 1.6.1-0.4.1
-      infrastructure-components.yaml: 1.6.1-0.4.1
+      metadata.yaml: 1.6.1-0.4.2
+      infrastructure-components.yaml: 1.6.1-0.4.2
   managed:
     images:
       coredns: v1.13.1
