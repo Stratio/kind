@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.5 (upcoming)
+
+* [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
+
 ## 0.9.4 (2026-09-23)
 
 * [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4

@@ -25,7 +25,7 @@ La tabla responde, con una fila por decisión, a lo que necesitas para dimension
 | <<outage,Parada>>
 
 | ¿De qué depende la duración?
-| Del *número de nodos* y del *número de saltos de versión menor*, que son tres: 1.32 → 1.33 → 1.34 → 1.35. En Azure VMs el plano de control pasa por los tres de forma explícita, con una espera de asentamiento entre ellos; en EKS y en GKE los escalona el proveedor.
+| Del *número de nodos* y del *número de saltos de versión menor*, que son tres: 1.32 → 1.33 → 1.34 → 1.35. En Azure VMs y en GKE el _script_ pasa el plano de control por los tres de forma explícita, con una espera entre ellos; en EKS los escalona el proveedor.
 | <<phases,Pasos>>
 
 | ¿Cuánto dura la ventana de mantenimiento en total?
@@ -353,7 +353,7 @@ Los pasos siguientes son la secuencia de una única ejecución de `upgrade-provi
 
 | 7
 | Salto de Kubernetes
-| El paso que domina la ventana. En EKS y en GKE se aplica un único cambio de versión y el proveedor escalona internamente las tres versiones menores. En Azure VMs se escalona explícitamente, versión menor a versión menor, esperando en cada una a que converjan el plano de control y todos los grupos de nodos. El plano de control sube primero y después cada grupo de nodos, uno a uno: los nodos se reemplazan por otros nuevos con la versión de destino. Pide confirmación aparte, así que es el único paso que puede dejarse para otra ventana.
+| El paso que domina la ventana. En EKS se aplica un único cambio de versión y el proveedor escalona internamente las tres versiones menores. En Azure VMs y en GKE se escalona explícitamente, versión menor a versión menor, esperando en cada una a que converjan el plano de control y todos los grupos de nodos. El plano de control sube primero y después cada grupo de nodos, uno a uno: los nodos se reemplazan por otros nuevos con la versión de destino. Pide confirmación aparte, así que es el único paso que puede dejarse para otra ventana.
 | Pendiente
 | La de las cargas de cada nodo que se reemplaza
 | Sí
@@ -391,7 +391,8 @@ WARNING: *Ninguna duración está medida todavía, así que todas figuran como �
 
 Los únicos números que sí están fijados son los límites a partir de los cuales el _script_ deja de esperar, y conviene conocerlos porque marcan cuándo una fase se considera fallida en lugar de lenta:
 
-* *90 minutos* por cada espera de convergencia: la del plano de control y la de cada grupo de nodos. Al agotarse, el _script_ aborta.
+* *90 minutos* por cada espera del plano de control. Al agotarse, el _script_ aborta. Se ajusta con `--control-plane-timeout`.
+* *90 minutos sin avance* en la actualización de los grupos de nodos. No es un límite total: el plazo se reinicia cada vez que un nodo más alcanza la nueva versión, así que la duración total puede crecer con el número de nodos y de grupos sin que el _script_ aborte. Solo aborta si el reemplazo se detiene. Se ajusta con `--node-convergence-timeout`.
 * *El _timeout_ de cada _chart_ escala con el tamaño del _cluster_*: el mayor entre 15 minutos y 5 más dos minutos por nodo.
 * *90 segundos de asentamiento* entre versiones menores en Azure VMs, para que la rotación del plano de control no arrastre al _controller_ de `cluster-operator`.
 
@@ -421,9 +422,9 @@ Lo que cambia entre entornos no es la secuencia, sino quién sube el plano de co
 
 | GKE, en Google Cloud Platform
 | Gestionado por el proveedor. Su etcd es de Google Cloud Platform y no se toca.
-| Se aplica un único cambio de versión y el proveedor lo escalona. La espera se hace sobre el estado del `KeosCluster`.
-| Los CRD del proveedor requieren una limpieza previa de sus _webhooks_ de conversión, que el _script_ hace por su cuenta.
-| *El menos validado de los tres.* La espera del salto de versión no se ha comprobado en un entorno real: consulta <<known-issues,Avisos e incidencias conocidas>>.
+| Se escalona explícitamente, versión menor a versión menor, porque GKE no admite subir el plano de control más de una de una vez. Cada paso usa el _patch_ más alto del _release channel_ del _cluster_. Después espera, contra la API de GKE, a que converjan el plano de control, todos los _node pools_ y la versión real de sus kubelet.
+| Que el _minor_ de destino esté disponible en el _release channel_ del _cluster_. Los CRD del proveedor requieren una limpieza previa de sus _webhooks_ de conversión, que el _script_ hace por su cuenta.
+| Validado.
 |===
 
 [#no-return]
@@ -476,7 +477,7 @@ IMPORTANT: En Azure VMs, el etcd del plano de control lo gestiona kubeadm y su v
 * *Qué se ha hecho para reducirla.* La preparación y la copia de seguridad ocurren dentro de la ejecución pero antes de tocar nada. El plano de control conserva el servicio: en EKS y en GKE lo sube el proveedor sin reemplazar nodos, y en Azure VMs sus réplicas se reemplazan una a una. Los grupos de nodos se actualizan de uno en uno, esperando la convergencia de cada uno antes de seguir con el siguiente. Y cada nodo se sustituye levantando primero el nuevo y retirando después el viejo, de modo que el número de nodos configurado se mantiene en todo momento.
 * *Qué parte no se puede evitar y por qué.* El reemplazo de los nodos. La infraestructura es inmutable: no hay forma de subir la versión de kubelet de un nodo sin sustituirlo, así que sus cargas se reprograman obligatoriamente. El impacto real depende de cómo estén dimensionadas las aplicaciones, más que del proceso de actualización.
 * *Qué determina el impacto en cada servicio.* El número de réplicas. Un servicio con varias réplicas repartidas entre nodos no se interrumpe; uno con una sola queda caído mientras arranca en otro nodo.
-* *El aviso más importante sobre los PDB.* Aquí quien vacía los nodos es Cluster API, que respeta la API de _eviction_ y *no fuerza el desalojo en ningún momento*. Un _Pod Disruption Budget_ que no se pueda cumplir no retrasa el vaciado: lo bloquea, y con él la actualización del grupo de nodos, hasta que se agote el límite de 90 minutos y el _script_ aborte. Es una diferencia de fondo con la actualización de _Stratio KEOS_ en las instalaciones _on-premise_, donde el vaciado acaba forzándose.
+* *El aviso más importante sobre los PDB.* Aquí quien vacía los nodos es Cluster API, que respeta la API de _eviction_ y *no fuerza el desalojo en ningún momento*. Un _Pod Disruption Budget_ que no se pueda cumplir no retrasa el vaciado: lo bloquea, y con él la actualización del grupo de nodos, hasta que pasen 90 minutos sin que ningún nodo más se actualice y el _script_ aborte. Es una diferencia de fondo con la actualización de _Stratio KEOS_ en las instalaciones _on-premise_, donde el vaciado acaba forzándose.
 * *Qué ocurre con el autoescalado.* Está apagado desde antes del paso de _charts_ hasta el paso 8. Si la carga del _cluster_ crece durante la ventana, no se añaden nodos.
 * *A quién se avisa y con cuánta antelación.* Anuncia que las aplicaciones se reprogramarán, qué servicios con una sola réplica quedarán unos minutos sin responder y que no habrá autoescalado durante la intervención. Sigue la política de gestión de cambios de cada entorno: _Stratio Cloud Provisioner_ no impone ningún plazo de aviso.
 * *Qué ocurre si un paso falla.* El _script_ aborta. Si el fallo cae dentro de la sección crítica, antes de abortar intenta una recuperación controlada: reactiva los _webhooks_ de `cluster-operator`, arranca su _controller_ y reanuda su reconciliación. Si esa recuperación también falla, el _cluster_ se queda con los _webhooks_ desactivados y el _controller_ parado, y hay que restaurarlos a mano antes de cualquier otra cosa.
@@ -736,7 +737,7 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 
 | Un _Pod Disruption Budget_ que no se puede cumplir bloquea el vaciado de su nodo
 | En el paso 7, al reemplazar los nodos de un grupo
-| Corrige el número de réplicas del recurso o retira su PDB temporalmente, y relanza. No hay forzado del desalojo: la fase se queda esperando hasta que el _script_ aborta a los 90 minutos. En EKS, revisa antes el PDB `coredns` del _namespace_ `kube-system`.
+| Corrige el número de réplicas del recurso o retira su PDB temporalmente, y relanza. No hay forzado del desalojo: la fase se queda esperando hasta que el _script_ aborta tras 90 minutos sin avance (`--node-convergence-timeout`). En EKS, revisa antes el PDB `coredns` del _namespace_ `kube-system`.
 | xref:operations-manual:operations-manual.adoc#_actualización_de_kubernetes[Actualización de Kubernetes]
 
 | El salto de versión se queda escrito en el descriptor pero sin propagar
@@ -753,11 +754,6 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | En cualquier momento, también fuera de la ventana
 | No lo hagas: `cluster-operator` detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, así que los cambios nunca se procesan. Usa `patch`.
 | xref:operations-manual:upgrade.adoc#_clusters_eks_con_machinepools[_Clusters_ EKS con _MachinePools_]
-
-| En GKE, la espera del salto de versión no está validada en un entorno real
-| En el paso 7, en Google Cloud Platform
-| Sigue el estado del `KeosCluster` y de los nodos por tu cuenta durante el paso, en lugar de dar la espera por buena, y reserva margen en la ventana.
-| <<providers,Diferencias por proveedor>>
 
 | El _scale-down_ de cluster-autoscaler sobre grupos gestionados de EKS
 | Después de la ventana, al retirar nodos de un grupo gestionado

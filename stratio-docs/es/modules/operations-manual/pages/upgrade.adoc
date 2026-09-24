@@ -109,6 +109,7 @@ kubectl get machinedeployments -A
 +
 *** `READY = REPLICAS`
 *** `UNAVAILABLE = 0`
+*** En GKE la lista sale siempre vacía: todos los grupos de trabajo son _MachinePool_.
 
 ** _MachinePools_:
 +
@@ -147,6 +148,7 @@ kubectl get helmrelease -A
 * En Azure VMs, comprueba además que exista el `ClusterRoleBinding kubeadm:apiserver-kubelet-client` — si falta, lo crea automáticamente (sin intervención manual); su ausencia puede colgar indefinidamente un _bump_ de `k8s_version` al fallar el chequeo de salud de _etcd_ de CAPI.
 * **No comprueba el estado de los `HelmRelease` directamente** — solo el de los _pods_ como proxy indirecto. Por eso la comprobación manual de arriba (`kubectl get helmrelease -A`) sigue siendo necesaria, no es redundante.
 * Si encuentra algún problema, **aborta la actualización antes de empezar**, salvo que se indique `--skip-preflight-checks` (asumiendo el riesgo) o `--dry-run` (que solo informa de que abortaría).
+* En GKE, la comprobación de _pods_ incluye los _addons_ que gestiona Google, como `event-exporter-gke` o `konnectivity-agent`. Si alguno falla, el _script_ aborta aunque no forme parte de _Stratio KEOS_. Antes de usar `--skip-preflight-checks`, que omite todas las comprobaciones, identifica de quién es el _pod_: si su imagen viene de `gke-release`, es un componente de Google.
 --
 
 === Permisos
@@ -259,6 +261,10 @@ docker run \
 Dentro del contenedor, lanza el _script_ que corresponda con los _flags_ oportunos — ver <<_migración_a_ecr_pull_through_cache>> o <<upgrade_provisioner_sintaxis>> según el caso.
 
 NOTE: El montaje `-v ~/.aws:/upgrade/.aws` **no es necesario en Azure ni en GCP** — ambos _scripts_ obtienen las credenciales del propio `secrets.yml` y las configuran ellos mismos (`az login --service-principal` para Azure, `configure_gcp_credentials()` para GCP) antes de la primera llamada al CLI del proveedor, sin leer nunca ese directorio. Omítelo en esos dos _providers_.
+
+NOTE: En GKE, el _script_ reescribe el _kubeconfig_ montado al arrancar: sustituye la credencial estática por una que usa `gke-gcloud-auth-plugin` y obtiene un _token_ nuevo en cada llamada. Por eso no montes el fichero en solo lectura (`:ro`), porque el _script_ necesita escribir en él. Después de la ejecución, para usar ese _kubeconfig_ desde la máquina anfitriona necesitas `gcloud` y `gke-gcloud-auth-plugin` instalados y autenticados. Si quieres conservar el original, cópialo antes de lanzar el contenedor.
+
+NOTE: El contenedor usa la red de la máquina anfitriona (`--net host`). En un _cluster_ GKE con _endpoint_ privado, lánzalo desde una máquina que llegue a ese _endpoint_, por ejemplo dentro de la VPC del _cluster_. Esa máquina también necesita salida a las APIs de Google, porque el _script_ llama a `gcloud`.
 
 NOTE: Ninguno de los dos _scripts_ genera un archivo de registro propio con marca de tiempo; toda su salida va a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un archivo, por ejemplo añadiendo `2>&1 | tee upgrade-$(date +%Y%m%d-%H%M%S).log` al comando anterior.
 
@@ -457,7 +463,7 @@ Opciones principales:
 | No
 
 | `--k8s-version`
-| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.35`). En AWS/GCP se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms>>) — el valor de este _flag_ sigue siendo el _minor_ final, no cambia cómo se usa.
+| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.35`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms>> y <<_bump_de_k8s_version_en_gke>>) — el valor de este _flag_ sigue siendo el _minor_ final, no cambia cómo se usa.
 | 1.35
 | No
 
@@ -467,8 +473,18 @@ Opciones principales:
 | Solo Azure
 
 | `--start-from-k8s-version`
-| Omite la confirmación Y/N previa al _bump_ de `k8s_version` (ver <<_prompts_interactivos>>). En AWS/GCP el _bump_ sigue siendo un único _patch_ a `--k8s-version`; en Azure sigue siendo una secuencia de _patches_ minor a minor, no un mecanismo de reanudación desde un paso intermedio.
+| Omite la confirmación Y/N previa al _bump_ de `k8s_version` (ver <<_prompts_interactivos>>). En AWS el _bump_ sigue siendo un único _patch_ a `--k8s-version`; en Azure y en GKE sigue siendo una secuencia de _patches_ minor a minor, no un mecanismo de reanudación desde un paso intermedio.
 | False
+| No
+
+| `--control-plane-timeout`
+| Minutos que el _script_ espera, como máximo, a que el plano de control alcance cada _minor_ objetivo: el plano de control de EKS o GKE, o el `KubeadmControlPlane` en Azure VMs. Es un límite absoluto por cada espera. La duración de esta fase no depende del número de nodos de trabajo, así que solo hace falta subirlo si el proveedor _cloud_ tarda más de lo habitual en actualizar el plano de control. Debe ser un número entero positivo.
+| 90
+| No
+
+| `--node-convergence-timeout`
+| Minutos que la actualización de los nodos de trabajo puede pasar *sin avanzar* antes de que el _script_ aborte. No es un límite total: el plazo se reinicia cada vez que un nodo más (o, en GKE, un _node pool_ más) alcanza la versión objetivo. Así, un _cluster_ con muchos nodos o muchos grupos no agota el límite mientras el reemplazo siga progresando; solo lo agota un reemplazo detenido, por ejemplo por un _Pod Disruption Budget_ que impide vaciar un nodo. Súbelo solo si el reemplazo de un único nodo puede tardar más que este valor. Debe ser un número entero positivo.
+| 90
 | No
 
 | `--dry-run`
@@ -597,22 +613,23 @@ clusterctl upgrade apply \
 NOTE: En Azure VMs el comando incluye además `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>` — EKS y GKE gestionan su propio plano de control y no necesitan actualizar estos _providers_, pero Azure VMs usa `KubeadmControlPlane` (CAPI _core_), que sí es un _provider_ más a actualizar.
 
 . *Actualización de la versión de Kubernetes* (si `KeosCluster.spec.k8s_version` cambia respecto a la versión actual)
-** En AWS/GCP: parchea `KeosCluster.spec.k8s_version` directamente con la versión final. Restaura los _webhooks_ de _keoscluster_ e inicia de nuevo el _deployment_ de _keoscluster-controller_. Verifica que _cluster-operator_ haya propagado el cambio al recurso de plano de control gestionado por el proveedor (`AWSManagedControlPlane` en EKS) antes de continuar.
+** En AWS: parchea `KeosCluster.spec.k8s_version` directamente con la versión final. Restaura los _webhooks_ de _keoscluster_ e inicia de nuevo el _deployment_ de _keoscluster-controller_. Verifica que _cluster-operator_ haya propagado el cambio al recurso de plano de control gestionado por el proveedor (`AWSManagedControlPlane` en EKS) antes de continuar.
 ** En Azure VMs: secuencia de _patches_, uno por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso — ver <<_bump_de_k8s_version_en_azure_vms>>.
+** En GKE: secuencia de _patches_, uno por cada _minor_ intermedio, también con el _deployment_ de _keoscluster-controller_ activo — ver <<_bump_de_k8s_version_en_gke>>.
 
-IMPORTANT: En AWS/GCP este paso solo actualiza el **plano de control**. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente "pineados" a su versión de Kubernetes anterior — _cluster-operator_ salta el _bump_ para ellos explícitamente, no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>> — EKS únicamente). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control.
+IMPORTANT: En AWS este paso solo actualiza el **plano de control**. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente "pineados" a su versión de Kubernetes anterior — _cluster-operator_ salta el _bump_ para ellos explícitamente, no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>> — EKS únicamente). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control. En GKE tampoco: todos los grupos de trabajo son _MachinePool_ y el _script_ espera a que converjan en cada paso.
 
 [[_bump_de_k8s_version_en_azure_vms]]
 === Bump de `k8s_version` en Azure VMs
 
-A diferencia de AWS/GCP, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el plano de control de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_ — que pertenece a CAPI _core_, no a `KeosCluster` — rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS ese mismo trabajo lo hace AWS internamente tras un único _patch_ — no es que Azure "vaya más despacio", es que aquí el _script_ hace explícitamente lo que en EKS es invisible.
+A diferencia de AWS, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el plano de control de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_ — que pertenece a CAPI _core_, no a `KeosCluster` — rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS ese mismo trabajo lo hace AWS internamente tras un único _patch_ — no es que Azure "vaya más despacio", es que aquí el _script_ hace explícitamente lo que en EKS es invisible.
 
 Esto tiene implicaciones prácticas directas:
 
 * **`--node-image-map` es obligatorio** para cualquier _bump_ de `k8s_version` en Azure — un JSON con la imagen de VM de cada _minor_ intermedio (ver tabla de _flags_ más arriba). Sin él, el _script_ aborta antes de tocar nada. Cada paso necesita la imagen de **su** _minor_, no la del destino final: CAPI exige que una máquina nueva coincida exactamente con la versión del plano de control en el momento de crearla.
 +
 IMPORTANT: La imagen correspondiente al _minor_ **1.33** debe estar construida con `kubeadm` **v1.33.13 o superior**. Los _patches_ anteriores de 1.33 resuelven _etcd_ `3.5.21`, dentro del rango `3.5.20`-`3.5.23` afectado por el _bug_ `etcd-io/etcd#20793`: al cruzar a 1.34 —el _minor_ que introduce _etcd_ 3.6.x— las réplicas nuevas del plano de control se registran como _learners_ y nunca llegan a promocionarse (`etcdserver: can only promote a learner member which is in sync with leader`), el `MachineHealthCheck` las remedia por tiempo de espera agotado y el ciclo se repite de forma indefinida. Con `kubeadm` v1.33.13 la imagen arranca _etcd_ `3.5.24-0`, fuera de ese rango, y el paso converge con normalidad.
-* El proceso completo tarda más que en EKS/GKE — son N actualizaciones secuenciales del plano de control (con su espera de convergencia y un margen de asentamiento entre pasos), no una sola.
+* El proceso completo tarda más que en EKS — son N actualizaciones secuenciales del plano de control (con su espera de convergencia y un margen de asentamiento entre pasos), no una sola.
 * Durante todo el _bump_, el _script_ aplica y revierte automáticamente dos cambios temporales, sin intervención manual:
 ** Amplía la `GlobalNetworkPolicy` de Calico que permite tráfico desde el plano de control, para que la conectividad no se rompa mientras hay nodos de control plane con versiones mixtas durante la transición.
 ** Retira temporalmente la entrada `nodes.capsule.clastix.io` del _webhook_ de validación de `capsule` — si se deja activa, bloquea el `kubeadm join` de las nuevas réplicas del plano de control (mismo mecanismo que causaba PLT-3295).
@@ -622,10 +639,38 @@ Si el _script_ se interrumpe a mitad de un _bump_, ambos cambios pueden quedar a
 . *Post-actualización*
 ** Reanuda el _HelmRelease_ de _cluster-operator_.
 ** Espera a que el _cluster-operator_ esté _ready_.
-** Espera a que la infraestructura real del proveedor _cloud_ alcance la nueva versión de Kubernetes (en EKS, hasta 90 minutos; AWS aplica los _minors_ de uno en uno de forma automática, por lo que un salto de varios _minors_ puede observarse como varias transiciones sucesivas `UPDATING` → `ACTIVE` antes de alcanzar la versión final).
+** Espera a que la infraestructura real del proveedor _cloud_ alcance la nueva versión de Kubernetes (hasta `--control-plane-timeout`, 90 minutos por defecto; en EKS, AWS aplica los _minors_ de uno en uno de forma automática, por lo que un salto de varios _minors_ puede observarse como varias transiciones sucesivas `UPDATING` → `ACTIVE` antes de alcanzar la versión final; en GKE, el _script_ consulta directamente la API de GKE).
 ** Si no hubo _bump_ de `k8s_version` (la espera de ese caso ya la cubre el paso anterior), espera a que `KeosCluster.status.ready` sea `true`.
 ** Espera a que el _deployment_ `keoscluster-controller-manager` esté en estado `Available`.
 ** Restaura las réplicas de _cluster-autoscaler_ a 2.
+
+[[_bump_de_k8s_version_en_gke]]
+=== Bump de `k8s_version` en GKE
+
+Igual que en Azure VMs, en GKE el _script_ no aplica un único _patch_ al _minor_ final, pero por otro motivo: GKE rechaza actualizar el plano de control más de un _minor_ de una vez. Por eso el _script_ emite un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso.
+
+En cada paso, el _script_:
+
+. Resuelve la versión de destino. GKE no acepta un `X.Y.0` genérico, así que el _script_ usa el _patch_ válido más alto del _release channel_ del _cluster_ para ese _minor_.
+. Espera a que el plano de control alcance esa versión, consultando la API de GKE (`gcloud container clusters describe`) en lugar del estado del `KeosCluster`.
+. Espera a que todos los _node pools_ estén en `RUNNING` con la nueva versión y a que el `kubeletVersion` de cada nodo coincida con ella.
+. Espera a que el `KeosCluster` vuelva a `ready: true` y `phase: Provisioned` antes de pasar al siguiente _minor_.
+
+Esto tiene implicaciones prácticas:
+
+* No necesitas `--node-image-map`: GKE gestiona las imágenes de los nodos a partir de la versión de cada _node pool_.
+* Las versiones disponibles cambian con el tiempo, porque GKE retira _patches_ antiguos de cada _release channel_. El _script_ resuelve la versión en el momento de ejecutarse.
+* Los nodos deben converger en cada paso, no solo al final: GKE solo admite nodos hasta dos _minors_ por detrás del plano de control.
+* La espera de los nodos comprueba el `kubeletVersion` real. GKE fija el campo `version` del _node pool_ al destino en cuanto acepta la petición, antes de reemplazar ningún nodo.
+* La espera de los nodos se controla con `--node-convergence-timeout`: solo aborta si ningún nodo ni _node pool_ avanza durante ese tiempo.
+
+Antes de empezar, comprueba que el _minor_ de destino está disponible en el _release channel_ del _cluster_:
+
+[source,bash]
+----
+gcloud container clusters describe <nombre-cluster> --region <región> --format='value(releaseChannel.channel)'
+gcloud container get-server-config --region <región> --format='value(channels)'
+----
 
 == Monitorización durante la actualización
 
@@ -667,6 +712,22 @@ watch -n30 aws eks describe-cluster --name <nombre-cluster> --query 'cluster.{st
 ----
 watch -n30 kubectl get kubeadmcontrolplane <nombre-cluster>-control-plane -n cluster-<nombre-cluster> -o jsonpath='{.status.version} ready={.status.ready} {.status.updatedReplicas}/{.status.replicas}'
 ----
++
+** En GKE, sigue por separado el plano de control y los _node pools_: el plano de control llega al destino bastante antes que los nodos (ver <<_bump_de_k8s_version_en_gke>>):
++
+[source,bash]
+----
+watch -n30 'gcloud container clusters describe <nombre-cluster> --region <región> --format="value(status,currentMasterVersion)"; gcloud container node-pools list --cluster <nombre-cluster> --region <región> --format="table(name,version,status)"'
+----
++
+La señal fiable de que los nodos han terminado es el `kubeletVersion` de cada nodo, no el campo `version` del _node pool_:
++
+[source,bash]
+----
+kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
+----
++
+NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás muchas operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo.
 
 == Verificación final
 
@@ -721,7 +782,7 @@ kubectl logs -n capz-system deploy/capz-controller-manager --since=30m | grep -i
 +
 NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores transitorios en los _logs_ de `capa-controller-manager` — `InvalidParameterException: Addon version specified is not supported` al actualizar addons EKS (p. ej. `kube-proxy`) mientras el plano de control real de AWS aún no llegó al _minor_ intermedio necesario, y `connection to the workload cluster is down` durante la ventana de actualización del propio plano de control. Ambos se autorresuelven solos en los minutos siguientes sin intervención, una vez `AWSManagedControlPlane.status.conditions[EKSAddonsConfigured]` pasa a `True`. Solo trátalos como problema real si persisten más allá de la ventana de actualización.
 +
-*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. En AWS/GCP, los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>, EKS únicamente); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto al plano de control (ver <<_bump_de_k8s_version_en_azure_vms>>).
+*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. En GKE, `k8s_version` queda con el _patch_ que resolvió el _script_ (por ejemplo `v1.35.8`), no con `v1.35.0`. En AWS, los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>, EKS únicamente); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto al plano de control (ver <<_bump_de_k8s_version_en_azure_vms>>).
 
 == _Clusters_ EKS con _MachinePools_
 
