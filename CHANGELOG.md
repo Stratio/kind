@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.5 (upcoming)
 
+* [PLT-4793] Document the post-install and post-upgrade override of the cluster-autoscaler image to Stratio's `v1.35.2` build (MachinePool scale-down fix, kubernetes/autoscaler#9693) on EKS clusters with MachinePool groups
 * [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
 
 ## 0.9.4 (2026-09-23)

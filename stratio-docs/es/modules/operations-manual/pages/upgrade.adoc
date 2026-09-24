@@ -784,6 +784,10 @@ NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores 
 +
 *Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. En GKE, `k8s_version` queda con el _patch_ que resolvió el _script_ (por ejemplo `v1.35.8`), no con `v1.35.0`. En AWS, los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>, EKS únicamente); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto al plano de control (ver <<_bump_de_k8s_version_en_azure_vms>>).
 
+== Actualización de _cluster-autoscaler_ tras la actualización
+
+IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS con grupos _MachinePool_, sustituye la imagen por la imagen propia de Stratio `v1.35.2` siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
+
 == _Clusters_ EKS con _MachinePools_
 
 NOTE: Los _MachinePools_ solo están disponibles en _clusters_ creados con esta versión de _Stratio Cloud Provisioner_. No existe migración automática de _MachineDeployments_ a _MachinePools_ en _clusters_ existentes. Para migrar un _cluster_ existente, consulta la <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>.
