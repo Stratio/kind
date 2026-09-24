@@ -2,16 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-<<<<<<< HEAD
 ## 0.10.0 (upcoming)
-=======
-## 0.9.5 (upcoming)
 
 * [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
-
-## 0.9.4 (2026-09-23)
->>>>>>> fb92c52f ([PLT-4865] Update upgrade docs for GKE per-minor stepping and configurable timeouts (#976))
-
 * [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
 * [PLT-4854] `upgrade-provisioner.py`: new `--control-plane-timeout` and `--node-convergence-timeout` flags (both default to 90 minutes, unchanged). The node timeout now counts minutes without progress instead of total minutes: it restarts every time another node or GKE node pool reaches the target version, so a large cluster no longer aborts while its rollout is still advancing, and a stalled rollout still aborts after the same 90 minutes
 * [PLT-4666] Fix the GKE k8s_version bump: GAR helm login, resolve a valid GKE patch version per minor, step the control plane one minor at a time, wait for node pool/kubelet convergence and for KeosCluster to settle before each step
