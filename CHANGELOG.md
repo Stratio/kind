@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.5 (upcoming)
+
+* [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; sync `docs/images` `cloud-provisioner` to 0.9.4
+* [PLT-4867] Pin the `cluster-autoscaler` image to `v1.35.2` on k8s 1.35 (chart 9.59.0 unchanged): Stratio's own build with the MachinePool scale-down fix (kubernetes/autoscaler#9693) from the private registry, upstream `v1.35.2` from `registry.k8s.io` otherwise
 ## 0.9.4 (2026-09-23)
 
 * [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4

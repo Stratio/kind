@@ -101,7 +101,7 @@ TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.40.15"
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.0"
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
@@ -109,12 +109,12 @@ CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.0"
 CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
     "1.32": "v1.34.2",
     "1.34": "v1.34.2",
-    "1.35": "v1.35.8",
+    "1.35": "v1.35.9",
 }
 
 common_charts = {
     "cert-manager": {
-        "version": "v1.21.1",
+        "version": "v1.21.2",
         "namespace": "cert-manager",
         "repo": "https://charts.jetstack.io"
     },
