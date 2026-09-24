@@ -1180,11 +1180,15 @@ NOTE: Si el registro utiliza ECR _pull-through cache_ (`ecr_pull_through_cache_e
 kubectl -n kube-system edit configmap 02-cluster-autoscaler-helm-chart-override-values
 ----
 +
+El _ConfigMap_ guarda los valores del _chart_ como texto dentro de la clave `values.yaml` del bloque `data`, y solo se aplica lo que esté dentro de esa clave. Tras la instalación, `values.yaml` está vacío; si ya contiene otros valores, añade el bloque `image` junto a ellos sin borrarlos. El bloque `data` debe quedar así:
++
 [source,yaml]
 ----
-image:
-  repository: <registro>/autoscaling/cluster-autoscaler
-  tag: v1.35.2
+data:
+  values.yaml: |
+    image:
+      repository: <registro>/autoscaling/cluster-autoscaler
+      tag: v1.35.2
 ----
 
 . Fuerza la reconciliación del _HelmRelease_:
