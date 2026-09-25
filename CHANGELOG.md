@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.5 (upcoming)
 
+* [PLT-4896] Upgrade docs (GKE): document the CAPG reconciliation loop caused by GKE's automatic node pool labels as a pre-upgrade check and known issue of the 0.7.x → 0.9.x route, link it from the upgrade requirements and from the `UPGRADE_NODES` note, and add the `GCPManagedMachinePool` workaround for clusters created with 0.7.x
 * [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
 
 ## 0.9.4 (2026-09-23)
