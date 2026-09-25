@@ -79,6 +79,8 @@ kubectl get keosclusters.installer.stratio.com -A
 +
 *** `READY = true`
 *** `PHASE = Provisioned`
++
+NOTE: En GKE, si `READY` no es `true` y algún `MachinePool` se queda en `ScalingUp`, comprueba si CAPG está en un bucle de reconciliación por las etiquetas automáticas de GKE: los _logs_ de `capg-controller-manager` repiten `Node pool config update required`. Consulta xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_labels[Bucle de reconciliación en GKE por etiquetas automáticas].
 
 ** Nodos saludables:
 +
@@ -727,7 +729,7 @@ La señal fiable de que los nodos han terminado es el `kubeletVersion` de cada n
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 ----
 +
-NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás muchas operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo.
+NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo. Si siguen apareciendo cada pocos segundos para los mismos _node pools_ y los _logs_ de `capg-controller-manager` repiten `Node pool config update required`, CAPG está en un bucle de reconciliación: consulta xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_labels[Bucle de reconciliación en GKE por etiquetas automáticas].
 
 == Verificación final
 
