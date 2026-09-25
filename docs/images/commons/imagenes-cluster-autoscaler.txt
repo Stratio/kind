@@ -1,1 +1,1 @@
-registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.0
+stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2

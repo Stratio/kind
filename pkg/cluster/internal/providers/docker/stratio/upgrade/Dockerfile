@@ -23,17 +23,17 @@ ENV CLUSTER_TOPOLOGY=true \
 
 # Tool versions
 ARG CLUSTERCTL=v1.10.10
-ARG YQ_VERSION=v4.45.1
+ARG YQ_VERSION=v4.53.6
 ARG KUBECTL_VERSION=1.35.8
-ARG HELM_VERSION=4.2.4
+ARG HELM_VERSION=4.3.0
 ARG CAPA=v2.9.3
-ARG CAPG=1.6.1-0.4.1
+ARG CAPG=1.6.1-0.4.2
 ARG CAPZ=v1.21.3
 
 # =========================
 # Base system dependencies
 # =========================
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     curl \

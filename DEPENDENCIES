@@ -21,12 +21,12 @@ core:
       kubeadm-control-plane-controller: v1.10.10
       cluster-api-controller: v1.10.10
     cert-manager:
-      cert-manager-acmesolver: v1.21.1
-      cert-manager-cainjector: v1.21.1
-      cert-manager-controller: v1.21.1
-      cert-manager-startupapicheck: v1.21.1
-      cert-manager-webhook: v1.21.1
-    cluster-autoscaler: v1.35.0
+      cert-manager-acmesolver: v1.21.2
+      cert-manager-cainjector: v1.21.2
+      cert-manager-controller: v1.21.2
+      cert-manager-startupapicheck: v1.21.2
+      cert-manager-webhook: v1.21.2
+    cluster-autoscaler: v1.35.2
     cluster-operator:
       cluster-operator: 0.7.3
     flux:
@@ -35,7 +35,7 @@ core:
       kustomize-controller: v1.7.3
       source-controller: v1.7.4
     kind:
-      cloud-provisioner: 0.9.4
+      cloud-provisioner: 0.9.5
       coredns: v1.13.1
       etcd: 3.6.6-0
       kindnetd: v20260820-69b56db7
@@ -46,7 +46,7 @@ core:
       local-path-helper: v20260131-7181c60a
       local-path-provisioner: v20260820-69b56db7
   charts:
-    cert-manager: v1.21.1
+    cert-manager: v1.21.2
     cluster-autoscaler: 9.59.0
     cluster-operator: 0.7.3
     flux: 2.17.2
@@ -84,8 +84,8 @@ azure:
       azurefile-csi-driver: 1.35.7
       cloud-provider-azure: 1.35.3
     images:
-      azure-cloud-controller-manager: v1.35.8
-      azure-cloud-node-manager: v1.35.8
+      azure-cloud-controller-manager: v1.35.9
+      azure-cloud-node-manager: v1.35.9
       azuredisk-csi: v1.34.5
       azurefile-csi: v1.35.7
       csi-attacher: v4.12.0
@@ -98,10 +98,10 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.4.1
+      cluster-api-gcp-controller: 1.6.1-0.4.2
     manifests:
-      metadata.yaml: 1.6.1-0.4.1
-      infrastructure-components.yaml: 1.6.1-0.4.1
+      metadata.yaml: 1.6.1-0.4.2
+      infrastructure-components.yaml: 1.6.1-0.4.2
   managed:
     images:
       coredns: v1.13.1
