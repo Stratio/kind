@@ -4,8 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.5 (upcoming)
 
-* [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; bump CAPG to 1.6.1-0.4.2 (grpc CVE, OpenSSL rebuild); bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.4 → 0.9.5, `CAPG`) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.5
-* [PLT-4867] Bump the `cluster-autoscaler` image to `v1.35.2` (see Stratio/kind#981)
+* [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; bump CAPG to 1.6.1-0.4.2 (grpc CVE, OpenSSL rebuild); bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.4 → 0.9.5, `CAPG`) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.5 and `cluster-autoscaler` image to `v1.35.2` (see Stratio/kind#981)
+* [PLT-4865] Upgrade docs: describe the GKE `k8s_version` bump as the script now runs it (one minor at a time, waiting on the control plane, every node pool and node, and the `KeosCluster`), add GKE monitoring and pre-checks, and document `--control-plane-timeout` and `--node-convergence-timeout`
+
 ## 0.9.4 (2026-09-23)
 
 * [PLT-4888] Bump the version constants in `upgrade-provisioner.py`: `__version__`/`CLOUD_PROVISIONER` 0.9.3 → 0.9.4 and `DEPENDENCIES`: cloud-provisioner: 0.9.4
