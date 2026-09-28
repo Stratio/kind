@@ -1152,6 +1152,57 @@ Once completed, you will have the necessary files (_keos.yaml_ and _secrets.yml_
 
 NOTE: Since the descriptor file (_keos.yaml_) is regenerated on each run, the previous one is backed up locally with the corresponding timestamp (e.g., _keos.yaml.2023-07-05@11:19:17~_).
 
+[[_actualización_de_cluster_autoscaler]]
+=== Actualización de _cluster-autoscaler_ tras la instalación
+
+Aplica a EKS con grupos _MachinePool_ y `deploy_autoscaler: true` (en GKE, _Stratio Cloud Provisioner_ no despliega _cluster-autoscaler_).
+
+IMPORTANT: Una vez creado el _cluster_, es necesario sustituir la imagen de _cluster-autoscaler_ desplegada por defecto por la imagen propia de Stratio `v1.35.2`. Esta imagen incluye la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), que todavía no está incluida en ninguna versión oficial de _cluster-autoscaler_.
+
+La imagen está publicada en `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2`. Replícala en el registro Docker del _cluster_ (el marcado con `keos_registry: true` en el descriptor) antes de aplicar el cambio:
+
+[source,bash]
+----
+docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2
+docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2 <registro>/autoscaling/cluster-autoscaler:v1.35.2
+docker push <registro>/autoscaling/cluster-autoscaler:v1.35.2
+----
+
+NOTE: Si el registro utiliza ECR _pull-through cache_ (`ecr_pull_through_cache_enabled`), la imagen no se sirve a través de la caché: el `repository` debe apuntar a `<registro>/autoscaling/cluster-autoscaler`, no a `<registro>/k8s/autoscaling/cluster-autoscaler`.
+
+. Añade la imagen a los valores de _override_ del _chart_:
++
+[source,bash]
+----
+kubectl -n kube-system edit configmap 02-cluster-autoscaler-helm-chart-override-values
+----
++
+El _ConfigMap_ guarda los valores del _chart_ como texto dentro de la clave `values.yaml` del bloque `data`, y solo se aplica lo que esté dentro de esa clave. Tras la instalación, `values.yaml` está vacío; si ya contiene otros valores, añade el bloque `image` junto a ellos sin borrarlos. El bloque `data` debe quedar así:
++
+[source,yaml]
+----
+data:
+  values.yaml: |
+    image:
+      repository: <registro>/autoscaling/cluster-autoscaler
+      tag: v1.35.2
+----
+
+. Fuerza la reconciliación del _HelmRelease_:
++
+[source,bash]
+----
+kubectl -n kube-system annotate helmrelease cluster-autoscaler \
+  reconcile.fluxcd.io/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --overwrite
+----
+
+. Verifica que los _pods_ usan la nueva imagen:
++
+[source,bash]
+----
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+----
+
 === Load balancer
 
 Due to a bug in certain controllers (fixed in master branches but not yet released), the load balancer for GCP and Azure clusters with unmanaged _control-planes_ uses a TCP-based health check.

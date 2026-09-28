@@ -79,6 +79,8 @@ kubectl get keosclusters.installer.stratio.com -A
 +
 *** `READY = true`
 *** `PHASE = Provisioned`
++
+NOTE: En GKE, si `READY` no es `true` y algún `MachinePool` se queda en `ScalingUp`, comprueba si CAPG está en un bucle de reconciliación por las etiquetas automáticas de GKE: los _logs_ de `capg-controller-manager` repiten `Node pool config update required`. Consulta xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Bucle de reconciliación en GKE por etiquetas automáticas].
 
 ** Nodos saludables:
 +
@@ -727,7 +729,7 @@ La señal fiable de que los nodos han terminado es el `kubeletVersion` de cada n
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 ----
 +
-NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás muchas operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo.
+NOTE: En la lista de operaciones de GKE (`gcloud container operations list`) verás operaciones `UPGRADE_NODES` que duran segundos. Son cambios de metadatos que aplica CAPG en su reconciliación, no reemplazos de nodos: un reemplazo real dura minutos por nodo. Si siguen apareciendo cada pocos segundos para los mismos _node pools_ y los _logs_ de `capg-controller-manager` repiten `Node pool config update required`, CAPG está en un bucle de reconciliación: consulta xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Bucle de reconciliación en GKE por etiquetas automáticas].
 
 == Verificación final
 
@@ -783,6 +785,10 @@ kubectl logs -n capz-system deploy/capz-controller-manager --since=30m | grep -i
 NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver errores transitorios en los _logs_ de `capa-controller-manager` — `InvalidParameterException: Addon version specified is not supported` al actualizar addons EKS (p. ej. `kube-proxy`) mientras el plano de control real de AWS aún no llegó al _minor_ intermedio necesario, y `connection to the workload cluster is down` durante la ventana de actualización del propio plano de control. Ambos se autorresuelven solos en los minutos siguientes sin intervención, una vez `AWSManagedControlPlane.status.conditions[EKSAddonsConfigured]` pasa a `True`. Solo trátalos como problema real si persisten más allá de la ventana de actualización.
 +
 *Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan esa misma versión en `kubeletVersion`. En GKE, `k8s_version` queda con el _patch_ que resolvió el _script_ (por ejemplo `v1.35.8`), no con `v1.35.0`. En AWS, los grupos _MachineDeployment_ (legacy o con `node_image` fijo) **no cambian** — quedan pineados a su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools>>, EKS únicamente); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto al plano de control (ver <<_bump_de_k8s_version_en_azure_vms>>).
+
+== Actualización de _cluster-autoscaler_ tras la actualización
+
+IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS con grupos _MachinePool_, sustituye la imagen por la imagen propia de Stratio `v1.35.2` siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
 
 == _Clusters_ EKS con _MachinePools_
 
