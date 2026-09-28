@@ -274,6 +274,10 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 | Obligatorio, justo antes
 | Las comprobaciones de salud previas terminan sin hallazgos, y más tarde la comprobación de la sección crítica confirma de nuevo `ready`/`Provisioned`. Si cualquiera de las dos encuentra un problema, el _script_ aborta (la previa solo continúa si se le pide explícitamente asumir el riesgo).
 
+| En GKE, los grupos de nodos sin el bucle de reconciliación de CAPG causado por las etiquetas automáticas de GKE. GKE añade a los _node pools_ la etiqueta `goog-gke-node-pool-provisioning-model`; si el `GCPManagedMachinePool` no la declara, CAPG intenta quitarla en cada reconciliación, no llega a actualizar las réplicas del `MachinePool` y el `KeosCluster` no alcanza `ready = true`. En la 0.7.x el `KeosCluster` no admite el campo `additional_labels`, así que la etiqueta se añade directamente en los `GCPManagedMachinePool`.
+| Obligatorio en GKE, antes
+| Los _logs_ de `capg-controller-manager` no repiten `Node pool config update required` y todos los `MachinePool` están en `Running`. Consulta xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Bucle de reconciliación en GKE por etiquetas automáticas].
+
 | Los _Pod Disruption Budgets_ de tus cargas revisados. Aquí es un prerrequisito de verdad y no una recomendación: un recurso con una sola réplica y un PDB que exija al menos una disponible *impide* vaciar su nodo, y el vaciado no se fuerza en ningún momento.
 | Obligatorio, antes
 | Cada recurso con un PDB de ese tipo tiene más de una réplica, o su PDB se ha retirado temporalmente. En EKS, comprueba además el PDB `coredns` del _namespace_ `kube-system`.
@@ -739,6 +743,11 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | En el paso 7, al reemplazar los nodos de un grupo
 | Corrige el número de réplicas del recurso o retira su PDB temporalmente, y relanza. No hay forzado del desalojo: la fase se queda esperando hasta que el _script_ aborta tras 90 minutos sin avance (`--node-convergence-timeout`). En EKS, revisa antes el PDB `coredns` del _namespace_ `kube-system`.
 | xref:operations-manual:operations-manual.adoc#_actualización_de_kubernetes[Actualización de Kubernetes]
+
+| En GKE, el `KeosCluster` no llega a `ready = true` por un bucle de reconciliación de CAPG
+| En la comprobación previa, o en la espera de cada salto de versión menor
+| Añade la etiqueta `goog-gke-node-pool-provisioning-model` en `additionalLabels` de cada `GCPManagedMachinePool` y espera a que el `KeosCluster` vuelva a `ready = true` antes de relanzar. Omitir la comprobación previa no sirve: el _script_ vuelve a esperar a `ready = true` en cada salto de versión menor. Tras la actualización, declara la etiqueta en `additional_labels` de cada grupo del `KeosCluster`.
+| xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Bucle de reconciliación en GKE por etiquetas automáticas]
 
 | El salto de versión se queda escrito en el descriptor pero sin propagar
 | En el paso 7, si el _controller_ de `cluster-operator` se reinició en mitad de la actualización
