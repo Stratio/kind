@@ -92,7 +92,7 @@ kubectl get nodes
 +
 *Expected output:* all nodes with `STATUS = Ready`.
 
-** Machines in execution:
+** Running machines:
 +
 [source,bash]
 ----
@@ -123,7 +123,7 @@ kubectl get machinepools -A
 +
 *Expected output:* all with `PHASE = Running`.
 
-** _Cluster API_ pods and providers:
+** _Cluster API_ and provider pods:
 +
 [source,bash]
 ----
@@ -173,7 +173,7 @@ NOTE: This directory must be mounted inside the container at `/upgrade/backup`.
 
 == Required structure
 
-Make sure that the working directory includes the following elements. Only the main script and the Jinja2 templates are missing; the dependencies are already in the image.
+Make sure that the working directory includes the following elements. Only what is mounted from the host is needed here; the main script, the Jinja2 templates, and the dependencies are already in the image, so you do not need them here.
 
 * `secrets.yml`: cluster credentials.
 * `.kube/config`: kubeconfig file of the cluster.
@@ -279,7 +279,7 @@ The `ecr_pull_through.py` script upgrades `cluster-operator` to the indicated ve
 
 NOTE: This action is independent of the rest of the upgrade. It is usually executed before `upgrade-provisioner.py`, within the same upgrade cycle, when you want to activate the pull-through cache when moving up in version.
 
-Before applying any change, the script automatically saves a copy of the previous state (the CRDs `keosclusters.installer.stratio.com`/`clusterconfigs.installer.stratio.com`, the `ConfigMap` of _cluster-operator_ values, and a `state.json` with the previous version and URLs) in `backup/ecr_pull_through/<timestamp>/`. This copy is the one used by the `--restore` flag (see <<upgrade_provisioner_recuperacion, recovery from failures of `ecr_pull_through.py`>>) to undo the operation.
+Before applying any change, the script automatically saves a copy of the previous state (the CRDs `keosclusters.installer.stratio.com`/`clusterconfigs.installer.stratio.com`, the `ConfigMap` of _cluster-operator_ values, and a `state.json` with the previous version and URLs) in `backup/ecr_pull_through/<timestamp>/`. This copy is the one used by the `--restore` flag (see <<_recovery_from_failures, recovery from failures of `ecr_pull_through.py`>>) to undo the operation.
 
 IMPORTANT: This backup mechanism and the `--restore` flag are exclusive to `ecr_pull_through.py`. `upgrade-provisioner.py` makes different backups: manifests of `clusterctl move`, `capsule` webhooks, and secrets of the CAPX namespaces. They are activated by default and deactivated with `--disable-backup` (see <<upgrade_provisioner_sintaxis, syntax of `upgrade-provisioner.py`>>). The script automatically recovers from failures internally, without any flag equivalent to `--restore` that the operator can run manually. Do not assume that the behavior of one applies to the other.
 
@@ -328,7 +328,7 @@ python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version>
 | No
 
 | `--restore`
-| Restores a previous backup instead of upgrading (see <<_upgrade_provisioner_recuperacion, recovery from failures of `ecr_pull_through.py`>>). Without a path, it restores the most recent one from `backup/ecr_pull_through/`. With `--restore` present, `--cluster-operator` is no longer mandatory.
+| Restores a previous backup instead of upgrading (see <<_recovery_from_failures, recovery from failures of `ecr_pull_through.py`>>). Without a path, it restores the most recent one from `backup/ecr_pull_through/`. With `--restore` present, `--cluster-operator` is no longer mandatory.
 | _(none: upgrade mode)_
 | No
 |===
@@ -339,7 +339,7 @@ At startup, if `--helm-registry` is not specified, the script displays the Helm 
 
 If the failure is because the image or chart of the indicated version hasn't been published in the target repository yet, the simplest solution is to publish the missing artifact and run the script again; it is idempotent against a previous incomplete attempt, so you don't need to restore anything.
 
-To undo an already applied (or partially applied) upgrade, use `--restore` with the same rest of the credentials (`-p`, `-s`, `-k`):
+To undo an already applied (or partially applied) upgrade, use `--restore` with the same credential options as before (`-p`, `-s`, `-k`):
 
 [source,bash]
 ----
@@ -432,7 +432,7 @@ Main options:
 | No
 
 | `-y`, `--yes`
-| Does not wait for confirmation between tasks. Skips *only* the initial confirmation (see <<_prompts_interactivos, interactive prompts>>), not the Helm repository prompt or the confirmation of the `k8s_version` bump.
+| Does not wait for confirmation between tasks. Skips *only* the initial confirmation (see <<_interactive_prompts, interactive prompts>>), not the Helm repository prompt or the confirmation of the `k8s_version` bump.
 | False
 | No
 
@@ -467,7 +467,7 @@ Main options:
 | No
 
 | `--k8s-version`
-| Target Kubernetes minor version for the bump (e.g., `1.35`). On AWS, it is applied as a single patch to `KeosCluster.spec.k8s_version`, bypassing the +1 minor per patch limit of the `KeosCluster` webhook just as the rest of the script already does for `clusterctl`. On Azure VMs and on GKE, the script issues a patch for each intermediate minor (see <<_bump_de_k8s_version_en_azure_vms, `k8s_version` bump on Azure VMs>> and <<_bump_de_k8s_version_en_gke, `k8s_version` bump on GKE>>). This flag remains the final minor, so its use does not change.
+| Target Kubernetes minor version for the bump (e.g., `1.35`). On AWS, it is applied as a single patch to `KeosCluster.spec.k8s_version`, bypassing the +1 minor per patch limit of the `KeosCluster` webhook just as the rest of the script already does for `clusterctl`. On Azure VMs and on GKE, the script issues a patch for each intermediate minor (see <<_bump_de_k8s_version_en_azure_vms, `k8s_version` bump on Azure VMs>> and <<_bump_de_k8s_version_en_gke, `k8s_version` bump on GKE>>). The value of this flag is still the final minor, so its use does not change.
 | 1.35
 | No
 
@@ -487,7 +487,7 @@ Main options:
 | No
 
 | `--node-convergence-timeout`
-| Minutes the worker node upgrade can go *without progressing* before the script stops. It is not a total limit: the deadline resets each time an additional node (or, on GKE, an additional node pool) reaches the target version. Thus, a cluster with many nodes or many groups does not run out of the limit while the replacement keeps progressing; only a stopped replacement runs it out, for example, because a Pod Disruption Budget prevents draining a node. Raise it only if replacing a single node can take longer than this value. It must be a positive integer.
+| Minutes the worker node upgrade can go *without progressing* before the script aborts. It is not a total limit: the deadline resets each time an additional node (or, on GKE, an additional node pool) reaches the target version. Thus, a cluster with many nodes or many groups does not run out of the limit while the replacement keeps progressing; only a stopped replacement runs it out, for example, because a Pod Disruption Budget prevents draining a node. Raise it only if replacing a single node can take longer than this value. It must be a positive integer.
 | 90
 | No
 
@@ -503,7 +503,7 @@ TIP: It is recommended to always run first with `--dry-run` before the real upgr
 
 At startup, the script may request up to three keyboard confirmations, in this order:
 
-. *Continue with the upgrade*: after the previous cluster checks, press ENTER to continue or any other key to abort. It is omitted with `-y`/`--yes`.
+. *Continue with the upgrade*: after the pre-upgrade cluster checks, press ENTER to continue or any other key to abort. It is omitted with `-y`/`--yes`.
 . *Helm repository*: it displays the Helm repository currently configured in `KeosCluster.spec.helm_repository.url` and allows specifying a new one. Press ENTER to keep the current one. *It cannot be omitted*: it is always asked, even with `-y`.
 . *`k8s_version` bump* (only if `KeosCluster.spec.k8s_version` is going to change): it requests explicit confirmation `[y/N]` before applying the patch. Responding "n" or leaving it blank cancels only this step (the rest of the upgrade continues). It is omitted with `--start-from-k8s-version`.
 
@@ -515,7 +515,7 @@ To automate the execution without manual intervention (for example, in a pipelin
 
 === Recovery from failures
 
-As already indicated in <<_execution_of_the_upgrade_container, execution of the upgrade container>>, `upgrade-provisioner.py` does not have a flag equivalent to `--restore` in `ecr_pull_through.py`. Its recovery is automatic and internal: it is activated by the script itself when it detects a failure within what this document calls the "critical section", the stretch of the upgrade in which `cluster-operator` is suspended, `keoscluster-controller-manager` is stopped, and the `KeosCluster` webhooks are disabled. To know whether a specific failure occurred in that stretch, look in the console output for the "[INFO] Suspending cluster-operator helmrelease:" message. If that message already appeared and the failure occurred before you saw it, the failure occurred within the critical section.
+As already indicated in <<_execution_of_the_upgrade_container, execution of the upgrade container>>, `upgrade-provisioner.py` does not have a flag equivalent to `--restore` in `ecr_pull_through.py`. Its recovery is automatic and internal: it is activated by the script itself when it detects a failure within what this document calls the "critical section", the stretch of the upgrade in which `cluster-operator` is suspended, `keoscluster-controller-manager` is stopped, and the `KeosCluster` webhooks are disabled. To know whether a specific failure occurred in that stretch, look in the console output for the "[INFO] Suspending cluster-operator helmrelease:" message. If that message already appeared and the failure occurred before you saw "[INFO] Resuming cluster-operator helmrelease: OK", the failure occurred within the critical section.
 
 The automatic recovery restores the webhooks and restarts the controller, but *does not cover all possible failures*. Specifically, a failure of `clusterctl upgrade apply` can leave the cluster in a state that requires additional manual intervention, as described below.
 
@@ -547,7 +547,7 @@ kubectl apply -f backup/upgrade/<correct-timestamp>/capx-secrets/capa-system/cap
 
 IMPORTANT: If the `clusterctl` failure occurred within the critical section, it is common for the retry to also stumble on two side effects of that same interruption, independent of each other:
 
-* *`capi-controller-manager` with fewer than 2 available replicas*. Blocks the script's previous check (`availableReplicas=1 (expected 2 for HA)`). Fix it before retrying:
+* *`capi-controller-manager` with fewer than 2 available replicas*. Blocks the script's pre-upgrade check (`availableReplicas=1 (expected 2 for HA)`). Fix it before retrying:
 +
 [source,bash]
 ----
@@ -601,7 +601,7 @@ NOTE: This scaling to 0 only lasts until the `cluster-autoscaler` chart itself i
 ** Suspends the _cluster-operator_ _HelmRelease_.
 ** Verifies that `KeosCluster` is _ready_/`Provisioned` before entering the critical section.
 ** Stops the _keoscluster-controller_ deployment.
-** Back up the configuration of the `KeosCluster` webhooks.
+** Backs up the configuration of the `KeosCluster` webhooks.
 ** Deactivates the _keoscluster_ validation/mutation webhooks.
 ** Updates _ClusterConfig_ with the new versions of the components.
 
@@ -628,11 +628,11 @@ IMPORTANT: On AWS, this step *only upgrades the _control-plane_*. The _MachineDe
 
 === `k8s_version` bump on Azure VMs
 
-Unlike AWS, the script cannot apply a single patch to the final minor on Azure VMs. The reason is not by design; it is an external block: the Azure VMs _control-plane_ is a `KubeadmControlPlane` (CAPI kubeadm-based), and its webhook, which belongs to CAPI core and not to `KeosCluster`, rejects any jump of ≥2 minors without exception (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, function `validateVersion`). `upgrade-provisioner.py` can only deactivate the `KeosCluster` webhook, not this one. That is why the script has to patch itself for each intermediate minor (`1.32`→`1.33`→`1.34`→`1.35`), waiting for each step to converge before launching the next. On EKS, AWS does the same work internally after a single patch. It is not that Azure "goes slower": here the script explicitly does what on EKS remains invisible.
+Unlike AWS, the script cannot apply a single patch to the final minor on Azure VMs. The reason is not by design; it is an external block: the Azure VMs _control-plane_ is a `KubeadmControlPlane` (CAPI kubeadm-based), and its webhook, which belongs to CAPI core and not to `KeosCluster`, rejects any jump of ≥2 minors without exception (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, function `validateVersion`). `upgrade-provisioner.py` can only deactivate the `KeosCluster` webhook, not this one. That is why the script itself has to issue a patch for each intermediate minor (`1.32`→`1.33`→`1.34`→`1.35`), waiting for each step to converge before launching the next. On EKS, AWS does the same work internally after a single patch. It is not that Azure "goes slower": here the script explicitly does what on EKS remains invisible.
 
 This has direct practical implications:
 
-* *`--node-image-map` is mandatory* for any `k8s_version` bump on Azure. It is a JSON file with the VM image of each intermediate minor (see the flags table above). Without it, the script aborts before touching anything. Each step needs the image of *its* minor, not the final destination: CAPI requires that a new machine exactly matches the _control-plane_ version at the time of creation.
+* *`--node-image-map` is mandatory* for any `k8s_version` bump on Azure. It is a JSON map with the VM image of each intermediate minor (see the flags table above). Without it, the script aborts before touching anything. Each step needs the image of *its* minor, not the final destination: CAPI requires that a new machine exactly matches the _control-plane_ version at the time of creation.
 +
 IMPORTANT: The image corresponding to minor *1.33* must be built with `kubeadm` *v1.33.13 or higher*. Earlier patches of 1.33 resolve etcd `3.5.21`, within the range `3.5.20`-`3.5.23` affected by bug `etcd-io/etcd#20793`: when crossing to 1.34, which is the minor that introduces etcd 3.6.x, the new _control-plane_ replicas register as learners and never get promoted (`etcdserver: can only promote a learner member which is in sync with leader`), the `MachineHealthCheck` remediates them by expired timeout, and the cycle repeats indefinitely. With `kubeadm` v1.33.13, the etcd image starts at version `3.5.24-0`, outside that range, and the step converges normally.
 
@@ -721,7 +721,7 @@ watch -n30 aws eks describe-cluster --name <cluster-name> --query 'cluster.{stat
 watch -n30 kubectl get kubeadmcontrolplane <cluster-name>-control-plane -n cluster-<cluster-name> -o jsonpath='{.status.version} ready={.status.ready} {.status.updatedReplicas}/{.status.replicas}'
 ----
 +
-** On GKE, they follow the _control-plane_ and the node pools: the _control-plane_ reaches the destination well before the nodes (see <<_bump_de_k8s_version_en_gke, `k8s_version` bump on GKE>>):
+** On GKE, follow the _control-plane_ and the node pools separately: the _control-plane_ reaches the destination well before the nodes (see <<_bump_de_k8s_version_en_gke, `k8s_version` bump on GKE>>):
 +
 [source,bash]
 ----
@@ -794,7 +794,7 @@ NOTE: In a jump of several `k8s_version` minors, it is expected to see two trans
 
 == Upgrade of _cluster-autoscaler_ after the upgrade
 
-IMPORTANT: The script upgrades the _cluster-autoscaler_ chart with the official image and recreates the `02-cluster-autoscaler-helm-chart-override-values` `ConfigMap` empty, so any image override applied before the upgrade is lost. Upon finishing the script, on EKS with _MachinePool_ groups, replace the image with the Stratio one, `v1.35.2`, following the procedure in xref:operations-manual:installation.adoc#_spec[Upgrade of _cluster-autoscaler_ after installation].
+IMPORTANT: The script upgrades the _cluster-autoscaler_ chart with the official image and recreates the `02-cluster-autoscaler-helm-chart-override-values` `ConfigMap` empty, so any image override applied before the upgrade is lost. Upon finishing the script, on EKS with _MachinePool_ groups, replace the image with the Stratio one, `v1.35.2`, following the procedure in xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Upgrade of _cluster-autoscaler_ after installation].
 
 == EKS clusters with _MachinePools_
 
@@ -812,7 +812,7 @@ The cluster needs:
 
 * cluster-operator >= 0.7.0 and CAPA >= v2.9.3 (if not, first run `upgrade-provisioner.py`).
 * `KeosCluster.status.ready = true`.
-* The EKS policy of the deployment user, with the xref:operations-manual:installation.adoc#eks_nodegroup_permissions[nodegroup permissions] (`eks:CreateNodegroup`, `eks:DescribeNodegroup`, `eks:DeleteNodegroup`, `autoscaling:DescribeAutoScalingGroups`, `iam:CreateServiceLinkedRole`), is included in _stratio-eks-policy.json_. If the cluster was created without them, update the IAM stack with `clusterawsadm` (the same procedure as in the installation).
+* The EKS policy of the deployment user, with the xref:operations-manual:installation.adoc#eks_nodegroup_permissions[nodegroup permissions] (`eks:CreateNodegroup`, `eks:DescribeNodegroup`, `eks:DeleteNodegroup`, `autoscaling:DescribeAutoScalingGroups`, `iam:CreateServiceLinkedRole`), which are included in _stratio-eks-policy.json_. If the cluster was created without them, update the IAM stack with `clusterawsadm` (the same procedure as in the installation).
 
 To confirm the first two points at once, run this script (read-only; it does not update or create anything) inside the _Stratio Cloud Provisioner_ container:
 
