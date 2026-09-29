@@ -392,6 +392,7 @@ python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
 ----
 
 NOTE: Ejemplo de imágenes ya probadas para un _bump_ `1.32`→`1.35` (Community Gallery `stratioK8s`, consumibles fuera de la suscripción del propio _cluster_):
+
 [source,json]
 ----
 {
