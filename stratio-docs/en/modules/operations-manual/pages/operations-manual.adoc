@@ -1,49 +1,49 @@
 = Operations manual
 
-== Obtaining the _kubeconfig_
+== Obtaining the kubeconfig
 
-To communicate with the API Server of the created cluster, the _kubeconfig_ file is necessary, which can be obtained differently depending on the cloud provider used and the _control-plane_ management of the cluster.
+To communicate with the _API Server_ of the created cluster, you need a kubeconfig file, which you obtain differently depending on the cloud provider and the cluster's _control-plane_ management.
 
-* For EKS, it will be obtained as indicated by AWS:
+* For EKS, it will be obtained in the way indicated by AWS:
 +
 [source,bash]
 ----
 aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig ./<cluster_name>.kubeconfig
 ----
 
-* For GKE, the credentials will be obtained as specified by GCP:
+* For GKE, it will be obtained in the way indicated by GCP:
 +
 [source,bash]
 ----
 gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
 ----
++
+This command will generate the kubeconfig file in the kubeconfig location indicated by the `KUBECONFIG` environment variable. By default, it will be in `$HOME/.kube/config`.
 
-This command generates a file containing the _kubeconfig_ in the location specified by the `KUBECONFIG` environment variable. By default, it will be `$HOME/.kube/config`.
-
-* For unmanaged Azure, at the end of provisioning, the _kubeconfig_ is left in the workspace directory:
-
+* For unmanaged Azure, upon finishing provisioning, the kubeconfig is left in the execution directory (workspace):
++
 [source,bash]
 ----
 ls ./.kube/config
 ./.kube/config
 ----
 +
-In turn, the alias "kw" may be used from the local container to interact with the cluster _worker_ (in EKS, the token used only lasts for 10 minutes):
+In turn, the "kw" alias can be used from the local container to interact with the worker cluster (on EKS, the token used only lasts 10 minutes):
 +
 [source,bash]
 ----
 root@example-azure-control-plane:/# kw get nodes
-NAME STATUS ROLES AGE VERSION
-example-azure-control-plane-6kp94 Ready control-plane 60m v1.26.8
-example-azure-control-plane-fgkcc Ready control-plane 63m v1.26.8
+NAME                                STATUS   ROLES           AGE   VERSION
+example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.26.8
+example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
 ...
 ----
 
-== Authentication in EKS
+== Authentication on EKS
 
-While not part of the _Stratio KEOS_ operation, it is essential to highlight how to enable https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users in an EKS cluster] (the cluster creator user is authenticated by default).
+Although it is not part of the _Stratio KEOS_ operation, it is important to highlight the way to allow the https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users on an EKS cluster] (the user who created the cluster is authenticated by default).
 
-To grant Kubernetes-admin permissions on the cluster, the user's ARN will be added to the _ConfigMap_ given below.
+To grant `kubernetes-admin` permissions on the cluster, add the ARN of the user to the _ConfigMap_ indicated below.
 
 [source,bash]
 ----
@@ -57,20 +57,20 @@ data:
       username: kubernetes-admin
 ----
 
-== Enable _Assume Role_ authorization in AWS for an EKS cluster
+== Enable authorization through assume role in AWS for an EKS cluster
 
-This procedure describes how to enable the _assume role_–based authorization method in AWS for an EKS cluster after it has been created.
+This procedure describes how to enable the assume-role authorization method on an already created EKS cluster.
 
 === Prerequisites
 
-Before you begin, make sure of the following:
+Before beginning, make sure you meet the following:
 
-* You have created an IAM role with the required permissions (e.g. _stratio-assume-role_).
+* Have an IAM role created with the necessary permissions (for example: _stratio-assume-role_).
 ** Role type: _AWS Account_.
 ** Permissions: the same as those described in the EKS prerequisites.
-* The role's _trust relationship_ is configured to allow the user who deployed the cluster to assume the role.
+* Configure the _Trust Relationship_ of the role to allow the user who deployed the cluster to assume it.
 +
-Example _trust relationship_:
+_Trust Relationship_ example:
 +
 [source,json]
 ----
@@ -88,9 +88,9 @@ Example _trust relationship_:
 }
 ----
 
-* The user is assigned a policy that includes the `sts:AssumeRole` action for the corresponding role.
+* Assign the user a policy that includes the `sts:AssumeRole` action on the corresponding role.
 +
-Example policy:
+Policy example:
 +
 [source,json]
 ----
@@ -106,11 +106,11 @@ Example policy:
 }
 ----
 
-NOTE: The minimum supported version of _cluster-operator_ for this method is 0.5.2.
+NOTE: The minimum version of _cluster-operator_ compatible with this method is 0.5.2.
 
-=== Configure _assume role_ in the EKS cluster
+=== Configure assume role on the EKS cluster
 
-NOTE: Replace the account, cluster name `eks-cl01`, and namespace `cluster-eks-cl01` with the values used in your environment.
+NOTE: Replace the account, the cluster name (`eks-cl01`), and the namespace (`cluster-eks-cl01`) with those of your environment.
 
 . Create the `AWSClusterRoleIdentity` object.
 +
@@ -132,7 +132,7 @@ spec:
     - cluster-eks-cl01
 ----
 
-. Associate the `AWSClusterRoleIdentity` with the `AWSManagedControlPlane`.
+. Associate the `AWSClusterRoleIdentity` identity with the `AWSManagedControlPlane`.
 +
 [source,bash]
 ----
@@ -142,14 +142,14 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
   -p '{"spec":{"identityRef":{"kind":"AWSClusterRoleIdentity","name":"eks-cl01-role-identity"}}}'
 ----
 
-. Restart the `capa-controller-manager` deployment to apply the changes:
+. Restart the `capa-controller-manager` deployment for the changes to take effect.
 +
 [source,bash]
 ----
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 ----
 
-. Edit the `aws-auth` _ConfigMap_ adding the `iam_role`.
+. Edit the `aws-auth` _ConfigMap_ to add the `iam_role`.
 +
 [source,yaml]
 ----
@@ -161,13 +161,13 @@ kubectl rollout restart deployment capa-controller-manager -n capa-system
       username: system:node:{{EC2PrivateDNSName}}
     - groups:
       - capa-manager
-      rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
+      rolearn: arn:aws:iam::123456789012:role/stratio-assume-role
       username: stratio-assume-role
 ----
 
 . Create the `ClusterRoleBinding` for the `capa-manager` group.
 +
-[source,yaml]
+[source,bash]
 ----
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
@@ -185,7 +185,7 @@ subjects:
 EOF
 ----
 
-. Add permissions to the `ClusterRole` for the `capa-manager` group.
+. Add permissions to the `ClusterRole` of the `capa-manager` group.
 +
 [source,bash]
 ----
@@ -200,35 +200,35 @@ kubectl patch clusterrole capa-manager-role \
 ----
 
 . Update the _cluster-operator_.
-.. Update the _helmrelease_ associated with _cluster-operator_ to version 0.5.2 or later.
-.. Update the corresponding _ConfigMap_ for that version.
-... Modify the tag in `00-cluster-operator-helm-chart-default-values` to the desired version, e.g., 0.5.2.
-.. Patch the _keoscluster-settings_ secret to include the `role_arn`.
-+
-[source,bash]
------
-kubectl -n kube-system patch secret keoscluster-settings \
-  --type=json \
-  -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
------
-
-. Verify the configuration and permissions:
+.. Update the _HelmRelease_ associated with the _cluster-operator_ to version 0.5.2 or higher.
+.. Update the _ConfigMap_ corresponding to that version.
+... Modify the tag in `00-cluster-operator-helm-chart-default-values` with the desired version, e.g., 0.5.2.
+.. Patch the _keoscluster-settings_ secret to add the `role_arn`.
 +
 [source,bash]
 ----
-# Check capi/capa logs
-kubectl logs -f -n capa-system deployment/capa-controller-manager (or the name of the pod)
-kubectl logs -f -n capi-system deployment/capi-controller-manager (or the name of the pod)
+kubectl -n kube-system patch secret keoscluster-settings \
+  --type=json \
+  -p='[{"op":"replace","path":"/data/credentials","value":"'$(kubectl -n kube-system get secret keoscluster-settings -o jsonpath="{.data.credentials}" | base64 -d | awk 'BEGIN{ORS="\n"} {print} END{print "role_arn = arn:aws:iam::123456789012:role/stratio-assume-role"}' | base64 -w0)'"}]'
+----
 
-# Check cluster-operator logs
-kubectl logs -f -n kube-system deployment/keoscluster-controller-manager (or the name of the pod)
+. Verify the configuration and permissions.
++
+[source,bash]
+----
+# Review the capi/capa logs
+kubectl logs -f -n capa-system deployment/capa-controller-manager (or the pod name)
+kubectl logs -f -n capi-system deployment/capi-controller-manager (or the pod name)
 
-# Check status and configuration
+# Review the cluster-operator logs
+kubectl logs -f -n kube-system deployment/keoscluster-controller-manager (or the pod name)
+
+# Check state and configuration
 kubectl get awsclusterroleidentity
 kubectl get awsmanagedcontrolplane -n cluster-eks-cl01
 kubectl get configmap aws-auth -n kube-system -o yaml
 
-# Verify role permissions
+# Verify the role permissions
 kubectl auth can-i get nodes --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i list nodes --as=stratio-assume-role --as-group=capa-manager
 kubectl auth can-i list pods --as=stratio-assume-role --as-group=capa-manager
@@ -237,31 +237,31 @@ kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-ma
 
 [NOTE]
 ====
-If the user performing the _assume role_ operation is updated, the following secrets must also be updated with the new credentials and, if applicable, the new role ARN:
+If the user who performs the assume role is updated, the following secrets must be updated with the new credentials and, if applicable, with the new role ARN:
 
-* _capa-manager-bootstrap-credentials_ (for Capa).
+* _capa-manager-bootstrap-credentials_ (for CAPA).
 * _keoscluster-settings_ (for the _cluster-operator_).
 ====
 
-=== Cluster operations using _assume role_
+=== Cluster operations with assume role
 
-Once _assume role_ is enabled, you can also manage the cluster from the command line by following these steps:
+Once activated, you can also manage the cluster using assume-role from the command line by following these steps:
 
-. *Check AWS CLI version*: make sure you have the latest version installed.
+. *Verify AWS CLI*: check with this command that you have the latest version installed.
 +
 [source,bash]
 ----
 aws --version
 ----
 
-. *Export the AWS profile*:
+. *Export the AWS profile*.
 +
 [source,bash]
 ----
 export AWS_PROFILE=<profile-name>
 ----
 
-. *Assume the role and save credentials*.
+. *Assume the role and save the credentials*.
 +
 [source,bash]
 ----
@@ -279,24 +279,24 @@ export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' creds.json)
 export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' creds.json)
 ----
 
-. *Update the _kubeconfig_*.
+. *Update the kubeconfig*.
 +
 [source,bash]
 ----
 aws eks update-kubeconfig --region <region> --name <cluster-name>
 ----
 
-== Infrastructure operation
+== Operation of the infrastructure
 
 image::controllers.png[]
 
-_Stratio KEOS_ enables multiple advanced operations to be performed by interacting with the _Stratio Cluster Operator_ (Infrastructure as Code, or IaC), which, in its reconciliation cycle, interacts with various providers to execute the requested operations.
+_Stratio KEOS_ enables several advanced operations by interacting with the _Stratio Cluster Operator_ (infrastructure as code, or IaC), which, in its reconciliation cycle, interacts with the different providers to perform the requested operations.
 
 === Self-healing
 
 image::self-healing.png[]
 
-The cluster's self-healing capability is managed through the _MachineHealthCheck_ resource:
+The self-healing capability of the cluster is managed by the _MachineHealthCheck_ resource:
 
 [source,bash]
 ----
@@ -319,17 +319,17 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: In Unmanaged Azure, there will be a _MachineHealthCheck_ for the _control plane_ and another for the _worker_ nodes, whereas managed ones (EKS, GKE) will only have the latter.
+NOTE: On unmanaged Azure, there will be a _MachineHealthCheck_ for the _control-plane_ and another for the worker nodes, while on managed ones (EKS, GKE) there will only be the second one.
 
-==== Failover test on a node
+==== Fault tolerance test on a node
 
-In the event of a node failure, it will be detected by the controller, and the node will be replaced by deleting it and recreating another one of the same group, ensuring the same characteristics.
+If a node fails, a controller detects it and replaces it: it deletes it and creates another node in the same group, ensuring it maintains the same characteristics.
 
-To simulate a VM failure, it will be deleted from the cloud provider's web console.
+To simulate a failure on a virtual machine, delete it from the cloud provider's web console.
 
-The recovery of the node comprises the following phases and estimated times (which may vary depending on the provider and the flavour):
+The recovery of the node comprises the following phases and estimated times (which may vary according to the provider and the flavor):
 
-[source,bash]
+[source,text]
 ----
 . Terminate VM from console: 0s
 . New VM is Provisioning: 50s
@@ -340,13 +340,13 @@ The recovery of the node comprises the following phases and estimated times (whi
 
 === Static scaling
 
-Although manual scaling of an existing node group is discouraged, these operations are provided for cases where autoscaling is not available or for new node groups.
+Although the manual scaling of an existing node group is discouraged, these operations are presented for cases without autoscaling or for new node groups.
 
-==== Scaling a _workers_ group
+==== Scale a worker group
 
 image::escalado-manual.png[]
 
-To manually scale a group of _workers_, use the _KeosCluster_ resource:
+To manually scale a worker group, the _KeosCluster_ resource is used:
 
 [source,bash]
 ----
@@ -363,16 +363,16 @@ spec:
       ...
 ----
 
-Verify the change by checking the status of the _KeosCluster_ resource:
+Verify the change by consulting the state of the _KeosCluster_ resource:
 
 [source,bash]
 ----
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-==== Create a new workers group
+==== Create a new worker group
 
-To create a new node group, add a new element to the _worker++_++nodes_ array in the _KeosCluster_ resource:
+To create a new node group, simply add a new element to the _worker++_++nodes_ array of the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -394,7 +394,7 @@ spec:
       ssh_key: stg-key
 ----
 
-Again, verify the change by checking the status of the _KeosCluster_ resource:
+Again, verify the change by consulting the state of the _KeosCluster_ resource:
 
 [source,bash]
 ----
@@ -403,7 +403,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Vertical scaling
 
-Vertical scaling of a node group is done by modifying the instance type in the _KeosCluster_ resource corresponding to the group.
+Vertical scaling for a node group is done by modifying the instance type of the _KeosCluster_ resource associated with that group.
 
 [source,yaml]
 ----
@@ -419,11 +419,11 @@ spec:
 
 image::autoescalado.png[]
 
-For node autoscaling, _cluster-autoscaler_ is used, which detects pods pending execution due to a lack of resources and scales groups of nodes according to the deployment filters.
+For node autoscaling, _cluster-autoscaler_ detects pods pending due to a lack of resources and scales the node group it deems necessary based on deployment filters.
 
-This operation is performed in the API Server, with the controllers responsible for creating the VMs in the cloud provider and adding them to the cluster as Kubernetes _worker_ nodes.
+This operation runs on the _API Server_, where the controllers create virtual machines on the cloud provider and add them to the cluster as Kubernetes worker nodes.
 
-Since autoscaling is based on the _cluster-autoscaler_, the minimum and maximum will be added to the node group in the _KeosCluster_ resource:
+Since autoscaling is based on _cluster-autoscaler_, the minimum and maximum in the node group will be added in the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -438,14 +438,14 @@ spec:
 
 ==== Test
 
-To test autoscaling, you can create a deployment with enough replicas to prevent them from running on the current nodes:
+To test the autoscaling, a _Deployment_ can be created with enough replicas so that they cannot be scheduled on the current nodes:
 
 [source,bash]
 ----
 kubectl create deploy test --replicas 1500 --image nginx:alpine
 ----
 
-At the end of the test, remove the deployment:
+Upon finishing the test, the _Deployment_ is deleted:
 
 [source,bash]
 ----
@@ -454,7 +454,7 @@ kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
 
 ==== Logs
 
-The logs of the _cluster-autoscaler_ can be viewed from its deployment:
+The _cluster-autoscaler_ logs can be viewed from its _Deployment_:
 
 [source,bash]
 ----
@@ -463,9 +463,9 @@ kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-auto
 
 === Kubernetes upgrade
 
-The upgrade of the cluster to a higher version of Kubernetes will be performed in two parts within the same atomic process: first, the _control-plane_, and once this is on the new version, the worker nodes, iterating through each group and upgrading them one by one.
+The upgrade will be performed in two parts within the same atomic process: first the _control-plane_, and once it is on the new version, the worker nodes, iterating through each group and upgrading them one by one.
 
-CAUTION: Upgrading the Kubernetes version of nodes in clusters where the image has not been specified may involve an OS upgrade.
+CAUTION: Upgrading the Kubernetes version of nodes on clusters where the image has not been specified may also upgrade the operating system.
 
 image::upgrade-cp.png[]
 
@@ -473,50 +473,49 @@ image::upgrade-w.png[]
 
 [CAUTION]
 ====
-A misconfigured Pod Disruption Budget (PDB) can block the removal of a pod. This happens if the PDB requires at least one available replica, but the resource has only one deployed. In this case, the replica cannot be removed, preventing the node from draining, which may affect updates.
+A poorly configured Pod Disruption Budget (PDB) may prevent deleting a pod. This happens if the PDB requires at least one available replica, but the resource has only one deployed replica. In that case, you can't delete the replica or drain the node, which may affect upgrades.
 
-To avoid this issue:
+To avoid this problem:
 
-. Please ensure that deployments have more than one replica if the PDB requires at least one replica to be available.
-. Before updating the cluster, review this configuration to prevent blockages.
-. If the resource has only one replica, you can temporarily remove the PDB to allow the update.
-. Before upgrading the cluster, please verify the PDBs to avoid potential blocking issues.
-. If a resource has only one replica, you can temporarily delete the PDB to allow the upgrade.
+. Make sure that the deployments have more than one replica if the PDB requires at least one available replica.
+. Before upgrading the cluster, review the PDBs to avoid blocks.
+. If a resource has only one replica, you can temporarily delete the PDB to allow the cluster upgrade.
 
-In EKS, for example, it is recommended to check if the `coredns` PDB exists in the `kube-system` namespace and delete it before upgrading the cluster:
+On EKS, for example, it is advisable to check whether the `coredns` PDB exists in the `kube-system` namespace and delete it before upgrading the cluster:
 
 [source,bash]
 ----
 kubectl -n kube-system get poddisruptionbudget coredns
 kubectl -n kube-system delete poddisruptionbudget coredns
 ----
+
 ====
 
 ==== Prerequisites
 
-The version upgrade of a cluster in productive environments, and especially in unmanaged flavours, must be done with extreme caution. In particular, before upgrading, it is recommended to do a backup of the objects that manage the infrastructure with the following command:
+Upgrade a cluster in production environments, especially unmanaged flavors, with extreme caution. In particular, before upgrading, it is recommended to make a backup of the objects that manage the infrastructure with the following command:
 
 [source,bash]
 ----
 clusterctl --kubeconfig ./kubeconfig/path move -n cluster-<cluster_name> --to-directory ./backup/path/
 ----
 
-In the case of a managed _control-plane_, it should be verified that the desired version of Kubernetes is supported by the provider.
+For a managed _control-plane_, verify that the provider supports the desired Kubernetes version.
 
 ===== EKS
 
-Before upgrading EKS, ensure that the desired version is supported. To do this, you can use the following command:
+Before upgrading EKS, make sure that the desired version is supported. To do so, you can use the following command:
 
 [source,bash]
 ----
 aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compatibilities[] | .clusterVersion" | sort -nr | uniq | head -4
 ----
 
-===== Azure unmanaged
+===== Unmanaged Azure
 
-The _GlobalNetworkPolicy_ created for the _control-plane_ in the _Stratio KEOS_ installation phase should be modified so that it *permits all node networking momentarily* while the version upgrade is running.
+The _GlobalNetworkPolicy_ created for the _control-plane_ during the _Stratio KEOS_ installation phase must be modified to *temporarily allow network traffic between all nodes* during the version upgrade.
 
-Once completed, the internal IPs of the nodes and the tunnel IPs assigned to those nodes should be updated:
+Once finished, the internal IPs of the nodes and the tunnel IPs assigned to those nodes must be updated:
 
 [source,bash]
 ----
@@ -529,20 +528,20 @@ IPAMHANDLERS=$(kw get ipamhandles -oname | grep control-plane)
 for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | keys[]' | sed 's/\/.*/\/32/'; done
 ----
 
-==== Initiate the upgrade
+==== Start the upgrade
 
-To initiate the upgrade, once the prerequisites are met, a patch to _spec.k8s++_++version_ will be applied to the _KeosCluster_ resource:
+To start the upgrade, once the prerequisites are satisfied, a patch of _spec.k8s++_++version_ will be executed on the _KeosCluster_ resource:
 
 [source,bash]
 ----
 kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.32.x"}}'
 ----
 
-NOTE: The controller provisions a new node from the _workers_ cluster with the updated version and, once it is _Ready_ in Kubernetes, removes a node with the old version. In this way, it always ensures the configured number of nodes.
+NOTE: The controller provisions a new node of the worker group with the updated version and, once it is _Ready_ in Kubernetes, deletes a node with the previous version. This way, the configured number of nodes is guaranteed.
 
-==== Checking etcd
+==== Verification of etcd
 
-One way to ensure that etcd is correct after updating an unmanaged _control-plane_ is to open a terminal on any pod of etcd, view the cluster status, and compare the IPs of the registered members with those of the _control-plane_ nodes.
+One way to ensure etcd is correct after upgrading an unmanaged _control-plane_ is to open a terminal on any etcd pod, verify the cluster state, and compare the IP addresses of the registered members with those of the _control-plane_ nodes.
 
 [source,bash]
 ----
@@ -555,73 +554,73 @@ e member list
 e member remove <member-id>
 ----
 
-=== Cluster removal
+=== Deletion of the cluster
 
 [NOTE]
-.Preliminary considerations
+.Previous considerations
 ====
-Before deleting the cloud provider resources generated by _Stratio Cloud Provisioner_, you must delete those that the _keos-installer_ has created or any external automation (for example, the _Services_ of type _LoadBalancer_).
+Before deleting the cloud provider resources generated by _Stratio Cloud Provisioner_, delete those created by _keos-installer_ or any external automation (for example, _Services_ of type _LoadBalancer_).
 
-Also, note that the process requires the _clusterctl_ binary on the bastion machine (any computer with access to the API Server) on which it will run.
+In addition, the process requires the `clusterctl` binary on the bastion machine (any computer with access to the _API Server_) where it will run.
 ====
 
-Run the following steps to perform the cluster removal:
+Execute the following steps to carry out the deletion of the cluster:
 
-. Create a local cluster indicating that no resources should be created in the cloud provider.
+. Create a local cluster, indicating that no resource must be created on the cloud provider.
 +
 [source,bash]
 ----
 [bastion]$ sudo ./bin/cloud-provisioner create cluster --name <cluster_name> --descriptor cluster.yaml --vault-password <my-passphrase> --avoid-creation
 ----
 
-. Pause the controller of the _Stratio Cluster Operator_:
+. Pause the _Stratio Cluster Operator_ controller:
 +
 [source,bash]
 ----
 [bastion]$ kubectl --kubeconfig $KUBECONFIG -n kube-system scale deployment keoscluster-controller-manager --replicas 0
 ----
 
-. Move the cluster _worker_ management to the local cluster using the corresponding _kubeconfig_ (note that for managed _control-planes_, the provider's _kubeconfig_ will be needed). To ensure this step, look for the following text in the command output: "Moving Cluster API objects Clusters=1".
+. Move management of the worker cluster to the local cluster using the corresponding kubeconfig (for managed _control-planes_, you'll need the provider's kubeconfig). To confirm this step, look for the following text in the output of the command: "Moving Cluster API objects Clusters=1".
 +
 [source,bash]
 ----
 [bastion]$ sudo clusterctl --kubeconfig $KUBECONFIG move -n cluster-<cluster_name> --to-kubeconfig /root/.kube/config
 ----
 
-. Access the local cluster and delete the cluster _worker_.
+. Access the local cluster and delete the worker cluster.
 +
 [source,bash]
 ----
-[bastion]$ sudo docker exec -ti <nombre_cluster>-control-plane bash
-root@<nombre_del_cluster>-control-plane:/# kubectl -n cluster-<nombre_del_cluster> delete cl --all
-cluster.cluster.x-k8s.io "<nombre_del_cluster>" eliminado
-root@<nombre_del_cluster>-plano-de-control:/#
+[bastion]$ sudo docker exec -ti <cluster_name>-control-plane bash
+root@<cluster_name>-control-plane:/# kubectl -n cluster-<cluster_name> delete cl --all
+cluster.cluster.x-k8s.io "<cluster_name>" deleted
+root@<cluster_name>-control-plane:/#
 ----
 
-. Finally, remove the local cluster.
+. Finally, delete the local cluster.
 +
 [source,bash]
 ----
-[bastion]$ sudo ./bin/cloud-provisioner delete cluster --name <nombre_cluster>
+[bastion]$ sudo ./bin/cloud-provisioner delete cluster --name <cluster_name>
 ----
 
 == Offline installation
 
-To learn how to perform an installation where the workload images of the cluster come from repositories accessible from environments without internet access, see the xref:operations-manual:offline-installation.adoc[offline installation manual].
+To learn how to perform an installation in which the images of the cluster workloads come from repositories accessible from environments without internet access, see the xref:operations-manual:offline-installation.adoc[Offline installation manual].
 
 == Credential management
 
-To manage the credentials configured in the cluster, refer to the xref:operations-manual:credentials.adoc[credential management documentation].
+To manage the credentials configured on the cluster, see the xref:operations-manual:credentials.adoc[credential management documentation].
 
 == Troubleshooting
 
 === Reconciliation loop in GKE due to automatic labels
 
-In clusters managed with the Cluster API Provider GCP (CAPG), the CAPG controller responsible for the `GCPManagedMachinePool` resource may enter an infinite reconciliation loop if it detects discrepancies between the labels (`additional_labels`) defined (or not defined) in the resource specification and the labels actually present in the GKE node pool. This behavior can be observed in the logs, with repeated messages such as "Node pool config update required" and "Node pool config updating in progress". This is a CAPG known issue related to label reconciliation in node pools managed by the `GCPManagedMachinePool` object.
+On clusters managed with the Cluster API Provider GCP (CAPG), the CAPG controller responsible for the `GCPManagedMachinePool` resource may enter an infinite reconciliation loop if it detects discrepancies between the labels (`additional_labels`) defined in the object specification (or not defined) and the labels actually present in the GKE node pool. This behavior appears in the logs as repeated messages like `Node pool config update required` and `Node pool config updating in progress`. This is a known CAPG issue related to label reconciliation in node pools managed by the `GCPManagedMachinePool` object.
 
-The leading cause is that Google Cloud GKE automatically adds labels to node pools (for example, `goog-gke-node-pool-provisioning-model: on-demand`) that are not present by default in the `GCPManagedMachinePool` resource generated by Cluster API. This value is only an example: it can be any label added by Google.
+The main cause is that Google Cloud GKE automatically adds labels to the node pools (for example, `goog-gke-node-pool-provisioning-model: on-demand`) that are not present by default in the `GCPManagedMachinePool` resource generated by Cluster API. This value is just an example: it can be any label added by Google.
 
-To solve this issue and stop the loop, the label must be manually added to the `KeosCluster` configuration to match what the provider applies. You can follow these steps:
+To resolve this and stop the loop, manually add the label in the `KeosCluster` configuration to match the one applied by the provider. You can follow these steps:
 
 . Edit the `KeosCluster` resource:
 +
@@ -630,7 +629,7 @@ To solve this issue and stop the loop, the label must be manually added to the `
 kubectl edit keoscluster <cluster_name> -n <namespace>
 ----
 
-. Add the label under the _additional++_++labels_ field of the `worker_nodes` definition:
+. Add the label in the _additional++_++labels_ field of the definition of the `worker_nodes`:
 +
 [source,yaml]
 ----
@@ -643,15 +642,15 @@ spec:
         "goog-gke-node-pool-provisioning-model": "on-demand"
 ----
 
-CAUTION: Modifying the _additional++_++labels_ field under `worker_nodes` of a `KeosCluster` managed by CAPG will cause the nodes associated with the node pool to be recreated. This means that current nodes will be removed and replaced with new ones using the updated configuration. It is recommended to plan this operation carefully to avoid downtime or service disruption.
+CAUTION: Modifying the _additional++_++labels_ field in the `worker_nodes` of a `KeosCluster` managed by CAPG will cause the recreation of the nodes associated with the node pool. This means the current nodes will be deleted and replaced with new ones with the updated configuration. Plan this operation to avoid interruptions or impacts to the service.
 
-==== _Clusters_ creados con _Stratio Cloud Provisioner_ 0.7.x
+==== Clusters created with _Stratio Cloud Provisioner_ 0.7.x
 
-En los _clusters_ creados con _Stratio Cloud Provisioner_ 0.7.x, el objeto `KeosCluster` no admite el campo _additional++_++labels_, que se incorporó en la 0.8.0, y mientras el _cluster_ no esté _ready_ tampoco se puede modificar su especificación. En ese caso, añade la etiqueta directamente en los `GCPManagedMachinePool` del _cluster_, con el mismo valor que muestra GKE para el _node pool_:
+On clusters created with _Stratio Cloud Provisioner_ 0.7.x, the `KeosCluster` object does not support the _additional++_++labels_ field, which was added in version 0.8.0; while the cluster is not _ready_, you also cannot modify its specification. In that case, add the label directly on the `GCPManagedMachinePool` objects of the cluster, with the same value that GKE shows for the node pool:
 
 [source,bash]
 ----
-gcloud container node-pools describe <node_pool_name> --cluster <cluster_name> --region <región> \
+gcloud container node-pools describe <node_pool_name> --cluster <cluster_name> --region <region> \
   --format='value(config.resourceLabels)'
 
 for mp in $(kubectl -n cluster-<cluster_name> get gcpmanagedmachinepool -o name); do
@@ -660,4 +659,4 @@ for mp in $(kubectl -n cluster-<cluster_name> get gcpmanagedmachinepool -o name)
 done
 ----
 
-Cuando el `KeosCluster` vuelva a `READY = true` y el _cluster_ esté en una versión que admita el campo, declara también la etiqueta en _additional++_++labels_ de cada grupo del `KeosCluster`, como se indica más arriba, para que se mantenga si _cluster-operator_ vuelve a generar el `GCPManagedMachinePool`.
+When the `KeosCluster` returns to `READY = true` and the cluster is on a version that supports the field, also declare the label in the _additional++_++labels_ of each group of the `KeosCluster`, as indicated above, so that it is maintained if _cluster-operator_ regenerates the `GCPManagedMachinePool`.
