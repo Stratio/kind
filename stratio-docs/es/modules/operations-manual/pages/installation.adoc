@@ -98,7 +98,7 @@ En cuanto al _control-plane_, en EKS y GKE no se podrá especificar una imagen, 
 
 Para los nodos _worker_, en Azure no gestionado, es opcional indicar la imagen (al no indicarla, el _controller_ asigna una disponible proporcionada por el proveedor _cloud_).
 
-Al crear la imagen para el _cluster_, se deberán tener en cuenta las necesidades del sistema operativo de las aplicaciones que las requieran (_systemd units_, DaemonSets_, etc.) y la versión de Kubernetes a utilizar.
+Al crear la imagen para el _cluster_, se deberán tener en cuenta las necesidades del sistema operativo de las aplicaciones que las requieran (_systemd units_, _DaemonSets_, etc.) y la versión de Kubernetes a utilizar.
 
 ==== Elasticsearch
 
@@ -143,7 +143,7 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 |_control++_++plane_
 |Objeto
 |Configuración del _control-plane_ de Kubernetes.
-|Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
+|Ver <<_ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 |-
 
@@ -495,7 +495,7 @@ Como prerrequisito de instalación, se debe indicar el repositorio de Helm desde
 | Sí. Por defecto: _generic_.
 |===
 
-NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca requieren autenticación. La autenticación se realizará mediante las credenciales utilizadas durante el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios admitidos para la versión a utilizar.
+NOTE: Los repositorios OCI (de proveedores _cloud_ como ECR, GAR o ACR) nunca se autentican con credenciales propias del repositorio (no admiten `auth_required: true`). La autenticación se realizará mediante las credenciales utilizadas durante el aprovisionamiento. Por favor, verifica en la documentación de _Stratio KEOS_ los repositorios admitidos para la versión a utilizar.
 
 === Redes
 
@@ -607,7 +607,7 @@ Las imágenes utilizadas deberán estar admitidas por EKS. Consulta la https://d
 |No
 
 |_quantity_
-|Cantidad de nodos del grupo. Se recomienda que sea múltiplo de 3 para evitar desequilibrios.
+|Cantidad de nodos del grupo. Se recomienda que sea múltiplo de 3 para no tener zonas desbalanceadas.
 |15
 |No
 
@@ -1413,4 +1413,4 @@ $ aws iam attach-role-policy --role-name ${AWS_IAM_ROLE_NAME} --policy-arn arn:a
 [source,console]
 ----
 $ kubectl -n kube-system rollout restart deployment aws-load-balancer-controller
-----](https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html)
+----

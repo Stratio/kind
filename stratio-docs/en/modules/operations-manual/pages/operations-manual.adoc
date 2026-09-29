@@ -41,7 +41,7 @@ example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
 
 == Authentication on EKS
 
-Although it is not part of the _Stratio KEOS_ operation, it is important to highlight the way to allow the https://docs.aws.amazon.com/es_es/eks/latest/userguide/add-user-role.html[authentication of other users on an EKS cluster] (the user who created the cluster is authenticated by default).
+Although it is not part of the _Stratio KEOS_ operation, it is important to highlight the way to allow the https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[authentication of other users on an EKS cluster] (the user who created the cluster is authenticated by default).
 
 To grant `kubernetes-admin` permissions on the cluster, add the ARN of the user to the _ConfigMap_ indicated below.
 
@@ -479,7 +479,7 @@ To avoid this problem:
 
 . Make sure that the deployments have more than one replica if the PDB requires at least one available replica.
 . Before upgrading the cluster, review the PDBs to avoid blocks.
-. If a resource has only one replica, you can temporarily delete the PDB to upgrade it.
+. If a resource has only one replica, you can temporarily delete the PDB to allow the cluster upgrade.
 
 On EKS, for example, it is advisable to check whether the `coredns` PDB exists in the `kube-system` namespace and delete it before upgrading the cluster:
 
@@ -614,6 +614,8 @@ To manage the credentials configured on the cluster, see the xref:operations-man
 
 == Troubleshooting
 
+[[_reconciliation_loop_in_gke_due_to_automatic_labels]]
+
 === Reconciliation loop on GKE due to automatic labels
 
 On clusters managed with the Cluster API Provider GCP (CAPG), the CAPG controller responsible for the `GCPManagedMachinePool` resource may enter an infinite reconciliation loop if it detects discrepancies between the labels (`additional_labels`) defined in the object specification (or not defined) and the labels actually present in the GKE node pool. This behavior appears in the logs as repeated messages like `Node pool config update required` and `Node pool config updating in progress`. This is a known CAPG issue related to label reconciliation in node pools managed by the `GCPManagedMachinePool` object.
@@ -646,7 +648,7 @@ CAUTION: Modifying the _additional++_++labels_ field in the `worker_nodes` of a 
 
 ==== Clusters created with _Stratio Cloud Provisioner_ 0.7.x
 
-On clusters created with _Stratio Cloud Provisioner_ 0.7.x, the `KeosCluster` object does not support the _additional++_++labels_ field, which was added in version 0.8.0; while the cluster is not _ready_, you also cannot modify its specification. In that case, add the label directly on the `GCPManagedMachinePools` of the cluster, with the same value that GKE shows for the node pool:
+On clusters created with _Stratio Cloud Provisioner_ 0.7.x, the `KeosCluster` object does not support the _additional++_++labels_ field, which was added in version 0.8.0; while the cluster is not _ready_, you also cannot modify its specification. In that case, add the label directly on the `GCPManagedMachinePool` objects of the cluster, with the same value that GKE shows for the node pool:
 
 [source,bash]
 ----

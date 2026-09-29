@@ -18,7 +18,7 @@ aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig 
 gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
 ----
 +
-Este comando generará el fichero _kubeconfig_ en _kubeconfig_ ubicación indicada por la variable de entorno `KUBECONFIG`. Por defecto, estará en `$HOME/.kube/config`.
+Este comando generará el fichero _kubeconfig_ en la ubicación indicada por la variable de entorno `KUBECONFIG`. Por defecto, estará en `$HOME/.kube/config`.
 
 * Para Azure no gestionado, al finalizar el aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
@@ -479,7 +479,7 @@ Para evitar este problema:
 
 . Asegúrate de que los despliegues tengan más de una réplica si el PDB requiere al menos una réplica disponible.
 . Antes de actualizar el _cluster_, revisa los PDB para evitar bloqueos.
-. Si un recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para actualizarlo.
+. Si un recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para permitir la actualización del _cluster_.
 
 En EKS, por ejemplo, es recomendable comprobar si existe el PDB `coredns` en el _namespace_ `kube-system` y eliminarlo antes de actualizar el _cluster_:
 

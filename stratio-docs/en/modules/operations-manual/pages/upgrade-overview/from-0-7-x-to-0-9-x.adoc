@@ -91,9 +91,9 @@ The upgrade runs a single execution of `upgrade-provisioner.py`, which processes
 
 | 1
 | Cluster charts
-| cert-manager, cluster-autoscaler, `cluster-operator`, flux2, and the Tigera operator, which manages Calico. In addition, depending on the provider: _aws-load-balancer-controller_ on EKS (if installed), and the disk and file CSI controllers and the Azure cloud provider on Azure VMs.
+| cert-manager, cluster-autoscaler, `cluster-operator`, flux2, and the Tigera operator, which manages Calico. In addition, depending on the provider: _aws-load-balancer-controller_ on EKS (if installed), and the disk and file CSI drivers and the Azure cloud provider on Azure VMs.
 | None.
-| Cluster API is deployed on top of `cert-manager`, and the rest of the process relies on Flux to reconcile the charts. They must be on their latest version before contacting the providers.
+| Cluster API is deployed on top of `cert-manager`, and the rest of the process relies on Flux to reconcile the charts. They must be on their latest version before the providers are upgraded.
 
 | 2
 | Cluster API and its provider
@@ -744,6 +744,11 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | In step 7, when replacing the nodes of a group
 | Correct the resource's replica count or temporarily withdraw its PDB and relaunch the upgrade. There is no forced eviction: the phase remains waiting until the script aborts after 90 minutes without progress (`--node-convergence-timeout`). On EKS, first check the `coredns` PDB in the `kube-system` namespace.
 | xref:operations-manual:operations-manual.adoc#_kubernetes_upgrade[Kubernetes upgrade]
+
+| On GKE, the `KeosCluster` does not reach `ready = true` due to a CAPG reconciliation loop
+| In the pre-upgrade check, or while waiting after each minor version jump
+| Add the `goog-gke-node-pool-provisioning-model` label to `additionalLabels` of each `GCPManagedMachinePool` and wait for the `KeosCluster` to return to `ready = true` before relaunching. Skipping the pre-upgrade check does not help: the script waits for `ready = true` again at each minor version jump. After the upgrade, declare the label in `additional_labels` of each group of the `KeosCluster`.
+| xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_labels[Reconciliation loop on GKE due to automatic labels]
 
 | The version jump is left written in the descriptor but without propagating
 | In step 7, if the `cluster-operator` controller was restarted in the middle of the upgrade

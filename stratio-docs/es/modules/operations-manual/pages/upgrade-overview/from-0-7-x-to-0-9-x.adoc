@@ -263,7 +263,7 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 | Obligatorio, justo antes
 | El _script_ lo comprueba como primer paso y aborta si la versión es anterior.
 
-| Acceso al _API Server_ con el _kubeconfig_ del _cluster_. En Amazon Web Services y en Google Cloud Platform, el _script_ se refresca solo si ha caducado; *en Microsoft Azure no*: hay que actualizar las credenciales del fichero manualmente y volver a ejecutarlo.
+| Acceso al _API Server_ con el _kubeconfig_ del _cluster_. En Amazon Web Services y en Google Cloud Platform, el _script_ lo refresca solo si ha caducado; *en Microsoft Azure no*: hay que actualizar las credenciales del fichero manualmente y volver a ejecutarlo.
 | Obligatorio, justo antes
 | `kubectl get ns` responde con ese _kubeconfig_.
 
@@ -351,7 +351,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 6
 | Cluster API y su proveedor
-| Empieza la *sección crítica*: se suspende la reconciliación de `cluster-operator`, se detiene su _controller_, se desactivan sus _webhooks_, se actualiza el `ClusterConfig` con las nuevas versiones y se actualizan los proveedores de Cluster API. Al terminar, sus _controllers_ se reducen a dos réplicas. Mientras dura, *el `KeosCluster` no se reconcilia*: cualquier cambio en el descriptor se queda sin aplicar.
+| Empieza la *sección crítica*: se suspende la reconciliación de `cluster-operator`, se detiene su _controller_, se desactivan sus _webhooks_, se actualiza el `ClusterConfig` con las nuevas versiones y se actualizan los proveedores de Cluster API. Al terminar, sus _controllers_ se vuelven a escalar a dos réplicas. Mientras dura, *el `KeosCluster` no se reconcilia*: cualquier cambio en el descriptor se queda sin aplicar.
 | Pendiente
 | Ninguna directa
 | No
@@ -427,7 +427,7 @@ Lo que cambia entre entornos no es la secuencia, sino quién sube el _control-pl
 
 | GKE, en Google Cloud Platform
 | Gestionado por el proveedor. Su etcd es de Google Cloud Platform y no se toca.
-| Se escalona explícitamente, versión menor a versión menor, porque GKE no permite subir el _control-plane_ más de una vez. Cada paso utiliza el _patch_ más alto del _release channel_ del _cluster_. Después, espera, contra la API de GKE, a que converjan el _control-plane_, todos los _node pools_ y la versión real de sus kubelets.
+| Se escalona explícitamente, versión menor a versión menor, porque GKE no permite subir el _control-plane_ más de una versión menor de una vez. Cada paso utiliza el _patch_ más alto del _release channel_ del _cluster_. Después, espera, contra la API de GKE, a que converjan el _control-plane_, todos los _node pools_ y la versión real de sus kubelets.
 | Que el _minor_ de destino esté disponible en el _release channel_ del _cluster_. Los CRD del proveedor requieren una limpieza previa de sus _webhooks_ de conversión, la cual el _script_ realiza por su cuenta.
 | Validado.
 |===
@@ -467,12 +467,12 @@ IMPORTANT: En Azure VMs, el etcd del _control-plane_ lo gestiona kubeadm y su ve
 
 === Datos y consistencia
 
-* *Qué cambia en el modelo de datos.* Nada en los datos de las aplicaciones. Lo que cambia es la infraestructura: los nodos se reemplazan y, en Azure VMs, con ellos los miembros del etcd del _control-plane_, que además *sube de la serie v3.5 a la v3.6*, un cambio de formato de almacenamiento irreversible. Consulta <<no-return, Punto de no retorno>>. Los CRD de Cluster API pasan a la versión 0.9.x, lo que implica la conversión de los objetos existentes.
+* *Qué cambia en el modelo de datos.* Nada en los datos de las aplicaciones. Lo que cambia es la infraestructura: los nodos se reemplazan y, en Azure VMs, con ellos los miembros del etcd del _control-plane_, que además *sube de la serie v3.5 a la v3.6*, un cambio de formato de almacenamiento irreversible. Consulta <<no-return, Punto de no retorno>>. Los CRD de Cluster API pasan a las versiones de la 0.9.x, lo que implica la conversión de los objetos existentes.
 * *¿Hace falta una copia de seguridad obligatoria antes?* La hace el propio _script_ al empezar, y no hay que pedirla: exporta a disco los objetos de Cluster API, los _webhooks_ de Capsule y los secretos de los _namespaces_ de Cluster API y del proveedor. Conviene no desactivarla y conservar ese directorio hasta cerrar la ventana.
 * *Qué cubre y qué no cubre esa copia.* Sirve para reconstruir los objetos de infraestructura si se corrompen o se eliminan. *No sirve para volver a la versión anterior*: los objetos que contiene describen el _cluster_ tal como estaba, pero restaurarlos no degrada ni a Kubernetes ni a los proveedores.
 * *Qué le ocurre a los volúmenes.* Los discos del proveedor sobreviven al reemplazo de los nodos: se desenganchan del nodo retirado y se enganchan al nuevo. Lo que viva en el disco local de un nodo, en cambio, se pierde con él.
 * *¿Puede quedar el dato en un estado intermedio?* El _cluster_ sí, no los datos. Si el proceso se interrumpe, puede quedar con los _charts_ nuevos y los proveedores antiguos, o con el _control-plane_ en la versión de destino y con parte de los grupos de nodos aún en la versión anterior. Ambos son estados admitidos y se resuelven al completar la actualización.
-* *Qué hacer si algo falla a mitad.* Corregir la causa y relanzar, con una salvedad importante recogida en <<rollback, _Rollback_>>: si el cambio de versión ya se aplicó al descriptor pero no se propagó, se omite el relanzamiento.
+* *Qué hacer si algo falla a mitad.* Corregir la causa y relanzar, con una salvedad importante recogida en <<rollback, _Rollback_>>: si el cambio de versión ya se aplicó al descriptor pero no se propagó, un relanzamiento se salta ese paso.
 * *Cómo comprobar que todo está bien tras la migración.* El `KeosCluster` vuelve a `ready` y a la fase `Provisioned`, todos los nodos informan de la versión de destino y las aplicaciones con volúmenes vuelven a arrancar. En Azure VMs, además, el etcd del _control-plane_ responde, forma quórum y sus miembros registrados coinciden con los nodos del _control-plane_. Está recogido en <<checks, Comprobaciones posteriores>>.
 
 [#outage]
@@ -482,7 +482,7 @@ IMPORTANT: En Azure VMs, el etcd del _control-plane_ lo gestiona kubeadm y su ve
 * *Qué se ha hecho para reducirla.* La preparación y la copia de seguridad ocurren durante la ejecución, pero antes de tocar nada. El _control-plane_ conserva el servicio: en EKS y en GKE lo sube el proveedor sin reemplazar los nodos, y en Azure VMs sus réplicas se reemplazan una a una. Los grupos de nodos se actualizan uno a uno, esperando la convergencia de cada uno antes de pasar al siguiente. Y cada nodo se sustituye levantando primero el nuevo y retirando después el viejo, de modo que el número de nodos configurado se mantiene en todo momento.
 * *Qué parte no se puede evitar y por qué.* El reemplazo de los nodos. La infraestructura es inmutable: no hay forma de actualizar la versión de kubelet de un nodo sin reemplazarlo, por lo que sus cargas de trabajo se reprograman obligatoriamente. El impacto real depende de cómo estén dimensionadas las aplicaciones, más que del proceso de actualización.
 * *Qué determina el impacto en cada servicio.* El número de réplicas. Un servicio con varias réplicas repartidas entre nodos no se interrumpe; uno con una sola queda caído mientras arranca en otro nodo.
-* *El aviso más importante sobre los PDB:* Aquí, quien vacía los nodos es Cluster API, que respeta la API de _eviction_ y *no fuerza el desalojo en ningún momento*. Un _Pod Disruption Budget_ que no se pueda cumplir no retrasa el vaciado: lo bloquea, y con él la actualización del grupo de nodos, hasta que pasen 90 minutos sin que ningún nodo más se actualice y el _script_ aborte. Es una diferencia de fondo con la actualización de _Stratio KEOS_ en las instalaciones _on-premise_, donde se fuerza el vaciado.
+* *El aviso más importante sobre los PDB:* Aquí, quien vacía los nodos es Cluster API, que respeta la API de _eviction_ y *no fuerza el desalojo en ningún momento*. Un _Pod Disruption Budget_ que no se pueda cumplir no retrasa el vaciado: lo bloquea, y con él la actualización del grupo de nodos, hasta que pasen 90 minutos sin que ningún nodo más se actualice y el _script_ aborte. Es una diferencia de fondo con la actualización de _Stratio KEOS_ en las instalaciones _on-premise_, donde el vaciado acaba forzándose.
 * *Qué ocurre con el autoescalado.* Está apagado desde antes del paso de _charts_ hasta el paso 8. Si la carga del _cluster_ aumenta durante la ventana, no se añaden nodos.
 * *A quién se avisa y con cuánta antelación.* Anuncia que las aplicaciones se reprogramarán, que los servicios con una sola réplica quedarán sin respuesta durante unos minutos y que no habrá autoescalado durante la intervención. Sigue la política de gestión de cambios de cada entorno: _Stratio Cloud Provisioner_ no impone ningún plazo de aviso.
 * *Qué ocurre si un paso falla.* El _script_ aborta. Si el fallo ocurre en la sección crítica, antes de abortar, intenta una recuperación controlada: reactiva los _webhooks_ de `cluster-operator`, arranca su _controller_ y reanuda su reconciliación. Si esa recuperación también falla, el _cluster_ queda con los _webhooks_ desactivados y el _controller_ se queda parado; hay que restaurarlos manualmente antes de hacer cualquier otra cosa.
@@ -539,7 +539,7 @@ Al no detenerse el _cluster_ para actualizarlo, esta tabla resume qué le ocurre
 | Vuelve solo al final del paso 8. Comprueba que ha recuperado sus réplicas.
 
 | Llamadas al _API Server_ y orquestadores externos
-| En EKS y en GKE no se interrumpen. En Azure, las VMs fallan durante los segundos en que se reemplaza cada réplica del _control-plane_; con una sola réplica, el corte dura toda la sustitución.
+| En EKS y en GKE no se interrumpen. En Azure VMs, fallan durante los segundos en que se reemplaza cada réplica del _control-plane_; con una sola réplica, el corte dura toda la sustitución.
 | Pausa la orquestación externa durante la ventana para que no acumule intentos fallidos.
 | Relanza los flujos afectados desde el orquestador.
 
@@ -742,7 +742,7 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 
 | Un _Pod Disruption Budget_ que no se puede cumplir bloquea el vaciado de su nodo
 | En el paso 7, al reemplazar los nodos de un grupo
-| Corrige el número de réplicas del recurso o retira temporalmente su PDB y vuelve a lanzarlo. No hay desalojo forzado: la fase queda en espera hasta que el _script_ se aborta tras 90 minutos sin avance (`--node-convergence-timeout`). En EKS, revisa primero el PDB de `coredns` en el _namespace_ `kube-system`.
+| Corrige el número de réplicas del recurso o retira temporalmente su PDB y relanza la actualización. No hay desalojo forzado: la fase queda en espera hasta que el _script_ se aborta tras 90 minutos sin avance (`--node-convergence-timeout`). En EKS, revisa primero el PDB de `coredns` en el _namespace_ `kube-system`.
 | xref:operations-manual:operations-manual.adoc#_actualización_de_kubernetes[Actualización de Kubernetes]
 
 | En GKE, el `KeosCluster` no llega a `ready = true` por un bucle de reconciliación de CAPG
@@ -783,6 +783,6 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 
 TIP: Guarda la salida completa del _script_. Informa de cada paso, del cambio de versión previsto de cada componente y del tiempo total, lo que permite saber exactamente dónde se detuvo la actualización y en qué estado quedó, en lugar de reconstruirlo después.
 
-*Qué se considera bloqueante.* Que no pase ninguna de las comprobaciones marcadas como tales en <<checks, Comprobaciones posteriores>>, y en particular que el _control-plane_ no haya convergido, que queden nodos en la versión anterior o que `cluster-operator` no haya recuperado sus _webhooks_ ni haya completado su reconciliación. Lo demás se puede resolver con la ventana ya cerrada.
+*Qué se considera bloqueante.* Que falle alguna de las comprobaciones marcadas como tales en <<checks, Comprobaciones posteriores>>, y en particular que el _control-plane_ no haya convergido, que queden nodos en la versión anterior o que `cluster-operator` no haya recuperado sus _webhooks_ ni haya completado su reconciliación. Lo demás se puede resolver con la ventana ya cerrada.
 
 *Qué hacer si un paso se alarga más de lo previsto.* El _script_ informa de cada espera y de su límite, así que lo primero es comprobar si sigue progresando: en el paso 7, si aparecen nodos nuevos con la versión de destino, va bien aunque tarde. Si no progresa, busca la causa antes de interrumpir (lo más frecuente es un PDB que no se puede cumplir o un nodo nuevo que no llega a `Ready`), porque interrumpir a mitad del salto deja el _cluster_ con nodos en dos versiones y, si ocurre dentro de la sección crítica, con `cluster-operator` detenido.

@@ -143,7 +143,7 @@ The _spec_ field of the _KeosCluster_ resource includes the following parameters
 |_control++_++plane_
 |Object
 |Kubernetes _control-plane_ configuration.
-|See <<ejemplo_de_descriptor, descriptor example>>
+|See <<_descriptor_example, descriptor example>>
 |No
 |-
 
@@ -495,7 +495,7 @@ As an installation prerequisite, the Helm repository from which the _Cluster Ope
 | Yes. Default: _generic_.
 |===
 
-NOTE: OCI repositories (from cloud providers such as ECR, GAR, or ACR) never require authentication. Authentication will be performed through the credentials used during the provisioning. Please verify in the _Stratio KEOS_ documentation which repositories are supported for the version you use.
+NOTE: OCI repositories (from cloud providers such as ECR, GAR, or ACR) are never authenticated with repository-specific credentials (they do not support `auth_required: true`). Authentication will be performed through the credentials used during the provisioning. Please verify in the _Stratio KEOS_ documentation which repositories are supported for the version you use.
 
 === Networks
 
@@ -595,7 +595,7 @@ cluster_security:
 
 This section specifies the worker node groups and their characteristics.
 
-The images used must be supported by EKS. See the https://docs.aws.amazon.com/es_es/eks/latest/userguide/eks-optimized-ami.html[creation of custom AMI for EKS].
+The images used must be supported by EKS. See the https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html[creation of custom AMI for EKS].
 
 [cols="1,4,2,1"]
 |===
@@ -607,7 +607,7 @@ The images used must be supported by EKS. See the https://docs.aws.amazon.com/es
 |No
 
 |_quantity_
-|Number of nodes in the group. It is recommended to be a multiple of 3 to avoid imbalances.
+|Number of nodes in the group. It is recommended to be a multiple of 3 to avoid unbalanced zones.
 |15
 |No
 
@@ -1290,7 +1290,7 @@ In EKS clusters, a controller (_aws-load-balancer-controller_) can be deployed i
 
 Since this deployment is not enabled by default, it must be indicated in the _ClusterConfig_ resource of the cluster descriptor through `spec.eks_lb_controller: true`.
 
-To authorize the controller, https://docs.aws.amazon.com/es_es/eks/latest/userguide/iam-roles-for-service-accounts.html[IAM roles for service accounts] will be used, which implies creating the corresponding IAM objects as indicated below:
+To authorize the controller, https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html[IAM roles for service accounts] will be used, which implies creating the corresponding IAM objects as indicated below:
 
 * Define the following environment variables:
 +
@@ -1305,7 +1305,7 @@ export AWS_IAM_POLICY_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 export AWS_IAM_ROLE_NAME="${AWS_EKS_CLUSTER_NAME}-lb-controller-manager"
 ----
 
-* https://docs.aws.amazon.com/es_es/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that the service account of the _aws-load-balancer-controller_ deployment will use with the following trust policy:
+* https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create.html[Create the IAM role] that the service account of the _aws-load-balancer-controller_ deployment will use with the following trust policy:
 +
 [source,console]
 ----
@@ -1332,7 +1332,7 @@ EOF
 $ aws iam create-role --role-name ${AWS_IAM_ROLE_NAME} --assume-role-policy-document file://trustpolicy.json
 ----
 
-* https://docs.aws.amazon.com/es_es/IAM/latest/UserGuide/access_policies_create.html[Create the IAM policy] with the strictly necessary permissions:
+* https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_create.html[Create the IAM policy] with the strictly necessary permissions:
 +
 [source,console]
 ----
