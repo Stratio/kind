@@ -745,6 +745,11 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | Corrige el número de réplicas del recurso o retira temporalmente su PDB y vuelve a lanzarlo. No hay desalojo forzado: la fase queda en espera hasta que el _script_ se aborta tras 90 minutos sin avance (`--node-convergence-timeout`). En EKS, revisa primero el PDB de `coredns` en el _namespace_ `kube-system`.
 | xref:operations-manual:operations-manual.adoc#_actualización_de_kubernetes[Actualización de Kubernetes]
 
+| En GKE, el `KeosCluster` no llega a `ready = true` por un bucle de reconciliación de CAPG
+| En la comprobación previa, o en la espera de cada salto de versión menor
+| Añade la etiqueta `goog-gke-node-pool-provisioning-model` en `additionalLabels` de cada `GCPManagedMachinePool` y espera a que el `KeosCluster` vuelva a `ready = true` antes de relanzar. Omitir la comprobación previa no sirve: el _script_ vuelve a esperar a `ready = true` en cada salto de versión menor. Tras la actualización, declara la etiqueta en `additional_labels` de cada grupo del `KeosCluster`.
+| xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[Bucle de reconciliación en GKE por etiquetas automáticas]
+
 | El salto de versión se queda escrito en el descriptor pero sin propagar
 | En el paso 7, si el _controller_ de `cluster-operator` se reinició en mitad de la actualización
 | No relances el _script_ sin más: como el descriptor ya coincide con el objetivo, el paso se saltaría. Revisa la anotación de seguimiento de `cluster-operator` y sus _logs_ antes de reintentar.

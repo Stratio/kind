@@ -214,7 +214,6 @@ gcloud compute scp Descargas/cloud-provisioner-<version>.tar.gz gke-vm-janr:/res
 ```bash
 ls -lrth /resources/
 ```
-=======
 
 ### Upload cloud-provisioner binaries to the VM
 ```bash
