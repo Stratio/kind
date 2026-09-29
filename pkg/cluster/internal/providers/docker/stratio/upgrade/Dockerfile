@@ -29,6 +29,9 @@ ARG HELM_VERSION=4.3.0
 ARG CAPA=v2.9.3
 ARG CAPG=1.6.1-0.4.2
 ARG CAPZ=v1.21.3
+# upgrade-providers.py (v1beta2 migration) — separate from the clusterctl/local repository upgrade-provisioner.py uses
+ARG CLUSTERCTL_V1BETA2=v1.13.6
+ARG CAPA_V1BETA2=v2.13.0
 
 # =========================
 # Base system dependencies
@@ -139,6 +142,37 @@ RUN curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${C
     cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL}/metadata.yaml
 
 # =========================
+# upgrade-providers.py: clusterctl and local repository for the v1beta2 contract
+# =========================
+RUN curl -fL https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL_V1BETA2}/clusterctl-linux-amd64 \
+    -o /usr/local/bin/clusterctl-${CLUSTERCTL_V1BETA2} && \
+    chmod +x /usr/local/bin/clusterctl-${CLUSTERCTL_V1BETA2}
+
+RUN CAPI_URL=https://github.com/kubernetes-sigs/cluster-api/releases/download/${CLUSTERCTL_V1BETA2} && \
+    CAPA_URL=https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/download/${CAPA_V1BETA2} && \
+    mkdir -p ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2} ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL_V1BETA2} \
+             ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL_V1BETA2} ${CAPI_REPO}/infrastructure-aws/${CAPA_V1BETA2} && \
+    curl -fL ${CAPI_URL}/core-components.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2}/core-components.yaml && \
+    curl -fL ${CAPI_URL}/bootstrap-components.yaml -o ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL_V1BETA2}/bootstrap-components.yaml && \
+    curl -fL ${CAPI_URL}/control-plane-components.yaml -o ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL_V1BETA2}/control-plane-components.yaml && \
+    curl -fL ${CAPI_URL}/metadata.yaml -o ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2}/metadata.yaml && \
+    cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2}/metadata.yaml ${CAPI_REPO}/bootstrap-kubeadm/${CLUSTERCTL_V1BETA2}/metadata.yaml && \
+    cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL_V1BETA2}/metadata.yaml && \
+    curl -fL ${CAPA_URL}/infrastructure-components.yaml -o ${CAPI_REPO}/infrastructure-aws/${CAPA_V1BETA2}/infrastructure-components.yaml && \
+    curl -fL ${CAPA_URL}/metadata.yaml -o ${CAPI_REPO}/infrastructure-aws/${CAPA_V1BETA2}/metadata.yaml
+
+# CAPG versions upgrade-providers.py keeps: clusterctl reads metadata.yaml at the installed version (curl -f, fail loudly).
+ARG CAPG_KEEP_VERSIONS="1.6.1-0.4.1 1.6.1-0.4.2"
+RUN for v in ${CAPG_KEEP_VERSIONS}; do \
+      mkdir -p ${CAPI_REPO}/infrastructure-gcp/${v} && \
+      for f in metadata.yaml infrastructure-components.yaml; do \
+        curl -fL https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${v}/${f} \
+          -o ${CAPI_REPO}/infrastructure-gcp/${v}/${f} || exit 1; \
+      done && \
+      ln -sfn ${CAPI_REPO}/infrastructure-gcp/${v} ${CAPI_REPO}/infrastructure-gcp/v${v}; \
+    done
+
+# =========================
 # Working directory
 # =========================
 WORKDIR /upgrade
@@ -158,6 +192,7 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases && \
 # =========================
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
+COPY ${UPGRADE_DIR}/upgrade-providers.py /upgrade
 COPY ${UPGRADE_DIR}/activate-capa-machinepool-features.py /upgrade
 COPY ${UPGRADE_DIR}/ecr_pull_through.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
