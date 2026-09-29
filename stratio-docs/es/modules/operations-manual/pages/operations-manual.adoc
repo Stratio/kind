@@ -17,10 +17,10 @@ aws eks update-kubeconfig --region eu-west-1 --name <cluster_name> --kubeconfig 
 ----
 gcloud container clusters get-credentials <cluster_name> --region <region> --project <project>
 ----
++
+Este comando generará el fichero _kubeconfig_ en _kubeconfig_ ubicación indicada por la variable de entorno `KUBECONFIG`. Por defecto, estará en `$HOME/.kube/config`.
 
-Este comando generará el fichero con el _kubeconfig_ donde indique la variable de entorno `KUBECONFIG`. Por defecto, será en `$HOME/.kube/config`.
-
-* Para Azure no gestionado, al finalizar del aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
+* Para Azure no gestionado, al finalizar el aprovisionamiento el _kubeconfig_ se deja en el directorio de ejecución (_workspace_):
 +
 [source,bash]
 ----
@@ -28,7 +28,7 @@ ls ./.kube/config
 ./.kube/config
 ----
 +
-A su vez, podrá utilizarse el alias "kw" desde el contenedor local para interactuar con el _cluster worker_ (en EKS, el _token_ utilizado sólo dura 10 minutos):
+A su vez, podrá utilizarse el alias "kw" desde el contenedor local para interactuar con el _cluster worker_ (en EKS, el _token_ utilizado solo dura 10 minutos):
 +
 [source,bash]
 ----
@@ -41,9 +41,9 @@ example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
 
 == Autenticación en EKS
 
-Si bien no forma parte de la operativa de _Stratio KEOS_, es importante resaltar la forma de permitir la https://docs.aws.amazon.com/es_es/eks/latest/userguide/add-user-role.html[autenticación de otros usuarios en un _cluster_ de EKS] (el usuario creador del _cluster_ está autenticado por defecto).
+Si bien no forma parte de la operativa de _Stratio KEOS_, es importante destacar la forma de permitir la https://docs.aws.amazon.com/es_es/eks/latest/userguide/add-user-role.html[autenticación de otros usuarios en un _cluster_ de EKS] (el usuario creador del _cluster_ está autenticado por defecto).
 
-Para dar permisos de _kubernetes-admin_ en el _cluster_, se agregará el ARN del usuario en el _ConfigMap_ indicado a continuación.
+Para otorgar permisos de _kubernetes-admin_ en el _cluster_, se agregará el ARN del usuario al _ConfigMap_ indicado a continuación.
 
 [source,bash]
 ----
@@ -59,14 +59,14 @@ data:
 
 == Activar autorización por _assume role_ en AWS para un _cluster_ EKS
 
-Este procedimiento describe cómo habilitar el método de autorización basado en _assume role_ en AWS para un _cluster_ de EKS una vez que ha sido creado.
+Este procedimiento describe cómo habilitar el método de autorización basado en _assume role_ en un _cluster_ de EKS ya creado.
 
 === Prerrequisitos
 
 Antes de comenzar, asegúrate de cumplir lo siguiente:
 
 * Tener creado un rol de IAM con los permisos necesarios (por ejemplo: _stratio-assume-role_).
-** Tipo de role: _AWS Account_.
+** Tipo de rol: _AWS Account_.
 ** Permisos: los mismos que los descritos en los prerrequisitos de EKS.
 * Configurar la _Trust Relationship_ del rol para permitir que el usuario que desplegó el _cluster_ pueda asumirlo.
 +
@@ -110,7 +110,7 @@ NOTE: La versión mínima de _cluster-operator_ compatible con este método es l
 
 === Configurar _assume role_ en el _cluster_ EKS
 
-NOTE: Sustituye la cuenta, nombre del _cluster_ `eks-cl01` y el _namespace_ `cluster-eks-cl01` por los de tu entorno.
+NOTE: Sustituye la cuenta, el nombre del _cluster_ (`eks-cl01`) y el _namespace_ (`cluster-eks-cl01`) por los de tu entorno.
 
 . Crea el objeto `AWSClusterRoleIdentity`.
 +
@@ -149,7 +149,7 @@ kubectl patch awsmanagedcontrolplane eks-cl01-control-plane \
 kubectl rollout restart deployment capa-controller-manager -n capa-system
 ----
 
-. Edita el _ConfigMap_ `aws-auth` añadiendo el `iam_role`.
+. Edita el _ConfigMap_ `aws-auth` para añadir el `iam_role`.
 +
 [source,yaml]
 ----
@@ -161,13 +161,13 @@ kubectl rollout restart deployment capa-controller-manager -n capa-system
       username: system:node:{{EC2PrivateDNSName}}
     - groups:
       - capa-manager
-      rolearn: arn:aws:iam::963353512345678901211234:role/stratio-assume-role
+      rolearn: arn:aws:iam::123456789012:role/stratio-assume-role
       username: stratio-assume-role
 ----
 
 . Crea el `ClusterRoleBinding` para el grupo `capa-manager`.
 +
-[source,yaml]
+[source,bash]
 ----
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
@@ -200,7 +200,7 @@ kubectl patch clusterrole capa-manager-role \
 ----
 
 . Actualiza el _cluster-operator_.
-.. Actualiza el _helmrelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior.
+.. Actualiza el _HelmRelease_ asociado al _cluster-operator_ a la versión 0.5.2 o superior.
 .. Actualiza el _ConfigMap_ correspondiente a esa versión.
 ... Modifica el _tag_ en `00-cluster-operator-helm-chart-default-values` con la versión deseada, p. ej. 0.5.2.
 .. Parchea el secreto _keoscluster-settings_ para añadir el `role_arn`.
@@ -237,17 +237,17 @@ kubectl auth can-i update daemonsets --as=stratio-assume-role --as-group=capa-ma
 
 [NOTE]
 ====
-Si se actualiza el usuario que realiza el _assume role_, será necesario actualizar los siguientes secretos con las nuevas credenciales y, si aplica, con el nuevo rol ARN:
+Si se actualiza el usuario que realiza el _assume role_, habrá que actualizar los siguientes secretos con las nuevas credenciales y, si aplica, con el nuevo rol ARN:
 
-* _capa-manager-bootstrap-credentials_ (para Capa).
+* _capa-manager-bootstrap-credentials_ (para CAPA).
 * _keoscluster-settings_ (para el _cluster-operator_).
 ====
 
 === Operaciones del _cluster_ con _assume role_
 
-Una vez activado, también puedes gestionar el _cluster_ utilizando _assume role_ desde línea de comandos siguiendo estos pasos:
+Una vez activado, también puedes gestionar el _cluster_ utilizando _assume role_ desde la línea de comandos siguiendo estos pasos:
 
-. *Verifica AWS CLI*: asegúrate de tener la última versión instalada con este comando.
+. *Verifica AWS CLI*: comprueba con este comando que tienes instalada la última versión.
 +
 [source,bash]
 ----
@@ -261,7 +261,7 @@ aws --version
 export AWS_PROFILE=<nombre-del-profile>
 ----
 
-. *Asume el rol y guarda credenciales*.
+. *Asume el rol y guarda las credenciales*.
 +
 [source,bash]
 ----
@@ -290,7 +290,7 @@ aws eks update-kubeconfig --region <region> --name <nombre-del-cluster>
 
 image::controllers.png[]
 
-_Stratio KEOS_ permite realizar múltiples operaciones avanzadas interactuando con el _Stratio Cluster Operator_ (_infrastructure as code_ o IaC), quien en su ciclo de reconciliación interactúa a su vez con los distintos proveedores para realizar las operaciones solicitadas.
+_Stratio KEOS_ permite realizar varias operaciones avanzadas interactuando con el _Stratio Cluster Operator_ (_infrastructure as code_ o IaC), que en su ciclo de reconciliación interactúa a su vez con los distintos proveedores para realizar las operaciones solicitadas.
 
 === _Self-healing_
 
@@ -319,17 +319,17 @@ $ kubectl -n cluster-example get mhc -o yaml
 ...
 ----
 
-NOTE: En Azure no gestionado existirá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que los gestionados (EKS, GKE) sólo tendrán el segundo.
+NOTE: En Azure no gestionado habrá un _MachineHealthCheck_ para el _control-plane_ y otro para los nodos _worker_, mientras que en los gestionados (EKS, GKE) solo habrá el segundo.
 
 ==== Prueba de tolerancia a fallos en un nodo
 
-En caso de fallo en un nodo, este será detectado por un _controller_ y se procederá al reemplazo del mismo, eliminándolo y volviendo a crear otro del mismo grupo, lo que asegura las mismas características.
+En caso de fallo de un nodo, un _controller_ lo detecta y lo reemplaza: lo elimina y crea otro del mismo grupo, lo que garantiza que mantenga las mismas características.
 
 Para simular un fallo en una máquina virtual, se eliminará desde la consola web del proveedor de _cloud_.
 
 La recuperación del nodo comprende las siguientes fases y tiempos estimados (pudiendo variar según el proveedor y el _flavour_):
 
-[source,bash]
+[source,text]
 ----
 . Terminate VM from console: 0s
 . New VM is Provisioning: 50s
@@ -340,7 +340,7 @@ La recuperación del nodo comprende las siguientes fases y tiempos estimados (pu
 
 === Escalado estático
 
-Aunque se desaconseja el escalado manual de un grupo de nodos existente, se presentan estas operaciones para casos sin autoescalado o nuevos grupos de nodos.
+Aunque se desaconseja el escalado manual de un grupo de nodos existente, estas operaciones se presentan para casos sin autoescalado o para nuevos grupos de nodos.
 
 ==== Escalar un grupo de _workers_
 
@@ -372,7 +372,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Crear un nuevo grupo de _workers_
 
-Para crear un nuevo grupo de nodos basta con crear un nuevo elemento al _array_ _worker++_++nodes_ del recurso _KeosCluster_:
+Para crear un nuevo grupo de nodos basta con añadir un nuevo elemento al _array_ _worker++_++nodes_ del recurso _KeosCluster_:
 
 [source,yaml]
 ----
@@ -403,7 +403,7 @@ kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=s
 
 ==== Escalado vertical
 
-El escalado vertical de un grupo de nodos se realiza modificando el tipo de instancia en el recurso _KeosCluster_ correspondiente al grupo.
+El escalado vertical de un grupo de nodos se realiza mediante la modificación del tipo de instancia del recurso _KeosCluster_ asociado a dicho grupo.
 
 [source,yaml]
 ----
@@ -419,11 +419,11 @@ spec:
 
 image::autoescalado.png[]
 
-Para el autoescalado de nodos se utiliza _cluster-autoscaler_, quien detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere según los filtros de los despliegues.
+Para el autoescalado de nodos se utiliza _cluster-autoscaler_, que detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere necesario según los filtros de los despliegues.
 
-Esta operación se realiza en el _API Server_, siendo los _controllers_ los encargados de crear las máquinas virtuales en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
+Esta operación se realiza en el _API Server_, donde los _controllers_ se encargan de crear las máquinas virtuales en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
 
-Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirá el mínimo y máximo en el grupo de nodos en el recurso _KeosCluster_:
+Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirán el mínimo y el máximo en el grupo de nodos en el recurso _KeosCluster_:
 
 [source,yaml]
 ----
@@ -465,7 +465,7 @@ kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-auto
 
 La actualización del _cluster_ a una versión superior de Kubernetes se realizará en dos partes dentro del mismo proceso atómico: primero, el _control-plane_, y una vez que esté en la nueva versión, los nodos _worker_, iterando por cada grupo y actualizándolos uno a uno.
 
-CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ donde no se haya especificado la imagen puede implicar una actualización del sistema operativo.
+CAUTION: La actualización de la versión de Kubernetes de los nodos en los _clusters_ en los que no se haya especificado la imagen puede implicar una actualización del sistema operativo.
 
 image::upgrade-cp.png[]
 
@@ -473,15 +473,13 @@ image::upgrade-w.png[]
 
 [CAUTION]
 ====
-Un _Pod Disruption Budget_ (PDB) mal configurado puede bloquear la eliminación de un _pod_. Esto ocurre si el PDB exige al menos una réplica disponible, pero el recurso solo tiene una desplegada. En ese caso, la réplica no puede eliminarse y el nodo no se puede drenar, lo que puede afectar a las actualizaciones.
+Un _Pod Disruption Budget_ (PDB) mal configurado puede impedir la eliminación de un _pod_. Esto ocurre si el PDB exige al menos una réplica disponible, pero el recurso solo tiene una réplica desplegada. En ese caso, la réplica no puede eliminarse y el nodo no se puede drenar, lo que puede afectar a las actualizaciones.
 
 Para evitar este problema:
 
-. Asegúrate de que los despliegues tengan más de una réplica si el PDB requiere al menos una disponible.
-. Antes de actualizar el _cluster_, revisa esta configuración para evitar bloqueos.
-. Si el recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para permitir la actualización.
+. Asegúrate de que los despliegues tengan más de una réplica si el PDB requiere al menos una réplica disponible.
 . Antes de actualizar el _cluster_, revisa los PDB para evitar bloqueos.
-. Si un recurso solo tiene una réplica, puedes eliminar temporalmente el PDB para poder actualizar.
+. Si un recurso tiene solo una réplica, puedes eliminar temporalmente el PDB para actualizarlo.
 
 En EKS, por ejemplo, es recomendable comprobar si existe el PDB `coredns` en el _namespace_ `kube-system` y eliminarlo antes de actualizar el _cluster_:
 
@@ -490,22 +488,23 @@ En EKS, por ejemplo, es recomendable comprobar si existe el PDB `coredns` en el 
 kubectl -n kube-system get poddisruptionbudget coredns
 kubectl -n kube-system delete poddisruptionbudget coredns
 ----
+
 ====
 
 ==== Prerrequisitos
 
-La actualización de versión de un _cluster_ en entornos productivos y especialmente en _flavours_ no gestionados deberá hacerse extremando todas las precauciones. En particular, antes de actualizar se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura con el siguiente comando:
+La actualización de la versión de un _cluster_ en entornos productivos, y especialmente en _flavours_ no gestionados, deberá realizarse extremando todas las precauciones. En particular, antes de actualizar se recomienda hacer un _backup_ de los objetos que gestionan la infraestructura con el siguiente comando:
 
 [source,bash]
 ----
 clusterctl --kubeconfig ./kubeconfig/path move -n cluster-<cluster_name> --to-directory ./backup/path/
 ----
 
-En el caso de un _control-plane_ gestionado, se deberá verificar que la versión deseada de Kubernetes está soportada por el proveedor.
+En el caso de un _control-plane_ gestionado, se deberá verificar que la versión deseada de Kubernetes está admitida por el proveedor.
 
 ===== EKS
 
-Previo a la actualización de EKS debes asegurarte de que la versión deseada está soportada. Para ello puedes utilizar el siguiente comando:
+Antes de actualizar EKS, asegúrate de que la versión deseada está admitida. Para ello puedes utilizar el siguiente comando:
 
 [source,bash]
 ----
@@ -514,7 +513,7 @@ aws eks describe-addon-versions | jq -r ".addons[] | .addonVersions[] | .compati
 
 ===== Azure no gestionado
 
-La _GlobalNetworkPolicy_ creada para el _control-plane_ en la fase de instalación de _Stratio KEOS_ se deberá modificar de modo que *permita toda la red de los nodos momentáneamente* mientras se ejecuta la actualización de versión.
+La _GlobalNetworkPolicy_ creada para el _control-plane_ en la fase de instalación de _Stratio KEOS_ deberá modificarse para que *permita el tráfico de red entre todos los nodos temporalmente* durante la actualización de la versión.
 
 Una vez finalizada, se deberán actualizar las IP internas de los nodos y las de túnel asignadas a dichos nodos:
 
@@ -531,18 +530,18 @@ for handler in $IPAMHANDLERS; do kw get $handler -o json | jq -r '.spec.block | 
 
 ==== Iniciar la actualización
 
-Para iniciar la actualización, una vez satisfechos los prerrequisitos se ejecutará un _patch_ de _spec.k8s++_++version_ en el recurso _KeosCluster_:
+Para iniciar la actualización, una vez satisfechos los prerrequisitos, se ejecutará un _patch_ de _spec.k8s++_++version_ en el recurso _KeosCluster_:
 
 [source,bash]
 ----
 kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.32.x"}}'
 ----
 
-NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión vieja. De esta forma, asegura siempre el número de nodos configurado.
+NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión anterior. De esta forma, se garantiza el número de nodos configurado.
 
 ==== Verificación de etcd
 
-Una forma de asegurar que el etcd está correcto después de actualizar un _control-plane_ no gestionado es abrir una terminal en cualquier _pod_ de etcd, ver el estado del _cluster_ y comparar las IP de los miembros registrados con las de los nodos del _control-plane_.
+Una forma de asegurar que el etcd está correcto después de actualizar un _control-plane_ no gestionado es abrir una terminal en cualquier _pod_ de etcd, verificar el estado del _cluster_ y comparar las direcciones IP de los miembros registrados con las de los nodos del _control-plane_.
 
 [source,bash]
 ----
@@ -560,14 +559,14 @@ e member remove <member-id>
 [NOTE]
 .Consideraciones previas
 ====
-Antes de eliminar los recursos del proveedor _cloud_ generados por _Stratio Cloud Provisioner_ se deberán eliminar aquellos creados por _keos-installer_ o cualquier automatismo externo (por ejemplo, los _Services_ de tipo _LoadBalancer_).
+Antes de eliminar los recursos del proveedor _cloud_ generados por _Stratio Cloud Provisioner_, se deberán eliminar aquellos creados por _keos-installer_ o por cualquier automatismo externo (por ejemplo, los _Services_ de tipo _LoadBalancer_).
 
-Además, deberás tener en cuenta que el proceso requiere del binario del _clusterctl_ en la máquina bastión (cualquier ordenador con acceso al _API Server_) en la que se va a ejecutar.
+Además, deberás tener en cuenta que el proceso requiere el binario `clusterctl` en la máquina bastión (cualquier ordenador con acceso al _API Server_) en la que se ejecutará.
 ====
 
 Ejecuta los siguientes pasos para llevar a cabo la eliminación del _cluster_:
 
-. Crea un _cluster_ local indicando que no se genere ningún recurso en el proveedor _cloud_.
+. Crea un _cluster_ local, indicando que no se cree ningún recurso en el proveedor _cloud_.
 +
 [source,bash]
 ----
@@ -607,7 +606,7 @@ root@<cluster_name>-control-plane:/#
 
 == Instalación _offline_
 
-Para saber cómo llevar a cabo una instalación en la que las imágenes de los _workloads_ del _cluster_ provengan de repositorios accesibles desde entornos sin acceso a internet, consulta el xref:operations-manual:offline-installation.adoc[Manual de instalación _offline_].
+Para saber cómo realizar una instalación en la que las imágenes de los _workloads_ del _cluster_ provengan de repositorios accesibles desde entornos sin acceso a internet, consulta el xref:operations-manual:offline-installation.adoc[Manual de instalación _offline_].
 
 == Gestión de credenciales
 
@@ -617,11 +616,11 @@ Para administrar las credenciales configuradas en el _cluster_, consulta la xref
 
 === Bucle de reconciliación en GKE por etiquetas automáticas
 
-En los _clusters_ gestionados con el Cluster API Provider GCP (CAPG), el controlador de CAPG responsable del recurso `GCPManagedMachinePool` puede entrar en un bucle de reconciliación infinito si detecta discrepancias entre las etiquetas (`additional_labels`) definidas en la especificación del objeto (o no definidas) y las etiquetas efectivamente presentes en el _node pool_ de GKE. Este comportamiento se refleja en los registros, con mensajes repetidos como "Node pool config update required” y "Node pool config updating in progress". Se trata de un problema conocido en CAPG, relacionado con la reconciliación de etiquetas en los _node pools_ gestionados por el objeto `GCPManagedMachinePool`.
+En los _clusters_ gestionados con el Cluster API Provider GCP (CAPG), el controlador de CAPG responsable del recurso `GCPManagedMachinePool` puede entrar en un bucle de reconciliación infinito si detecta discrepancias entre las etiquetas (`additional_labels`) definidas en la especificación del objeto (o no definidas) y las etiquetas efectivamente presentes en el _node pool_ de GKE. Este comportamiento se refleja en los registros, con mensajes repetidos como `Node pool config update required` y `Node pool config updating in progress`. Se trata de un problema conocido en CAPG, relacionado con la reconciliación de etiquetas en los _node pools_ gestionados por el objeto `GCPManagedMachinePool`.
 
 La causa principal es que Google Cloud GKE añade automáticamente etiquetas a los _node pools_ (por ejemplo, `goog-gke-node-pool-provisioning-model: on-demand`) que no están presentes por defecto en el recurso `GCPManagedMachinePool` generado por Cluster API. Este valor es solo un ejemplo: puede tratarse de cualquier etiqueta añadida por Google.
 
-Para resolver este problema y detener el bucle, es necesario añadir manualmente la etiqueta en la configuración del `KeosCluster` para que coincida con la que aplica el proveedor. Puedes seguir estos pasos:
+Para resolver este problema y detener el bucle, hay que añadir manualmente la etiqueta en la configuración del `KeosCluster` para que coincida con la que aplica el proveedor. Puedes seguir estos pasos:
 
 . Edita el recurso `KeosCluster`:
 +
@@ -643,4 +642,21 @@ spec:
         "goog-gke-node-pool-provisioning-model": "on-demand"
 ----
 
-CAUTION: Modificar el campo _additional++_++labels_ en los `worker_nodes` de un `KeosCluster` gestionado por CAPG provocará la recreación de los nodos asociados al _node pool_. Esto implica que los nodos actuales se eliminarán y se sustituirán por otros nuevos con la configuración actualizada. Se recomienda planificar esta operación para evitar interrupciones o afectaciones del servicio.
+CAUTION: Modificar el campo _additional++_++labels_ en los `worker_nodes` de un `KeosCluster` gestionado por CAPG provocará la recreación de los nodos asociados al _node pool_. Esto implica que los nodos actuales se eliminarán y serán reemplazados por nuevos con la configuración actualizada. Se recomienda planificar esta operación para evitar interrupciones o afectaciones al servicio.
+
+==== _Clusters_ creados con _Stratio Cloud Provisioner_ 0.7.x
+
+En los _clusters_ creados con _Stratio Cloud Provisioner_ 0.7.x, el objeto `KeosCluster` no admite el campo _additional++_++labels_, que se incorporó en la versión 0.8.0, y mientras el _cluster_ no esté _ready_, tampoco se puede modificar su especificación. En ese caso, añade la etiqueta directamente en los `GCPManagedMachinePool` del _cluster_, con el mismo valor que muestra GKE para el _node pool_:
+
+[source,bash]
+----
+gcloud container node-pools describe <node_pool_name> --cluster <cluster_name> --region <región> \
+  --format='value(config.resourceLabels)'
+
+for mp in $(kubectl -n cluster-<cluster_name> get gcpmanagedmachinepool -o name); do
+  kubectl -n cluster-<cluster_name> patch $mp --type=merge \
+    -p '{"spec":{"additionalLabels":{"goog-gke-node-pool-provisioning-model":"on-demand"}}}'
+done
+----
+
+Cuando el `KeosCluster` vuelva a `READY = true` y el _cluster_ esté en una versión que admita el campo, declara también la etiqueta en _additional++_++labels_ de cada grupo del `KeosCluster`, como se indica más arriba, para que se mantenga si _cluster-operator_ vuelve a generar el `GCPManagedMachinePool`.

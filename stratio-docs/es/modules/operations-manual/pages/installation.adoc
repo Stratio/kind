@@ -140,28 +140,28 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 |===
 ^|Nombre ^|Tipo ^|Descripción ^|Ejemplo ^|Opcional ^|Valor por defecto
 
-|<<control_plane, _control++_++plane_>>
+|_control++_++plane_
 |Objeto
 |Configuración del _control-plane_ de Kubernetes.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 |-
 
-|<<credentials, _credentials_>>
+|_credentials_
 |Objeto
 |Credenciales del proveedor _cloud_ utilizadas durante el aprovisionamiento.
-|Ver el <<ejemplo_de_descriptor,ejemplo de descriptor>>
+|Ver el <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No en la primera ejecución.
 |-
 
-|<<deploy_autoscaler, _deploy++_++autoscaler_>>
+|_deploy++_++autoscaler_
 |Booleano
 |Indica si se debe desplegar el _cluster-autoscaler_ en el _cluster_.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |Sí.
 |_true_.
 
-|<<dns, _dns_>>
+|_dns_
 |Objeto
 |Configuración de _external DNS_ para _Stratio KEOS_.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
@@ -203,14 +203,14 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 |No
 |-
 
-|<<keos, _keos_>>
+|_keos_
 |Objeto
 |Parámetros para la instalación de _Stratio KEOS_.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
 |No
 |-
 
-|<<networks, _networks_>>
+|_networks_
 |Objeto
 |Identificadores de la infraestructura previamente creada.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
@@ -224,7 +224,7 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 |No
 |-
 
-|<<security, _security_>>
+|_security_
 |Objeto
 |Configuración de identidades y controles de acceso, adaptada a cada proveedor.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
@@ -238,7 +238,7 @@ El campo _spec_ del recurso _KeosCluster_ incluye los siguientes parámetros:
 |Sí
 |-
 
-|<<worker_nodes, _worker++_++nodes_>>
+|_worker++_++nodes_
 |Array
 |Configuración de los grupos de nodos _worker_.
 |Ver <<ejemplo_de_descriptor, ejemplo de descriptor>>
@@ -527,7 +527,7 @@ a|
 |Sí
 |===
 
-=== _control-plane_
+=== _Control-plane_
 
 En este apartado se detallan las particularidades del _control-plane_ de Kubernetes.
 
@@ -1158,6 +1158,58 @@ The cluster has been installed successfully. Please refer to the documents below
 Una vez finalizado el proceso, tendrás los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
 
 NOTE: Dado que el fichero descriptor de la instalación (_keos.yaml_) se regenera en cada ejecución, se realiza una _backup_ del anterior en el directorio local con la fecha correspondiente (p.ej., _keos.yaml.2023-07-05@11:19:17~_).
+
+[[_actualización_de_cluster_autoscaler]]
+
+=== Actualización de _cluster-autoscaler_ tras la instalación
+
+Aplica a EKS con grupos _MachinePool_ y `deploy_autoscaler: true` (en GKE, _Stratio Cloud Provisioner_ no despliega _cluster-autoscaler_).
+
+IMPORTANT: Una vez creado el _cluster_, hay que sustituir la imagen de _cluster-autoscaler_ desplegada por defecto por la imagen propia de Stratio `v1.35.2`. Esta imagen incluye la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), que aún no está incluida en ninguna versión oficial de _cluster-autoscaler_.
+
+La imagen está publicada en `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2`. Replícala en el registro Docker del _cluster_ (el marcado con `keos_registry: true` en el descriptor) antes de aplicar el cambio:
+
+[source,bash]
+----
+docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2
+docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2 <registro>/autoscaling/cluster-autoscaler:v1.35.2
+docker push <registro>/autoscaling/cluster-autoscaler:v1.35.2
+----
+
+NOTE: Si el registro utiliza ECR _pull-through cache_ (`ecr_pull_through_cache_enabled`), la imagen no se sirve a través de la caché: el `repository` debe apuntar a `<registro>/autoscaling/cluster-autoscaler`, no a `<registro>/k8s/autoscaling/cluster-autoscaler`.
+
+. Añade la imagen a los valores de _override_ del _chart_:
++
+[source,bash]
+----
+kubectl -n kube-system edit configmap 02-cluster-autoscaler-helm-chart-override-values
+----
++
+El _ConfigMap_ guarda los valores del _chart_ como texto en la clave `values.yaml` del bloque `data`, y solo se aplica lo que esté en esa clave. Tras la instalación, `values.yaml` está vacío; si ya contiene otros valores, añade el bloque `image` junto a ellos sin borrarlos. El bloque `data` debe quedar así:
++
+[source,yaml]
+----
+data:
+  values.yaml: |
+    image:
+      repository: <registro>/autoscaling/cluster-autoscaler
+      tag: v1.35.2
+----
+
+. Fuerza la reconciliación del _HelmRelease_:
++
+[source,bash]
+----
+kubectl -n kube-system annotate helmrelease cluster-autoscaler \
+  reconcile.fluxcd.io/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --overwrite
+----
+
+. Verifica que los _pods_ usan la nueva imagen:
++
+[source,bash]
+----
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+----
 
 === Balanceador de carga
 
