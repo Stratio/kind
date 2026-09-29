@@ -1,6 +1,6 @@
 core:
   binaries:
-    clusterctl: v1.10.10
+    clusterctl: v1.13.6
     helm: v3.19.0
   images:
     calico:
@@ -17,9 +17,9 @@ core:
       whisker-backend: v3.31.7
       goldmane: v3.31.7
     capi:
-      kubeadm-bootstrap-controller: v1.10.10
-      kubeadm-control-plane-controller: v1.10.10
-      cluster-api-controller: v1.10.10
+      kubeadm-bootstrap-controller: v1.13.6
+      kubeadm-control-plane-controller: v1.13.6
+      cluster-api-controller: v1.13.6
     cert-manager:
       cert-manager-acmesolver: v1.21.2
       cert-manager-cainjector: v1.21.2
@@ -54,12 +54,12 @@ core:
 aws:
   capa:
     binaries:
-      clusterawsadm: v2.9.3
+      clusterawsadm: v2.13.0
     images:
-      cluster-api-aws-controller: v2.9.3
+      cluster-api-aws-controller: v2.13.0
     manifests:
-      metadata.yaml: v2.9.3
-      infrastructure-components.yaml: v2.9.3
+      metadata.yaml: v2.13.0
+      infrastructure-components.yaml: v2.13.0
   managed:
     addons:
       aws-ebs-csi-driver: v1.64.0-eksbuild.1

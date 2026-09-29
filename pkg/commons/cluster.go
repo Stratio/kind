@@ -30,8 +30,8 @@ import (
 )
 
 var (
-	capi_version = "v1.10.10"
-	capa_version = "v2.9.3"
+	capi_version = "v1.13.6"
+	capa_version = "v2.13.0"
 	capz_version = "v1.21.3"
 	capg_version = "1.6.1-0.4.2"
 )

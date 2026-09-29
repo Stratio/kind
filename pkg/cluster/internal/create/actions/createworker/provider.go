@@ -1443,25 +1443,28 @@ func generateMHCManifest(n nodes.Node, clusterID string, namespace string, manif
 	var maxUnhealthy = strconv.Itoa(maxunhealthy) + "%"
 
 	var machineHealthCheck = `
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineHealthCheck
 metadata:
   name: ` + clusterID + machineRole + `-unhealthy
   namespace: ` + namespace + `
 spec:
   clusterName: ` + clusterID + `
-  nodeStartupTimeout: 300s
-  maxUnhealthy: ` + maxUnhealthy + `
   selector:
     matchLabels:
       keos.stratio.com/machine-role: ` + clusterID + machineRole + `
-  unhealthyConditions:
-    - type: Ready
-      status: Unknown
-      timeout: 180s
-    - type: Ready
-      status: 'False'
-      timeout: 180s`
+  checks:
+    nodeStartupTimeoutSeconds: 300
+    unhealthyNodeConditions:
+      - type: Ready
+        status: Unknown
+        timeoutSeconds: 180
+      - type: Ready
+        status: 'False'
+        timeoutSeconds: 180
+  remediation:
+    triggerIf:
+      unhealthyLessThanOrEqualTo: ` + maxUnhealthy
 
 	c = "echo \"" + machineHealthCheck + "\" > " + manifestPath
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
