@@ -10,7 +10,7 @@ IMPORTANT: _Stratio Cloud Provisioner_ es el dueño de la infraestructura del _c
 
 == Resumen
 
-IMPORTANT: *La actualización no es para el _cluster_, pero sí reemplaza todos sus nodos _worker_.* La infraestructura es inmutable: subir la versión de Kubernetes de un nodo no actualiza el nodo en el sitio, sino que crea uno nuevo y retira el anterior. Cada carga con una sola réplica queda caída mientras se reprograma, y a diferencia de lo que ocurre en las instalaciones _on-premise_, aquí *un _Pod Disruption Budget_ mal dimensionado bloquea el vaciado del nodo*: quien drena es Cluster API, que respeta la API de _eviction_ y nunca fuerza. Dimensiona la ventana según el número de nodos y revisa los PDB antes de abrirla.
+IMPORTANT: *La actualización no detiene el _cluster_, pero sí reemplaza todos sus nodos _worker_.* La infraestructura es inmutable: subir la versión de Kubernetes de un nodo no actualiza el nodo en el sitio, sino que crea uno nuevo y retira el anterior. Cada carga con una sola réplica queda caída mientras se reprograma, y a diferencia de lo que ocurre en las instalaciones _on-premise_, aquí *un _Pod Disruption Budget_ mal dimensionado bloquea el vaciado del nodo*: quien drena es Cluster API, que respeta la API de _eviction_ y nunca fuerza. Dimensiona la ventana según el número de nodos y revisa los PDB antes de abrirla.
 
 IMPORTANT: *En _cloud_ hay dos ventanas.* Esta actualización deja el _cluster_ en Kubernetes 1.35 y _Stratio KEOS_ todavía en 1.2.x; el estado final llega con la ventana de _Stratio KEOS_, que va después.
 
@@ -21,7 +21,7 @@ La tabla responde, con una fila por decisión, a lo que necesitas para dimension
 | Pregunta | Respuesta | Detalle
 
 | ¿Cuánta parada hay en el peor caso?
-| *Ninguna a nivel de _cluster_, pero sí a nivel de componente.* En EKS y en GKE, el _control-plane_ lo gestiona el proveedor, sin necesidad de reemplazar nodos. En Azure VMs se reemplazan las réplicas de `KubeadmControlPlane` una a una y, con ellas, los miembros de etcd: con tres réplicas, el _API Server_ sigue respondiendo. Los nodos _worker_ se reemplazan grupo a grupo, y cada carga alojada en ellos se reprograma; la que tenga una sola réplica queda caída hasta que arranque en otro nodo.
+| *Ninguna a nivel de _cluster_, pero sí a nivel de componente.* En EKS y en GKE, el _control-plane_ lo actualiza el proveedor, sin necesidad de reemplazar nodos. En Azure VMs se reemplazan las réplicas de `KubeadmControlPlane` una a una y, con ellas, los miembros de etcd: con tres réplicas, el _API Server_ sigue respondiendo. Los nodos _worker_ se reemplazan grupo a grupo, y cada carga alojada en ellos se reprograma; la que tenga una sola réplica queda caída hasta que arranque en otro nodo.
 | <<outage, Parada>>
 
 | ¿De qué depende la duración?
@@ -60,7 +60,7 @@ La tabla responde, con una fila por decisión, a lo que necesitas para dimension
 .Mensaje para transmitir
 [caption=]
 ====
-La plataforma sube la versión de Kubernetes del _cluster_. No se detiene: los nodos se van sustituyendo por otros con la nueva versión y las aplicaciones se reprograman entre ellos. Los servicios que tengan una sola réplica quedarán sin respuesta durante unos minutos cuando les toque cambiar de nodo, así que conviene revisar antes de que todo lo importante tenga más de una réplica. La ventana se mide por el número de nodos del _cluster_. Después de esta intervención hará falta una segunda, la de _Stratio KEOS_, para que el entorno quede en su versión final.
+La plataforma sube la versión de Kubernetes del _cluster_. No se detiene: los nodos se van sustituyendo por otros con la nueva versión y las aplicaciones se reprograman entre ellos. Los servicios que tengan una sola réplica quedarán sin respuesta durante unos minutos cuando les toque cambiar de nodo, así que conviene comprobar de antemano que todo lo importante tenga más de una réplica. La ventana se mide por el número de nodos del _cluster_. Después de esta intervención hará falta una segunda, la de _Stratio KEOS_, para que el entorno quede en su versión final.
 ====
 
 [#scope]
@@ -91,9 +91,9 @@ La actualización consiste en una única ejecución de `upgrade-provisioner.py`,
 
 | 1
 | _Charts_ del _cluster_
-| cert-manager, cluster-autoscaler, `cluster-operator`, flux2 y el operador de Tigera, que gestiona Calico. Además, según el proveedor: _aws-load-balancer-controller_ en EKS (solo si está instalado) y los _controllers_ CSI de disco y de ficheros y el _cloud provider_ de Azure en Azure VMs.
+| cert-manager, cluster-autoscaler, `cluster-operator`, flux2 y el operador de Tigera, que gestiona Calico. Además, según el proveedor: _aws-load-balancer-controller_ en EKS (solo si está instalado) y los _drivers_ CSI de disco y de ficheros y el _cloud provider_ de Azure en Azure VMs.
 | Ninguno.
-| Cluster API se despliega sobre `cert-manager`, y el resto del proceso se apoya en Flux para reconciliar los _charts_. Tienen que estar en su versión más reciente antes de contactar a los proveedores.
+| Cluster API se despliega sobre `cert-manager`, y el resto del proceso se apoya en Flux para reconciliar los _charts_. Tienen que estar en su versión más reciente antes de actualizar los proveedores.
 
 | 2
 | Cluster API y su proveedor
@@ -198,7 +198,7 @@ _Stratio Cloud Provisioner_ está por debajo de todo lo demás: es quien crea el
 
 | _Stratio KEOS_
 | Se instala sobre el _cluster_ que aprovisiona _Stratio Cloud Provisioner_ y, en _cloud_, delega en él la versión de Kubernetes.
-| *Va primero*, y no solo por criterio de planificación: en _cloud_, Calico y Flux despliegan y actualizan _Stratio Cloud Provisioner_, no _Stratio KEOS_, y los _system-services_ de la versión 1.4 se despliegan a través de ese Flux. Al cerrar esta ventana, _Stratio KEOS_ 1.2.x permanece en Kubernetes 1.35 hasta su propia actualización. Sus cargas se reprograman, al igual que las demás, cuando se reemplazan los nodos.
+| *Va primero*, y no solo por criterio de planificación: en _cloud_, _Stratio Cloud Provisioner_ despliega y actualiza Calico y Flux, no _Stratio KEOS_, y los _system-services_ de la versión 1.4 se despliegan a través de ese Flux. Al cerrar esta ventana, _Stratio KEOS_ 1.2.x permanece en Kubernetes 1.35 hasta su propia actualización. Sus cargas se reprograman, al igual que las demás, cuando se reemplazan los nodos.
 | La actualización de _Stratio KEOS_ de 1.2.x a 1.4 va *después* de esta, en su propia ventana, y no vuelve a tocar la versión de Kubernetes. Consulta la xref:stratio-keos:operations-guide:cluster-operation/upgrade-overview/from-1-2-x-to-1-4-x.adoc[ficha de planificación de _Stratio KEOS_].
 
 | `cluster-operator`
