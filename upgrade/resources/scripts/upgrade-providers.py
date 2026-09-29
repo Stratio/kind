@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Stratio Clouds <clouds-integration@stratio.com> — one-time migration of the Cluster API providers to v1beta2 (EKS).
+# Stratio Clouds <clouds-integration@stratio.com> — one-time migration of the Cluster API providers to v1beta2 (EKS, GKE, Azure VMs).
 
 __version__ = "0.9.4"
 
@@ -26,6 +26,8 @@ CAPI = "v1.13.6"
 CAPA = "v2.13.0"
 # PLT-4891 test build of the fork rebased on upstream v1.13.1; becomes 1.13.1-0.5.0 once released.
 CAPG = "1.13.1-0.5.0-PLT-4891.3"
+# Last CAPZ built against CAPI v1.13 (go.mod @ v1.26.1); moved in one step from 0.9's v1.21.3.
+CAPZ = "v1.26.1"
 MIN_CORE_FOR_PHASE2 = (1, 10)
 # upgrade-provisioner.py 0.9.x leaves cluster-operator on this line; anything else means it did not run.
 SOURCE_OPERATOR_LINE = "0.7."
@@ -43,6 +45,9 @@ INFRA_PROVIDERS = {
             "secret": "capg-manager-bootstrap-credentials", "key": "credentials.json", "cred_env": "GCP_B64ENCODED_CREDENTIALS",
             "env": {"EXP_MACHINE_POOL": "true", "EXP_CAPG_GKE": "true"},
             "target": CAPG, "repo": "infrastructure-gcp", "image": "stratio"},
+    "azure": {"name": "azure", "ns": "capz-system", "deploy": "capz-controller-manager",
+              "secret": "capz-manager-bootstrap-credentials", "key": "subscription-id", "cred_env": "AZURE_SUBSCRIPTION_ID_B64",
+              "env": {}, "target": CAPZ, "repo": "infrastructure-azure", "image": "cluster-api-azure"},
 }
 KUBEADM_DEPLOYMENTS = [
     ("capi-kubeadm-bootstrap-system", "capi-kubeadm-bootstrap-controller-manager"),
@@ -75,7 +80,12 @@ INFRA_CONTENT_KINDS = {
             "eksconfigs.v1beta2.bootstrap.cluster.x-k8s.io"],
     "gcp": ["gcpmanagedclusters.v1beta1.infrastructure.cluster.x-k8s.io", "gcpmanagedcontrolplanes.v1beta1.infrastructure.cluster.x-k8s.io",
             "gcpmanagedmachinepools.v1beta1.infrastructure.cluster.x-k8s.io"],
+    "azure": ["azureclusters.v1beta1.infrastructure.cluster.x-k8s.io", "azuremachinetemplates.v1beta1.infrastructure.cluster.x-k8s.io",
+              "azuremachines.v1beta1.infrastructure.cluster.x-k8s.io", "azureclusteridentities.v1beta1.infrastructure.cluster.x-k8s.io",
+              "kubeadmcontrolplanes.v1beta1.controlplane.cluster.x-k8s.io", "kubeadmconfigtemplates.v1beta1.bootstrap.cluster.x-k8s.io"],
 }
+# CAPZ bundles ASO; its docs require this label before clusterctl upgrade (aso.md:26-38 @ v1.26.1).
+ASO_CRD_SELECTOR = "app.kubernetes.io/name=azure-service-operator"
 VOLATILE_ANNOTATIONS = ("kubectl.kubernetes.io/last-applied-configuration", "cluster.x-k8s.io/conversion-data")
 KEOSCLUSTER_WEBHOOKS = [
     ("MutatingWebhookConfiguration", "keoscluster-mutating-webhook-configuration"),
@@ -86,7 +96,8 @@ KEOSCLUSTER_WEBHOOKS = [
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Migrates Cluster API core and kubeadm providers to the v1beta2 API (CAPI " + CAPI + "; EKS: CAPA to " + CAPA +
-                    "; GKE: CAPG to " + CAPG + "), then the v1beta2 cluster-operator, without changing the k8s version. Run once on a "
+                    "; GKE: CAPG to " + CAPG + "; Azure: CAPZ to " + CAPZ + "), then the v1beta2 cluster-operator, without changing the "
+                    "k8s version. Run once on a "
                     "0.9 cluster (a 0.7.5 cluster runs upgrade-provisioner.py of 0.9 first).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-y", "--yes", action="store_true", help="Do not wait for confirmation before the first mutating step")
@@ -392,7 +403,11 @@ def write_clusterctl_config(path, core_version, infra_version, registry, pull_th
             "control-plane-kubeadm": {"repository": f"{registry}/{k8s}cluster-api", "tag": core_version},
             "cert-manager": {"repository": f"{registry}/{quay}jetstack"},
         }
-        if infra["image"]:
+        if infra["name"] == "azure":
+            # Per component: a provider-wide tag would also retag the bundled ASO image (upgrade-provisioner.py:1753-1760).
+            cfg["images"]["infrastructure-azure/cluster-api-azure-controller"] = {"repository": f"{registry}/{infra['image']}", "tag": infra_version}
+            cfg["images"]["infrastructure-azure/azureserviceoperator"] = {"repository": f"{registry}/k8s"}
+        elif infra["image"]:
             cfg["images"][infra["repo"]] = {"repository": f"{registry}/{k8s}{infra['image']}", "tag": infra_version}
     write_file(path, yaml.safe_dump(cfg, sort_keys=False))
     return path
@@ -549,12 +564,27 @@ def kubeadm_egress_remove(added):
         run(f"{kubectl} -n {ns} delete networkpolicy {EGRESS_POLICY} --ignore-not-found", mutating=True, allow_errors=True)
 
 
+def kubeadm_replicas(ns, deploy):
+    '''0 on a managed control plane; otherwise what the Deployment had before (Azure: kubeadm runs the control plane).'''
+    if managed:
+        return 0
+    return before["deployments"][f"{ns}/{deploy}"]["replicas"] or 1
+
+
 def restore_provider_replicas():
-    info(f"Restoring provider replicas (capi/{infra['deploy'].split('-')[0]} 2, kubeadm 0 on a managed control plane):")
+    info(f"Restoring provider replicas (capi/{infra['deploy'].split('-')[0]} 2, kubeadm {'0 on a managed control plane' if managed else 'as before'}):")
     for ns, deploy in PROVIDER_DEPLOYMENTS[:2]:
         scale(ns, deploy, 2)
     for ns, deploy in KUBEADM_DEPLOYMENTS:
-        scale(ns, deploy, 0, wait=False)
+        replicas = kubeadm_replicas(ns, deploy)
+        scale(ns, deploy, replicas, wait=replicas > 0)
+    print("OK")
+
+
+def label_aso_crds():
+    info("Labelling ASO CRDs as part of infrastructure-azure (CAPZ pre-upgrade step):")
+    run(f"{kubectl} label customresourcedefinitions --selector={ASO_CRD_SELECTOR} cluster.x-k8s.io/provider=infrastructure-azure --overwrite",
+        mutating=True)
     print("OK")
 
 
@@ -674,6 +704,8 @@ def update_clusterconfig(cluster_config, operator_version):
     capx = {"capi_version": CAPI}
     if infra["name"] == "aws":
         capx.update({"capa_version": CAPA, "capa_image_version": CAPA})
+    elif infra["name"] == "azure":
+        capx.update({"capz_version": CAPZ, "capz_image_version": CAPZ})
     patch = {"spec": {"capx": capx, "cluster_operator_version": operator_version, "cluster_operator_image_version": operator_version}}
     name, ns = cluster_config["metadata"]["name"], cluster_config["metadata"]["namespace"]
     run(f"{kubectl} -n {ns} patch clusterconfig {name} --type merge -p '{json.dumps(patch)}'", mutating=True)
@@ -753,7 +785,7 @@ def verify(before, keos_name):
         if before["objects"][kind] != after["objects"][kind]:
             problems.append(f"{kind} changed: {before['objects'][kind]} -> {after['objects'][kind]}")
     for ns, deploy in PROVIDER_DEPLOYMENTS:
-        want = 0 if (ns, deploy) in KUBEADM_DEPLOYMENTS else 2
+        want = kubeadm_replicas(ns, deploy) if (ns, deploy) in KUBEADM_DEPLOYMENTS else 2
         got = after["deployments"][f"{ns}/{deploy}"]["replicas"]
         if got != want:
             problems.append(f"{ns}/{deploy} replicas {got}, expected {want}")
@@ -802,8 +834,8 @@ if __name__ == "__main__":
     provider = keos_cluster["spec"]["infra_provider"]
     managed = keos_cluster["spec"]["control_plane"].get("managed")
     print(f"[INFO] Cluster: {cluster_name} — provider: {provider} — managed control plane: {managed}")
-    if not (provider in ("aws", "gcp") and managed):
-        sys.exit("[ERROR] Only EKS and GKE are supported by this version (Azure needs the staged CAPZ path)")
+    if not ((provider in ("aws", "gcp") and managed) or (provider == "azure" and not managed)):
+        sys.exit("[ERROR] Supported: EKS, GKE and Azure VMs (managed control plane on AWS/GCP, unmanaged on Azure)")
     infra = INFRA_PROVIDERS[provider]
     PROVIDER_DEPLOYMENTS = [("capi-system", "capi-controller-manager"), (infra["ns"], infra["deploy"])] + KUBEADM_DEPLOYMENTS
 
@@ -878,6 +910,8 @@ if __name__ == "__main__":
                 scale(ns, deploy, 0, wait=False)
 
         if not at_target:
+            if provider == "azure":
+                label_aso_crds()
             phase2 = f"--core cluster-api:{CAPI} --bootstrap kubeadm:{CAPI} --control-plane kubeadm:{CAPI}"
             if infra["target"]:
                 phase2 += f" --infrastructure {infra['name']}:{infra['target']}"

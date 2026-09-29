@@ -32,6 +32,7 @@ ARG CAPZ=v1.21.3
 # upgrade-providers.py (v1beta2 migration) — separate from the clusterctl/local repository upgrade-provisioner.py uses
 ARG CLUSTERCTL_V1BETA2=v1.13.6
 ARG CAPA_V1BETA2=v2.13.0
+ARG CAPZ_V1BETA2=v1.26.1
 
 # =========================
 # Base system dependencies
@@ -160,6 +161,11 @@ RUN CAPI_URL=https://github.com/kubernetes-sigs/cluster-api/releases/download/${
     cp ${CAPI_REPO}/cluster-api/${CLUSTERCTL_V1BETA2}/metadata.yaml ${CAPI_REPO}/control-plane-kubeadm/${CLUSTERCTL_V1BETA2}/metadata.yaml && \
     curl -fL ${CAPA_URL}/infrastructure-components.yaml -o ${CAPI_REPO}/infrastructure-aws/${CAPA_V1BETA2}/infrastructure-components.yaml && \
     curl -fL ${CAPA_URL}/metadata.yaml -o ${CAPI_REPO}/infrastructure-aws/${CAPA_V1BETA2}/metadata.yaml
+
+RUN CAPZ_URL=https://github.com/kubernetes-sigs/cluster-api-provider-azure/releases/download/${CAPZ_V1BETA2} && \
+    mkdir -p ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2} && \
+    curl -fL ${CAPZ_URL}/infrastructure-components.yaml -o ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2}/infrastructure-components.yaml && \
+    curl -fL ${CAPZ_URL}/metadata.yaml -o ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2}/metadata.yaml
 
 # CAPG versions upgrade-providers.py keeps: clusterctl reads metadata.yaml at the installed version (curl -f, fail loudly).
 ARG CAPG_KEEP_VERSIONS="1.6.1-0.4.1 1.6.1-0.4.2"
