@@ -199,6 +199,17 @@ def get_provider_versions():
     return versions
 
 
+def static_token_user():
+    '''Current kubeconfig user when it carries a bearer token and no exec plugin, else None.'''
+    with open(kubeconfig) as f:
+        kc = yaml.safe_load(f)
+    ctx = next((c["context"] for c in kc.get("contexts", []) if c["name"] == kc.get("current-context")), {})
+    user = next((u for u in kc.get("users", []) if u["name"] == ctx.get("user")), None)
+    if user and user.get("user", {}).get("token") and not user["user"].get("exec"):
+        return user["name"]
+    return None
+
+
 def preflight(keos_cluster, cluster_name):
     info("Running pre-flight checks:", end="\n")
     problems = []
@@ -224,6 +235,11 @@ def preflight(keos_cluster, cluster_name):
         problems.append("cert-manager carries the clusterctl label: clusterctl would try to upgrade it")
     if not infra_credentials():
         problems.append(f"{infra['ns']}/{infra['secret']} ({infra['key']}) is missing or empty")
+    # EKS bearer tokens (e.g. the <cluster>-capi-admin kubeconfig) expire after ~15 min, i.e. in the middle of a run.
+    token_user = static_token_user() if infra["name"] == "aws" else None
+    if token_user:
+        problems.append(f"kubeconfig user '{token_user}' has a static token that expires mid-run; use an exec kubeconfig: "
+                        f"aws eks update-kubeconfig --name {cluster_name} --region <region> --profile <profile> --kubeconfig <file>")
     operator = run(f"{kubectl} -n kube-system get helmrelease cluster-operator -o jsonpath='{{.spec.chart.spec.version}}'", allow_errors=True).strip()
     if not (operator.startswith(SOURCE_OPERATOR_LINE) or operator == config["cluster_operator"]):
         problems.append(f"cluster-operator chart is '{operator}': expected the {SOURCE_OPERATOR_LINE}x line upgrade-provisioner.py installs (or the target)")
