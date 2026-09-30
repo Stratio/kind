@@ -356,16 +356,26 @@ def check_release_pods_healthy(chart_name, release_name, namespace, timeout_seco
     if timeout_seconds is None:
         timeout_seconds = DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS if S.config["dry_run"] else 300
 
+    # Charts whose pods carry none of the generic labels (verified live on azure-4852up, PLT-4916); all selectors are merged.
+    chart_selectors = {
+        "flux2": ["app in (helm-controller,kustomize-controller,notification-controller,source-controller)"],
+        "cloud-provider-azure": ["component=cloud-controller-manager", "k8s-app=cloud-node-manager"],
+    }
+
+    def list_pods(selector):
+        pods_json, _ = run_command(f"{S.kubectl} get pods -n {namespace} -l '{selector}' -o json", allow_errors=True)
+        try:
+            return json.loads(pods_json).get("items", []) if pods_json else []
+        except Exception:
+            return []
+
     def get_pods():
+        if chart_name in chart_selectors:
+            return [pod for selector in chart_selectors[chart_name] for pod in list_pods(selector)]
         for selector in (f"app.kubernetes.io/instance={release_name}", f"app.kubernetes.io/name={chart_name}", f"k8s-app={chart_name}"):
-            pods_json, _ = run_command(f"{S.kubectl} get pods -n {namespace} -l {selector} -o json", allow_errors=True)
-            if pods_json:
-                try:
-                    pods = json.loads(pods_json).get("items", [])
-                except Exception:
-                    pods = []
-                if pods:
-                    return pods
+            pods = list_pods(selector)
+            if pods:
+                return pods
         return []
 
     def evaluate(pods):

@@ -33,11 +33,14 @@ const (
 	MinWorkerNodeNameLength = 3
 )
 
-var k8sVersionSupported = []string{"1.32", "1.33", "1.34", "1.35"}
+var k8sVersionSupported = []string{"1.35", "1.36", "1.37"}
+
+// EKS does not offer 1.37 yet (PLT-4916).
+var k8sVersionMaxManagedAWS = "1.36"
 
 func validateCommon(spec commons.KeosSpec, clusterConfigSpec commons.ClusterConfigSpec) error {
 	var err error
-	if err = validateK8SVersion(spec.K8SVersion); err != nil {
+	if err = validateK8SVersion(spec.K8SVersion, spec.InfraProvider, spec.ControlPlane.Managed); err != nil {
 		return err
 	}
 	if err = validateWorkers(spec.WorkerNodes); err != nil {
@@ -70,7 +73,7 @@ func validateClusterConfig(spec commons.KeosSpec, clusterConfigSpec commons.Clus
 	return nil
 }
 
-func validateK8SVersion(v string) error {
+func validateK8SVersion(v string, provider string, managed bool) error {
 	var isVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}(-gke.\d{3,4})?$`).MatchString
 	if !isVersion(v) {
 		return errors.New("spec: Invalid value: \"k8s_version\": regex used for validation is '^v\\d.\\d{2}.\\d{1,2}(-gke.\\d{3,4})?$'")
@@ -79,6 +82,9 @@ func validateK8SVersion(v string) error {
 	k8sVersion := strings.Join(K8sVersionMM[:2], ".")
 	if !slices.Contains(k8sVersionSupported, strings.ReplaceAll(k8sVersion, "v", "")) {
 		return errors.New("spec: Invalid value: \"k8s_version\": kubernetes versions supported: " + fmt.Sprint(strings.Join(k8sVersionSupported, ", ")))
+	}
+	if provider == "aws" && managed && strings.ReplaceAll(k8sVersion, "v", "") > k8sVersionMaxManagedAWS {
+		return errors.New("spec: Invalid value: \"k8s_version\": EKS supports up to " + k8sVersionMaxManagedAWS)
 	}
 	return nil
 }

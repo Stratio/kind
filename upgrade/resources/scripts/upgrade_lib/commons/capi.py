@@ -2,12 +2,64 @@
 """commons.capi — moved verbatim from upgrade-provisioner.py (PLT-4916)."""
 
 import os
+import sys
 import yaml
 import re
 from datetime import datetime
 from upgrade_lib.commons.shell import redact_command, run_command
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, MIN_CAPI_CORE
 from upgrade_lib import state as S
+
+
+def capi_target_deployments(provider):
+    '''(namespace, deployment, target version) of every CAPI provider this upgrade expects for the given cloud.'''
+    targets = [("capi-system", "capi-controller-manager", CAPI)]
+    if provider == "aws":
+        targets.append(("capa-system", "capa-controller-manager", CAPA))
+    elif provider == "gcp":
+        targets.append(("capg-system", "capg-controller-manager", CAPG))
+    elif provider == "azure":
+        targets.append(("capz-system", "capz-controller-manager", CAPZ))
+        targets.append(("capi-kubeadm-bootstrap-system", "capi-kubeadm-bootstrap-controller-manager", CAPI_KUBEADM_BOOTSTRAP))
+        targets.append(("capi-kubeadm-control-plane-system", "capi-kubeadm-control-plane-controller-manager", CAPI_KUBEADM_CONTROL_PLANE))
+    return targets
+
+def get_provider_image_tag(namespace, deploy):
+    image, _ = run_command(
+        f"{S.kubectl} -n {namespace} get deploy {deploy} -o jsonpath='{{.spec.template.spec.containers[?(@.name==\"manager\")].image}}'",
+        allow_errors=True
+    )
+    image = (image or "").strip()
+    return image.rsplit(":", 1)[-1] if ":" in image else "unknown"
+
+def require_capi_core_min_version():
+    '''Refuse to run when CAPI core is older than MIN_CAPI_CORE: 0.9.x clusters must run upgrade-providers.py first (PLT-4852).'''
+    print("[INFO] Checking CAPI core version:", end=" ", flush=True)
+    current = get_provider_image_tag("capi-system", "capi-controller-manager")
+    found, required = re.match(r"v?(\d+)\.(\d+)", current), re.match(r"v?(\d+)\.(\d+)", MIN_CAPI_CORE)
+    if not found or (int(found.group(1)), int(found.group(2))) < (int(required.group(1)), int(required.group(2))):
+        print("FAILED")
+        print(f"[ERROR] CAPI core is {current}; this upgrade requires {MIN_CAPI_CORE} or later. "
+              "Run upgrade-providers.py first to move the Cluster API providers to the v1beta2 line.")
+        sys.exit(1)
+    print(f"OK ({current})")
+
+def require_providers_at_target(provider):
+    '''This script never runs a CAPI hop: every provider must already be at its exact target (set by upgrade-providers.py),
+    otherwise clusterctl would run and could downgrade one (e.g. CAPG back to the pre-v1beta2 fork).'''
+    print("[INFO] Checking Cluster API providers are at target versions:", end=" ", flush=True)
+    mismatches = []
+    for namespace, deploy, target in capi_target_deployments(provider):
+        current = get_provider_image_tag(namespace, deploy)
+        if current != target:
+            mismatches.append(f"{deploy}: {current} (expected {target})")
+    if mismatches:
+        print("FAILED")
+        for m in mismatches:
+            print("[ERROR]   " + m)
+        print("[ERROR] Run upgrade-providers.py of this release first; upgrade-provisioner.py does not upgrade Cluster API providers.")
+        sys.exit(1)
+    print("OK")
 
 def create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=False):
     """Create or update clusterctl config file to use private registry"""

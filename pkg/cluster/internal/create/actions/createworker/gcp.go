@@ -69,6 +69,18 @@ var googleCharts = ChartsDictionary{
 			},
 			"unmanaged": {},
 		},
+		"36": {
+			"managed": {
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.32.2", Namespace: "tigera-operator", Pull: false, Reconcile: false},
+			},
+			"unmanaged": {},
+		},
+		"37": {
+			"managed": {
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.32.2", Namespace: "tigera-operator", Pull: false, Reconcile: false},
+			},
+			"unmanaged": {},
+		},
 	},
 }
 

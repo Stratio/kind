@@ -11,15 +11,15 @@ from datetime import datetime
 from ansible_vault import Vault
 from upgrade_lib.cli import get_version, parse_args, request_confirmation
 from upgrade_lib.commons.backup import backup, prepare_capsule, restore_capsule
-from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
+from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, require_capi_core_min_version, require_providers_at_target, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
 from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repository, print_planned_changes, update_helm_repository, upgrade_charts, validate_helm_repository
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
-from upgrade_lib.commons.keoscluster import bump_k8s_version, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
+from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.providers.aws import configure_aws_credentials
 from upgrade_lib.providers.azure import configure_azure_credentials
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
-from upgrade_lib.versions import CAPA, CAPG, CAPZ, CLUSTERCTL, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
+from upgrade_lib.versions import CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
 from upgrade_lib import state as S
 
 
@@ -265,7 +265,18 @@ def run():
 
     print("[INFO] Provider: " + S.provider)
 
+    max_k8s_version = K8S_VERSION_BY_PROVIDER[S.provider]
+    if not S.config["k8s_version"]:
+        S.config["k8s_version"] = max_k8s_version
+    elif parse_k8s_minor(S.config["k8s_version"]) > parse_k8s_minor(max_k8s_version):
+        print(f"[ERROR] --k8s-version {S.config['k8s_version']} is above the {S.provider} target {max_k8s_version} for this release")
+        sys.exit(1)
+    print("[INFO] Target k8s version: " + S.config["k8s_version"])
+
     preflight_cluster_health_checks(S.keos_cluster, cluster_name, S.provider)
+
+    require_capi_core_min_version()
+    require_providers_at_target(S.provider)
 
     if not S.config["dry_run"] and not S.config["yes"]:
         request_confirmation()

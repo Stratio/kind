@@ -3,7 +3,7 @@
 
 ##############################################################
 # Author: Stratio Clouds <clouds-integration@stratio.com>    #
-# Supported provisioner versions: 0.7.X                      #
+# Supported provisioner versions: 0.9.X                      #
 # Supported cloud providers:                                 #
 #   - EKS                                                    #
 #   - Azure VMs                                              #

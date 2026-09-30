@@ -4,7 +4,7 @@
 import argparse
 import sys
 import re
-from upgrade_lib.versions import CLOUD_PROVISIONER, CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE, CLUSTER_OPERATOR, CLUSTER_OPERATOR_UPGRADE_SUPPORT, K8S_VERSION
+from upgrade_lib.versions import CLOUD_PROVISIONER, CLOUD_PROVISIONER_LAST_PREVIOUS_RELEASE, CLUSTER_OPERATOR, CLUSTER_OPERATOR_UPGRADE_SUPPORT
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument("--private", action="store_true", help="Treats the Docker registry and the Helm repository as private")
     parser.add_argument("--ecr-pull-through", action="store_true", help="Force ECR pull-through cache mode regardless of KeosCluster spec")
     parser.add_argument("--skip-preflight-checks", action="store_true", help="Skip cluster health checks before upgrading (NOT recommended: an unhealthy cluster can make the upgrade worse, e.g. a partially-drained node or a CAPI controller stuck at 1 replica)")
-    parser.add_argument("--k8s-version", help="Set the target k8s minor version to bump the cluster to (e.g. 1.35). Applied as a single patch to KeosCluster.spec.k8s_version — the KeosCluster webhook's +1-minor-per-patch limit is bypassed the same way the rest of this script already bypasses it for clusterctl", default=K8S_VERSION)
+    parser.add_argument("--k8s-version", help="Set the target k8s minor version to bump the cluster to (e.g. 1.36). Defaults to the provider target: EKS 1.36, Azure VMs and GKE 1.37. Applied as a single patch to KeosCluster.spec.k8s_version — the KeosCluster webhook's +1-minor-per-patch limit is bypassed the same way the rest of this script already bypasses it for clusterctl", default=None)
     parser.add_argument("--start-from-k8s-version", action="store_true", help="Skip the interactive Y/N confirmation before bumping k8s_version (the bump itself is still a single patch to --k8s-version, not a resume-from-intermediate-step mechanism)")
     parser.add_argument("--node-image-map", help='Azure only: JSON map of every intermediate minor to its VM image resource ID, e.g. \'{"1.33":"<id>","1.34":"<id>","1.35":"<id>"}\'. Required for a k8s_version bump on provider=azure — never hardcode a version-to-image table, the caller must supply the right image per minor')
     parser.add_argument("--control-plane-timeout", type=positive_minutes, default=90, help="Minutes to wait for the control plane to reach each target minor (EKS/GKE control plane, KubeadmControlPlane on Azure). Absolute limit per wait")
