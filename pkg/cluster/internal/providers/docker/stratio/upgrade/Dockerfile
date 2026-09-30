@@ -199,6 +199,7 @@ RUN echo 'alias k="kubectl"' >> ~/.bash_aliases && \
 # =========================
 COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
+COPY ${UPGRADE_DIR}/upgrade_lib /upgrade/upgrade_lib
 COPY ${UPGRADE_DIR}/upgrade-providers.py /upgrade
 COPY ${UPGRADE_DIR}/activate-capa-machinepool-features.py /upgrade
 COPY ${UPGRADE_DIR}/ecr_pull_through.py /upgrade
