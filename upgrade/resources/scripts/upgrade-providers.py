@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Stratio Clouds <clouds-integration@stratio.com> — one-time migration of the Cluster API providers to v1beta2 (EKS, GKE, Azure VMs).
 
-__version__ = "0.9.4"
+__version__ = "0.10.0-m.1"
 
 import argparse
 import json
@@ -24,10 +24,12 @@ CAPI_KUBEADM_V1BETA1 = "v1.10.10"
 CLUSTERCTL_V1BETA2 = "v1.13.6"
 CAPI = "v1.13.6"
 CAPA = "v2.13.0"
-# PLT-4891 test build of the fork rebased on upstream v1.13.1; becomes 1.13.1-0.5.0 once released.
-CAPG = "1.13.1-0.5.0-PLT-4891.3"
+# Stratio CAPG fork rebased on upstream v1.13.1 (PLT-4891).
+CAPG = "1.13.1-0.1.0-M1"
 # Last CAPZ built against CAPI v1.13 (go.mod @ v1.26.1); moved in one step from 0.9's v1.21.3.
 CAPZ = "v1.26.1"
+# Default target cluster-operator: the first line that writes and reads the core objects as v1beta2.
+CLUSTER_OPERATOR = "0.8.0-m.1"
 MIN_CORE_FOR_PHASE2 = (1, 10)
 # upgrade-provisioner.py 0.9.x leaves cluster-operator on this line; anything else means it did not run.
 SOURCE_OPERATOR_LINE = "0.7."
@@ -102,7 +104,7 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-y", "--yes", action="store_true", help="Do not wait for confirmation before the first mutating step")
     parser.add_argument("-k", "--kubeconfig", default=os.environ.get("KUBECONFIG", "~/.kube/config"), help="Kubeconfig of the management cluster")
-    parser.add_argument("--cluster-operator", required=True, help="Target cluster-operator version (chart and image); must be a v1beta2-aware build")
+    parser.add_argument("--cluster-operator", default=CLUSTER_OPERATOR, help="Target cluster-operator version (chart and image); must be a v1beta2-aware build")
     parser.add_argument("--clusterctl", default="clusterctl-" + CLUSTERCTL_V1BETA2, help="clusterctl " + CLUSTERCTL_V1BETA2 + " binary (phase 2)")
     parser.add_argument("--clusterctl-v1beta1", default="clusterctl", help="clusterctl " + CLUSTERCTL_V1BETA1 + " binary (backup and phase 1)")
     parser.add_argument("--backup-dir", default="./backup/upgrade-providers", help="Base directory for backups")
@@ -722,6 +724,8 @@ def update_clusterconfig(cluster_config, operator_version):
         capx.update({"capa_version": CAPA, "capa_image_version": CAPA})
     elif infra["name"] == "azure":
         capx.update({"capz_version": CAPZ, "capz_image_version": CAPZ})
+    elif infra["name"] == "gcp":
+        capx.update({"capg_version": CAPG, "capg_image_version": CAPG})
     patch = {"spec": {"capx": capx, "cluster_operator_version": operator_version, "cluster_operator_image_version": operator_version}}
     name, ns = cluster_config["metadata"]["name"], cluster_config["metadata"]["namespace"]
     run(f"{kubectl} -n {ns} patch clusterconfig {name} --type merge -p '{json.dumps(patch)}'", mutating=True)

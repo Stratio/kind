@@ -33,6 +33,7 @@ ARG CAPZ=v1.21.3
 ARG CLUSTERCTL_V1BETA2=v1.13.6
 ARG CAPA_V1BETA2=v2.13.0
 ARG CAPZ_V1BETA2=v1.26.1
+ARG CAPG_V1BETA2=1.13.1-0.1.0-M1
 
 # =========================
 # Base system dependencies
@@ -167,9 +168,9 @@ RUN CAPZ_URL=https://github.com/kubernetes-sigs/cluster-api-provider-azure/relea
     curl -fL ${CAPZ_URL}/infrastructure-components.yaml -o ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2}/infrastructure-components.yaml && \
     curl -fL ${CAPZ_URL}/metadata.yaml -o ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2}/metadata.yaml
 
-# CAPG versions upgrade-providers.py keeps: clusterctl reads metadata.yaml at the installed version (curl -f, fail loudly).
+# CAPG versions clusterctl reads: the installed ones it keeps and the upgrade-providers.py target (curl -f, fail loudly).
 ARG CAPG_KEEP_VERSIONS="1.6.1-0.4.1 1.6.1-0.4.2"
-RUN for v in ${CAPG_KEEP_VERSIONS}; do \
+RUN for v in ${CAPG_KEEP_VERSIONS} ${CAPG_V1BETA2}; do \
       mkdir -p ${CAPI_REPO}/infrastructure-gcp/${v} && \
       for f in metadata.yaml infrastructure-components.yaml; do \
         curl -fL https://github.com/Stratio/cluster-api-provider-gcp/releases/download/${v}/${f} \
