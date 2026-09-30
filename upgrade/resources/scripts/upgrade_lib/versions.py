@@ -21,10 +21,10 @@ CLOUD_PROVISIONER = "0.10.0"
 
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
-# Target minor per cloud (user decision 2026-09-29, PLT-4916): EKS does not offer 1.37 yet.
-K8S_VERSION_BY_PROVIDER = {"aws": "1.36", "azure": "1.37", "gcp": "1.37"}
+# Target minor per cloud (user decision 2026-09-30, PLT-4916): 1.36 everywhere in 0.10.0, 1.37 from 0.10.1.
+K8S_VERSION_BY_PROVIDER = {"aws": "1.36", "azure": "1.36", "gcp": "1.36"}
 
-# First cluster-operator release with the v1beta2 core objects (PLT-4852) and k8s 1.36/1.37 (PLT-4916).
+# First cluster-operator release with the v1beta2 core objects (PLT-4852) and k8s 1.36 (PLT-4916).
 CLUSTER_OPERATOR = "0.8.0"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
