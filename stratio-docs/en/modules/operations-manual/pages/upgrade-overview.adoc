@@ -19,13 +19,24 @@ TIP: Start with the summary section of the sheet. It answers, at a glance, every
 | 0.9.x, with Kubernetes 1.35
 | xref:operations-manual:upgrade-overview/from-0-7-x-to-0-9-x.adoc[Upgrade from 0.7.x to 0.9.x]
 
+| 15.1.x
+| 0.9.x, con Kubernetes 1.35
+| 0.10.x
+| xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc[Actualización de 0.9.x a 0.10.x]
+
 | Earlier than 14.8.x
 | Earlier than 0.7.x
 | Any
 | No sheet: version 0.7.x must first be reached with the documentation corresponding to that version.
 |===
 
-NOTE: The path covers at once the upgrade of the components deployed by _Stratio Cloud Provisioner_ (Cluster API, its providers, and the cluster charts) and the Kubernetes version jump, since both occur in the same execution of the upgrade script.
+[NOTE]
+====
+Cada ruta indica cuántas ejecuciones de _script_ necesita:
+
+* *De 0.7.x a 0.9.x*: una sola ejecución de `upgrade-provisioner.py` actualiza Cluster API, sus proveedores, los _charts_ y la versión de Kubernetes.
+* *De 0.9.x a 0.10.x*: son dos ejecuciones. Primero, `upgrade-providers.py` migra Cluster API y sus proveedores a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` actualiza el resto de componentes y la versión de Kubernetes.
+====
 
 == How to read a sheet
 
