@@ -12,7 +12,7 @@ from upgrade_lib.commons.network import cp_global_network_policy
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.providers.azure import wait_for_capi_kcp_version
 from upgrade_lib.providers.gcp import resolve_gke_version, wait_for_gke_node_pool_convergence
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPZ, STEP_SETTLE_SECONDS
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPI, CAPZ, STEP_SETTLE_SECONDS
 from upgrade_lib import state as S
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
@@ -181,6 +181,13 @@ def parse_k8s_minor(version):
         raise ValueError(f"Cannot parse k8s version: {version}")
     return (int(match.group(1)), int(match.group(2)))
 
+def azure_k8s_version(minor):
+    '''Exact vX.Y.Z the Azure upgrade patches a minor to — must match that minor's node image.'''
+    minor = minor.lstrip("v")
+    if minor not in AZURE_K8S_VERSION_BY_MINOR:
+        raise Exception(f"No Azure k8s version for minor {minor} in AZURE_K8S_VERSION_BY_MINOR (upgrade_lib/versions.py)")
+    return AZURE_K8S_VERSION_BY_MINOR[minor]
+
 def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_version, dry_run, provider=None, node_image_map=None):
     '''AWS: single patch (CAPA steps it internally). Azure/GCP: step one minor at a time —
     Azure via node_image_map; GCP because GKE rejects a >1-minor master jump (confirmed live
@@ -207,7 +214,12 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
         # skip the critical section's controlled-recovery except block (webhooks stay disabled).
         raise Exception(f"Cluster k8s_version ({current_version}) is newer than the requested target (v{target_minor}.0) — downgrade is not supported")
 
-    target_version = resolve_gke_version(cluster_name, target_minor) if provider == "gcp" else f"v{target_minor}.0"
+    if provider == "gcp":
+        target_version = resolve_gke_version(cluster_name, target_minor)
+    elif provider == "azure":
+        target_version = azure_k8s_version(target_minor)
+    else:
+        target_version = f"v{target_minor}.0"
     print(f"[INFO] Planned k8s_version bump: {current_version} -> {target_version}")
     if provider == "azure":
         steps = []
@@ -215,7 +227,7 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
         target_major, target_minor_num = target_minor_tuple
         while (step_major, step_minor) != (target_major, target_minor_num):
             step_minor += 1
-            steps.append(f"v{step_major}.{step_minor}.0")
+            steps.append(azure_k8s_version(f"{step_major}.{step_minor}"))
         print(f"[INFO] Control plane will step through each minor in order: {' -> '.join([current_version] + steps)}")
 
         # Validated here, ahead of the dry_run cutoff below, so a malformed --node-image-map
@@ -278,7 +290,7 @@ def bump_k8s_version(keos_cluster, cluster_name, target_minor, start_from_k8s_ve
         try:
             while (major, minor) != (target_major, target_minor_num):
                 minor += 1
-                step_version = f"v{major}.{minor}.0"
+                step_version = azure_k8s_version(f"{major}.{minor}")
                 step_key = f"{major}.{minor}"
                 step_image = image_map.get(step_key)
                 if not step_image:

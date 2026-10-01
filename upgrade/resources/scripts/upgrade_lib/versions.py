@@ -20,9 +20,12 @@ __version__ = "0.10.0"
 CLOUD_PROVISIONER = "0.10.0"
 
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
-# CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
+# EKS is patched to ".0" (ignored by EKS), GKE resolves a real patch, Azure uses AZURE_K8S_VERSION_BY_MINOR.
 # Target minor per cloud (user decision 2026-09-30, PLT-4916): 1.36 everywhere in 0.10.0, 1.37 from 0.10.1.
 K8S_VERSION_BY_PROVIDER = {"aws": "1.36", "azure": "1.36", "gcp": "1.36"}
+
+# Azure only: exact version each minor step is patched to; must match that minor's image in --node-image-map (PLT-4916).
+AZURE_K8S_VERSION_BY_MINOR = {"1.36": "v1.36.5"}
 
 # First cluster-operator release with the v1beta2 core objects (PLT-4852) and k8s 1.36 (PLT-4916).
 CLUSTER_OPERATOR = "0.8.0"
