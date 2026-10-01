@@ -75,8 +75,8 @@ CAPI_KUBEADM_CONTROL_PLANE = "v1.13.6"
 
 CAPA = "v2.13.0"
 
-# Test tag installed by upgrade-providers.py; switch to the final PLT-4891 release (1.13.1-0.1.0) once pinned.
-CAPG = "1.13.1-0.5.0-PLT-4891.3"
+# Milestone installed by upgrade-providers.py (#990); switch to the final PLT-4891 release (1.13.1-0.1.0) once pinned.
+CAPG = "1.13.1-0.1.0-M1"
 
 CAPZ = "v1.26.1"
 
