@@ -18,7 +18,8 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
         print("DRY-RUN")
     else:
         os.makedirs(backup_dir + "/" + namespace, exist_ok=True)
-        command = "clusterctl --kubeconfig " + S.kubeconfig + " -n cluster-" + cluster_name + " move --to-directory " + backup_dir + "/" + namespace + " >/dev/null 2>&1"
+        # upgrade-providers.py has already moved the core to v1beta2; the image's default clusterctl (v1.10.10) rejects it
+        command = "clusterctl-v1.13.6 --kubeconfig " + S.kubeconfig + " -n cluster-" + cluster_name + " move --to-directory " + backup_dir + "/" + namespace + " 2>&1"
         status, output = subprocess.getstatusoutput(command)
         if status != 0:
             print("FAILED")
