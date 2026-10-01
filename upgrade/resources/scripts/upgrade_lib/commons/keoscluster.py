@@ -491,7 +491,8 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
     while time.time() < deadline:
         progress = best_progress
         output, _ = run_command(
-            f"{S.kubectl} get machinedeployment -n {cp_namespace} -o json",
+            # v1beta2 explicitly: upgrade-providers.py already moved the core, and its status has no updated/unavailableReplicas
+            f"{S.kubectl} get machinedeployments.v1beta2.cluster.x-k8s.io -n {cp_namespace} -o json",
             allow_errors=True
         )
         nodes_output, _ = run_command(f"{S.kubectl} get nodes -o json", allow_errors=True)
@@ -503,8 +504,8 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
             spec_converged = bool(mds) and all(
                 md.get("spec", {}).get("template", {}).get("spec", {}).get("version") == target_version and
                 md.get("status", {}).get("phase") == "Running" and
-                md.get("status", {}).get("unavailableReplicas", 0) in (0, None) and
-                md.get("status", {}).get("replicas") == md.get("status", {}).get("readyReplicas") == md.get("status", {}).get("updatedReplicas")
+                md.get("status", {}).get("replicas") == md.get("status", {}).get("readyReplicas") ==
+                md.get("status", {}).get("availableReplicas") == md.get("status", {}).get("upToDateReplicas")
                 for md in mds
             )
             wn_nodes = [

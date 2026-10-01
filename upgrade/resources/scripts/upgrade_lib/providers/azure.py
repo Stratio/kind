@@ -167,7 +167,8 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=None
     last_orphan_check = loop_start
     while time.time() < deadline:
         output, _ = run_command(
-            f"{S.kubectl} get kubeadmcontrolplane {kcp_name} -n {cp_namespace} -o json",
+            # v1beta2 explicitly: upgrade-providers.py already moved the core, and its status has no ready/updatedReplicas
+            f"{S.kubectl} get kubeadmcontrolplanes.v1beta2.controlplane.cluster.x-k8s.io {kcp_name} -n {cp_namespace} -o json",
             allow_errors=True
         )
         try:
@@ -176,11 +177,12 @@ def wait_for_capi_kcp_version(cluster_name, target_version, timeout_minutes=None
             desired_replicas = kcp.get("spec", {}).get("replicas")
             replicas = status.get("replicas")
             ready_replicas = status.get("readyReplicas")
-            updated_replicas = status.get("updatedReplicas")
+            up_to_date_replicas = status.get("upToDateReplicas")
+            available = any(c.get("type") == "Available" and c.get("status") == "True" for c in status.get("conditions", []))
             converged = (
                 status.get("version", "").startswith(target_minor_prefix) and
-                status.get("ready") is True and
-                replicas == ready_replicas == updated_replicas == desired_replicas
+                available and
+                replicas == ready_replicas == up_to_date_replicas == desired_replicas
             )
         except (ValueError, TypeError):
             converged = False
