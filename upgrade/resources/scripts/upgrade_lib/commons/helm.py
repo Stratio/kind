@@ -272,8 +272,9 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False):
-    '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False, rendered=False):
+    '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly.
+    rendered=True: the chart IS the CRDs (in templates/), applied server-side and fatal on error.'''
 
     import tempfile
     import glob
@@ -319,6 +320,11 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
             return
 
         tarball = tarballs[0]
+        if rendered:
+            # Some CRDs exceed the client-side apply annotation limit (charts/tigera-operator/README.md@v3.32.2)
+            run_command(f"{S.helm} template {chart_name} {tarball} | {S.kubectl} apply --server-side --force-conflicts -f -")
+            print("OK")
+            return
         run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
 
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
@@ -517,6 +523,9 @@ def upgrade_chart(chart_name, chart_data):
 
         if chart_name == "cluster-operator":
             apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"])
+        elif chart_name == "tigera-operator":
+            # Calico >= v3.32 no longer ships its CRDs in this chart (charts/tigera-operator/README.md@v3.32.2)
+            apply_chart_crds("crd.projectcalico.org.v1", chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"], rendered=True)
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)

@@ -758,6 +758,14 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 	}
 
 	if !dryRun {
+		// Calico >= v3.32 ships its CRDs in a separate chart (charts/tigera-operator/README.md@v3.32.2)
+		c = "if [ -d /stratio/helm/crd.projectcalico.org.v1 ]; then helm template calico-crds /stratio/helm/crd.projectcalico.org.v1" +
+			" | kubectl --kubeconfig " + k + " apply --server-side -f -; fi"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply the Calico CRDs")
+		}
+
 		c = "helm install tigera-operator /stratio/helm/tigera-operator" +
 			" --kubeconfig " + k +
 			" --namespace tigera-operator" +
