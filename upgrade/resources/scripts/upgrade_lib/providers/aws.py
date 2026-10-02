@@ -100,11 +100,14 @@ def wait_for_eks_worker_convergence(cluster_name, target_minor, stall_minutes=No
     while time.time() < deadline:
         progress = best_progress
         try:
+            # Names from the AWSManagedMachinePools, not `aws eks list-nodegroups`: the deploying IAM
+            # user may lack eks:ListNodegroups (live 2026-10-02: AccessDenied, the wait never ended).
             nodegroups_output, _ = run_command(
-                f"aws eks list-nodegroups --cluster-name {cluster_name} --query 'nodegroups' --output json",
+                f"{S.kubectl} get awsmanagedmachinepools -n cluster-{cluster_name} "
+                f"-o jsonpath='{{range .items[*]}}{{.spec.eksNodegroupName}}{{\"\\n\"}}{{end}}'",
                 allow_errors=True
             )
-            nodegroups = json.loads(nodegroups_output or "[]")
+            nodegroups = [line.strip() for line in nodegroups_output.splitlines() if line.strip()]
             converged_nodegroups = 0
             for nodegroup in nodegroups:
                 output, _ = run_command(
@@ -121,7 +124,7 @@ def wait_for_eks_worker_convergence(cluster_name, target_minor, stall_minutes=No
                 if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(f"v{target_minor}.")
             )
             progress = converged_nodegroups + converged_nodes
-            converged = bool(nodegroups) and converged_nodegroups == len(nodegroups) and bool(nodes) and converged_nodes == len(nodes)
+            converged = converged_nodegroups == len(nodegroups) and bool(nodes) and converged_nodes == len(nodes)
         except (ValueError, TypeError, AttributeError):
             converged = False
         if converged:
