@@ -28,7 +28,7 @@ core:
       cert-manager-webhook: v1.21.2
     cluster-autoscaler: v1.36.1
     cluster-operator:
-      cluster-operator: 0.8.0
+      cluster-operator: 0.8.0-m.2
     flux:
       flux-cli: v2.9.5
       helm-controller: v1.6.4
@@ -48,7 +48,7 @@ core:
   charts:
     cert-manager: v1.21.2
     cluster-autoscaler: 9.59.0
-    cluster-operator: 0.8.0
+    cluster-operator: 0.8.0-m.2
     flux: 2.19.1
     tigera-operator: v3.32.2
 aws:

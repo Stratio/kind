@@ -28,7 +28,7 @@ K8S_VERSION_BY_PROVIDER = {"aws": "1.36", "azure": "1.36", "gcp": "1.36"}
 AZURE_K8S_VERSION_BY_MINOR = {"1.36": "v1.36.5"}
 
 # First cluster-operator release with the v1beta2 core objects (PLT-4852) and k8s 1.36 (PLT-4916).
-CLUSTER_OPERATOR = "0.8.0"
+CLUSTER_OPERATOR = "0.8.0-m.2"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
@@ -112,7 +112,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.8.0",
+        "version": "0.8.0-m.2",
         "namespace": "kube-system",
         "repo": ""
     },
