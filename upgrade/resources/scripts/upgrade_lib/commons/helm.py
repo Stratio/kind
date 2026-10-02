@@ -449,10 +449,15 @@ def upgrade_chart(chart_name, chart_data):
 
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
     empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
+    previous_values_file = f"/tmp/{release_name}_previous_default_values.yaml"
+    default_values_configmap = f"00-{release_name}-helm-chart-default-values"
+    previous_values = ""
+    values_written = False
+    release_applied = False
 
     # Cleanup function for temp files
     def cleanup_temp_files():
-        for temp_file in [default_values_file, empty_values_file]:
+        for temp_file in [default_values_file, empty_values_file, previous_values_file]:
             if os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
@@ -473,7 +478,17 @@ def upgrade_chart(chart_name, chart_data):
 
         create_empty_values_file(empty_values_file)
 
-        create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
+        # Kept to undo the values write if the new chart never gets applied (live 2026-10-01: new
+        # tigera image + old chart RBAC -> CrashLoopBackOff, and the pre-flight blocked the relaunch).
+        previous_values, _ = run_command(
+            f"{S.kubectl} get configmap {default_values_configmap} -n {chart_namespace} -o jsonpath='{{.data.values\\.yaml}}'",
+            allow_errors=True
+        )
+        with open(previous_values_file, 'w') as f:
+            f.write(previous_values)
+
+        create_configmap_from_values(default_values_configmap, chart_namespace, default_values_file)
+        values_written = True
         create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
 
         helm_repo_data = {
@@ -518,6 +533,7 @@ def upgrade_chart(chart_name, chart_data):
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{S.kubectl} apply -f {repository_file} --server-side --force-conflicts")
         run_command(f"{S.kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
+        release_applied = True
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
         if chart_name != "cluster-operator":
@@ -534,6 +550,14 @@ def upgrade_chart(chart_name, chart_data):
             os.remove(release_file)
 
     except Exception as e:
+        # Once the HelmRelease is applied, chart and values are a matching pair — leave them to Flux.
+        if values_written and not release_applied and previous_values.strip():
+            print(f"[WARN] {release_name}: the new chart was not applied, restoring the previous default values:", end=" ", flush=True)
+            try:
+                create_configmap_from_values(default_values_configmap, chart_namespace, previous_values_file)
+                print("OK")
+            except Exception as restore_error:
+                print(f"FAILED ({restore_error})")
         cleanup_temp_files()
         raise e
 

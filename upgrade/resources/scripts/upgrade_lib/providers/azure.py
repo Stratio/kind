@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """providers.azure — moved verbatim from upgrade-provisioner.py (PLT-4916)."""
 
+import os
 import sys
 import json
 import yaml
@@ -213,3 +214,51 @@ def configure_azure_credentials(vault_secrets_data):
         print("FAILED")
         print(f"[ERROR] Azure CLI login failed: {e}")
         sys.exit(1)
+
+def repin_cloud_provider_azure_after_bump(target_minor, timeout_minutes=15):
+    '''Azure only: the chart upgrade pins the CCM/cloud-node-manager to the PRE-bump minor (charts
+    run before bump_k8s_version()) and nothing moved it afterwards (live 2026-10-01: k8s v1.36.5
+    with CCM v1.35.9). Re-pin the default values to target_minor and wait for the pods to roll.'''
+
+    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(target_minor)
+    if not ccm_tag:
+        print(f"[WARN] No known-good cloud-provider-azure CCM tag for k8s {target_minor} — CCM left on the pre-bump minor")
+        return
+    configmap = "00-cloud-provider-azure-helm-chart-default-values"
+    print(f"[INFO] Re-pinning cloud-provider-azure CCM/cloud-node-manager to {ccm_tag} for k8s {target_minor}:", end=" ", flush=True)
+    if S.config["dry_run"]:
+        print("DRY-RUN")
+        return
+    values_yaml, _ = run_command(f"{S.kubectl} get configmap {configmap} -n kube-system -o jsonpath='{{.data.values\\.yaml}}'")
+    values = yaml.safe_load(values_yaml) or {}
+    for component in ("cloudControllerManager", "cloudNodeManager"):
+        values.setdefault(component, {})["imageTag"] = ccm_tag
+    values_file = "/tmp/cloud-provider-azure_repin_values.yaml"
+    with open(values_file, 'w') as file:
+        yaml.safe_dump(values, file, default_flow_style=False)
+    run_command(
+        f"{S.kubectl} create configmap {configmap} -n kube-system --from-file=values.yaml={values_file} "
+        f"--dry-run=client -o yaml | {S.kubectl} apply -f -"
+    )
+    run_command(
+        f"{S.kubectl} annotate helmrelease cloud-provider-azure -n kube-system "
+        f"reconcile.fluxcd.io/requestedAt=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" --overwrite"
+    )
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        ccm_output, _ = run_command(f"{S.kubectl} get pods -n kube-system -l component=cloud-controller-manager -o json", allow_errors=True)
+        cnm_output, _ = run_command(f"{S.kubectl} get pods -n kube-system -l k8s-app=cloud-node-manager -o json", allow_errors=True)
+        try:
+            pods = json.loads(ccm_output).get("items", []) + json.loads(cnm_output).get("items", [])
+            converged = bool(pods) and all(
+                status.get("image", "").endswith(f":{ccm_tag}") and status.get("ready")
+                for pod in pods for status in pod.get("status", {}).get("containerStatuses", [])
+            )
+        except (ValueError, TypeError):
+            converged = False
+        if converged:
+            print("OK")
+            os.remove(values_file)
+            return
+        time.sleep(15)
+    raise Exception(f"Timed out after {timeout_minutes}m waiting for the cloud-provider-azure pods to run {ccm_tag}")

@@ -5,7 +5,8 @@ import os
 import sys
 import json
 import subprocess
-from upgrade_lib.commons.shell import execute_command
+import time
+from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib import state as S
 
 def patch_clusterrole_aws_node(dry_run):
@@ -82,3 +83,52 @@ def configure_aws_credentials(vault_secrets_data):
         os.environ["AWS_SESSION_TOKEN"] = creds["SessionToken"]
 
     print("OK")
+
+def wait_for_eks_worker_convergence(cluster_name, target_minor, stall_minutes=None):
+    '''AWS only: the k8s_version bump returns once the EKS control plane reaches target_minor, but
+    the MachinePool nodegroups roll afterwards (live 2026-10-01: ~12 min later). Wait for every
+    nodegroup to be ACTIVE on target_minor and every Node's kubelet to match.'''
+
+    if stall_minutes is None:
+        stall_minutes = S.config["node_convergence_timeout"]
+    print(f"[INFO] Waiting for every EKS nodegroup and node to reach {target_minor} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
+    if S.config["dry_run"]:
+        print("DRY-RUN")
+        return
+    best_progress = -1
+    deadline = time.time() + stall_minutes * 60
+    while time.time() < deadline:
+        progress = best_progress
+        try:
+            nodegroups_output, _ = run_command(
+                f"aws eks list-nodegroups --cluster-name {cluster_name} --query 'nodegroups' --output json",
+                allow_errors=True
+            )
+            nodegroups = json.loads(nodegroups_output or "[]")
+            converged_nodegroups = 0
+            for nodegroup in nodegroups:
+                output, _ = run_command(
+                    f"aws eks describe-nodegroup --cluster-name {cluster_name} --nodegroup-name {nodegroup} "
+                    f"--query 'nodegroup.[status,version]' --output text",
+                    allow_errors=True
+                )
+                if output.split() == ["ACTIVE", target_minor]:
+                    converged_nodegroups += 1
+            nodes_output, _ = run_command(f"{S.kubectl} get nodes -o json", allow_errors=True)
+            nodes = json.loads(nodes_output).get("items", [])
+            converged_nodes = sum(
+                1 for node in nodes
+                if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(f"v{target_minor}.")
+            )
+            progress = converged_nodegroups + converged_nodes
+            converged = bool(nodegroups) and converged_nodegroups == len(nodegroups) and bool(nodes) and converged_nodes == len(nodes)
+        except (ValueError, TypeError, AttributeError):
+            converged = False
+        if converged:
+            print("OK")
+            return
+        if progress > best_progress:
+            best_progress = progress
+            deadline = time.time() + stall_minutes * 60
+        time.sleep(30)
+    raise Exception(f"No progress for {stall_minutes}m waiting for EKS nodegroups and nodes to reach {target_minor}")

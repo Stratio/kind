@@ -16,8 +16,8 @@ from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repositor
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.aws import configure_aws_credentials
-from upgrade_lib.providers.azure import configure_azure_credentials
+from upgrade_lib.providers.aws import configure_aws_credentials, wait_for_eks_worker_convergence
+from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
 from upgrade_lib.versions import CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
 from upgrade_lib import state as S
@@ -556,6 +556,10 @@ def run():
         # CAPA advances the real control plane one minor at a time (see
         # wait_for_k8s_version_bump() docstring), so wait on the real signal instead.
         wait_for_k8s_version_bump(cluster_name, S.provider, S.config["k8s_version"])
+        if S.provider == "aws":
+            wait_for_eks_worker_convergence(cluster_name, S.config["k8s_version"])
+        if S.provider == "azure":
+            repin_cloud_provider_azure_after_bump(S.config["k8s_version"])
     else:
         print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
 
