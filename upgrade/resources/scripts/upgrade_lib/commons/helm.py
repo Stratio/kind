@@ -174,7 +174,7 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). This custom image lives
+    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS and Azure VMs). This custom image lives
     at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
     official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
 
@@ -478,9 +478,8 @@ def upgrade_chart(chart_name, chart_data):
             update_cluster_operator_image_tag_value(default_values_file, S.cluster_operator_version)
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
-        # elif release_name == "cluster-autoscaler" and provider == "aws":
-        #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.59.0/v1.35.0)
-        #     update_cluster_autoscaler_image_tag_value(default_values_file)
+        elif release_name == "cluster-autoscaler" and S.provider in ("aws", "azure"):
+            update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and S.provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
 
