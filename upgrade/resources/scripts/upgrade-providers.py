@@ -277,11 +277,12 @@ def snapshot(cluster_name):
     for ns, deploy in PROVIDER_DEPLOYMENTS:
         raw = run(f"{kubectl} -n {ns} get deploy {deploy} --ignore-not-found -o json", allow_errors=True).strip()
         if not raw:
-            snap["deployments"][f"{ns}/{deploy}"] = {"image": None, "replicas": None, "args": []}
+            snap["deployments"][f"{ns}/{deploy}"] = {"image": None, "replicas": None, "args": [], "priorityClassName": None}
             continue
         d = json.loads(raw)
         c = d["spec"]["template"]["spec"]["containers"][0]
-        snap["deployments"][f"{ns}/{deploy}"] = {"image": c["image"], "replicas": d["spec"].get("replicas"), "args": c.get("args", [])}
+        snap["deployments"][f"{ns}/{deploy}"] = {"image": c["image"], "replicas": d["spec"].get("replicas"), "args": c.get("args", []),
+                                                 "priorityClassName": d["spec"]["template"]["spec"].get("priorityClassName")}
     return snap
 
 
@@ -589,7 +590,24 @@ def kubeadm_replicas(ns, deploy):
     return before["deployments"][f"{ns}/{deploy}"]["replicas"] or 1
 
 
+def restore_priority_classes():
+    '''clusterctl upgrade recreates each provider Deployment (upgrader.go:450-451 @ v1.13.6), dropping the priorityClassName create patches in.'''
+    info("Restoring provider priorityClassName:")
+    restored = []
+    for ns, deploy in PROVIDER_DEPLOYMENTS:
+        want = before["deployments"][f"{ns}/{deploy}"].get("priorityClassName")
+        if not want:
+            continue
+        got = run(f"{kubectl} -n {ns} get deploy {deploy} --ignore-not-found -o jsonpath='{{.spec.template.spec.priorityClassName}}'", allow_errors=True).strip()
+        if got != want:
+            patch = json.dumps({"spec": {"template": {"spec": {"priorityClassName": want}}}})
+            run(f"{kubectl} -n {ns} patch deploy {deploy} --type=merge -p '{patch}'", mutating=True)
+            restored.append(f"{ns}/{deploy}")
+    print(f"OK ({', '.join(restored) or 'nothing to restore'})")
+
+
 def restore_provider_replicas():
+    restore_priority_classes()
     info(f"Restoring provider replicas (capi/{infra['deploy'].split('-')[0]} 2, kubeadm {'0 on a managed control plane' if managed else 'as before'}):")
     for ns, deploy in PROVIDER_DEPLOYMENTS[:2]:
         scale(ns, deploy, 2)
@@ -809,6 +827,10 @@ def verify(before, keos_name):
         got = after["deployments"][f"{ns}/{deploy}"]["replicas"]
         if got != want:
             problems.append(f"{ns}/{deploy} replicas {got}, expected {want}")
+        pc_before = before["deployments"][f"{ns}/{deploy}"].get("priorityClassName")
+        pc_after = after["deployments"][f"{ns}/{deploy}"].get("priorityClassName")
+        if pc_before and pc_after != pc_before:
+            problems.append(f"{ns}/{deploy} priorityClassName {pc_after}, expected {pc_before}")
     for pdb in kjson("get pdb -A")["items"]:
         if pdb["metadata"]["namespace"] in [ns for ns, _ in PROVIDER_DEPLOYMENTS[:2]] and pdb.get("status", {}).get("disruptionsAllowed", 0) < 1:
             problems.append(f"PDB {pdb['metadata']['namespace']}/{pdb['metadata']['name']} allows 0 disruptions")
