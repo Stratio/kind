@@ -98,4 +98,4 @@ gcp:
       infrastructure-components.yaml: 1.13.1-0.1.0-M1
   managed:
     images:
-      coredns: v1.14.7
+      coredns: v1.14.6
