@@ -85,9 +85,9 @@ TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
 
 TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
 
-# AWS and Azure VMs (Azure uses the same image, DEPENDENCIES): official CA images hit "unknown machine for node" on scale-down for
-# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
-# fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
+# Stratio CA build with kubernetes/autoscaler#9693 (DEPENDENCIES tag). The fix only matters for EKS: official images hit
+# "unknown machine for node" on scale-down for AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups).
+# Azure VMs get the same tag only to match a fresh 0.10 install; #9693 is not in any upstream release yet.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.36.1"
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
