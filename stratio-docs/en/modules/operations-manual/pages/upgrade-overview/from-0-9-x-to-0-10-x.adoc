@@ -75,7 +75,7 @@ La actualización solo está admitida en tres entornos, y cualquier otra combina
 | 2
 | `upgrade-provisioner.py` de la 0.10.x
 | Los _charts_ del _cluster_ (_cert-manager_, Flux, Calico, _cluster-autoscaler_, _cluster-operator_ y los del proveedor) y la versión de Kubernetes del _control-plane_ y de los nodos.
-| Se niega a ejecutarse si Cluster API y sus proveedores no están ya en su versión de destino, así que nunca ejecuta `clusterctl`. Ver <<step2, Segundo paso>>.
+| Si Cluster API y sus proveedores no están ya en su versión de destino, se detiene sin cambiar nada y pide ejecutar antes `upgrade-providers.py`. Por eso nunca ejecuta `clusterctl`. Ver <<step2, Segundo paso>>.
 |===
 
 Versiones de destino del primer paso:
