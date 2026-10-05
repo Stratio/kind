@@ -1165,7 +1165,7 @@ NOTE: Dado que el fichero descriptor de la instalación (_keos.yaml_) se regener
 
 Aplica a EKS con grupos _MachinePool_ y `deploy_autoscaler: true` (en GKE, _Stratio Cloud Provisioner_ no despliega _cluster-autoscaler_).
 
-IMPORTANT: Una vez creado el _cluster_, hay que sustituir la imagen de _cluster-autoscaler_ desplegada por defecto por la imagen propia de Stratio `v1.36.1`. Esta imagen incluye la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), que aún no está incluida en ninguna versión oficial de _cluster-autoscaler_.
+IMPORTANT: Una vez creado el _cluster_, hay que sustituir la imagen de _cluster-autoscaler_ desplegada por defecto por la imagen propia de Stratio `v1.36.1`, la misma en _clusters_ con Kubernetes 1.36 y 1.37. Esta imagen incluye la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), que aún no está incluida en ninguna versión oficial de _cluster-autoscaler_.
 
 La imagen está publicada en `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1`. Replícala en el registro Docker del _cluster_ (el marcado con `keos_registry: true` en el descriptor) antes de aplicar el cambio:
 
