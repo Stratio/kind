@@ -33,12 +33,11 @@ const (
 	MinWorkerNodeNameLength = 3
 )
 
-// 1.37 templates/charts are prepared but only enabled from 0.10.1 (PLT-4916).
-var k8sVersionSupported = []string{"1.35", "1.36"}
+var k8sVersionSupported = []string{"1.35", "1.36", "1.37"}
 
 func validateCommon(spec commons.KeosSpec, clusterConfigSpec commons.ClusterConfigSpec) error {
 	var err error
-	if err = validateK8SVersion(spec.K8SVersion); err != nil {
+	if err = validateK8SVersion(spec.K8SVersion, spec.InfraProvider, spec.ControlPlane.Managed); err != nil {
 		return err
 	}
 	if err = validateWorkers(spec.WorkerNodes); err != nil {
@@ -71,7 +70,7 @@ func validateClusterConfig(spec commons.KeosSpec, clusterConfigSpec commons.Clus
 	return nil
 }
 
-func validateK8SVersion(v string) error {
+func validateK8SVersion(v string, provider string, managed bool) error {
 	var isVersion = regexp.MustCompile(`^v\d.\d{2}.\d{1,2}(-gke.\d{3,4})?$`).MatchString
 	if !isVersion(v) {
 		return errors.New("spec: Invalid value: \"k8s_version\": regex used for validation is '^v\\d.\\d{2}.\\d{1,2}(-gke.\\d{3,4})?$'")

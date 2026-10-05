@@ -21,11 +21,12 @@ CLOUD_PROVISIONER = "0.10.0"
 
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # EKS is patched to ".0" (ignored by EKS), GKE resolves a real patch, Azure uses AZURE_K8S_VERSION_BY_MINOR.
-# Target minor per cloud (user decision 2026-09-30, PLT-4916): 1.36 everywhere in 0.10.0, 1.37 from 0.10.1.
-K8S_VERSION_BY_PROVIDER = {"aws": "1.36", "azure": "1.36", "gcp": "1.36"}
+# Target minor per cloud (PLT-4916): 1.37 on EKS and Azure VMs; GKE stays on 1.36 because Google offers 1.37
+# only in the RAPID channel, and resolve_gke_version() needs it in the cluster's channel (or validMasterVersions).
+K8S_VERSION_BY_PROVIDER = {"aws": "1.37", "azure": "1.37", "gcp": "1.36"}
 
 # Azure only: exact version each minor step is patched to; must match that minor's image in --node-image-map (PLT-4916).
-AZURE_K8S_VERSION_BY_MINOR = {"1.36": "v1.36.5"}
+AZURE_K8S_VERSION_BY_MINOR = {"1.36": "v1.36.5", "1.37": "v1.37.1"}
 
 # First cluster-operator release with the v1beta2 core objects (PLT-4852) and k8s 1.36 (PLT-4916).
 CLUSTER_OPERATOR = "0.8.0-m.2"
@@ -80,9 +81,9 @@ CAPG = "1.13.1-0.1.0-M1"
 
 CAPZ = "v1.26.1"
 
-TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.32.2"
+TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
 
-TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.42.6"
+TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
 
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
@@ -123,7 +124,7 @@ common_charts = {
         "release_name": "flux"
     },
     "tigera-operator": {
-        "version": "v3.32.2",
+        "version": "v3.33.0",
         "namespace": "tigera-operator",
         "repo": "https://docs.projectcalico.org/charts"
     }

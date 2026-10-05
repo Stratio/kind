@@ -4,18 +4,11 @@ core:
     helm: v3.22.0
   images:
     calico:
-      cni: v3.32.2
-      csi: v3.32.2
-      ctl: v3.32.2
-      kube-controllers: v3.32.2
-      node-driver-registrar: v3.32.2
-      node: v3.32.2
-      pod2daemon-flexvol: v3.32.2
-      tigera-operator: v1.42.6
-      typha: v3.32.2
-      whisker: v3.32.2
-      whisker-backend: v3.32.2
-      goldmane: v3.32.2
+      calico: v3.33.0
+      node: v3.33.0
+      third-party-cni-plugins: v3.33.0
+      tigera-operator: v1.44.0
+      whisker: v3.33.0
     capi:
       kubeadm-bootstrap-controller: v1.13.6
       kubeadm-control-plane-controller: v1.13.6
@@ -49,9 +42,9 @@ core:
     cert-manager: v1.21.2
     cluster-autoscaler: 9.59.0
     cluster-operator: 0.8.0-m.2
-    crd.projectcalico.org.v1: v3.32.2
+    crd.projectcalico.org.v1: v3.33.0
     flux: 2.19.1
-    tigera-operator: v3.32.2
+    tigera-operator: v3.33.0
 aws:
   capa:
     binaries:
@@ -85,8 +78,8 @@ azure:
       azurefile-csi-driver: 1.35.7
       cloud-provider-azure: 1.36.0
     images:
-      azure-cloud-controller-manager: v1.36.6
-      azure-cloud-node-manager: v1.36.6
+      azure-cloud-controller-manager: v1.37.0
+      azure-cloud-node-manager: v1.37.0
       azuredisk-csi: v1.34.5
       azurefile-csi: v1.35.7
       csi-attacher: v4.12.0

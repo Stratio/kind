@@ -1,2 +1,2 @@
-mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-controller-manager:v1.36.6
-mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-node-manager:v1.36.6
+mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-controller-manager:v1.37.0
+mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-node-manager:v1.37.0

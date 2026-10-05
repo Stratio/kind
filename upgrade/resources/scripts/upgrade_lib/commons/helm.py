@@ -203,6 +203,8 @@ def update_tigera_operator_image_tag_value(values_file):
             values = yaml.safe_load(file)
 
         values['calicoctl']['tag'] = TIGERA_OPERATOR_CALICOCTL_VERSION
+        # Calico v3.33 ships calicoctl in the consolidated calico/calico image; calico/ctl no longer exists
+        values['calicoctl']['image'] = values['calicoctl'].get('image', '').replace('/calico/ctl', '/calico/calico')
         values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
 
         # The chart defaults whisker/goldmane to true, so an upgrade from a chart older than

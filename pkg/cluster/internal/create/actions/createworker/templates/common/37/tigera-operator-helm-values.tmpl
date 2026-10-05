@@ -5,11 +5,11 @@ defaultFelixConfiguration:
   enabled: false
 calicoctl:
 {{- if $.Private }}
-  image: {{ $.KeosRegUrl }}/calico/ctl
+  image: {{ $.KeosRegUrl }}/calico/calico
 {{- else }}
-  image: docker.io/calico/ctl
+  image: docker.io/calico/calico
 {{- end }}
-  #tag: 3.32.2
+  #tag: 3.33.0
 certs:
   node:
     cert:
@@ -84,7 +84,7 @@ tigeraOperator:
 {{- end }}
   image: tigera/operator
   # We need to set this version since tigera-operator chart point to an older one
-  version: v1.42.6
+  version: v1.44.0
 # Tolerations for the tigera/operator pod.
 tolerations:
   - effect: NoExecute
