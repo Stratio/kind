@@ -1971,10 +1971,7 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     print("OK")
 
 def restore_capi_capx_ha_replicas(provider):
-    '''Re-scale CAPI/CAPX controller Deployments to 2 (HA). clusterctl reinstalls upgraded
-    providers with the upstream manifest's "replicas: 1" — no upgrade path re-applies the
-    HA scaling `create cluster` sets, which combined with their PDB (minAvailable:1) can deadlock draining. Idempotent.
-    Also restores priorityClassName system-node-critical.'''
+    '''Restore the HA replicas (2) and priorityClassName that clusterctl upgrade drops from the CAPI/CAPX Deployments. Idempotent.'''
     print("[INFO] Restoring CAPI/CAPX HA replicas and priorityClassName:", end=" ", flush=True)
 
     deployments = [("capi-system", "capi-controller-manager")]
