@@ -174,7 +174,7 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the fresh-install tag (fix needed on EKS MachinePools only). This custom image lives
+    '''Pin cluster-autoscaler to the Stratio #9693 build used on every provider that deploys it. This custom image lives
     at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
     official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
 
