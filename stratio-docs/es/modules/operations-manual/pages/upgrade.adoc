@@ -8,9 +8,11 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 * *Azure VMs* (no gestionado)
 * *GKE* en GCP (gestionado)
 
-Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.9.X` a la proporcionada por `cloud-provisioner 0.10.X`: Kubernetes 1.36 en los tres proveedores.
+Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.9.X` a la proporcionada por `cloud-provisioner 0.10.X`: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
 
 IMPORTANT: Solo se admiten _clusters_ en la versión `1.35` cuyos proveedores de Cluster API ya estén migrados a `v1beta2` con <<upgrade_providers, `upgrade-providers.py`>>. El _script_ comprueba al arrancar, antes de cambiar nada, que el núcleo de Cluster API está en v1.13.0 o posterior y que cada proveedor está exactamente en su versión de destino. Si no es así, se detiene.
+
+NOTE: En GKE, el destino es 1.36 porque Google solo ofrece 1.37 en el _release channel_ `RAPID`, que _Stratio Cloud Provisioner_ no admite. Compruébalo con `gcloud container get-server-config --region <región> --format='value(channels)'`.
 
 Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.10.X`, que incluye el _script_ de actualización y todas las dependencias necesarias (Python 3, AWS CLI v2, Azure CLI, Google Cloud SDK, `kubectl`, `helm` y `clusterctl`, entre otras). La ruta completa de descarga depende de dónde esté publicada: en el registro privado ECR/ACR/GAR o en el Nexus de Stratio para trabajo interno. Ver <<_ejecución_del_contenedor_de_actualización, ejecución del contenedor de actualización>>.
 
@@ -20,7 +22,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 ** _cluster-operator_: `0.8.0`
 ** _cert-manager_: `v1.21.2`
 ** _flux2_: `2.19.1`
-** _tigera-operator_: `v3.32.2`
+** _tigera-operator_: `v3.33.0`
 ** _cluster-autoscaler_: `9.59.0`
 
 * *_Charts_* específicos de plataforma:
@@ -31,11 +33,11 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 *** _azurefile-csi-driver_: `1.35.7`
 *** _cloud-provider-azure_: `1.36.0`
 
-* *Versión de Kubernetes*: 1.36.
+* *Versión de Kubernetes*: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
 
 Este _script_ no actualiza Cluster API ni sus proveedores: eso lo hace antes `upgrade-providers.py`, que los deja en las versiones de la xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc#components[ficha de la ruta].
 
-NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada, porque el propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Al actualizar el _chart_ usa la del _minor_ actual del _cluster_, y al terminar el _bump_ de `k8s_version` la cambia por la del _minor_ de destino, `v1.36.6` para 1.36. Si un _minor_ no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
+NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada, porque el propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Al actualizar el _chart_ usa la del _minor_ actual del _cluster_, y al terminar el _bump_ de `k8s_version` la cambia por la del _minor_ de destino: `v1.36.6` para 1.36 y `v1.37.0` para 1.37. Si un _minor_ no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
 
 == Requisitos
 
@@ -583,16 +585,18 @@ En un _cluster_ de Azure VMs, un _bump_ de `k8s_version` necesita además el map
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
-  "1.36": "<id-de-la-imagen-de-1.36>"
+  "1.36": "<id-de-la-imagen-de-1.36>",
+  "1.37": "<id-de-la-imagen-de-1.37>"
 }' 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
 ----
 
-NOTE: Imágenes publicadas por Stratio para el _bump_ `1.35`→`1.36` en la Community Gallery, consumibles fuera de la suscripción del propio _cluster_. Están replicadas en las regiones `westeurope`, `northeurope` y `spaincentral`:
+NOTE: Imágenes publicadas por Stratio para el _bump_ `1.35`→`1.37` en la Community Gallery, consumibles fuera de la suscripción del propio _cluster_. Están replicadas en las regiones `westeurope`, `northeurope` y `spaincentral`:
 
 [source,json]
 ----
 {
-  "1.36": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/Stratio-K8s-1.36.5/Versions/1.0.0"
+  "1.36": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/Stratio-K8s-1.36.5/Versions/1.0.0",
+  "1.37": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/Stratio-K8s-1.37.1/Versions/1.0.0"
 }
 ----
 
@@ -662,12 +666,12 @@ Opciones principales:
 | No
 
 | `--k8s-version`
-| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.36`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>> y <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>). El valor de este _flag_ sigue siendo el _minor_ final, por lo que su uso no cambia.
-| 1.36
+| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.37`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>> y <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>). El valor de este _flag_ sigue siendo el _minor_ final, por lo que su uso no cambia.
+| 1.37 en EKS y en Azure VMs, y 1.36 en GKE
 | No
 
 | `--node-image-map`
-| *Obligatorio en Azure VMs* para un _bump_ de `k8s_version`; no aplica a AWS/GCP. JSON con la imagen de la VM de cada _minor_ intermedio, p. ej. `{"1.36":"<id>"}`. Cada valor debe ser el identificador completo de una imagen gestionada o de Community Gallery, no un nombre de imagen suelto: el _script_ lo valida y aborta si no lo es.
+| *Obligatorio en Azure VMs* para un _bump_ de `k8s_version`; no aplica a AWS/GCP. JSON con la imagen de la VM de cada _minor_ intermedio, p. ej. `{"1.36":"<id>","1.37":"<id>"}`. Cada valor debe ser el identificador completo de una imagen gestionada o de Community Gallery, no un nombre de imagen suelto: el _script_ lo valida y aborta si no lo es.
 |
 | Solo Azure
 
@@ -772,13 +776,13 @@ NOTE: Este escalado a 0 dura solo hasta que se actualice el propio _chart_ de `c
 ** En Azure VMs: secuencia de _patches_, uno por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>>).
 ** En GKE: secuencia de _patches_, uno por cada _minor_ intermedio, también con el _deployment_ de _keoscluster-controller_ activo (ver <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>).
 
-IMPORTANT: En AWS, este paso *solo actualiza el _control-plane_*. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente fijados en su versión anterior de Kubernetes: _cluster-operator_ omite el _bump_ para ellos de forma explícita; no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>, solo en EKS). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control. En GKE tampoco: todos los grupos de trabajo son _MachinePool_ y el _script_ espera a que converjan en cada paso.
+IMPORTANT: En EKS, el _cluster_ no puede tener grupos de trabajo _MachineDeployment_: migra cada uno a _MachinePool_ antes de ejecutar el _script_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>). En AWS, _cluster-operator_ no sube la versión de los grupos _MachineDeployment_ y el _script_ espera a que todos los nodos lleguen a la versión de destino, así que con uno de esos grupos la espera agota su tiempo. En Azure VMs, todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control. En GKE, todos los grupos de trabajo son _MachinePool_ y el _script_ espera a que converjan en cada paso.
 
 [[_bump_de_k8s_version_en_azure_vms]]
 
 === Bump de `k8s_version` en Azure VMs
 
-A diferencia de AWS, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el _control-plane_ de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_, que pertenece a CAPI _core_ y no a `KeosCluster`, rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.35`→`1.36`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS, ese mismo trabajo lo hace AWS internamente tras un único _patch_. No es que Azure "vaya más despacio": aquí el _script_ hace explícitamente lo que en EKS queda invisible.
+A diferencia de AWS, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el _control-plane_ de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_, que pertenece a CAPI _core_ y no a `KeosCluster`, rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.35`→`1.36`→`1.37`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS, ese mismo trabajo lo hace AWS internamente tras un único _patch_. No es que Azure "vaya más despacio": aquí el _script_ hace explícitamente lo que en EKS queda invisible.
 
 Esto tiene implicaciones prácticas directas:
 
@@ -805,7 +809,7 @@ Si el _script_ se interrumpe a mitad de un _bump_, ambos cambios pueden quedar a
 
 === Bump de `k8s_version` en GKE
 
-Igual que en Azure VMs, en GKE el _script_ no aplica un único _patch_ al _minor_ final, pero por otro motivo: GKE rechaza actualizar el _control-plane_ a más de un _minor_ a la vez. Por eso el _script_ emite un _patch_ por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso. En esta versión, el destino es 1.36, así que hay un solo paso (`1.35`→`1.36`).
+Igual que en Azure VMs, en GKE el _script_ no aplica un único _patch_ al _minor_ final, pero por otro motivo: GKE rechaza actualizar el _control-plane_ a más de un _minor_ a la vez. Por eso el _script_ emite un _patch_ por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso. En esta versión, el destino en GKE es 1.36, así que hay un solo paso (`1.35`→`1.36`).
 
 En cada paso, el _script_:
 

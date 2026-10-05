@@ -31,72 +31,37 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | v1.9.5
 
 | *tigera-operator*
-| *v3.32.2*
+| *v3.33.0*
 |
 |
 
 |
 |
-| quay.io/calico/cni
-| v3.32.2
-
-|
-|
-| quay.io/calico/csi
-| v3.32.2
-
-|
-|
-| quay.io/calico/ctl
-| v3.32.2
-
-|
-|
-| quay.io/calico/kube-controllers
-| v3.32.2
-
-|
-|
-| quay.io/calico/node-driver-registrar
-| v3.32.2
+| quay.io/calico/calico
+| v3.33.0
 
 |
 |
 | quay.io/calico/node
-| v3.32.2
+| v3.33.0
 
 |
 |
-| quay.io/calico/pod2daemon-flexvol
-| v3.32.2
-
-|
-|
-| quay.io/calico/typha
-| v3.32.2
+| quay.io/calico/third-party-cni-plugins
+| v3.33.0
 
 |
 |
 | quay.io/calico/whisker
-| v3.32.2
-
-|
-|
-| quay.io/calico/whisker-backend
-| v3.32.2
-
-|
-|
-| quay.io/calico/goldmane
-| v3.32.2
+| v3.33.0
 
 |
 |
 | quay.io/tigera/operator
-| v1.42.6
+| v1.44.0
 
 | *crd.projectcalico.org.v1*
-| *v3.32.2*
+| *v3.33.0*
 |
 |
 

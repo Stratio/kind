@@ -143,10 +143,10 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-controller-manager
-| v1.36.6
+| v1.36.6 (Kubernetes 1.36), v1.37.0 (Kubernetes 1.37)
 
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes/azure-cloud-node-manager
-| v1.36.6
+| v1.36.6 (Kubernetes 1.36), v1.37.0 (Kubernetes 1.37)
 |===
