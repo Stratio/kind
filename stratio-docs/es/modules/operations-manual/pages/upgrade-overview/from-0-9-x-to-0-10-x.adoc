@@ -4,7 +4,7 @@ Esta ficha resume el impacto de actualizar _Stratio Cloud Provisioner_ de 0.9.x 
 
 Cada sección responde a una pregunta y enlaza con la página que detalla el procedimiento. Cuando llegues a la ventana de intervención, sigue el xref:operations-manual:upgrade.adoc[procedimiento de actualización] paso a paso.
 
-IMPORTANT: Esta ruta tiene *dos ejecuciones de _script_*. Primero, `upgrade-providers.py` migra Cluster API y sus proveedores a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` de la 0.10.x actualiza el resto de componentes y la versión de Kubernetes. Esta ficha describe por ahora el primer paso; el segundo queda pendiente.
+IMPORTANT: Esta ruta tiene *dos ejecuciones de _script_*. Primero, `upgrade-providers.py` migra Cluster API y sus proveedores a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` de la 0.10.x actualiza el resto de componentes y la versión de Kubernetes, a 1.36. Las secciones siguientes describen el primer paso, y el segundo tiene su propia sección en <<step2, Segundo paso>>.
 
 [#summary]
 
@@ -74,8 +74,8 @@ La actualización solo está admitida en tres entornos, y cualquier otra combina
 
 | 2
 | `upgrade-provisioner.py` de la 0.10.x
-| Pendiente.
-| Pendiente.
+| Los _charts_ del _cluster_ (_cert-manager_, Flux, Calico, _cluster-autoscaler_, _cluster-operator_ y los del proveedor) y la versión de Kubernetes del _control-plane_ y de los nodos.
+| Se niega a ejecutarse si Cluster API y sus proveedores no están ya en su versión de destino, así que nunca ejecuta `clusterctl`. Ver <<step2, Segundo paso>>.
 |===
 
 Versiones de destino del primer paso:
@@ -210,3 +210,98 @@ No hay vuelta atrás soportada: Cluster API no admite bajar de versión. Si el _
 === Avisos e incidencias conocidas
 
 * El _script_ muestra los _feature gates_ de los _controllers_ antes y después, solo como informe. Los cambios que aparecen corresponden a los valores por defecto de las nuevas versiones.
+
+[#step2]
+
+== Segundo paso: `upgrade-provisioner.py`
+
+El segundo paso actualiza los _charts_ del _cluster_ y la versión de Kubernetes. Parte de un _cluster_ ya migrado por `upgrade-providers.py`, en Kubernetes 1.35. Los detalles están en el xref:operations-manual:upgrade.adoc#upgrade_provisioner_sintaxis[procedimiento de `upgrade-provisioner.py`].
+
+[#step2-summary]
+
+=== Resumen del segundo paso
+
+[cols="2,3,1", options="header"]
+|===
+| Pregunta | Respuesta | Detalle
+
+| ¿A qué versión de Kubernetes llega?
+| *1.36 en los tres proveedores.*
+| <<step2-providers, Diferencias por proveedor>>
+
+| ¿Cuánta parada hay en el peor caso?
+| *Ninguna a nivel de _cluster_*, pero se reemplazan todos los nodos. Las cargas se mueven de nodo a medida que se vacían, así que una carga con una sola réplica se reinicia.
+| <<step2-outage, Parada y disponibilidad>>
+
+| ¿Cuánto dura?
+| Medido en ejecuciones reales del salto 1.35 → 1.36: unos 26 minutos en GKE y unos 38 minutos en Azure VMs. En EKS, el _control-plane_ tarda unos 10 minutos y los nodos, unos 12 más.
+| <<step2-providers, Diferencias por proveedor>>
+
+| ¿Se puede volver atrás?
+| *No.* Kubernetes no admite bajar de versión. Antes de confirmar el _bump_ de `k8s_version`, basta con no continuar.
+| <<step2-point-of-no-return, Punto de no retorno>>
+
+| ¿Cuál es el riesgo global?
+| *Medio.* Se reemplazan todos los nodos, pero el _script_ espera a que cada _minor_ converja antes de seguir y se puede relanzar con el mismo comando.
+| xref:operations-manual:upgrade.adoc#upgrade_provisioner_recuperacion[Recuperación ante fallos]
+|===
+
+[#step2-before]
+
+=== Antes de la ventana del segundo paso
+
+[cols="1,3", options="header"]
+|===
+| Comprobación | Por qué
+
+| `upgrade-providers.py` terminó y los proveedores están en las versiones de <<components, Componentes y orden de actualización>>.
+| `upgrade-provisioner.py` comprueba al arrancar que cada proveedor está exactamente en su versión de destino. Si no, se detiene sin cambiar nada.
+
+| El registro del _cluster_ tiene los _charts_ y las imágenes de la 0.10.x: Calico v3.32.2, Flux 2.19.1, _cert-manager_ v1.21.2 y _cluster-operator_ 0.8.0.
+| El _script_ los descarga de ese registro y no comprueba antes que existan.
+
+| En Azure VMs, tienes la imagen de nodo de 1.36 para `--node-image-map`.
+| Cada paso del _bump_ crea las máquinas nuevas con la imagen de su _minor_.
+
+| Un `--dry-run` termina sin errores.
+| Hace las comprobaciones y muestra el plan sin cambiar nada.
+|===
+
+[#step2-providers]
+
+=== Diferencias por proveedor
+
+[cols="1,3", options="header"]
+|===
+| Proveedor | Diferencia
+
+| EKS
+| Un solo _patch_ a 1.36. Mientras se actualiza el _control-plane_, los _logs_ de CAPA pueden mostrar errores transitorios de los complementos de EKS, que se resuelven solos. Después, el _script_ espera a que todos los _nodegroups_ y nodos lleguen a 1.36.
+
+| Azure VMs
+| Un _patch_ por _minor_ (`1.35`→`1.36`), cada uno con la imagen de nodo de `--node-image-map`. Al terminar, el _script_ fija el _cloud-controller-manager_ a la versión del _minor_ de destino.
+
+| GKE
+| Un solo paso, `1.35`→`1.36`. El _script_ usa el _patch_ más alto del _release channel_ del _cluster_ y espera a que todos los _node pools_ lleguen a esa versión.
+|===
+
+[#step2-point-of-no-return]
+
+=== Punto de no retorno
+
+El punto de no retorno es el _patch_ de `KeosCluster.spec.k8s_version`. El _script_ pide confirmación justo antes, salvo que se use `--start-from-k8s-version`.
+
+[#step2-outage]
+
+=== Parada y disponibilidad
+
+* Los nodos se reemplazan de forma progresiva en cada _minor_. Revisa los _Pod Disruption Budget_ de las cargas antes de empezar: uno que impida vaciar un nodo detiene el reemplazo.
+* En EKS y Azure VMs, _cluster-autoscaler_ se detiene al principio y vuelve a 2 réplicas al actualizar su _chart_. En GKE, _Stratio Cloud Provisioner_ no lo despliega.
+* Los _webhooks_ de `KeosCluster` están desactivados durante la sección crítica, así que no hagas cambios en el `KeosCluster` mientras se ejecuta el _script_.
+
+[#step2-known-issues]
+
+=== Avisos del segundo paso
+
+* En EKS con grupos _MachinePool_, el _script_ deja la imagen oficial de _cluster-autoscaler_. Sustitúyela al terminar por la propia de Stratio, como indica la xref:operations-manual:upgrade.adoc#_actualización_de_cluster_autoscaler_tras_la_actualización[actualización de _cluster-autoscaler_ tras la actualización].
+* Con Calico v3.32.2, `kubectl get tigerastatus` muestra `tiers` como _Degraded_ con el mensaje "Waiting for Tigera API server". Es esperable: _Stratio Cloud Provisioner_ no despliega el servidor de API de Calico. El resto de componentes de Calico queda en `Available`.
