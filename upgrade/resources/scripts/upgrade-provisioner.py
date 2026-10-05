@@ -1973,8 +1973,9 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
 def restore_capi_capx_ha_replicas(provider):
     '''Re-scale CAPI/CAPX controller Deployments to 2 (HA). clusterctl reinstalls upgraded
     providers with the upstream manifest's "replicas: 1" — no upgrade path re-applies the
-    HA scaling `create cluster` sets, which combined with their PDB (minAvailable:1) can deadlock draining. Idempotent.'''
-    print("[INFO] Restoring CAPI/CAPX HA replicas:", end=" ", flush=True)
+    HA scaling `create cluster` sets, which combined with their PDB (minAvailable:1) can deadlock draining. Idempotent.
+    Also re-applies priorityClassName system-node-critical, which `create cluster` patches onto these same Deployments.'''
+    print("[INFO] Restoring CAPI/CAPX HA replicas and priorityClassName:", end=" ", flush=True)
 
     deployments = [("capi-system", "capi-controller-manager")]
     if provider == "aws":
@@ -1988,6 +1989,10 @@ def restore_capi_capx_ha_replicas(provider):
 
     try:
         for namespace, deploy in deployments:
+            priority_class, _ = run_command(f"{kubectl} -n {namespace} get deploy {deploy} -o jsonpath='{{.spec.template.spec.priorityClassName}}'")
+            if priority_class.strip() != "system-node-critical":
+                run_command(f"{kubectl} -n {namespace} patch deploy {deploy} --type=merge "
+                            "-p '{\"spec\": {\"template\": {\"spec\": {\"priorityClassName\": \"system-node-critical\"}}}}'")
             run_command(f"{kubectl} -n {namespace} scale deploy {deploy} --replicas 2")
             run_command(f"{kubectl} -n {namespace} rollout status deploy {deploy} --timeout 90s")
         print("OK")

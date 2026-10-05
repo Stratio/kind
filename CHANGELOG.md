@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.6 (upcoming)
+
+* [PLT-4916] `upgrade-provisioner.py` re-applies `priorityClassName: system-node-critical` to the CAPI and infrastructure provider Deployments (and the kubeadm ones on Azure VMs) after `clusterctl upgrade`, which recreates them without it
+
 ## 0.9.5 (2026-09-28)
 
 * [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; bump CAPG to 1.6.1-0.4.2 (grpc CVE, OpenSSL rebuild); bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.4 → 0.9.5, `CAPG`, `CLUSTER_OPERATOR` and its `common_charts` entry 0.7.3 → 0.7.4) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.5, `cluster-operator` image and chart to 0.7.4 (Stratio/cluster-operator#351) and `cluster-autoscaler` image to `v1.35.2` (see Stratio/kind#981)
