@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.6 (upcoming)
 
 * [PLT-4916] `upgrade-provisioner.py` re-applies `priorityClassName: system-node-critical` to the CAPI and infrastructure provider Deployments (and the kubeadm ones on Azure VMs) after `clusterctl upgrade`, which recreates them without it
-* [PLT-4976] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.5 → 0.9.6) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.6
+* [PLT-4976] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.5 → 0.9.6) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.6; bump `cluster-operator` image and chart 0.7.4 → 0.7.5 (`CLUSTER_OPERATOR` and its `common_charts` entry, `DEPENDENCIES`, `docs/images`) for the OOMKilled fix (Stratio/cluster-operator#355)
 
 ## 0.9.5 (2026-09-28)
 
