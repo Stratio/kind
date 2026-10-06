@@ -8,40 +8,36 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 * *Azure VMs* (no gestionado)
 * *GKE* en GCP (gestionado)
 
-Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.7.X` a la proporcionada por `cloud-provisioner 0.9.X`.
+Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.9.X` a la proporcionada por `cloud-provisioner 0.10.X`: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
 
-IMPORTANT: Solo se admiten _clusters_ en la versión `1.32`. Si tu _cluster_ está en una versión anterior, debes realizar primero el procedimiento de actualización hasta alcanzar la versión admitida.
+IMPORTANT: Solo se admiten _clusters_ en la versión `1.35` cuyos proveedores de Cluster API ya estén migrados a `v1beta2` con <<upgrade_providers, `upgrade-providers.py`>>. El _script_ comprueba al arrancar, antes de cambiar nada, que el núcleo de Cluster API está en v1.13.0 o posterior y que cada proveedor está exactamente en su versión de destino. Si no es así, se detiene.
 
-Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.9.X`, que incluye el _script_ de actualización y todas las dependencias necesarias (Python 3, AWS CLI v2, Azure CLI, Google Cloud SDK, `kubectl`, `helm` y `clusterctl`, entre otras). La ruta completa de descarga depende de dónde esté publicada: en el registro privado ECR/ACR/GAR o en el Nexus de Stratio para trabajo interno. Ver <<_ejecución_del_contenedor_de_actualización, ejecución del contenedor de actualización>>.
+NOTE: En GKE, el destino es 1.36 porque Google solo ofrece 1.37 en el _release channel_ `RAPID`, que _Stratio Cloud Provisioner_ no admite. Compruébalo con `gcloud container get-server-config --region <región> --format='value(channels)'`.
+
+Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.10.X`, que incluye el _script_ de actualización y todas las dependencias necesarias (Python 3, AWS CLI v2, Azure CLI, Google Cloud SDK, `kubectl`, `helm` y `clusterctl`, entre otras). La ruta completa de descarga depende de dónde esté publicada: en el registro privado ECR/ACR/GAR o en el Nexus de Stratio para trabajo interno. Ver <<_ejecución_del_contenedor_de_actualización, ejecución del contenedor de actualización>>.
 
 === Qué se actualiza
 
 * *Componentes comunes* a todas las plataformas:
-** _cluster-operator_: `0.7.1`
-** _cert-manager_: `v1.20.2`
+** _cluster-operator_: `0.8.0`
+** _cert-manager_: `v1.21.2`
 ** _flux2_: `2.17.2`
-** _tigera-operator_: `v3.31.7`
-** _cluster-autoscaler_: `9.57.0`
-
-* *Cluster API Core*
-** _cluster-api (CAPI)_: `v1.10.10`
-** _bootstrap-kubeadm_: `v1.10.10`
-** _control-plane-kubeadm_: `v1.10.10`
-
-* *Proveedores de infraestructura* específicos de plataforma:
-** CAPA (AWS): `v2.9.3`
-** CAPZ (Azure): `v1.21.3`
-** CAPG (GCP): `1.6.1-0.4.1`
+** _tigera-operator_: `v3.33.0`
+** _cluster-autoscaler_: `9.59.0`
 
 * *_Charts_* específicos de plataforma:
 ** EKS (si está instalado):
-*** _aws-load-balancer-controller_: `3.4.0`
+*** _aws-load-balancer-controller_: `3.4.3`
 ** Azure VMs:
-*** _azuredisk-csi-driver_: `1.34.5`
-*** _azurefile-csi-driver_: `1.35.6`
-*** _cloud-provider-azure_: `1.35.3`
+*** _azuredisk-csi-driver_: `1.36.0`
+*** _azurefile-csi-driver_: `1.35.7`
+*** _cloud-provider-azure_: `1.36.0`
 
-NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada para el _minor_ de Kubernetes *actual* del _cluster_ (no el de destino). El propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Si el _minor_ actual no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
+* *Versión de Kubernetes*: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
+
+Este _script_ no actualiza Cluster API ni sus proveedores: eso lo hace antes `upgrade-providers.py`, que los deja en las versiones de la xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc#components[ficha de la ruta].
+
+NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada, porque el propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Al actualizar el _chart_ usa la del _minor_ actual del _cluster_, y al terminar el _bump_ de `k8s_version` la cambia por la del _minor_ de destino: `v1.36.6` para 1.36 y `v1.37.0` para 1.37. Si un _minor_ no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
 
 == Requisitos
 
@@ -243,7 +239,7 @@ Descarga la imagen:
 
 [source,bash]
 ----
-docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+docker pull <registry>/cloud-provisioner-upgrade:0.10.X
 ----
 
 Arranca el contenedor:
@@ -251,14 +247,14 @@ Arranca el contenedor:
 [source,bash]
 ----
 docker run \
-  --name cloud-provisioner-upgrade-0.9.X \
+  --name cloud-provisioner-upgrade-0.10.X \
   --net host \
   -it \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v ~/.aws:/upgrade/.aws \
   -v $PWD/backup:/upgrade/backup \
-  <registry>/cloud-provisioner-upgrade:0.9.X
+  <registry>/cloud-provisioner-upgrade:0.10.X
 ----
 
 Dentro del contenedor, ejecuta el _script_ correspondiente con los _flags_ adecuados. Consulta <<_migración_a_ecr_pull_through_cache, migración a ECR _pull-through cache_>> o <<upgrade_provisioner_sintaxis, sintaxis de `upgrade-provisioner.py`>>, según corresponda.
@@ -367,6 +363,210 @@ kubectl get keoscluster <nombre-cluster> -n cluster-<nombre-cluster> -o jsonpath
 
 *Salida esperada:* `HelmRelease` en `Ready = True` con el _chart_ en la versión indicada, y `ecr_pull_through_cache_enabled` en `true`.
 
+[[upgrade_providers]]
+== Migración de los proveedores a Cluster API v1beta2
+
+El _script_ `upgrade-providers.py` migra un _cluster_ de `cloud-provisioner 0.9.X` a Cluster API v1.13.6, que usa la API `v1beta2`. No cambia la versión de Kubernetes ni reemplaza nodos. Se ejecuta una sola vez por _cluster_, antes de actualizar a `cloud-provisioner 0.10.X`.
+
+Actualiza, en este orden:
+
+. El núcleo de Cluster API y sus proveedores de _bootstrap_ y de _control-plane_, de v1.10.10 a v1.13.6.
+. El proveedor de infraestructura: CAPA a v2.13.0 en EKS, CAPZ a v1.26.1 en Azure VMs y CAPG a `1.13.1-0.1.0` en GKE.
+. El almacenamiento de los objetos de Cluster API, que pasa a `v1beta2`.
+. _cluster-operator_, a la versión 0.8.0, la primera que lee y escribe esos objetos en `v1beta2`.
+
+Para planificar la ventana, consulta la xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc[ficha de la actualización de 0.9.x a 0.10.x].
+
+=== Prerrequisitos
+
+* El _cluster_ es EKS, GKE o Azure VMs. El _script_ rechaza cualquier otra combinación.
+* El _cluster_ está en `cloud-provisioner 0.9.X`, con el núcleo de Cluster API en v1.10 o posterior y _cluster-operator_ en la línea 0.7. Si viene de 0.7.X, ejecuta antes `upgrade-provisioner.py` de la 0.9.X.
+* El registro configurado en el _cluster_ (`keos_registry` en el `KeosCluster`) tiene publicadas las imágenes de los proveedores de destino y el _chart_ y la imagen de _cluster-operator_ 0.8.0. El _script_ no comprueba que existan.
+* En EKS, un _kubeconfig_ que obtenga el _token_ con `exec`. Consulta <<upgrade_providers_kubeconfig_eks, _kubeconfig_ en EKS>>.
+
+El _script_ hace una comprobación previa y se detiene, sin cambiar nada, si encuentra alguno de estos problemas:
+
+* El `KeosCluster` no está en `ready: true` con la fase `Provisioned`.
+* Los _controllers_ de Cluster API o del proveedor de infraestructura no tienen ninguna réplica lista.
+* Algún `MachinePool` o `MachineDeployment` no está en la fase `Running`.
+* Algún nodo no está `Ready` o está marcado como no programable.
+* `cert-manager` lleva la etiqueta de `clusterctl`, que intentaría actualizarlo.
+* Falta el _secret_ con las credenciales del proveedor de infraestructura o está vacío.
+* La identidad del _kubeconfig_ no puede crear, borrar o modificar los objetos que `clusterctl` vuelve a aplicar.
+
+[[upgrade_providers_kubeconfig_eks]]
+=== _Kubeconfig_ en EKS
+
+Un _token_ estático de EKS caduca a los 15 minutos, y la migración dura más. Por eso, la comprobación previa rechaza un _kubeconfig_ cuyo usuario tenga un _token_ sin `exec`. Genera uno con `exec` en la máquina anfitriona, en el directorio desde el que vas a lanzar el contenedor:
+
+[source,bash]
+----
+aws eks update-kubeconfig --name <nombre-cluster> --region <región> --profile <perfil> --kubeconfig $PWD/.kube/config
+----
+
+El contenedor lee las credenciales de AWS de `/upgrade/.aws`, así que monta tu directorio `~/.aws` como se indica en el siguiente apartado.
+
+En GKE, a diferencia de `upgrade-provisioner.py`, este _script_ no reescribe el _kubeconfig_ para usar `gke-gcloud-auth-plugin`. Usa un _kubeconfig_ cuyo usuario solo tenga un _token_ de acceso, sin `exec`, y genéralo justo antes de lanzar el contenedor:
+
+[source,bash]
+----
+kubectl --kubeconfig $PWD/.kube/config config set-credentials upgrade-providers --token=$(gcloud auth print-access-token)
+kubectl --kubeconfig $PWD/.kube/config config set-context --current --user=upgrade-providers
+----
+
+La identidad de `gcloud` tiene que poder crear, borrar y modificar los objetos que vuelve a aplicar `clusterctl`. La comprobación previa lo verifica.
+
+=== Ejecución del contenedor
+
+Descarga la imagen de la 0.10.X:
+
+[source,bash]
+----
+docker pull <registry>/cloud-provisioner-upgrade:0.10.X
+----
+
+Arranca el contenedor:
+
+[source,bash]
+----
+docker run \
+  --name cloud-provisioner-upgrade-providers \
+  --net host \
+  -it \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v ~/.aws:/upgrade/.aws \
+  -v $PWD/backup:/upgrade/backup \
+  <registry>/cloud-provisioner-upgrade:0.10.X
+----
+
+NOTE: Este _script_ no necesita `secrets.yml` ni la contraseña del _vault_: lee las credenciales del proveedor del _secret_ que ya existe en el _cluster_. El montaje de `~/.aws` solo hace falta en EKS.
+
+=== Sintaxis
+
+Ejecuta siempre primero un _dry-run_. Hace las comprobaciones, la copia de seguridad y `clusterctl upgrade plan` de verdad, pero solo muestra los pasos que modificarían el _cluster_:
+
+[source,bash]
+----
+python3 upgrade-providers.py --dry-run 2>&1 | tee /upgrade/backup/upgrade-providers-dryrun-$(date +%Y%m%d-%H%M%S).log
+----
+
+Si el _dry-run_ termina sin errores, lanza la migración:
+
+[source,bash]
+----
+python3 upgrade-providers.py 2>&1 | tee /upgrade/backup/upgrade-providers-$(date +%Y%m%d-%H%M%S).log
+----
+
+Antes del primer paso que modifica el _cluster_, el _script_ pide confirmación con ENTER. Con `-y` no la pide.
+
+[cols="2,1,3", options="header"]
+|===
+| _Flag_ | Valor por defecto | Uso
+
+| `--dry-run`
+| desactivado
+| Hace las comprobaciones, la copia de seguridad y `clusterctl upgrade plan`. No aplica ningún cambio.
+
+| `-y`, `--yes`
+| desactivado
+| No pide confirmación antes del primer paso que modifica el _cluster_.
+
+| `-k`, `--kubeconfig`
+| `$KUBECONFIG` (`/upgrade/.kube/config` en el contenedor)
+| _Kubeconfig_ del _cluster_.
+
+| `--cluster-operator`
+| `0.8.0`
+| Versión de destino de _cluster-operator_ (_chart_ e imagen). Tiene que ser una versión que trabaje con `v1beta2`.
+
+| `--backup-dir`
+| `./backup/upgrade-providers`
+| Directorio base de las copias de seguridad. Cada ejecución crea en él un subdirectorio con su marca de tiempo.
+
+| `--backup-owner`
+| `$BACKUP_OWNER`
+| Usuario y grupo (`uid:gid`) a los que se asigna la copia de seguridad al terminar. El contenedor escribe como `root`.
+
+| `--storage-migration-timeout`
+| `3`
+| Minutos sin progreso en la migración del almacenamiento antes de que el _script_ migre por sí mismo los objetos pendientes.
+
+| `--resume-from`
+| —
+| Copia de seguridad de una ejecución anterior que falló a medias. Consulta <<upgrade_providers_recuperacion, recuperación ante fallos>>.
+
+| `--clusterctl`, `--clusterctl-v1beta1`
+| `clusterctl-v1.13.6`, `clusterctl`
+| Binarios de `clusterctl` v1.13.6 y v1.10.10. Los de la imagen son los correctos; no hace falta cambiarlos.
+|===
+
+IMPORTANT: La copia de seguridad contiene las credenciales del proveedor. El _script_ la crea con permisos `700`, y queda en `backup/upgrade-providers/<marca-de-tiempo>/` del directorio desde el que lanzas el contenedor.
+
+=== Qué hace el _script_
+
+. Comprueba los binarios de `clusterctl`, los manifiestos de los proveedores y los prerrequisitos.
+. Hace una copia de seguridad de los objetos de Cluster API (`clusterctl move --to-directory`), de los _namespaces_ de los proveedores, de los CRD, de los _webhooks_ y del estado de `KeosCluster`, `ClusterConfig`, _cluster-operator_ y _cluster-autoscaler_. Guarda también una foto del contenido de los objetos y de los nodos.
+. Valida el plan con `clusterctl upgrade plan`, sin cambiar nada.
+. Detiene _cluster-autoscaler_ y _cluster-operator_. Suspende el `HelmRelease` de _cluster-operator_.
+. Si el _cluster_ tiene Capsule, excluye temporalmente los _namespaces_ de los proveedores de sus _webhooks_ de _namespaces_. Después comprueba, con un _dry-run_ en el servidor, que ningún _webhook_ rechaza lo que va a aplicar `clusterctl`.
+. En EKS y GKE, crea temporalmente la `NetworkPolicy` `allow-all-egress` en los _namespaces_ de kubeadm, si no existe.
+. Si los proveedores de kubeadm están por debajo de v1.10, los sube primero a v1.10.10 con `clusterctl` v1.10.10.
+. En Azure VMs, etiqueta los CRD de Azure Service Operator como parte del proveedor de infraestructura, tal y como pide CAPZ antes de actualizar.
+. Actualiza el núcleo, kubeadm y el proveedor de infraestructura con `clusterctl` v1.13.6 y espera a que los proveedores estén listos.
+. Restaura Capsule, la `NetworkPolicy` y las réplicas de los proveedores: 2 para el núcleo y la infraestructura, y kubeadm a 0 en EKS y GKE o como estaba en Azure VMs.
+. Espera a que los _controllers_ migren el almacenamiento de los CRD de Cluster API a `v1beta2`. Si no hay progreso en el tiempo de `--storage-migration-timeout`, migra él mismo los objetos pendientes.
+. Desactiva un momento los _webhooks_ de `KeosCluster`, actualiza las versiones del `ClusterConfig` y los restaura.
+. Actualiza _cluster-operator_ a la versión de destino, reactiva su `HelmRelease` y espera a que esté listo.
+. Arranca de nuevo _cluster-autoscaler_ y comprueba en sus _logs_ que usa `v1beta2`.
+. Espera a que el `KeosCluster` esté en `ready: true` con la fase `Provisioned`.
+. Comprueba el resultado y compara el contenido de los objetos con la foto inicial.
+
+Los _feature gates_ de los _controllers_ se muestran antes y después, solo como informe: el _script_ no los modifica.
+
+[[upgrade_providers_recuperacion]]
+=== Recuperación ante fallos
+
+Si el _script_ falla antes de detener _cluster-autoscaler_ (comprobaciones, copia de seguridad o `clusterctl upgrade plan`), no ha cambiado nada en el _cluster_. Corrige la causa y vuelve a lanzarlo sin más.
+
+Si falla después, el _script_ restaura los _webhooks_ de `KeosCluster`, Capsule y la `NetworkPolicy`, reactiva _cluster-operator_ y _cluster-autoscaler_ y termina con `Migration did NOT complete. Backup: <ruta>`. No intenta volver a las versiones anteriores. Corrige la causa y vuelve a lanzarlo con `--resume-from` y la ruta de la copia de seguridad de esa ejecución:
+
+[source,bash]
+----
+python3 upgrade-providers.py --dry-run --resume-from /upgrade/backup/upgrade-providers/<marca-de-tiempo>
+python3 upgrade-providers.py --resume-from /upgrade/backup/upgrade-providers/<marca-de-tiempo>
+----
+
+Con `--resume-from`, el _script_:
+
+* No exige que los _controllers_ de Cluster API y del proveedor tengan réplicas listas, porque la ejecución anterior pudo dejarlos a medias.
+* Si `clusterctl move` falla en la copia de seguridad, solo avisa: la copia de la ejecución anterior sigue siendo la de referencia.
+* Compara el contenido final con la foto de la ejecución anterior (`snapshot-before.json`), es decir, con el estado previo a la migración.
+
+Lo que ya estaba hecho no se repite: si los proveedores ya están en la versión de destino, `clusterctl` no se vuelve a ejecutar y el _script_ completa los pasos que faltan.
+
+IMPORTANT: Indica siempre la copia de seguridad de la *primera* ejecución que falló. Cada ejecución guarda su propia foto al empezar; la de un reintento que vuelve a fallar ya refleja un estado a medio migrar.
+
+=== Verificación
+
+Al terminar, el _script_ comprueba lo siguiente y falla si algo no se cumple:
+
+* Los proveedores están en la versión de destino.
+* Todos los CRD de Cluster API guardan solo `v1beta2`.
+* El número de `Cluster`, `MachineDeployment`, `MachinePool`, `MachineSet` y `Machine` no ha cambiado: no se ha reemplazado ningún nodo.
+* Las réplicas de los proveedores son las esperadas, y los _Pod Disruption Budgets_ del núcleo y del proveedor de infraestructura permiten al menos una interrupción.
+* El `KeosCluster` está en `ready: true` con la fase `Provisioned`.
+
+La diferencia de contenido se guarda en `content-diff.txt`, dentro de la copia de seguridad. Puedes comprobar el resultado a mano:
+
+[source,bash]
+----
+kubectl get providers -A
+kubectl get crd clusters.cluster.x-k8s.io -o jsonpath='{.status.storedVersions}'
+kubectl get keoscluster <nombre-cluster> -n cluster-<nombre-cluster>
+----
+
+*Salida esperada:* los proveedores en la versión de destino, `["v1beta2"]` y el `KeosCluster` en `READY = true`.
+
 == Uso del _script_ de actualización
 
 [[upgrade_provisioner_sintaxis]]
@@ -385,24 +585,22 @@ En un _cluster_ de Azure VMs, un _bump_ de `k8s_version` necesita además el map
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
-  "1.33": "<resource-id-de-la-imagen-de-1.33>",
-  "1.34": "<resource-id-de-la-imagen-de-1.34>",
-  "1.35": "<resource-id-de-la-imagen-de-1.35>"
+  "1.36": "<id-de-la-imagen-de-1.36>",
+  "1.37": "<id-de-la-imagen-de-1.37>"
 }' 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
 ----
 
-NOTE: Ejemplo de imágenes ya probadas para un _bump_ `1.32`→`1.35` (Community Gallery `stratioK8s`, consumibles fuera de la suscripción del propio _cluster_):
+NOTE: Imágenes publicadas por Stratio para el _bump_ `1.35`→`1.37` en la Community Gallery, consumibles fuera de la suscripción del propio _cluster_. Están replicadas en las regiones `westeurope`, `northeurope` y `spaincentral`:
 
 [source,json]
 ----
 {
-  "1.33": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.33.13",
-  "1.34": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.34.3",
-  "1.35": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.35.8"
+  "1.36": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/Stratio-K8s-1.36.5/Versions/1.0.0",
+  "1.37": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/Stratio-K8s-1.37.1/Versions/1.0.0"
 }
 ----
 
-Cada valor debe ser un _resource ID_ completo de Azure (`/subscriptions/...`), no un nombre de imagen suelto: el _script_ lo valida y aborta si no lo es. Añade `--private` si los _charts_ e imágenes se sirven desde un registro privado (ver <<_uso_del_flag_private, uso del _flag_ `--private`>>). La redirección final es opcional pero recomendable: el _script_ no genera ningún registro propio y `/upgrade/backup` es un volumen montado desde el _host_, por lo que el fichero sobrevive al contenedor.
+Cada valor debe ser el identificador completo de una imagen gestionada (`/subscriptions/<id>/resourceGroups/<grupo>/providers/Microsoft.Compute/images/<nombre>`) o de una imagen de Community Gallery (`/CommunityGalleries/<galería>/Images/<imagen>/Versions/<versión>`). El _script_ lo valida y aborta si no lo es. Una imagen de una Compute Gallery privada no se admite, porque el _webhook_ de `KeosCluster` la rechaza. Añade `--private` si los _charts_ e imágenes se sirven desde un registro privado (ver <<_uso_del_flag_private, uso del _flag_ `--private`>>). La redirección final es opcional pero recomendable: el _script_ no genera ningún registro propio y `/upgrade/backup` es un volumen montado desde el _host_, por lo que el fichero sobrevive al contenedor.
 
 Para ver todas las opciones disponibles:
 
@@ -468,12 +666,12 @@ Opciones principales:
 | No
 
 | `--k8s-version`
-| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.35`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>> y <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>). El valor de este _flag_ sigue siendo el _minor_ final, por lo que su uso no cambia.
-| 1.35
+| Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.37`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`, sorteando el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster` igual que ya hace el resto del _script_ para `clusterctl`. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>> y <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>). El valor de este _flag_ sigue siendo el _minor_ final, por lo que su uso no cambia.
+| 1.37 en EKS y en Azure VMs, y 1.36 en GKE
 | No
 
 | `--node-image-map`
-| *Obligatorio en Azure VMs* para un _bump_ de `k8s_version`; no aplica a AWS/GCP. JSON con la imagen de la VM de cada _minor_ intermedio, p. ej. `{"1.33":"<id>","1.34":"<id>","1.35":"<id>"}`. Cada valor debe ser un _resource ID_ completo de Azure (`/subscriptions/...`), no un nombre de imagen suelto: el _script_ lo valida y aborta si no lo es.
+| *Obligatorio en Azure VMs* para un _bump_ de `k8s_version`; no aplica a AWS/GCP. JSON con la imagen de la VM de cada _minor_ intermedio, p. ej. `{"1.36":"<id>","1.37":"<id>"}`. Cada valor debe ser el identificador completo de una imagen gestionada o de Community Gallery, no un nombre de imagen suelto: el _script_ lo valida y aborta si no lo es.
 |
 | Solo Azure
 
@@ -518,44 +716,7 @@ Para automatizar la ejecución sin intervención manual (por ejemplo, en un _pip
 
 Como ya se indica en <<_ejecución_del_contenedor_de_actualización, ejecución del contenedor de actualización>>, `upgrade-provisioner.py` no tiene un _flag_ equivalente a `--restore` de `ecr_pull_through.py`. Su recuperación es automática e interna: la activa el propio _script_ cuando detecta un fallo dentro de lo que este documento llama "sección crítica", el tramo de la actualización en el que `cluster-operator` está suspendido, `keoscluster-controller-manager` está detenido y los _webhooks_ de `KeosCluster` están deshabilitados. Para saber si ocurrió un fallo concreto en ese tramo, busca en la salida de la consola el mensaje `[INFO] Suspending cluster-operator helmrelease:`. Si ese mensaje ya apareció y el fallo ocurrió antes de ver "[INFO] Resuming cluster-operator helmrelease: OK", entonces el fallo ocurrió en la sección crítica.
 
-La recuperación automática restaura los _webhooks_ y reinicia el controlador, pero *no cubre todos los posibles fallos*. En concreto, un fallo de `clusterctl upgrade apply` puede dejar el _cluster_ en un estado que requiere intervención manual adicional, como se describe a continuación.
-
-==== Fallo de `clusterctl upgrade apply` con el _namespace_ del _provider_ vacío
-
-`clusterctl upgrade apply` borra el _provider_ de infraestructura en su versión actual antes de aplicar la versión nueva. Si el comando falla entre ambos pasos (por ejemplo, por una interrupción de red transitoria durante la llamada), el _namespace_ del _provider_ (`capa-system` para AWS) puede quedar completamente vacío: sin `Deployment`, sin RBAC, sin _webhooks_ y, lo más importante, sin el secreto de credenciales que el propio _provider_ gestiona (`capa-manager-bootstrap-credentials`).
-
-La recuperación automática del _script_ (restaurar _webhooks_ de `KeosCluster` y reiniciar su controlador) no toca este secreto ni reinstala el _provider_: es un problema distinto y más profundo, fuera del alcance de esa recuperación.
-
-*Síntoma en el siguiente reintento*: `upgrade-provisioner.py` vuelve a fallar en el mismo paso (`clusterctl upgrade apply`), esta vez con un error de sintaxis de _shell_ poco descriptivo (`Syntax error: "(" unexpected`) en lugar de un mensaje claro sobre el secreto faltante. Esto ocurre porque el _script_ construye la variable `AWS_B64ENCODED_CREDENTIALS` leyendo ese secreto sin comprobar si la lectura fue exitosa; si el secreto no existe, el propio mensaje de error de `kubectl` se interpola sin querer en el comando de `clusterctl` que se ejecuta a continuación.
-
-*Recuperación manual*:
-
-. Localiza el secreto en el backup de _CAPX secrets_ que el _script_ genera automáticamente en cada ejecución (`Backing up CAPX secrets: OK`), en `backup/upgrade/<marca-de-tiempo>/capx-secrets/<namespace-del-provider>/`. Usa la copia de la ejecución *anterior al fallo*, porque la de la ejecución fallida se generó cuando el _namespace_ ya estaba vacío y no contenía el secreto:
-+
-[source,bash]
-----
-find backup/upgrade/*/capx-secrets/capa-system -name "capa-manager-bootstrap-credentials.yaml"
-----
-
-. Restaura el secreto:
-+
-[source,bash]
-----
-kubectl apply -f backup/upgrade/<marca-de-tiempo-correcta>/capx-secrets/capa-system/capa-manager-bootstrap-credentials.yaml
-----
-
-. Vuelve a ejecutar `upgrade-provisioner.py` con el mismo comando. Con el secreto restaurado, `clusterctl upgrade apply` se ejecuta correctamente y reinstala el _provider_ completo (`Deployment`, RBAC, CRD, _webhooks_).
-
-IMPORTANT: Si el fallo de `clusterctl` ocurrió dentro de la sección crítica, es habitual que el reintento tropiece además con dos efectos secundarios de esa misma interrupción, independientes entre sí:
-
-* *`capi-controller-manager` con menos de 2 réplicas disponibles*. Bloquea la comprobación previa del _script_ (`availableReplicas=1 (expected 2 for HA)`). Corrígelo antes de reintentar:
-+
-[source,bash]
-----
-kubectl scale deployment capi-controller-manager -n capi-system --replicas=2
-----
-
-* *`HelmRelease` de `cluster-operator` con `spec.suspend: true`*. La sección crítica lo suspende y lo reactiva al finalizar. Si el fallo interrumpió ese ciclo antes de la reactivación, el propio _script_ lo detecta y lo reactiva automáticamente al inicio del siguiente reintento, sin intervención manual. En la consola verás el mensaje "[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting".
+La recuperación automática restaura los _webhooks_ y reinicia el controlador, pero *no cubre todos los posibles fallos*. El caso más habitual se describe a continuación.
 
 ==== Fallo del chequeo de salud de un _chart_ (`unhealthy pod(s)`)
 
@@ -578,11 +739,12 @@ El _script_ ejecuta el siguiente flujo de trabajo:
 . *Validación*
 ** Valida _kubeconfig_ y los secretos.
 ** Configura credenciales del proveedor _cloud_.
+** Comprueba que el núcleo de Cluster API está en v1.13.0 o posterior y que cada proveedor está exactamente en su versión de destino. Si no, se detiene sin cambiar nada y pide ejecutar antes `upgrade-providers.py`.
 
 . *Pre-actualización*
 ** Escala _cluster-autoscaler_ a 0 para evitar el escalado automático durante la actualización. (No aplica en GKE).
 +
-NOTE: Este escalado a 0 dura solo hasta que se actualice el propio _chart_ de `cluster-autoscaler` (paso "Actualización de _charts_", más abajo). Su `ConfigMap` de valores fija `replicaCount: 2`, por lo que Flux lo devuelve a 2 réplicas en ese paso, antes de llegar a la sección crítica de `clusterctl upgrade apply`. No se mantiene en 0 durante toda la actualización.
+NOTE: Este escalado a 0 dura solo hasta que se actualice el propio _chart_ de `cluster-autoscaler` (paso "Actualización de _charts_", más abajo). Su `ConfigMap` de valores fija `replicaCount: 2`, por lo que Flux lo devuelve a 2 réplicas en ese paso, antes de llegar a la sección crítica. No se mantiene en 0 durante toda la actualización.
 
 . *Copia de seguridad*
 ** Componentes CAPX (mediante `clusterctl move`).
@@ -606,36 +768,25 @@ NOTE: Este escalado a 0 dura solo hasta que se actualice el propio _chart_ de `c
 ** Desactiva los _webhooks_ de validación/mutación de _keoscluster_.
 ** Actualiza _ClusterConfig_ con las nuevas versiones de los componentes.
 
-. *Actualización de CAPI*
-+
-[source,bash]
-----
-clusterctl upgrade apply \
-  --core cluster-api:v1.10.10 \
-  --infrastructure <proveedor>:<versión> \
-  --wait-providers
-----
-+
-NOTE: En las VMs de Azure, el comando incluye además los parámetros `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos _providers_, pero Azure VMs usa `KubeadmControlPlane` (CAPI _core_), que sí es un _provider_ adicional que hay que actualizar.
+. *Proveedores de Cluster API*
+** No los actualiza: como ya están en su versión de destino, el _script_ omite `clusterctl upgrade apply` y lo indica con el mensaje `Upgrading Cluster API providers: already at target versions: SKIP`.
 
 . *Actualización de la versión de Kubernetes* (si `KeosCluster.spec.k8s_version` cambia respecto a la versión actual)
 ** En AWS: parchea `KeosCluster.spec.k8s_version` directamente con la versión final. Restaura los _webhooks_ de _keoscluster_ e inicia de nuevo el _deployment_ de _keoscluster-controller_. Verifica que _cluster-operator_ haya propagado el cambio al recurso de _control-plane_ gestionado por el proveedor (`AWSManagedControlPlane` en EKS) antes de continuar.
 ** En Azure VMs: secuencia de _patches_, uno por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>>).
 ** En GKE: secuencia de _patches_, uno por cada _minor_ intermedio, también con el _deployment_ de _keoscluster-controller_ activo (ver <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>).
 
-IMPORTANT: En AWS, este paso *solo actualiza el _control-plane_*. Los grupos de trabajo _MachineDeployment_ (con o sin `node_image` fijo) quedan deliberadamente fijados en su versión anterior de Kubernetes: _cluster-operator_ omite el _bump_ para ellos de forma explícita; no es un efecto secundario. Solo los grupos _MachinePool_ reciben el _bump_ de versión real. Para actualizar la versión de los _MachineDeployment_, migra a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>, solo en EKS). En Azure VMs no aplica esta distinción: todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control. En GKE tampoco: todos los grupos de trabajo son _MachinePool_ y el _script_ espera a que converjan en cada paso.
+IMPORTANT: En EKS, el _cluster_ no puede tener grupos de trabajo _MachineDeployment_: migra cada uno a _MachinePool_ antes de ejecutar el _script_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>). En AWS, _cluster-operator_ no sube la versión de los grupos _MachineDeployment_ y el _script_ espera a que todos los nodos lleguen a la versión de destino, así que con uno de esos grupos la espera agota su tiempo. En Azure VMs, todos los grupos de trabajo con `node_image` fijo se actualizan en cada paso del _bump_, junto con el plano de control. En GKE, todos los grupos de trabajo son _MachinePool_ y el _script_ espera a que converjan en cada paso.
 
 [[_bump_de_k8s_version_en_azure_vms]]
 
 === Bump de `k8s_version` en Azure VMs
 
-A diferencia de AWS, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el _control-plane_ de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_, que pertenece a CAPI _core_ y no a `KeosCluster`, rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS, ese mismo trabajo lo hace AWS internamente tras un único _patch_. No es que Azure "vaya más despacio": aquí el _script_ hace explícitamente lo que en EKS queda invisible.
+A diferencia de AWS, en Azure VMs el _script_ no puede aplicar un único _patch_ al _minor_ final. La razón no es de diseño, es un bloqueo externo: el _control-plane_ de Azure VMs es un `KubeadmControlPlane` (CAPI _kubeadm_-based), y su _webhook_, que pertenece a CAPI _core_ y no a `KeosCluster`, rechaza cualquier salto de ≥2 _minors_ sin excepción (`cluster-api/controlplane/kubeadm/internal/webhooks/kubeadm_control_plane.go`, función `validateVersion`). `upgrade-provisioner.py` solo puede desactivar el _webhook_ de `KeosCluster`, no este. Por eso el _script_ tiene que emitir, él mismo, un _patch_ por cada _minor_ intermedio (`1.35`→`1.36`→`1.37`), esperando la convergencia real de cada paso antes de lanzar el siguiente. En EKS, ese mismo trabajo lo hace AWS internamente tras un único _patch_. No es que Azure "vaya más despacio": aquí el _script_ hace explícitamente lo que en EKS queda invisible.
 
 Esto tiene implicaciones prácticas directas:
 
 * *`--node-image-map` es obligatorio* para cualquier _bump_ de `k8s_version` en Azure. Es un JSON con la imagen de la VM de cada _minor_ intermedio (ver la tabla de _flags_ más arriba). Sin él, el _script_ aborta antes de tocar nada. Cada paso necesita la imagen de *su* _minor_, no la del destino final: CAPI exige que una máquina nueva coincida exactamente con la versión del _control-plane_ en el momento de su creación.
-+
-IMPORTANT: La imagen correspondiente al _minor_ *1.33* debe construirse con `kubeadm` *v1.33.13 o superior*. Los _patches_ anteriores de 1.33 resuelven _etcd_ `3.5.21`, dentro del rango `3.5.20`-`3.5.23` afectado por el _bug_ `etcd-io/etcd#20793`: al cruzar a 1.34, que es el _minor_ que introduce _etcd_ 3.6.x, las réplicas nuevas del _control-plane_ se registran como _learners_ y nunca llegan a promocionarse (`etcdserver: can only promote a learner member which is in sync with leader`), el `MachineHealthCheck` las remedia por tiempo de espera agotado y el ciclo se repite de forma indefinida. Con `kubeadm` v1.33.13, la imagen de etcd arranca la versión `3.5.24-0`, fuera de ese rango, y el paso converge con normalidad.
 
 * El proceso completo tarda más que en EKS, porque son N actualizaciones secuenciales del _control-plane_ (con su espera de convergencia y un margen de asentamiento entre pasos), no una sola.
 * Durante todo el _bump_, el _script_ aplica y revierte automáticamente dos cambios temporales, sin intervención manual:
@@ -650,13 +801,15 @@ Si el _script_ se interrumpe a mitad de un _bump_, ambos cambios pueden quedar a
 ** Espera a que la infraestructura real del proveedor _cloud_ alcance la nueva versión de Kubernetes (hasta `--control-plane-timeout`, 90 minutos por defecto; en EKS, AWS aplica los _minors_ de uno en uno de forma automática, así que un salto de varios _minors_ puede observarse como varias transiciones sucesivas `UPDATING` → `ACTIVE` antes de alcanzar la versión final; en GKE, el _script_ consulta directamente la API de GKE).
 ** Si no hubo _bump_ de `k8s_version` (la espera de ese caso ya la cubre el paso anterior), espera a que `KeosCluster.status.ready` sea `true`.
 ** Espera a que el _deployment_ `keoscluster-controller-manager` esté en estado `Available`.
+** En EKS, espera a que todos los _nodegroups_ y todos los nodos lleguen al _minor_ de destino. Obtiene los _nodegroups_ de los `AWSManagedMachinePool` del _cluster_, así que no necesita el permiso `eks:ListNodegroups`.
+** En Azure VMs, cambia la imagen de `cloudControllerManager`/`cloudNodeManager` por la del _minor_ de destino.
 ** Restaura las réplicas de _cluster-autoscaler_ a 2.
 
 [[_bump_de_k8s_version_en_gke]]
 
 === Bump de `k8s_version` en GKE
 
-Igual que en Azure VMs, en GKE el _script_ no aplica un único _patch_ al _minor_ final, pero por otro motivo: GKE rechaza actualizar el _control-plane_ a más de un _minor_ a la vez. Por eso el _script_ emite un _patch_ por cada _minor_ intermedio (`1.32`→`1.33`→`1.34`→`1.35`), con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso.
+Igual que en Azure VMs, en GKE el _script_ no aplica un único _patch_ al _minor_ final, pero por otro motivo: GKE rechaza actualizar el _control-plane_ a más de un _minor_ a la vez. Por eso el _script_ emite un _patch_ por cada _minor_ intermedio, con el _deployment_ de _keoscluster-controller_ activo durante todo el proceso. En esta versión, el destino en GKE es 1.36, así que hay un solo paso (`1.35`→`1.36`).
 
 En cada paso, el _script_:
 
@@ -719,7 +872,7 @@ watch -n30 aws eks describe-cluster --name <nombre-cluster> --query 'cluster.{st
 +
 [source,bash]
 ----
-watch -n30 kubectl get kubeadmcontrolplane <nombre-cluster>-control-plane -n cluster-<nombre-cluster> -o jsonpath='{.status.version} ready={.status.ready} {.status.updatedReplicas}/{.status.replicas}'
+watch -n30 "kubectl get kubeadmcontrolplanes.v1beta2.controlplane.cluster.x-k8s.io <nombre-cluster>-control-plane -n cluster-<nombre-cluster> -o jsonpath='{.status.version} upToDate={.status.upToDateReplicas}/{.status.replicas} available={.status.conditions[?(@.type==\"Available\")].status}'"
 ----
 +
 ** En GKE, sigue por separado el _control-plane_ y los _node pools_: el _control-plane_ llega al destino bastante antes que los nodos (ver <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>):
@@ -758,10 +911,10 @@ kubectl get pods -A -o json \
 +
 *Versiones esperadas:*
 +
-** CAPI → `v1.10.10`
-** CAPA → `v2.9.3`
-** CAPG → `1.6.1-0.4.1`
-** CAPZ → `v1.21.3`
+** CAPI → `v1.13.6`
+** CAPA → `v2.13.0`
+** CAPG → `1.13.1-0.1.0`
+** CAPZ → `v1.26.1`
 
 * Verificar versiones de _charts_.
 +
@@ -791,11 +944,11 @@ kubectl logs -n capz-system deploy/capz-controller-manager --since=30m | grep -i
 +
 NOTE: En un salto de varios _minors_ de `k8s_version`, es esperable ver dos errores transitorios en los _logs_ de `capa-controller-manager`: `InvalidParameterException: Addon version specified is not supported` al actualizar los _addons_ de EKS (p. ej. `kube-proxy`) mientras el _control-plane_ real de AWS aún no ha llegado al _minor_ intermedio necesario, y `connection to the workload cluster is down` durante la ventana de actualización del propio plano de control. Ambos se resuelven solos en los minutos siguientes, sin intervención, una vez que `AWSManagedControlPlane.status.conditions[EKSAddonsConfigured]` pasa a `True`. Solo trátalos como un problema real si persisten más allá de la ventana de actualización.
 +
-*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan la misma versión en `kubeletVersion`. En GKE, `k8s_version` queda con el _patch_ que resolvió el _script_ (por ejemplo, `v1.35.8`), no con `v1.35.0`. En AWS, los grupos _MachineDeployment_ (_legacy_ o con `node_image` fijo) *no cambian*: quedan fijados en su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>, solo en EKS); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto con el _control-plane_ (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>>).
+*Salida esperada:* `KeosCluster.spec.k8s_version` coincide con la versión objetivo. Los grupos _MachinePool_ reportan la misma versión en `kubeletVersion`. En GKE, `k8s_version` queda con el _patch_ que resolvió el _script_ (por ejemplo, `v1.36.4`), no con `v1.36.0`. En AWS, los grupos _MachineDeployment_ (_legacy_ o con `node_image` fijo) *no cambian*: quedan fijados en su versión anterior hasta que se migren a _MachinePool_ (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>, solo en EKS); no lo trates como un fallo de la actualización. En Azure VMs, en cambio, todos los grupos de trabajo con `node_image` fijo sí se actualizan junto con el _control-plane_ (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>>).
 
 == Actualización de _cluster-autoscaler_ tras la actualización
 
-IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS con grupos _MachinePool_, sustituye la imagen por la propia de Stratio, `v1.35.2`, siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
+IMPORTANT: El _script_ actualiza el _chart_ de _cluster-autoscaler_ con la imagen oficial y recrea vacío el _ConfigMap_ `02-cluster-autoscaler-helm-chart-override-values`, por lo que cualquier _override_ de imagen aplicado antes de la actualización se pierde. Al terminar el _script_, en EKS con grupos _MachinePool_, sustituye la imagen por la propia de Stratio, `v1.36.1`, siguiendo el procedimiento de xref:operations-manual:installation.adoc#_actualización_de_cluster_autoscaler[Actualización de _cluster-autoscaler_ tras la instalación].
 
 == _Clusters_ EKS con _MachinePools_
 
