@@ -142,26 +142,32 @@ Associated with the charts that _Stratio Cloud Provisioner_ installs in all clus
 | Image | Version
 
 | stratio-releases.repo.stratio.com/stratio/cloud-provisioner
-| 0.17.0-0.8.5
+| 0.10.0
 
 | docker.io/kindest/kindnetd
-| v20250512-df8de77b
+| v20260820-69b56db7
+
+| docker.io/kindest/local-path-provisioner
+| v20260820-69b56db7
+
+| docker.io/kindest/local-path-helper
+| v20260131-7181c60a
 
 | registry.k8s.io/coredns/coredns
-| v1.12.1
+| v1.14.6
 
 | registry.k8s.io/etcd
-| 3.6.4-0
+| 3.7.0-0
 
 | registry.k8s.io/kube-apiserver
-| v1.34.0
+| v1.37.0
 
 | registry.k8s.io/kube-controller-manager
-| v1.34.0
+| v1.37.0
 
 | registry.k8s.io/kube-proxy
-| v1.34.0
+| v1.37.0
 
 | registry.k8s.io/kube-scheduler
-| v1.34.0
+| v1.37.0
 |===
