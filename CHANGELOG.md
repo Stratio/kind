@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-4931] Upgrade docs: document `upgrade-providers.py` (prerequisites, container, flags, dry-run, steps, `--resume-from`, verification, EKS and GKE kubeconfig) and add the 0.9.x → 0.10.x route to the upgrade planning index with its fact sheet
+* [PLT-4931] Offline installation docs: Cluster API v1.13.6, CAPA v2.13.0, CAPZ v1.26.1 (ASO v2.18.0), CAPG `1.13.1-0.1.0` and cluster-operator 0.8.0
 * [PLT-4916] `upgrade-provisioner.py` pins cluster-autoscaler to v1.36.1, the Stratio build with the kubernetes/autoscaler#9693 MachinePool scale-down fix that a fresh 0.10 install deploys on every provider with cluster-autoscaler (EKS, Azure VMs); before, the chart kept the image tag of the 0.9.X install (v1.35.2)
 * [PLT-4916] `upgrade-providers.py` puts back each provider Deployment's `priorityClassName` (`system-node-critical` from `create cluster`) after `clusterctl upgrade` recreates it without one, and checks it in the final verification
 * [PLT-4916] `upgrade-providers.py` installs cluster-operator `0.8.0-m.2` by default (was `0.8.0-m.1`, not in `DEPENDENCIES` nor in the 15.2 universe, so a private registry would not have it) and reports version `0.10.0`, like `upgrade-provisioner.py`
