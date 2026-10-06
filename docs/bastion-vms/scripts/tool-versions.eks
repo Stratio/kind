@@ -1,0 +1,6 @@
+kubectl 1.36.5 1.33.13
+helm 3.19.0
+yq 4.54.1
+clusterctl 1.13.6 1.10.10
+clusterawsadm 2.13.0 2.9.3
+awscli 2.37.7
