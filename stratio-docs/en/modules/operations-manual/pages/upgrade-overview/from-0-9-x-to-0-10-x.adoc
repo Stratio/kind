@@ -260,6 +260,9 @@ El segundo paso actualiza los _charts_ del _cluster_ y la versión de Kubernetes
 | El registro del _cluster_ tiene los _charts_ y las imágenes de la 0.10.x: Calico v3.33.0, Flux 2.19.1, _cert-manager_ v1.21.2 y _cluster-operator_ 0.8.0.
 | El _script_ los descarga de ese registro y no comprueba antes que existan.
 
+| En Azure VMs, el _cluster_ está en Kubernetes 1.35.
+| `upgrade-provisioner.py` sube un _minor_ cada vez a partir de 1.35. Si el _cluster_ está por debajo, se detiene al arrancar sin cambiar nada.
+
 | En Azure VMs, tienes las imágenes de nodo de 1.36 y de 1.37 para `--node-image-map`.
 | Cada paso del _bump_ crea las máquinas nuevas con la imagen de su _minor_.
 
