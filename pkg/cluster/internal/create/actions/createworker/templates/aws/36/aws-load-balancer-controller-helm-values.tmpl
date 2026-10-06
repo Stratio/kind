@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}public.ecr.aws{{ end }}/eks/aws-load-balancer-controller
-  #tag: v2.14.1
+  #tag: v3.4.3
 
 serviceAccount:
   create: true

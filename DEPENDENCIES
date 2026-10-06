@@ -29,13 +29,13 @@ core:
       source-controller: v1.9.5
     kind:
       cloud-provisioner: 0.9.5
-      coredns: v1.13.1
-      etcd: 3.6.6-0
+      coredns: v1.14.6
+      etcd: 3.7.0-0
       kindnetd: v20260820-69b56db7
-      kube-apiserver: v1.35.8
-      kube-controller-manager: v1.35.8
-      kube-proxy: v1.35.8
-      kube-scheduler: v1.35.8
+      kube-apiserver: v1.37.0
+      kube-controller-manager: v1.37.0
+      kube-proxy: v1.37.0
+      kube-scheduler: v1.37.0
       local-path-helper: v20260131-7181c60a
       local-path-provisioner: v20260820-69b56db7
   charts:
@@ -56,14 +56,14 @@ aws:
       infrastructure-components.yaml: v2.13.0
   managed:
     addons:
-      aws-ebs-csi-driver: v1.64.0-eksbuild.1
-      coredns: v1.14.3-eksbuild.23
-      kube-proxy: v1.36.0-eksbuild.25
-      vpc-cni: v1.20.1-eksbuild.1
+      aws-ebs-csi-driver: v1.66.0-eksbuild.1
+      coredns: v1.14.6-eksbuild.4
+      kube-proxy: v1.37.0-eksbuild.4
+      vpc-cni: v1.21.2-eksbuild.2
     charts:
-      aws-load-balancer-controller: 3.4.0
+      aws-load-balancer-controller: 3.4.3
     images:
-      aws-load-balancer-controller: v3.4.0
+      aws-load-balancer-controller: v3.4.3
 azure:
   capz:
     images:
@@ -74,18 +74,18 @@ azure:
       infrastructure-components.yaml: v1.26.1
   unmanaged:
     charts:
-      azuredisk-csi-driver: 1.34.5
+      azuredisk-csi-driver: 1.36.0
       azurefile-csi-driver: 1.35.7
       cloud-provider-azure: 1.36.0
     images:
       azure-cloud-controller-manager: v1.37.0
       azure-cloud-node-manager: v1.37.0
-      azuredisk-csi: v1.34.5
+      azuredisk-csi: v1.36.0
       azurefile-csi: v1.35.7
       csi-attacher: v4.12.0
       csi-node-driver-registrar: v2.17.0
       csi-provisioner: v6.3.0
-      csi-resizer: v2.2.0
+      csi-resizer: v2.2.1
       csi-snapshotter: v8.6.0
       livenessprobe: v2.19.0
       snapshot-controller: v8.6.0

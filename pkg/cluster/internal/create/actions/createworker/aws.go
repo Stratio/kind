@@ -151,7 +151,7 @@ var awsCharts = ChartsDictionary{
 		},
 		"36": {
 			"managed": {
-				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "3.4.0", Namespace: "kube-system", Pull: false, Reconcile: false},
+				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "3.4.3", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.59.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 				"crd.projectcalico.org.v1":     {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: true, Reconcile: false},
@@ -160,7 +160,7 @@ var awsCharts = ChartsDictionary{
 		},
 		"37": {
 			"managed": {
-				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "3.4.0", Namespace: "kube-system", Pull: false, Reconcile: false},
+				"aws-load-balancer-controller": {Repository: "https://aws.github.io/eks-charts", Version: "3.4.3", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"cluster-autoscaler":           {Repository: "https://kubernetes.github.io/autoscaler", Version: "9.59.0", Namespace: "kube-system", Pull: false, Reconcile: false},
 				"tigera-operator":              {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: true, Reconcile: true},
 				"crd.projectcalico.org.v1":     {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: true, Reconcile: false},

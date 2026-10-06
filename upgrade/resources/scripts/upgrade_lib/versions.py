@@ -130,7 +130,7 @@ common_charts = {
 
 aws_eks_charts = {
     "aws-load-balancer-controller": {
-        "version": "3.4.0",
+        "version": "3.4.3",
         "namespace": "kube-system",
         "repo": "https://aws.github.io/eks-charts"
     }
@@ -138,7 +138,7 @@ aws_eks_charts = {
 
 azure_vm_charts = {
     "azuredisk-csi-driver": {
-        "version": "1.34.5",
+        "version": "1.36.0",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },

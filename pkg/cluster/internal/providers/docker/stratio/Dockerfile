@@ -1,4 +1,4 @@
-FROM kindest/node:v1.35.8
+FROM kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true

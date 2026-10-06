@@ -8,7 +8,7 @@ image:
   baseRepo: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}mcr.microsoft.com{{ end }}
   azuredisk:
     repository: /oss/v2/kubernetes-csi/azuredisk-csi
-    #tag: v1.34.5
+    #tag: v1.36.0
   csiProvisioner:
     repository: /oss/v2/kubernetes-csi/csi-provisioner
     #tag: v6.3.0
@@ -17,7 +17,7 @@ image:
     #tag: v4.12.0
   csiResizer:
     repository: /oss/v2/kubernetes-csi/csi-resizer
-    #tag: v2.2.0
+    #tag: v2.2.1
   livenessProbe:
     repository: /oss/v2/kubernetes-csi/livenessprobe
     #tag: v2.19.0
