@@ -19,7 +19,7 @@ from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.providers.aws import configure_aws_credentials, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
-from upgrade_lib.versions import CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
 from upgrade_lib import state as S
 
 
@@ -272,6 +272,14 @@ def run():
         print(f"[ERROR] --k8s-version {S.config['k8s_version']} is above the {S.provider} target {max_k8s_version} for this release")
         sys.exit(1)
     print("[INFO] Target k8s version: " + S.config["k8s_version"])
+
+    # Azure steps one minor at a time and every step needs an AZURE_K8S_VERSION_BY_MINOR entry; fail before the chart upgrades, not mid-bump.
+    if S.provider == "azure":
+        min_azure_start = min(parse_k8s_minor(m) for m in AZURE_K8S_VERSION_BY_MINOR)
+        min_azure_start = (min_azure_start[0], min_azure_start[1] - 1)
+        if parse_k8s_minor(S.keos_cluster["spec"]["k8s_version"]) < min_azure_start:
+            print(f"[ERROR] Cluster k8s_version is {S.keos_cluster['spec']['k8s_version']}; this release upgrades Azure VMs clusters from {min_azure_start[0]}.{min_azure_start[1]} onwards — upgrade it to {min_azure_start[0]}.{min_azure_start[1]} with the previous release first")
+            sys.exit(1)
 
     preflight_cluster_health_checks(S.keos_cluster, cluster_name, S.provider)
 

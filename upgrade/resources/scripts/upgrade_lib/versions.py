@@ -94,8 +94,6 @@ CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.36.1"
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
 # Mirrors templates/azure/<minor>/cloud-provider-azure-helm-values.tmpl instead.
 CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
-    "1.32": "v1.34.2",
-    "1.34": "v1.34.2",
     "1.35": "v1.35.9",
     "1.36": "v1.36.6",
     "1.37": "v1.37.0",
