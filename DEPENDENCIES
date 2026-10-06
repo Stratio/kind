@@ -28,7 +28,7 @@ core:
       kustomize-controller: v1.7.3
       source-controller: v1.7.4
     kind:
-      cloud-provisioner: 0.9.5
+      cloud-provisioner: 0.10.0-m.2
       coredns: v1.14.6
       etcd: 3.7.0-0
       kindnetd: v20260820-69b56db7
