@@ -257,7 +257,7 @@ El segundo paso actualiza los _charts_ del _cluster_ y la versión de Kubernetes
 | `upgrade-providers.py` terminó y los proveedores están en las versiones de <<components, Componentes y orden de actualización>>.
 | `upgrade-provisioner.py` comprueba al arrancar que cada proveedor está exactamente en su versión de destino. Si no, se detiene sin cambiar nada.
 
-| El registro del _cluster_ tiene los _charts_ y las imágenes de la 0.10.x: Calico v3.33.0, Flux 2.19.1, _cert-manager_ v1.21.2 y _cluster-operator_ 0.8.0.
+| El registro del _cluster_ tiene los _charts_ y las imágenes de la 0.10.x: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2 y _cluster-operator_ 0.8.0.
 | El _script_ los descarga de ese registro y no comprueba antes que existan.
 
 | En Azure VMs, el _cluster_ está en Kubernetes 1.35.

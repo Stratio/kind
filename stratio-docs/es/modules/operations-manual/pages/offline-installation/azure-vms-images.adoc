@@ -51,7 +51,7 @@
 | v3.5.X
 
 | *azuredisk-csi-driver*
-| *v1.34.5*
+| *v1.36.0*
 |
 |
 
@@ -78,7 +78,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/csi-resizer
-| v2.2.0
+| v2.2.1
 
 |
 |
@@ -93,7 +93,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/azuredisk-csi
-| v1.34.5
+| v1.36.0
 
 | *azurefile-csi-driver*
 | *v1.35.7*
@@ -113,7 +113,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/csi-snapshotter
-| v8.6.0
+| v8.5.0
 
 |
 |
@@ -128,7 +128,7 @@
 |
 |
 | mcr.microsoft.com/oss/v2/kubernetes-csi/snapshot-controller
-| v8.6.0
+| v8.5.0
 
 |
 |
