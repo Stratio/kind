@@ -116,7 +116,7 @@ common_charts = {
         "repo": ""
     },
     "flux2": {
-        "version": "2.19.1",
+        "version": "2.17.2",
         "namespace": "kube-system",
         "repo": "https://fluxcd-community.github.io/helm-charts",
         "release_name": "flux"
