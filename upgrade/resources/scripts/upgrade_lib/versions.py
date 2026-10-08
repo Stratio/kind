@@ -85,6 +85,14 @@ TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
 
 TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
 
+# Flux v2.8.8 components shipped by the flux2 2.18.4 chart, pinned in templates/common/<minor>/flux2-helm-values.tmpl.
+FLUX_IMAGE_TAGS = {
+    "cli": "v2.8.8",
+    "helmController": "v1.5.5",
+    "kustomizeController": "v1.8.5",
+    "sourceController": "v1.8.5",
+}
+
 # Stratio CA build with kubernetes/autoscaler#9693, the DEPENDENCIES tag on every provider that deploys CA (EKS, Azure VMs).
 # The fix is for EKS MachinePools: official images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups); #9693 is not in any upstream release yet.
@@ -116,7 +124,7 @@ common_charts = {
         "repo": ""
     },
     "flux2": {
-        "version": "2.17.2",
+        "version": "2.18.4",
         "namespace": "kube-system",
         "repo": "https://fluxcd-community.github.io/helm-charts",
         "release_name": "flux"

@@ -13,7 +13,7 @@ from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_e
 from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.azure import update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -186,6 +186,25 @@ def update_cluster_autoscaler_image_tag_value(values_file):
         image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
         if 'repository' in image:
             image['repository'] = image['repository'].replace('/k8s/autoscaling', '/autoscaling')
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def update_flux_values(values_file):
+    '''Pin the Flux component tags and enable the chart's pre-upgrade `flux migrate` hook. The values are
+    read back with `helm get values`, which keeps the previous install's tags, and Flux 2.8 drops the
+    v1beta2/v2beta2 APIs that clusters coming from keos-installer 1.2 can still have stored (PLT-4306).'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for component, tag in FLUX_IMAGE_TAGS.items():
+            values.setdefault(component, {})['tag'] = tag
+        values.setdefault('crds', {}).setdefault('migration', {})['enabled'] = True
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -478,6 +497,8 @@ def upgrade_chart(chart_name, chart_data):
             update_cluster_operator_image_tag_value(default_values_file, S.cluster_operator_version)
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
+        elif release_name == "flux":
+            update_flux_values(default_values_file)
         elif release_name == "cluster-autoscaler" and S.provider in ("aws", "azure"):
             update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and S.provider == "azure":
