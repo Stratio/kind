@@ -590,7 +590,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 
 		if firstInstallation {
 			// Pull cluster-operator helm chart
-			c = "helm pull " + stratio_helm_repo + "/cluster-operator --version " + chartVersion +
+			c = "rm -rf /stratio/helm/cluster-operator && helm pull " + stratio_helm_repo + "/cluster-operator --version " + chartVersion +
 				" --untar --untardir /stratio/helm"
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
@@ -1541,11 +1541,12 @@ func pullCharts(n nodes.Node, charts map[string]commons.ChartEntry, keosSpec com
 		}
 		// Check if the chart needs to be pulled
 		if chart.Pull {
-			var c string
+			// --untar fails when the chart dir exists, e.g. on create --resume (PLT-4965)
+			c := "rm -rf /stratio/helm/" + name + " && "
 			if strings.HasPrefix(chart.Repository, "oci://") {
-				c = "helm pull " + chart.Repository + "/" + name + " --version " + chart.Version + " --untar --untardir /stratio/helm"
+				c += "helm pull " + chart.Repository + "/" + name + " --version " + chart.Version + " --untar --untardir /stratio/helm"
 			} else {
-				c = "helm pull " + name + " --version " + chart.Version + " --repo " + chart.Repository + " --untar --untardir /stratio/helm"
+				c += "helm pull " + name + " --version " + chart.Version + " --repo " + chart.Repository + " --untar --untardir /stratio/helm"
 			}
 			// Add authentication if required
 			if chart.Repository == keosSpec.HelmRepository.URL && keosSpec.HelmRepository.AuthRequired {
