@@ -152,11 +152,11 @@ type KeosSpec struct {
 
 	Keos Keos `yaml:"keos,omitempty"`
 
-	ControlPlane ControlPlane `yaml:"control_plane" validate:"required,dive"`
+	ControlPlane ControlPlane `yaml:"control_plane" validate:"required"`
 
 	WorkerNodes WorkerNodes `yaml:"worker_nodes" validate:"required,dive"`
 
-	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty" validate:"dive"`
+	ClusterConfigRef ClusterConfigRef `yaml:"cluster_config_ref,omitempty"`
 
 	Calico Calico `yaml:"calico,omitempty"`
 }
@@ -175,8 +175,8 @@ type ControlPlane struct {
 	AWS             AWSCP               `yaml:"aws,omitempty"`
 	Azure           AzureCP             `yaml:"azure,omitempty"`
 	Gcp             GCPCP               `yaml:"gcp,omitempty"`
-	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
-	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"omitempty,dive"`
+	CRIVolume       CustomVolume        `yaml:"cri_volume,omitempty"  validate:"omitempty"`
+	ETCDVolume      CustomVolume        `yaml:"etcd_volume,omitempty"  validate:"omitempty"`
 	ExtraVolumes    []ExtraVolume       `yaml:"extra_volumes,omitempty" validate:"omitempty,dive"`
 }
 
@@ -316,7 +316,7 @@ type WorkerNodes []struct {
 	NodeGroupMaxSize int               `yaml:"max_size,omitempty" validate:"omitempty,required_with=NodeGroupMinSize,numeric"`
 	NodeGroupMinSize *int              `yaml:"min_size,omitempty" validate:"omitempty,required_with=NodeGroupMaxSize,numeric,gte=0"`
 	RootVolume       RootVolume        `yaml:"root_volume,omitempty"`
-	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"omitempty,dive"`
+	CRIVolume        CustomVolume      `yaml:"cri_volume,omitempty"  validate:"omitempty"`
 	ExtraVolumes     []ExtraVolume     `yaml:"extra_volumes,omitempty" validate:"dive"`
 }
 

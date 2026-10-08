@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/delete"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers"

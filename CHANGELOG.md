@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+* [PLT-4977] Update Go dependencies (minor/patch): `aws-sdk-go-v2` v1.19.0 → v1.47.1 (`config` v1.33.6, `service/ec2` v1.337.0, `service/ecr` v1.66.1), Azure SDK `azcore` v1.17.0 → v1.23.2 / `azidentity` v1.8.2 → v1.13.1, `google.golang.org/api` v0.264.0 → v0.299.0, `containers/image/v5` v5.36.2, `cobra` v1.10.2 and the rest of the module graph; `shellescape` moves to its new module path `al.essio.dev/pkg/shellescape` v1.6.1; drop the `dive` validation tag from the struct-typed descriptor fields (`control_plane`, `cluster_config_ref`, `cri_volume`, `etcd_volume`) — `go-playground/validator` v10.30 panics on `dive` over a non-slice field
+
 ## 0.10.0 (upcoming)
 
 * [PLT-4916] Generate the bootstrap kubeadm config with `kubeadm.k8s.io/v1beta4` from Kubernetes v1.36.0 on (`v1beta3` below, as upstream kind): the `kindest/node` v1.37.0 bootstrap image ships kubeadm v1.37, which no longer accepts `v1beta3`, so `create cluster` failed at `kubeadm init` on every provider
