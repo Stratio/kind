@@ -505,8 +505,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to wait for cluster")
 		}
 
-		// Wait for the control plane initialization
-		c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=ControlPlaneInitialized --timeout=25m cluster " + a.keosCluster.Metadata.Name
+		// Wait for the control plane initialization. Not on the ControlPlaneInitialized condition: CAPI keeps its
+		// observedGeneration from the first reconcile, and kubectl 1.35 ignores it once a resume re-applies the chart.
+		c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath='{.status.initialization.controlPlaneInitialized}'=true --timeout=25m cluster " + a.keosCluster.Metadata.Name
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create the workload cluster")
