@@ -18,6 +18,7 @@ package create
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/alessio/shellescape"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
+	"sigs.k8s.io/kind/pkg/exec"
 	"sigs.k8s.io/kind/pkg/internal/apis/config"
 	"sigs.k8s.io/kind/pkg/internal/apis/config/encoding"
 	"sigs.k8s.io/kind/pkg/internal/cli"
@@ -72,6 +74,8 @@ type ClusterOptions struct {
 
 	// Force local container delete before creating the cluster if it already exists
 	ForceDelete bool
+	// Resume reuses the bootstrap container of a failed create (PLT-4965)
+	Resume bool
 	// NodeImage overrides the nodes' images in Config if non-zero
 	NodeImage      string
 	Retain         bool
@@ -94,6 +98,10 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	// default / process options (namely config)
 	if err := fixupOptions(opts); err != nil {
 		return err
+	}
+
+	if opts.Resume {
+		return resume(logger, p, opts)
 	}
 
 	// Check if the cluster name already exists
@@ -126,11 +134,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 	// Create node containers implementing defined config Nodes
 	if err := p.Provision(status, opts.Config, opts.DockerRegUrl, opts.UseLocalStratioImage, opts.BuildStratioImage); err != nil {
-		// In case of errors nodes are deleted (except if retain is explicitly set)
-		if !opts.Retain {
-			_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
-		}
-		return err
+		return failed(logger, p, opts, err)
 	}
 
 	// TODO(bentheelder): make this controllable from the command line?
@@ -157,7 +161,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 
 		// add Stratio step
 		actionsToRun = append(actionsToRun,
-			createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation, opts.KeosCluster, opts.ClusterCredentials, opts.ClusterConfig), // create worker k8s cluster
+			createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation, false, opts.KeosCluster, opts.ClusterCredentials, opts.ClusterConfig), // create worker k8s cluster
 		)
 	}
 
@@ -165,10 +169,7 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	actionsContext := actions.NewActionContext(logger, status, p, opts.Config)
 	for _, action := range actionsToRun {
 		if err := action.Execute(actionsContext); err != nil {
-			if !opts.Retain {
-				_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
-			}
-			return err
+			return failed(logger, p, opts, err)
 		}
 	}
 
@@ -176,7 +177,64 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 	if opts.StopBeforeSettingUpKubernetes {
 		return nil
 	}
+	return finish(logger, p, opts, actionsContext)
+}
 
+// resume re-runs createworker in the kept bootstrap container; its steps are idempotent or skip what is done.
+func resume(logger log.Logger, p providers.Provider, opts *ClusterOptions) error {
+	nodes, err := p.ListNodes(opts.Config.Name)
+	if err != nil {
+		return err
+	}
+	if len(nodes) == 0 {
+		return errors.Errorf("the bootstrap container of %q no longer exists; resuming without it is not supported yet (PLT-4965)", opts.Config.Name)
+	}
+	// After a host reboot the container is stopped (restart policy on-failure)
+	for _, n := range nodes {
+		if err := exec.Command("docker", "start", n.String()).Run(); err != nil {
+			return errors.Wrapf(err, "failed to start the bootstrap container %s", n.String())
+		}
+	}
+	status := cli.StatusForLogger(logger)
+	logger.V(0).Infof("Resuming the creation of cluster %q ...\n", opts.Config.Name)
+	Capx_opts = getCAPXVersion(opts.ClusterConfig.Spec.Capx)
+
+	wait := opts.WaitForReady
+	if wait == 0 {
+		wait = 5 * time.Minute
+	}
+	actionsToRun := []actions.Action{
+		waitforready.NewAction(wait),
+		createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation, true, opts.KeosCluster, opts.ClusterCredentials, opts.ClusterConfig),
+	}
+	actionsContext := actions.NewActionContext(logger, status, p, opts.Config)
+	for _, action := range actionsToRun {
+		if err := action.Execute(actionsContext); err != nil {
+			return failed(logger, p, opts, err)
+		}
+	}
+	return finish(logger, p, opts, actionsContext)
+}
+
+// failed deletes the bootstrap container unless retained or AWS resources may already exist: then it keeps it and
+// prints how to resume. The state file goes with the container.
+func failed(logger log.Logger, p providers.Provider, opts *ClusterOptions, err error) error {
+	state, _ := commons.LoadCreateState()
+	if state != nil && state.CloudResources {
+		logger.V(0).Infof("\nThe bootstrap container %s-control-plane was kept: cloud resources of the cluster may already exist.\n"+
+			"Fix the cause and resume from this directory with:\n"+
+			"  cloud-provisioner create cluster --resume --name %s --descriptor %s --vault-password <vault password>\n",
+			opts.Config.Name, opts.Config.Name, opts.DescriptorPath)
+		return err
+	}
+	if !opts.Retain {
+		_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
+		_ = os.Remove(commons.CreateStatePath)
+	}
+	return err
+}
+
+func finish(logger log.Logger, p providers.Provider, opts *ClusterOptions, actionsContext *actions.ActionContext) error {
 	// try exporting kubeconfig with backoff for locking failures
 	// TODO: factor out into a public errors API w/ backoff handling?
 	// for now this is easier than coming up with a good API
@@ -198,6 +256,9 @@ func Cluster(logger log.Logger, p providers.Provider, opts *ClusterOptions) erro
 		_ = delete.Cluster(logger, p, opts.Config.Name, opts.KubeconfigPath)
 		actionsContext.Status.End(true) // End Cleaning up local cluster
 	}
+
+	// the create is complete: nothing left to resume
+	_ = os.Remove(commons.CreateStatePath)
 
 	// optionally display usage
 	// if opts.DisplayUsage {

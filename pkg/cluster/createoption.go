@@ -102,6 +102,14 @@ func CreateWithForceDelete(forceDelete bool) CreateOption {
 	})
 }
 
+// CreateWithResume reuses the bootstrap container of a failed create instead of provisioning a new one (PLT-4965)
+func CreateWithResume(resume bool) CreateOption {
+	return createOptionAdapter(func(o *internalcreate.ClusterOptions) error {
+		o.Resume = resume
+		return nil
+	})
+}
+
 // CreateWithWaitForReady configures a maximum wait time for the control plane
 // node(s) to be ready. By default no waiting is performed
 func CreateWithWaitForReady(waitTime time.Duration) CreateOption {

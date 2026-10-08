@@ -460,7 +460,7 @@ func (p *Provider) deployCertManager(n nodes.Node, keosRegistryUrl string, kubec
 	if err != nil {
 		return errors.Wrap(err, "failed to create cert-manager Helm chart values file")
 	}
-	c = "helm install --wait cert-manager /stratio/helm/cert-manager" +
+	c = "helm upgrade --install --wait cert-manager /stratio/helm/cert-manager" +
 		" --namespace=cert-manager" +
 		" --create-namespace" +
 		" --values " + certManagerValuesFile
@@ -525,7 +525,9 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		}
 		c = "kubectl -n kube-system create secret generic keoscluster-registries --from-literal=credentials='" + string(jsonDockerRegistriesCredentials) + "'"
 		if kubeconfigPath != "" {
-			c = c + " --kubeconfig " + kubeconfigPath
+			c = c + applyCreatedIn(kubeconfigPath)
+		} else {
+			c = c + applyCreated
 		}
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -596,7 +598,7 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 			}
 		}
 		// Deploy cluster-operator chart
-		c = "helm install --wait cluster-operator /stratio/helm/cluster-operator" +
+		c = "helm upgrade --install --wait cluster-operator /stratio/helm/cluster-operator" +
 			" --namespace kube-system" +
 			" --set provider=" + keosCluster.Spec.InfraProvider +
 			" --set app.containers.controllerManager.image.registry=" + keosRegistry.url +
@@ -736,7 +738,7 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 			return errors.Wrap(err, "failed to apply the Calico CRDs")
 		}
 
-		c = "helm install tigera-operator /stratio/helm/tigera-operator" +
+		c = "helm upgrade --install tigera-operator /stratio/helm/tigera-operator" +
 			" --kubeconfig " + k +
 			" --namespace tigera-operator" +
 			" --create-namespace" +
@@ -808,7 +810,7 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 		}
 
 		// Create namespace for CAPI clusters (it must exists) in worker cluster
-		c = "kubectl --kubeconfig " + kubeconfigPath + " create ns " + capiClustersNamespace
+		c = "kubectl --kubeconfig " + kubeconfigPath + " create ns " + capiClustersNamespace + applyCreatedIn(kubeconfigPath)
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create manifests Namespace")
@@ -854,7 +856,7 @@ func configureFlux(n nodes.Node, k string, privateParams PrivateParams, helmRepo
 		return errors.Wrap(err, "failed to create Flux Helm chart values file")
 	}
 
-	c = "helm install flux /stratio/helm/flux2" +
+	c = "helm upgrade --install flux /stratio/helm/flux2" +
 		" --kubeconfig " + k +
 		" --namespace kube-system" +
 		" --create-namespace" +
@@ -978,14 +980,15 @@ func configureHelmRelease(n nodes.Node, k string, templatePath string, params fl
 	c := "kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
 		"00-" + params.HelmReleaseName + "-helm-chart-default-values " +
-		"--from-file=values.yaml=" + valuesFile
+		"--from-file=values.yaml=" + valuesFile + applyCreatedIn(kubeconfigPath)
 	_, err := commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy "+params.HelmReleaseName+" HelmRelease default configuration map")
 	}
 
-	// Create override HelmRelease configmap
-	c = "kubectl --kubeconfig " + kubeconfigPath + " " +
+	// Create override HelmRelease configmap, never overwriting one that exists: it holds the user's day-2 changes
+	c = "kubectl --kubeconfig " + kubeconfigPath + " -n " + params.ChartNamespace + " get configmap 02-" + params.HelmReleaseName +
+		"-helm-chart-override-values >/dev/null 2>&1 || kubectl --kubeconfig " + kubeconfigPath + " " +
 		"-n " + params.ChartNamespace + " create configmap " +
 		"02-" + params.HelmReleaseName + "-helm-chart-override-values " +
 		"--from-literal=values.yaml=\"\""
@@ -1127,7 +1130,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 
 	if p.capxProvider == "azure" {
 		// Create capx namespace
-		c = "kubectl --kubeconfig " + kubeconfigPath + " create namespace " + p.capxName + "-system"
+		c = "kubectl --kubeconfig " + kubeconfigPath + " create namespace " + p.capxName + "-system" + applyCreatedIn(kubeconfigPath)
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx namespace")
@@ -1138,7 +1141,7 @@ func (p *Provider) installCAPXWorker(n nodes.Node, keosCluster commons.KeosClust
 		clientSecret, _ := base64.StdEncoding.DecodeString(strings.Split(p.capxEnvVars[0], "AZURE_CLIENT_SECRET_B64=")[1])
 
 		c := fmt.Sprintf(
-			"kubectl --kubeconfig %s -n %s create secret generic cluster-identity-secret --from-literal=clientSecret='%s'",
+			"kubectl --kubeconfig %s -n %s create secret generic cluster-identity-secret --from-literal=clientSecret='%s'"+applyCreatedIn(kubeconfigPath),
 			kubeconfigPath, namespace, clientSecret)
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -1325,7 +1328,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterC
 
 	if p.capxProvider == "azure" {
 		// Create capx namespace
-		c = "kubectl create namespace " + p.capxName + "-system"
+		c = "kubectl create namespace " + p.capxName + "-system" + applyCreated
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create CAPx namespace")
@@ -1337,7 +1340,7 @@ func (p *Provider) installCAPXLocal(n nodes.Node, clusterConfig commons.ClusterC
 
 		c := fmt.Sprintf(
 			"kubectl -n %s create secret generic cluster-identity-secret "+
-				"--from-literal=clientSecret='%s' ",
+				"--from-literal=clientSecret='%s' "+applyCreated,
 			namespace, clientSecret)
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
