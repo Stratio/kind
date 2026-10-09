@@ -299,7 +299,7 @@ El punto de no retorno es el _patch_ de `KeosCluster.spec.k8s_version`. El _scri
 === Parada y disponibilidad
 
 * Los nodos se reemplazan de forma progresiva en cada _minor_. Revisa los _Pod Disruption Budget_ de las cargas antes de empezar: uno que impida vaciar un nodo detiene el reemplazo.
-* En EKS y Azure VMs, _cluster-autoscaler_ se detiene al principio y vuelve a 2 réplicas al actualizar su _chart_. En GKE, _Stratio Cloud Provisioner_ no lo despliega.
+* En EKS y Azure VMs, _cluster-autoscaler_ se detiene al principio y vuelve a 2 réplicas al terminar. En GKE, _Stratio Cloud Provisioner_ no lo despliega.
 * Los _webhooks_ de `KeosCluster` están desactivados durante la sección crítica, así que no hagas cambios en el `KeosCluster` mientras se ejecuta el _script_.
 
 [#step2-known-issues]
