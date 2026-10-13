@@ -85,12 +85,25 @@ tigeraOperator:
   image: tigera/operator
   # We need to set this version since tigera-operator chart point to an older one
   version: v1.40.15
-# Tolerations for the tigera/operator pod.
+# Tolerations for the tigera/operator pod: bootstrap set of projectcalico/calico#14027, cordoned nodes are not tolerated.
 tolerations:
-  - effect: NoExecute
+  - key: CriticalAddonsOnly
     operator: Exists
-  - effect: NoSchedule
+  - key: node-role.kubernetes.io/master
     operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node.kubernetes.io/not-ready
+    operator: Exists
+    effect: NoSchedule
+  - key: node.kubernetes.io/network-unavailable
+    operator: Exists
+    effect: NoSchedule
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    operator: Exists
+    effect: NoSchedule
 # Optionally configure the host and port used to access the Kubernetes API server.
 kubernetesServiceEndpoint:
   host: ""

@@ -98,6 +98,21 @@ CAPZ = "v1.21.3"
 TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.31.7"
 TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.40.15"
 
+# Bootstrap set of projectcalico/calico#14027: the chart's blanket default also tolerates the cordon taint (PLT-5023).
+TIGERA_OPERATOR_TOLERATIONS = [
+    {"key": "CriticalAddonsOnly", "operator": "Exists"},
+    {"key": "node-role.kubernetes.io/master", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.kubernetes.io/not-ready", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.kubernetes.io/network-unavailable", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.cloudprovider.kubernetes.io/uninitialized", "operator": "Exists", "effect": "NoSchedule"},
+]
+
+TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
+    {"effect": "NoExecute", "operator": "Exists"},
+    {"effect": "NoSchedule", "operator": "Exists"},
+]
+
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
@@ -1147,6 +1162,11 @@ def update_tigera_operator_image_tag_value(values_file):
 
         values['calicoctl']['tag'] = TIGERA_OPERATOR_CALICOCTL_VERSION
         values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
+
+        # Only the old blanket default is replaced: tolerations customised in the override ConfigMap are kept.
+        current = values.get('tolerations')
+        if current is None or sorted(current, key=lambda t: t.get('effect', '')) == TIGERA_OPERATOR_LEGACY_TOLERATIONS:
+            values['tolerations'] = TIGERA_OPERATOR_TOLERATIONS
 
         # The chart defaults whisker/goldmane to true, so an upgrade from a chart older than
         # v3.30 installs them unasked; force both from the descriptor instead.
