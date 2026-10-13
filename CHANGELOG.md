@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.7 (upcoming)
 
-* [PLT-5023] tigera-operator no longer tolerates cordoned nodes: its tolerations are the bootstrap set of projectcalico/calico#14027 instead of the chart's blanket `NoSchedule`/`NoExecute` default, which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor with a template (1.32, 1.34, 1.35), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)
+* [PLT-5023] tigera-operator and calico-typha no longer tolerate cordoned nodes: their tolerations are the bootstrap set of projectcalico/calico#14027 instead of the blanket `NoSchedule`/`NoExecute` defaults (chart for the operator, operator v1.40.15 for typha), which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor with a template (1.32, 1.34, 1.35), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)
 
 ## 0.9.6 (2026-10-06)
 

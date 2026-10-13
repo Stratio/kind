@@ -1166,7 +1166,12 @@ def update_tigera_operator_image_tag_value(values_file):
         # Only the old blanket default is replaced: tolerations customised in the override ConfigMap are kept.
         current = values.get('tolerations')
         if current is None or sorted(current, key=lambda t: t.get('effect', '')) == TIGERA_OPERATOR_LEGACY_TOLERATIONS:
-            values['tolerations'] = TIGERA_OPERATOR_TOLERATIONS
+            values['tolerations'] = [dict(t) for t in TIGERA_OPERATOR_TOLERATIONS]
+        # typha gets the same set unless already customised: operator v1.40.15 makes it tolerate every taint.
+        typha_spec = values.setdefault('installation', {}).setdefault('typhaDeployment', {}).setdefault('spec', {}) \
+            .setdefault('template', {}).setdefault('spec', {})
+        if 'tolerations' not in typha_spec:
+            typha_spec['tolerations'] = [dict(t) for t in TIGERA_OPERATOR_TOLERATIONS]
 
         # The chart defaults whisker/goldmane to true, so an upgrade from a chart older than
         # v3.30 installs them unasked; force both from the descriptor instead.

@@ -59,6 +59,29 @@ installation:
   registry: docker.io
   {{- end }}
   typhaMetricsPort: 9093
+  # Same bootstrap set for typha: operator v1.40.15 defaults it to tolerate every taint, cordon included.
+  typhaDeployment:
+    spec:
+      template:
+        spec:
+          tolerations:
+            - key: CriticalAddonsOnly
+              operator: Exists
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+            - key: node.kubernetes.io/not-ready
+              operator: Exists
+              effect: NoSchedule
+            - key: node.kubernetes.io/network-unavailable
+              operator: Exists
+              effect: NoSchedule
+            - key: node.cloudprovider.kubernetes.io/uninitialized
+              operator: Exists
+              effect: NoSchedule
 # NodeSelector for the tigera/operator pod.
 nodeSelector:
   kubernetes.io/os: linux
