@@ -479,13 +479,11 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		// The CAPI objects already live in the workload cluster: only adoption, post-install and the descriptor remain
 		if err := checkWorkloadAccess(n); err != nil {
 			// EKS tokens last ~15 min and nothing refreshes them after the pivot: mint one with the deploy user
-			if a.keosCluster.Spec.InfraProvider != "aws" || !a.keosCluster.Spec.ControlPlane.Managed {
+			refresh := a.eksTokenRefresh(n)
+			if refresh == nil {
 				return err
 			}
-			if err := commons.RefreshEKSKubeconfigToken(n, kubeconfigPath, a.keosCluster.Metadata.Name, a.keosCluster.Spec.Region, a.clusterCredentials.ProviderCredentials); err != nil {
-				return err
-			}
-			if err := checkWorkloadAccess(n); err != nil {
+			if err := commons.EnsureKubeconfigAccess(n, kubeconfigPath, refresh); err != nil {
 				return err
 			}
 		}
@@ -601,6 +599,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Only now: the workload token saved by the interrupted create may have expired
 		if a.resume {
+			// a move stopped halfway leaves the Cluster paused: CAPA stops renewing the EKS token in its kubeconfig secret
+			if err := commons.EnsureKubeconfigAccess(n, kubeconfigPath, a.eksTokenRefresh(n)); err != nil {
+				return errors.Wrap(err, "cannot reach the workload cluster with "+kubeconfigPath)
+			}
 			if err := setFluxSuspendedForReplay(n, kubeconfigPath, true); err != nil {
 				return err
 			}
@@ -611,7 +613,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Start kubeconfig refresher in background
 		stopRefresher = make(chan struct{})
-		go commons.StartKubeconfigRefresher(n, capiClustersNamespace, a.keosCluster.Metadata.Name, kubeconfigPath, stopRefresher)
+		go commons.StartKubeconfigRefresher(n, capiClustersNamespace, a.keosCluster.Metadata.Name, kubeconfigPath, stopRefresher, a.eksTokenRefresh(n))
 
 		// Install unmanaged cluster addons
 		if !a.keosCluster.Spec.ControlPlane.Managed {

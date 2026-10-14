@@ -1,6 +1,9 @@
 package commons
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestReplaceKubeconfigToken(t *testing.T) {
 	// shape of the CAPA EKS kubeconfig (secret <cluster>-kubeconfig)
@@ -33,6 +36,30 @@ users:
 	if _, err := ReplaceKubeconfigToken("users:\n- name: a\n  user:\n    client-certificate-data: X\n", "t"); err == nil {
 		t.Error("kubeconfig without a token: no error")
 	}
+}
+
+func TestRefreshWith(t *testing.T) {
+	cases := []struct {
+		name                    string
+		fetchErr                error
+		works, fallbackExpected bool
+	}{
+		{name: "secret kubeconfig works", works: true},
+		{name: "stale token in the secret (paused Cluster)", fallbackExpected: true},
+		{name: "secret gone (after the pivot)", fetchErr: errors.New("not found"), fallbackExpected: true},
+	}
+	for _, c := range cases {
+		fellBack := false
+		refreshWith(
+			func() (string, error) { return "kc", c.fetchErr },
+			func(string) bool { return c.works },
+			func() error { fellBack = true; return nil },
+		)
+		if fellBack != c.fallbackExpected {
+			t.Errorf("%s: fallback=%t", c.name, fellBack)
+		}
+	}
+	refreshWith(func() (string, error) { return "", errors.New("x") }, func(string) bool { return false }, nil)
 }
 
 func TestEKSTokenFromExecCredential(t *testing.T) {

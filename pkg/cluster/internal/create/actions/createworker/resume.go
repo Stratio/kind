@@ -323,6 +323,16 @@ func replaceDir(src, dst string) error {
 	return os.Rename(src, dst)
 }
 
+// eksTokenRefresh mints a new workload token with the deploy user on EKS (nil elsewhere): CAPA's token lasts ~15 min
+func (a *action) eksTokenRefresh(n nodes.Node) func() error {
+	if a.keosCluster.Spec.InfraProvider != "aws" || !a.keosCluster.Spec.ControlPlane.Managed {
+		return nil
+	}
+	return func() error {
+		return commons.RefreshEKSKubeconfigToken(n, kubeconfigPath, a.keosCluster.Metadata.Name, a.keosCluster.Spec.Region, a.clusterCredentials.ProviderCredentials)
+	}
+}
+
 // resumePivoted tells whether the CAPI objects already live in the workload cluster: a move started by a killed CLI can
 // finish in the container before the state file records it. The Cluster only leaves the bootstrap through the move.
 func resumePivoted(statePivoted, srcExists, kubeconfigSaved bool) bool {

@@ -13,45 +13,54 @@ import (
 	"sigs.k8s.io/kind/pkg/errors"
 )
 
-func StartKubeconfigRefresher(n nodes.Node, namespace, clusterName, kubeconfigPath string, stopChan <-chan struct{}) {
+// StartKubeconfigRefresher rewrites kubeconfigPath from the CAPI kubeconfig secret every 2 minutes. fallback (may be
+// nil) runs when that kubeconfig does not reach the cluster, e.g. a paused Cluster whose EKS token CAPA stopped renewing.
+func StartKubeconfigRefresher(n nodes.Node, namespace, clusterName, kubeconfigPath string, stopChan <-chan struct{}, fallback func() error) {
 	ticker := time.NewTicker(2 * time.Minute)
 	defer ticker.Stop()
 
 	// Perform an initial kubeconfig refresh
-	refreshKubeconfig(n, namespace, clusterName, kubeconfigPath)
+	refreshKubeconfig(n, namespace, clusterName, kubeconfigPath, fallback)
 
 	for {
 		select {
 		case <-ticker.C:
-			refreshKubeconfig(n, namespace, clusterName, kubeconfigPath)
+			refreshKubeconfig(n, namespace, clusterName, kubeconfigPath, fallback)
 		case <-stopChan:
 			return
 		}
 	}
 }
 
-func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath string) {
-	kubeconfig, err := GetKubeconfigFromSecret(n, namespace, clusterName)
-	if err != nil {
+func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath string, fallback func() error) {
+	refreshWith(
+		func() (string, error) { return GetKubeconfigFromSecret(n, namespace, clusterName) },
+		func(kubeconfig string) bool { return writeWorkingKubeconfig(n, kubeconfig, kubeconfigPath) },
+		fallback,
+	)
+}
+
+// refreshWith writes the fetched kubeconfig only if it works; otherwise the current one stays and fallback runs
+func refreshWith(fetch func() (string, error), writeIfWorking func(string) bool, fallback func() error) {
+	if kubeconfig, err := fetch(); err == nil && writeIfWorking(kubeconfig) {
 		return
 	}
-
-	// Extract the directory from the path
-	kubeconfigDir := filepath.Dir(kubeconfigPath)
-
-	// Create the directory inside the container
-	createDirCmd := fmt.Sprintf("mkdir -p %s", kubeconfigDir)
-	_, err = ExecuteCommand(n, createDirCmd, 5, 3)
-	if err != nil {
-		return
+	if fallback != nil {
+		_ = fallback()
 	}
+}
 
-	// Write the kubeconfig to the specified path inside the container
-	writeFileCmd := fmt.Sprintf("echo '%s' > %s", kubeconfig, kubeconfigPath)
-	_, err = ExecuteCommand(n, writeFileCmd, 5, 3)
-	if err != nil {
-		return
+// writeWorkingKubeconfig puts kubeconfig at kubeconfigPath only when it reaches the cluster
+func writeWorkingKubeconfig(n nodes.Node, kubeconfig, kubeconfigPath string) bool {
+	tmp := kubeconfigPath + ".new"
+	if _, err := ExecuteCommand(n, fmt.Sprintf("mkdir -p %s && echo '%s' > %s", filepath.Dir(kubeconfigPath), kubeconfig, tmp), 5, 3); err != nil {
+		return false
 	}
+	if _, err := ExecuteCommand(n, "kubectl --kubeconfig "+tmp+" get ns kube-system -o name", 1, 1); err != nil {
+		return false
+	}
+	_, err := ExecuteCommand(n, "mv "+tmp+" "+kubeconfigPath, 5, 3)
+	return err == nil
 }
 
 var kubeconfigTokenLine = regexp.MustCompile(`(?m)^([ \t]*token:[ \t]*)\S+[ \t]*$`)
@@ -79,6 +88,20 @@ func eksTokenFromExecCredential(out string) (string, error) {
 	return cred.Status.Token, nil
 }
 
+// EnsureKubeconfigAccess checks that kubeconfigPath reaches the cluster; if not, it runs refresh (may be nil) and checks again
+func EnsureKubeconfigAccess(n nodes.Node, kubeconfigPath string, refresh func() error) error {
+	check := "kubectl --kubeconfig " + kubeconfigPath + " get ns kube-system -o name"
+	_, err := ExecuteCommand(n, check, 5, 3)
+	if err == nil || refresh == nil {
+		return err
+	}
+	if rerr := refresh(); rerr != nil {
+		return errors.Wrap(rerr, "the workload kubeconfig does not work and refreshing its token failed")
+	}
+	_, err = ExecuteCommand(n, check, 5, 3)
+	return err
+}
+
 // RefreshEKSKubeconfigToken mints a new EKS token with the deploy user credentials inside the bootstrap container and
 // writes it into kubeconfigPath: after the pivot nothing refreshes the CAPA token saved there (~15 min lifetime).
 func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region string, credentials map[string]string) error {
@@ -99,7 +122,7 @@ func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region
 	if err != nil {
 		return err
 	}
-	if _, err := ExecuteCommand(n, fmt.Sprintf("echo '%s' > %s", kubeconfig, kubeconfigPath), 5, 3); err != nil {
+	if _, err := ExecuteCommand(n, fmt.Sprintf("echo '%s' > %s.tok && mv %s.tok %s", kubeconfig, kubeconfigPath, kubeconfigPath, kubeconfigPath), 5, 3); err != nil {
 		return errors.Wrap(err, "failed to write "+kubeconfigPath)
 	}
 	return nil
