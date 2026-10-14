@@ -848,6 +848,12 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
 			defer ctx.Status.End(false)
 
+			// From here Flux upgrades the releases and the step waits for their HelmReleases to be ready
+			if a.resume {
+				if err := setFluxSuspendedForReplay(n, kubeconfigPath, false); err != nil {
+					return err
+				}
+			}
 			err = reconcileCharts(n, kubeconfigPath, privateParams, a.keosCluster.Spec, chartsList)
 			if err != nil {
 				return errors.Wrap(err, "failed to reconcile with Flux the existing Helm charts in workload cluster")
@@ -1076,7 +1082,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
-		// The replay no longer runs helm in the workload: Flux takes its releases back
+		// Also when the Flux step did not run: no HelmRelease stays suspended by the replay
 		if a.resume {
 			if err := setFluxSuspendedForReplay(n, kubeconfigPath, false); err != nil {
 				return err
