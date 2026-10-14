@@ -79,7 +79,7 @@ updates:
 | Setting | Where | Required value |
 |---|---|---|
 | Labels | Issues → Labels | Every label listed in `dependabot.yml` must exist |
-| Dependabot version updates | — | Start by themselves once `dependabot.yml` is on the default branch ([GitHub docs](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates)) |
+| Dependabot version updates | Settings → Advanced Security → Dependabot version updates | Enabled. `Stratio/kind` is a fork of `kubernetes-sigs/kind`, and "version updates are not automatically enabled on forks when a `dependabot.yml` configuration file is present" ([GitHub docs](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates)): merging `dependabot.yml` alone starts nothing. A repository administrator enables it once in the UI |
 
 No other setting changes: branch protection, required reviews, merge methods and secrets stay as they are.
 
