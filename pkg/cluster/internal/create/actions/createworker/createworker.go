@@ -126,8 +126,12 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 		pivoted = state != nil && state.Pivoted
 		// A killed CLI does not stop what it started with docker exec: stop it before the steps run again
-		if _, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1); err != nil {
+		stopped, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1)
+		if err != nil {
 			return errors.Wrap(err, "failed to stop the commands left running by the interrupted create")
+		}
+		if s := strings.TrimSpace(stopped); s != "" {
+			ctx.Logger.V(0).Infof(" • Stopped what the interrupted create left running (also any kubectl opened by hand in %s): %s", n.String(), strings.ReplaceAll(s, "\n", ", "))
 		}
 		if err := releasePendingHelm(n); err != nil {
 			return err

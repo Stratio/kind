@@ -70,18 +70,18 @@ func TestReplaceDir(t *testing.T) {
 
 func TestResumePivoted(t *testing.T) {
 	cases := []struct {
-		name                              string
-		statePivoted, srcExists, dstExist bool
-		pivoted                           bool
+		name                                     string
+		statePivoted, srcExists, kubeconfigSaved bool
+		pivoted                                  bool
 	}{
-		{name: "state says pivoted", statePivoted: true, dstExist: true, pivoted: true},
-		{name: "not moved", srcExists: true},
-		{name: "move finished after the CLI was killed", dstExist: true, pivoted: true},
-		{name: "move interrupted, both copies", srcExists: true, dstExist: true},
-		{name: "workload without the Cluster yet", srcExists: true},
+		{name: "state says pivoted", statePivoted: true, kubeconfigSaved: true, pivoted: true},
+		{name: "not moved", srcExists: true, kubeconfigSaved: true},
+		{name: "move finished after the CLI was killed", kubeconfigSaved: true, pivoted: true},
+		{name: "killed before the chart created the Cluster"},
+		{name: "workload not created yet", srcExists: true},
 	}
 	for _, c := range cases {
-		if got := resumePivoted(c.statePivoted, c.srcExists, c.dstExist); got != c.pivoted {
+		if got := resumePivoted(c.statePivoted, c.srcExists, c.kubeconfigSaved); got != c.pivoted {
 			t.Errorf("%s: pivoted=%t, want %t", c.name, got, c.pivoted)
 		}
 	}
