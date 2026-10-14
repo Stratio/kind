@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
@@ -111,8 +112,11 @@ func bootstrapHas(n nodes.Node, namespace, kind, name string) bool {
 }
 
 type helmReleaseRecord struct {
-	namespace, secret string
+	namespace, name, secret string
 }
+
+// fluxPendingGrace outlasts the default HelmRelease timeout (5m): a pending release Flux owns may be its own operation
+const fluxPendingGrace = 6 * time.Minute
 
 // pendingReleaseRecords returns the record secret of each release a killed helm left pending (`helm list -A --pending -o
 // json`): dropping the pending revision unlocks the next upgrade --install, which adopts the objects already created.
@@ -129,38 +133,92 @@ func pendingReleaseRecords(helmListJSON string) ([]helmReleaseRecord, error) {
 	var records []helmReleaseRecord
 	for _, r := range releases {
 		if strings.HasPrefix(r.Status, "pending-") {
-			records = append(records, helmReleaseRecord{namespace: r.Namespace, secret: "sh.helm.release.v1." + r.Name + ".v" + r.Revision})
+			records = append(records, helmReleaseRecord{namespace: r.Namespace, name: r.Name, secret: "sh.helm.release.v1." + r.Name + ".v" + r.Revision})
 		}
 	}
 	return records, nil
 }
 
-// releasePendingHelm drops the pending revisions a killed helm left in the bootstrap and, once it is reachable, the
-// workload cluster; otherwise every later helm upgrade of that release fails with "another operation is in progress".
-func releasePendingHelm(n nodes.Node) error {
-	for _, k := range []string{"", " --kubeconfig " + kubeconfigPath} {
-		if k != "" && !kindFileExists(n, kubeconfigPath) {
+// fluxOwnedReleases returns "<namespace>/<release>" of every Helm release a Flux HelmRelease manages
+// (`kubectl get helmreleases.helm.toolkit.fluxcd.io -A -o json`)
+func fluxOwnedReleases(helmReleasesJSON string) (map[string]bool, error) {
+	var list struct {
+		Items []struct {
+			Metadata struct{ Name, Namespace string }
+			Spec     struct{ ReleaseName, TargetNamespace, StorageNamespace string }
+			Status   struct {
+				History []struct{ Name, Namespace string }
+			}
+		}
+	}
+	if err := json.Unmarshal([]byte(helmReleasesJSON), &list); err != nil {
+		return nil, errors.Wrap(err, "failed to parse the HelmRelease list")
+	}
+	owned := map[string]bool{}
+	for _, hr := range list.Items {
+		if h := hr.Status.History; len(h) > 0 && h[0].Name != "" {
+			owned[h[0].Namespace+"/"+h[0].Name] = true
 			continue
 		}
+		// Flux defaults: release <targetNamespace>-<name> when it targets another namespace, stored in its own namespace
+		name, ns := hr.Spec.ReleaseName, hr.Spec.StorageNamespace
+		if name == "" {
+			name = hr.Metadata.Name
+			if hr.Spec.TargetNamespace != "" {
+				name = hr.Spec.TargetNamespace + "-" + hr.Metadata.Name
+			}
+		}
+		if ns == "" {
+			ns = hr.Metadata.Namespace
+		}
+		owned[ns+"/"+name] = true
+	}
+	return owned, nil
+}
+
+// releasePendingHelm drops the pending revisions a killed helm left (kubeconfig "" = bootstrap); otherwise every later
+// helm upgrade of that release fails with "another operation is in progress". In the workload a release Flux manages
+// gets fluxPendingGrace to leave its pending state on its own before it is treated as a leftover.
+func releasePendingHelm(n nodes.Node, kubeconfig string) error {
+	k := ""
+	if kubeconfig != "" {
+		k = " --kubeconfig " + kubeconfig
+	}
+	deadline := time.Now().Add(fluxPendingGrace)
+	for {
 		out, err := commons.ExecuteCommand(n, "helm"+k+" list -A --pending -o json", 5, 3)
 		if err != nil {
-			if k != "" {
-				continue
-			}
 			return errors.Wrap(err, "failed to list the pending Helm releases")
 		}
 		records, err := pendingReleaseRecords(out)
 		if err != nil {
 			return err
 		}
+		owned := map[string]bool{}
+		if k != "" && len(records) > 0 && time.Now().Before(deadline) {
+			// before Flux is installed the HelmRelease kind does not exist: nothing is owned
+			if hrs, err := commons.ExecuteCommand(n, "kubectl"+k+" get helmreleases.helm.toolkit.fluxcd.io -A -o json", 5, 3); err == nil {
+				if owned, err = fluxOwnedReleases(hrs); err != nil {
+					return err
+				}
+			}
+		}
+		waiting := false
 		for _, r := range records {
+			if owned[r.namespace+"/"+r.name] {
+				waiting = true
+				continue
+			}
 			c := "kubectl" + k + " -n " + r.namespace + " delete secret " + r.secret + " --ignore-not-found"
 			if _, err := commons.ExecuteCommand(n, c, 5, 3); err != nil {
 				return errors.Wrap(err, "failed to drop the pending Helm revision "+r.namespace+"/"+r.secret)
 			}
 		}
+		if !waiting {
+			return nil
+		}
+		time.Sleep(15 * time.Second)
 	}
-	return nil
 }
 
 // skipBackup is true for a resume after a move killed midway: clusterctl refuses to back up a paused Cluster, the move

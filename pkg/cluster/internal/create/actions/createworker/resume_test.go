@@ -17,8 +17,8 @@ func TestPendingReleaseRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []helmReleaseRecord{
-		{namespace: "cert-manager", secret: "sh.helm.release.v1.cert-manager.v1"},
-		{namespace: "kube-system", secret: "sh.helm.release.v1.flux.v4"},
+		{namespace: "cert-manager", name: "cert-manager", secret: "sh.helm.release.v1.cert-manager.v1"},
+		{namespace: "kube-system", name: "flux", secret: "sh.helm.release.v1.flux.v4"},
 	}
 	if !reflect.DeepEqual(records, want) {
 		t.Errorf("records=%v, want %v", records, want)
@@ -28,6 +28,23 @@ func TestPendingReleaseRecords(t *testing.T) {
 	}
 	if _, err := pendingReleaseRecords("Error: Kubernetes cluster unreachable"); err == nil {
 		t.Error("non-JSON output: no error")
+	}
+}
+
+func TestFluxOwnedReleases(t *testing.T) {
+	// eks-4965-r3 workload, 2026-10-14: every release the create installs has a HelmRelease with status.history
+	list := `{"items":[
+	{"metadata":{"name":"flux","namespace":"kube-system"},"spec":{"releaseName":"flux"},"status":{"history":[{"name":"flux","namespace":"kube-system"}]}},
+	{"metadata":{"name":"cert-manager","namespace":"cert-manager"},"spec":{}},
+	{"metadata":{"name":"app","namespace":"flux-system"},"spec":{"targetNamespace":"apps"}},
+	{"metadata":{"name":"db","namespace":"flux-system"},"spec":{"releaseName":"pg","storageNamespace":"data"}}]}`
+	owned, err := fluxOwnedReleases(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"kube-system/flux": true, "cert-manager/cert-manager": true, "flux-system/apps-app": true, "data/pg": true}
+	if !reflect.DeepEqual(owned, want) {
+		t.Errorf("owned=%v, want %v", owned, want)
 	}
 }
 

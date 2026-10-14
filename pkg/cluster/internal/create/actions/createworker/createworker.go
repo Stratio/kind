@@ -133,7 +133,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if s := strings.TrimSpace(stopped); s != "" {
 			ctx.Logger.V(0).Infof(" • Stopped what the interrupted create left running (also any kubectl opened by hand in %s): %s", n.String(), strings.ReplaceAll(s, "\n", ", "))
 		}
-		if err := releasePendingHelm(n); err != nil {
+		if err := releasePendingHelm(n, ""); err != nil {
 			return err
 		}
 	}
@@ -578,6 +578,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
 		stepDone("kubeconfig")
+
+		// Only now: the workload token saved by the interrupted create may have expired
+		if a.resume {
+			if err := releasePendingHelm(n, kubeconfigPath); err != nil {
+				return err
+			}
+		}
 
 		// Start kubeconfig refresher in background
 		stopRefresher = make(chan struct{})
