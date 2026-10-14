@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+* [PLT-4980] Enable Dependabot version updates for the Go modules of `master` (daily, minor and patch in one group, 7-day cooldown, no automatic merge); see `docs/dependabot/README.md`
+* [PLT-4977] Update Go dependencies (minor/patch): `aws-sdk-go-v2` v1.19.0 → v1.47.1 (`config` v1.33.6, `service/ec2` v1.337.0, `service/ecr` v1.66.1), Azure SDK `azcore` v1.17.0 → v1.23.2 / `azidentity` v1.8.2 → v1.13.1, `google.golang.org/api` v0.264.0 → v0.299.0, `containers/image/v5` v5.36.2, `cobra` v1.10.2 and the rest of the module graph; `shellescape` moves to its new module path `al.essio.dev/pkg/shellescape` v1.6.1; drop the `dive` validation tag from the struct-typed descriptor fields (`control_plane`, `cluster_config_ref`, `cri_volume`, `etcd_volume`) — `go-playground/validator` v10.30 panics on `dive` over a non-slice field
+
 ## 0.10.0 (upcoming)
 
 * [PLT-5023] tigera-operator no longer tolerates cordoned nodes: its tolerations are the bootstrap set of projectcalico/calico#14027 instead of the chart's blanket `NoSchedule`/`NoExecute` default, which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor (1.35, 1.36, 1.37), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)

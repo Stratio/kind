@@ -1,0 +1,28 @@
+# Go module updates for cloud-provisioner. See docs/dependabot/README.md
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "master"
+    labels:
+      - "master"
+      - "go"
+      - "dependencies"
+      - "skip doPushDockerECR"
+    schedule:
+      interval: "daily"
+      time: "06:30"
+    cooldown:
+      default-days: 7
+      semver-patch-days: 1
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    groups:
+      gomod-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Internal modules of the AWS SDK only move together with the SDK packages that use them
+      - dependency-name: "github.com/aws/aws-sdk-go-v2/internal/*"
