@@ -1055,31 +1055,44 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.Start("Creating cloud-provisioner Objects backup 🗄️")
 		defer ctx.Status.End(false)
 
-		// Start from empty dirs: --from-directory restores every file, including those of objects deleted since
-		if err := os.RemoveAll(localBackupPath); err != nil {
-			return errors.Wrap(err, "failed to clean the local backup directory")
+		srcPaused := false
+		if a.resume {
+			if _, srcPaused, err = clusterMoveState(n, "", capiClustersNamespace, a.keosCluster.Metadata.Name); err != nil {
+				return err
+			}
 		}
-		if err := os.MkdirAll(localBackupPath, 0755); err != nil {
-			return errors.Wrap(err, "failed to create local backup directory")
-		}
+		if !skipBackup(a.resume, srcPaused) {
+			// Start from empty dirs: --from-directory restores every file, including those of objects deleted since
+			newBackupPath := localBackupPath + ".new"
+			if err := os.RemoveAll(newBackupPath); err != nil {
+				return errors.Wrap(err, "failed to clean the local backup directory")
+			}
+			if err := os.MkdirAll(newBackupPath, 0755); err != nil {
+				return errors.Wrap(err, "failed to create local backup directory")
+			}
 
-		c = "rm -rf " + cloudProviderBackupPath + " && mkdir -p " + cloudProviderBackupPath + " && chmod -R 0755 " + cloudProviderBackupPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
-		}
+			c = "rm -rf " + cloudProviderBackupPath + " && mkdir -p " + cloudProviderBackupPath + " && chmod -R 0755 " + cloudProviderBackupPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
+			}
 
-		c = "clusterctl move -n " + capiClustersNamespace + " --to-directory " + cloudProviderBackupPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
-		}
+			c = "clusterctl move -n " + capiClustersNamespace + " --to-directory " + cloudProviderBackupPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
+			}
 
-		for _, path := range PathsToBackupLocally {
-			raw := bytes.Buffer{}
-			cmd := exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+n.String()+":"+path+" "+localBackupPath)
-			if err := cmd.SetStdout(&raw).Run(); err != nil {
-				return errors.Wrap(err, "failed to copy "+path+" to local host")
+			for _, path := range PathsToBackupLocally {
+				raw := bytes.Buffer{}
+				cmd := exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+n.String()+":"+path+" "+newBackupPath)
+				if err := cmd.SetStdout(&raw).Run(); err != nil {
+					return errors.Wrap(err, "failed to copy "+path+" to local host")
+				}
+			}
+			// The previous backup is only replaced once the new one is complete
+			if err := replaceDir(newBackupPath, localBackupPath); err != nil {
+				return errors.Wrap(err, "failed to replace the local backup directory")
 			}
 		}
 

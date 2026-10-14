@@ -1,6 +1,8 @@
 package createworker
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -26,6 +28,43 @@ func TestPendingReleaseRecords(t *testing.T) {
 	}
 	if _, err := pendingReleaseRecords("Error: Kubernetes cluster unreachable"); err == nil {
 		t.Error("non-JSON output: no error")
+	}
+}
+
+func TestSkipBackup(t *testing.T) {
+	if !skipBackup(true, true) {
+		t.Error("resume after a move killed midway: backup not skipped")
+	}
+	if skipBackup(true, false) || skipBackup(false, false) {
+		t.Error("source not paused: backup skipped")
+	}
+}
+
+func TestReplaceDir(t *testing.T) {
+	d := t.TempDir()
+	dst, src := filepath.Join(d, "backup"), filepath.Join(d, "backup.new")
+	for _, f := range []string{filepath.Join(dst, "old"), filepath.Join(src, "new")} {
+		if err := os.MkdirAll(filepath.Dir(f), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, nil, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := replaceDir(filepath.Join(d, "missing"), dst); err == nil {
+		t.Error("missing new backup: no error")
+	}
+	if _, err := os.Stat(filepath.Join(dst, "old")); err != nil {
+		t.Errorf("missing new backup: previous backup lost: %v", err)
+	}
+	if err := replaceDir(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "new")); err != nil {
+		t.Errorf("new backup not in place: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "old")); !os.IsNotExist(err) {
+		t.Errorf("previous backup files kept: %v", err)
 	}
 }
 

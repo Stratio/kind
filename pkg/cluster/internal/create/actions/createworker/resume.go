@@ -2,6 +2,7 @@ package createworker
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
@@ -159,6 +160,23 @@ func releasePendingHelm(n nodes.Node) error {
 		}
 	}
 	return nil
+}
+
+// skipBackup is true for a resume after a move killed midway: clusterctl refuses to back up a paused Cluster, the move
+// step completes that move and the previous backup is kept.
+func skipBackup(resume, srcPaused bool) bool {
+	return resume && srcPaused
+}
+
+// replaceDir puts src in place of dst, leaving dst untouched when src does not exist
+func replaceDir(src, dst string) error {
+	if _, err := os.Stat(src); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(dst); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 // resumePivoted tells whether the CAPI objects already live in the workload cluster: a move started by a killed CLI can
