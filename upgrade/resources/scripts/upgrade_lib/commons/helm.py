@@ -13,7 +13,7 @@ from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_e
 from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.azure import update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -206,6 +206,11 @@ def update_tigera_operator_image_tag_value(values_file):
         # Calico v3.33 ships calicoctl in the consolidated calico/calico image; calico/ctl no longer exists
         values['calicoctl']['image'] = values['calicoctl'].get('image', '').replace('/calico/ctl', '/calico/calico')
         values['tigeraOperator']['version'] = TIGERA_OPERATOR_CONTROLLER_VERSION
+
+        # Only the old blanket default is replaced: tolerations customised in the override ConfigMap are kept.
+        current = values.get('tolerations')
+        if current is None or sorted(current, key=lambda t: t.get('effect', '')) == TIGERA_OPERATOR_LEGACY_TOLERATIONS:
+            values['tolerations'] = TIGERA_OPERATOR_TOLERATIONS
 
         # The chart defaults whisker/goldmane to true, so an upgrade from a chart older than
         # v3.30 installs them unasked; force both from the descriptor instead.

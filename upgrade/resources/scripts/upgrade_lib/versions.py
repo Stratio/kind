@@ -85,6 +85,21 @@ TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
 
 TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
 
+# Bootstrap set of projectcalico/calico#14027: the chart's blanket default also tolerates the cordon taint (PLT-5023).
+TIGERA_OPERATOR_TOLERATIONS = [
+    {"key": "CriticalAddonsOnly", "operator": "Exists"},
+    {"key": "node-role.kubernetes.io/master", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.kubernetes.io/not-ready", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.kubernetes.io/network-unavailable", "operator": "Exists", "effect": "NoSchedule"},
+    {"key": "node.cloudprovider.kubernetes.io/uninitialized", "operator": "Exists", "effect": "NoSchedule"},
+]
+
+TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
+    {"effect": "NoExecute", "operator": "Exists"},
+    {"effect": "NoSchedule", "operator": "Exists"},
+]
+
 # Stratio CA build with kubernetes/autoscaler#9693, the DEPENDENCIES tag on every provider that deploys CA (EKS, Azure VMs).
 # The fix is for EKS MachinePools: official images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups); #9693 is not in any upstream release yet.
