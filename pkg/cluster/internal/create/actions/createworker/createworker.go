@@ -478,7 +478,16 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	if !a.avoidCreation && pivoted {
 		// The CAPI objects already live in the workload cluster: only adoption, post-install and the descriptor remain
 		if err := checkWorkloadAccess(n); err != nil {
-			return err
+			// EKS tokens last ~15 min and nothing refreshes them after the pivot: mint one with the deploy user
+			if a.keosCluster.Spec.InfraProvider != "aws" || !a.keosCluster.Spec.ControlPlane.Managed {
+				return err
+			}
+			if err := commons.RefreshEKSKubeconfigToken(n, kubeconfigPath, a.keosCluster.Metadata.Name, a.keosCluster.Spec.Region, a.clusterCredentials.ProviderCredentials); err != nil {
+				return err
+			}
+			if err := checkWorkloadAccess(n); err != nil {
+				return err
+			}
 		}
 		// clusterctl deletes the source before it unpauses the target: a move stopped in between leaves it paused
 		if a.resume {

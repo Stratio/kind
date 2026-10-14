@@ -2,8 +2,10 @@ package commons
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,6 +52,57 @@ func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath stri
 	if err != nil {
 		return
 	}
+}
+
+var kubeconfigTokenLine = regexp.MustCompile(`(?m)^([ \t]*token:[ \t]*)\S+[ \t]*$`)
+
+// ReplaceKubeconfigToken swaps the bearer token of the kubeconfig's only token user
+func ReplaceKubeconfigToken(kubeconfig, token string) (string, error) {
+	if n := len(kubeconfigTokenLine.FindAllString(kubeconfig, -1)); n != 1 {
+		return "", errors.Errorf("expected one token in the kubeconfig, found %d", n)
+	}
+	return kubeconfigTokenLine.ReplaceAllStringFunc(kubeconfig, func(line string) string {
+		return kubeconfigTokenLine.FindStringSubmatch(line)[1] + token
+	}), nil
+}
+
+// eksTokenFromExecCredential reads status.token from the ExecCredential printed by `aws eks get-token`
+func eksTokenFromExecCredential(out string) (string, error) {
+	var cred struct {
+		Status struct {
+			Token string `json:"token"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(out), &cred); err != nil || cred.Status.Token == "" {
+		return "", errors.Errorf("unexpected aws eks get-token output: %v", err)
+	}
+	return cred.Status.Token, nil
+}
+
+// RefreshEKSKubeconfigToken mints a new EKS token with the deploy user credentials inside the bootstrap container and
+// writes it into kubeconfigPath: after the pivot nothing refreshes the CAPA token saved there (~15 min lifetime).
+func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region string, credentials map[string]string) error {
+	env := []string{"AWS_ACCESS_KEY_ID=" + credentials["AccessKey"], "AWS_SECRET_ACCESS_KEY=" + credentials["SecretKey"], "AWS_REGION=" + region}
+	out, err := ExecuteCommand(n, "aws eks get-token --cluster-name "+clusterName+" --region "+region+" --output json 2>/dev/null", 5, 3, env)
+	if err != nil {
+		return errors.Wrap(err, "failed to get a new EKS token")
+	}
+	token, err := eksTokenFromExecCredential(out)
+	if err != nil {
+		return err
+	}
+	kubeconfig, err := ExecuteCommand(n, "cat "+kubeconfigPath, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to read "+kubeconfigPath)
+	}
+	kubeconfig, err = ReplaceKubeconfigToken(kubeconfig, token)
+	if err != nil {
+		return err
+	}
+	if _, err := ExecuteCommand(n, fmt.Sprintf("echo '%s' > %s", kubeconfig, kubeconfigPath), 5, 3); err != nil {
+		return errors.Wrap(err, "failed to write "+kubeconfigPath)
+	}
+	return nil
 }
 
 func GetKubeconfigFromSecret(n nodes.Node, namespace, clusterName string) (string, error) {
