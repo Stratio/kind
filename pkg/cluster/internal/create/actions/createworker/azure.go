@@ -208,7 +208,8 @@ func (b *AzureBuilder) installCloudProvider(n nodes.Node, k string, privateParam
 		return errors.Wrap(err, "failed to create cloud controller manager Helm chart values file")
 	}
 
-	c = "helm install cloud-provider-azure /stratio/helm/cloud-provider-azure" +
+	// upgrade --install: a resume runs this again after the release already exists
+	c = "helm upgrade --install cloud-provider-azure /stratio/helm/cloud-provider-azure" +
 		" --kubeconfig " + k +
 		" --namespace kube-system" +
 		" --set cloudControllerManager.replicas=1" +
@@ -294,7 +295,7 @@ func (b *AzureBuilder) installCSI(n nodes.Node, kubeconfigPath string, privatePa
 			return errors.Wrap(err, "failed to create azuredisk driver config")
 		}
 		c = "kubectl --kubeconfig " + kubeconfigPath + " create secret generic azure-cloud-provider -n " +
-			azureDiskNamespace + " --from-file=cloud-config=/kind/azuredisk-azure.json"
+			azureDiskNamespace + " --from-file=cloud-config=/kind/azuredisk-azure.json" + applyCreatedIn(kubeconfigPath)
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create azuredisk secret")
