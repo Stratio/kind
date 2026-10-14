@@ -125,6 +125,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return err
 		}
 		pivoted = state != nil && state.Pivoted
+		// A killed CLI does not stop what it started with docker exec: stop it before the steps run again
+		if _, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1); err != nil {
+			return errors.Wrap(err, "failed to stop the commands left running by the interrupted create")
+		}
 	}
 
 	providerParams := ProviderParams{
@@ -441,6 +445,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		pivoted, installOperator, err = bootstrapMoveState(n, capiClustersNamespace, a.keosCluster.Metadata.Name)
 		if err != nil {
 			return err
+		}
+		// A move can finish after the CLI that started it was killed, before the state recorded it
+		if pivoted {
+			stepDone("move", func(s *commons.CreateState) { s.Pivoted = true })
 		}
 	}
 

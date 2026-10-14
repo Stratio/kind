@@ -12,6 +12,9 @@ import (
 
 const privateCNIMarker = "/kind/.private-cni-done"
 
+// stopLeftovers kills the CLIs a killed cloud-provisioner left running in the container (exact process names only)
+const stopLeftovers = "pkill -9 -x 'clusterctl|helm|kubectl' || true"
+
 // applyCreated turns a `kubectl create <kind>` into create-or-update, so a resume does not fail with AlreadyExists.
 // Server-side: a client-side apply would copy the whole object (secret data included) into last-applied-configuration.
 const applyCreated = " --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -"
@@ -102,6 +105,12 @@ func bootstrapMoveState(n nodes.Node, namespace, name string) (pivoted bool, ins
 func bootstrapHas(n nodes.Node, namespace, kind, name string) bool {
 	out, err := commons.ExecuteCommand(n, "kubectl -n "+namespace+" get "+kind+" "+name+" --ignore-not-found -o name", 5, 3)
 	return err == nil && strings.TrimSpace(out) != ""
+}
+
+// resumePivoted tells whether the CAPI objects already live in the workload cluster: a move started by a killed CLI can
+// finish in the container before the state file records it.
+func resumePivoted(statePivoted, srcExists, dstExists bool) bool {
+	return statePivoted || (!srcExists && dstExists)
 }
 
 func moveDecision(srcExists, srcPaused, dstExists bool) (moved bool, unpause bool, err error) {
