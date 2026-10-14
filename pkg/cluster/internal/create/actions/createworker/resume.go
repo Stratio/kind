@@ -1,6 +1,7 @@
 package createworker
 
 import (
+	"encoding/json"
 	"strings"
 
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
@@ -105,6 +106,59 @@ func bootstrapMoveState(n nodes.Node, namespace, name string) (pivoted bool, ins
 func bootstrapHas(n nodes.Node, namespace, kind, name string) bool {
 	out, err := commons.ExecuteCommand(n, "kubectl -n "+namespace+" get "+kind+" "+name+" --ignore-not-found -o name", 5, 3)
 	return err == nil && strings.TrimSpace(out) != ""
+}
+
+type helmReleaseRecord struct {
+	namespace, secret string
+}
+
+// pendingReleaseRecords returns the record secret of each release a killed helm left pending (`helm list -A --pending -o
+// json`): dropping the pending revision unlocks the next upgrade --install, which adopts the objects already created.
+func pendingReleaseRecords(helmListJSON string) ([]helmReleaseRecord, error) {
+	var releases []struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+		Revision  string `json:"revision"`
+		Status    string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(helmListJSON), &releases); err != nil {
+		return nil, errors.Wrap(err, "failed to parse the Helm release list")
+	}
+	var records []helmReleaseRecord
+	for _, r := range releases {
+		if strings.HasPrefix(r.Status, "pending-") {
+			records = append(records, helmReleaseRecord{namespace: r.Namespace, secret: "sh.helm.release.v1." + r.Name + ".v" + r.Revision})
+		}
+	}
+	return records, nil
+}
+
+// releasePendingHelm drops the pending revisions a killed helm left in the bootstrap and, once it is reachable, the
+// workload cluster; otherwise every later helm upgrade of that release fails with "another operation is in progress".
+func releasePendingHelm(n nodes.Node) error {
+	for _, k := range []string{"", " --kubeconfig " + kubeconfigPath} {
+		if k != "" && !kindFileExists(n, kubeconfigPath) {
+			continue
+		}
+		out, err := commons.ExecuteCommand(n, "helm"+k+" list -A --pending -o json", 5, 3)
+		if err != nil {
+			if k != "" {
+				continue
+			}
+			return errors.Wrap(err, "failed to list the pending Helm releases")
+		}
+		records, err := pendingReleaseRecords(out)
+		if err != nil {
+			return err
+		}
+		for _, r := range records {
+			c := "kubectl" + k + " -n " + r.namespace + " delete secret " + r.secret + " --ignore-not-found"
+			if _, err := commons.ExecuteCommand(n, c, 5, 3); err != nil {
+				return errors.Wrap(err, "failed to drop the pending Helm revision "+r.namespace+"/"+r.secret)
+			}
+		}
+	}
+	return nil
 }
 
 // resumePivoted tells whether the CAPI objects already live in the workload cluster: a move started by a killed CLI can

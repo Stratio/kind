@@ -129,6 +129,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		if _, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1); err != nil {
 			return errors.Wrap(err, "failed to stop the commands left running by the interrupted create")
 		}
+		if err := releasePendingHelm(n); err != nil {
+			return err
+		}
 	}
 
 	providerParams := ProviderParams{

@@ -1,6 +1,33 @@
 package createworker
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
+
+func TestPendingReleaseRecords(t *testing.T) {
+	// shape of `helm list -A --pending -o json` (helm v3.19)
+	list := `[{"name":"cert-manager","namespace":"cert-manager","revision":"1","status":"pending-install","chart":"cert-manager-v1.21.2"},
+	{"name":"flux","namespace":"kube-system","revision":"4","status":"pending-upgrade","chart":"flux2-2.17.2"},
+	{"name":"tigera-operator","namespace":"tigera-operator","revision":"2","status":"deployed","chart":"tigera-operator-v3.31.4"}]`
+	records, err := pendingReleaseRecords(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []helmReleaseRecord{
+		{namespace: "cert-manager", secret: "sh.helm.release.v1.cert-manager.v1"},
+		{namespace: "kube-system", secret: "sh.helm.release.v1.flux.v4"},
+	}
+	if !reflect.DeepEqual(records, want) {
+		t.Errorf("records=%v, want %v", records, want)
+	}
+	if records, err := pendingReleaseRecords("[]"); err != nil || len(records) != 0 {
+		t.Errorf("empty list: records=%v err=%v", records, err)
+	}
+	if _, err := pendingReleaseRecords("Error: Kubernetes cluster unreachable"); err == nil {
+		t.Error("non-JSON output: no error")
+	}
+}
 
 func TestResumePivoted(t *testing.T) {
 	cases := []struct {
