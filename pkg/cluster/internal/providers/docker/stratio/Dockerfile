@@ -1,4 +1,4 @@
-FROM kindest/node:v1.35.8
+FROM kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 
 # Init feature gates
 ENV CLUSTER_TOPOLOGY=true
@@ -9,7 +9,7 @@ ENV CAPA_EKS_ADD_ROLES=true
 # Core tool/version args
 ARG CLUSTERCTL=v1.13.6
 ENV CLUSTERAWSADM=v2.13.0
-ENV HELM=v3.19.0
+ENV HELM=v3.22.0
 ENV AWSCLI_VERSION=2.30.6
 ARG CAPA=v2.13.0
 ARG CAPG=1.13.1-0.1.0-M1

@@ -255,6 +255,26 @@ var commonsCharts = ChartsDictionary{
 				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
 			},
 		},
+		"36": {
+			"managed": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+			"unmanaged": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+		},
+		"37": {
+			"managed": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+			"unmanaged": {
+				"cert-manager": {Repository: "https://charts.jetstack.io", Version: "v1.21.2", Namespace: "cert-manager", Pull: true, Reconcile: true},
+				"flux2":        {Repository: "https://fluxcd-community.github.io/helm-charts", Version: "2.17.2", Namespace: "kube-system", Pull: true, Reconcile: true},
+			},
+		},
 	},
 }
 
@@ -738,6 +758,14 @@ func installCalico(n nodes.Node, k string, privateParams PrivateParams, isNetPol
 	}
 
 	if !dryRun {
+		// Calico >= v3.32 ships its CRDs in a separate chart (charts/tigera-operator/README.md@v3.32.2)
+		c = "if [ -d /stratio/helm/crd.projectcalico.org.v1 ]; then helm template calico-crds /stratio/helm/crd.projectcalico.org.v1" +
+			" | kubectl --kubeconfig " + k + " apply --server-side -f -; fi"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply the Calico CRDs")
+		}
+
 		c = "helm install tigera-operator /stratio/helm/tigera-operator" +
 			" --kubeconfig " + k +
 			" --namespace tigera-operator" +
