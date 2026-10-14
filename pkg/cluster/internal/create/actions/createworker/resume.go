@@ -19,6 +19,36 @@ const privateCNIMarker = "/kind/.private-cni-done"
 // prints "<pid> <name>" for each one
 const stopLeftovers = "pgrep -l -x 'clusterctl|helm|kubectl'; pkill -9 -x 'clusterctl|helm|kubectl'; true"
 
+// moveLeftoverWait bounds the wait for a clusterctl move the killed CLI left running; past it the move is stopped
+const moveLeftoverWait = 10 * time.Minute
+
+// waitInFlightMove lets a clusterctl move that a killed CLI left running finish: stopped midway it leaves the Cluster
+// paused, in both clusters or only in the workload
+func waitInFlightMove(n nodes.Node, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		out, err := commons.ExecuteCommand(n, "pgrep -f '^clusterctl move' || true", 1, 1)
+		if err != nil {
+			return errors.Wrap(err, "failed to look for a clusterctl move left running")
+		}
+		if strings.TrimSpace(out) == "" {
+			return nil
+		}
+		time.Sleep(5 * time.Second)
+	}
+	return nil
+}
+
+// unpauseMovedCommands resumes the moved Cluster and its ClusterClasses in the workload, the last thing clusterctl move
+// does (cluster-api v1.13.6 cmd/clusterctl/client/cluster/mover.go:409-418); both commands are no-ops when not paused
+func unpauseMovedCommands(kubeconfig, namespace, name string) []string {
+	k := "kubectl --kubeconfig " + kubeconfig + " -n " + namespace
+	return []string{
+		k + " patch cluster " + name + ` --type merge -p '{"spec":{"paused":null}}'`,
+		k + " get clusterclasses -o name | xargs -r -I{} " + k + " annotate {} cluster.x-k8s.io/paused-",
+	}
+}
+
 // applyCreated turns a `kubectl create <kind>` into create-or-update, so a resume does not fail with AlreadyExists.
 // Server-side: a client-side apply would copy the whole object (secret data included) into last-applied-configuration.
 const applyCreated = " --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -"

@@ -125,7 +125,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return err
 		}
 		pivoted = state != nil && state.Pivoted
-		// A killed CLI does not stop what it started with docker exec: stop it before the steps run again
+		// A killed CLI does not stop what it started with docker exec: let an in-flight move end, stop the rest
+		if err := waitInFlightMove(n, moveLeftoverWait); err != nil {
+			return err
+		}
 		stopped, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1)
 		if err != nil {
 			return errors.Wrap(err, "failed to stop the commands left running by the interrupted create")
@@ -476,6 +479,14 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		// The CAPI objects already live in the workload cluster: only adoption, post-install and the descriptor remain
 		if err := checkWorkloadAccess(n); err != nil {
 			return err
+		}
+		// clusterctl deletes the source before it unpauses the target: a move stopped in between leaves it paused
+		if a.resume {
+			for _, c := range unpauseMovedCommands(kubeconfigPath, capiClustersNamespace, a.keosCluster.Metadata.Name) {
+				if _, err := commons.ExecuteCommand(n, c, 5, 3); err != nil {
+					return errors.Wrap(err, "failed to unpause the moved Cluster in the workload cluster")
+				}
+			}
 		}
 		if err := a.afterPivot(ctx, n, infra, capiClustersNamespace, handover); err != nil {
 			return err

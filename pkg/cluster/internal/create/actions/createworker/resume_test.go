@@ -48,6 +48,16 @@ func TestFluxOwnedReleases(t *testing.T) {
 	}
 }
 
+func TestUnpauseMovedCommands(t *testing.T) {
+	want := []string{
+		`kubectl --kubeconfig /kind/worker-cluster.kubeconfig -n cluster-eks-1 patch cluster eks-1 --type merge -p '{"spec":{"paused":null}}'`,
+		"kubectl --kubeconfig /kind/worker-cluster.kubeconfig -n cluster-eks-1 get clusterclasses -o name | xargs -r -I{} kubectl --kubeconfig /kind/worker-cluster.kubeconfig -n cluster-eks-1 annotate {} cluster.x-k8s.io/paused-",
+	}
+	if got := unpauseMovedCommands(kubeconfigPath, "cluster-eks-1", "eks-1"); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestSkipBackup(t *testing.T) {
 	if !skipBackup(true, true) {
 		t.Error("resume after a move killed midway: backup not skipped")
