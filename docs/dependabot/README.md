@@ -45,7 +45,6 @@ updates:
       - "go"
       - "dependencies"
       - "skip doPushDockerECR"
-      - "skip doDeploy"
     schedule:
       interval: "daily"
       time: "06:30"
@@ -92,9 +91,11 @@ The upstream kind workflows in `.github/workflows/` (`cgroup2`, `docker`, `podma
 |---|---|
 | `master` | Target branch, same convention as any other pull request |
 | `go`, `dependencies` | Classification |
-| `skip doPushDockerECR`, `skip doDeploy` | Skip the pipeline stages `doPushDockerECR` and `doDeploy` on the pull request: a dependency update needs the build and the scan, not a published artifact. Same `skip do<Stage>` convention as the existing `skip doUT` and `skip doGrypeScan` labels |
+| `skip doPushDockerECR` | Skip the pipeline stage `doPushDockerECR` on the pull request: a dependency update needs the images built and scanned, not pushed to ECR. Same `skip do<Stage>` convention as the existing `skip doUT` and `skip doGrypeScan` labels |
 
-The four labels `go`, `dependencies`, `skip doPushDockerECR` and `skip doDeploy` have to be created before enabling Dependabot. If a label does not exist, Dependabot ignores it ([GitHub docs](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)): the pull request is opened without it and Dependabot leaves a comment listing the missing labels. A missing `skip` label means the pull request runs those stages like any other.
+`doDeploy` cannot be skipped: besides uploading the package to Nexus, `bin/deploy.sh` renames `bin/cloud-provisioner-<version>.tar.gz` to `bin/cloud-provisioner.tar.gz`, the file the next stage (extraction of the binary) unpacks. With a `skip doDeploy` label that stage fails, so Dependabot pull requests upload their package to Nexus like any other pull request.
+
+The labels `go`, `dependencies` and `skip doPushDockerECR` have to be created before enabling Dependabot. If a label does not exist, Dependabot ignores it ([GitHub docs](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)): the pull request is opened without it and Dependabot leaves a comment listing the missing labels. A missing `skip` label means the pull request runs those stages like any other.
 
 ## Reviewing a Dependabot pull request
 
