@@ -58,6 +58,25 @@ func TestUnpauseMovedCommands(t *testing.T) {
 	}
 }
 
+func TestHelmReleasesForReplay(t *testing.T) {
+	list := `{"items":[
+	{"metadata":{"name":"flux","namespace":"kube-system"},"spec":{}},
+	{"metadata":{"name":"cert-manager","namespace":"cert-manager","annotations":{"cloud-provisioner.stratio.com/suspended-for-resume":"true"}},"spec":{"suspend":true}},
+	{"metadata":{"name":"app","namespace":"apps"},"spec":{"suspend":true}}]}`
+	toSuspend, err := helmReleasesForReplay(list, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"kube-system flux"}; !reflect.DeepEqual(toSuspend, want) {
+		t.Errorf("suspend: got %v, want %v", toSuspend, want)
+	}
+	// a HelmRelease suspended by hand (no annotation) stays suspended
+	toResume, _ := helmReleasesForReplay(list, false)
+	if want := []string{"cert-manager cert-manager"}; !reflect.DeepEqual(toResume, want) {
+		t.Errorf("resume: got %v, want %v", toResume, want)
+	}
+}
+
 func TestSkipBackup(t *testing.T) {
 	if !skipBackup(true, true) {
 		t.Error("resume after a move killed midway: backup not skipped")

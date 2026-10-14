@@ -206,6 +206,61 @@ func fluxOwnedReleases(helmReleasesJSON string) (map[string]bool, error) {
 	return owned, nil
 }
 
+// replaySuspendedAnnotation marks the HelmReleases a resume suspended, so it only resumes those
+const replaySuspendedAnnotation = "cloud-provisioner.stratio.com/suspended-for-resume"
+
+// helmReleasesForReplay returns "<namespace> <name>" of the HelmReleases to suspend (not suspended yet) or to resume
+// (suspended by a resume) from `kubectl get helmreleases.helm.toolkit.fluxcd.io -A -o json`
+func helmReleasesForReplay(helmReleasesJSON string, suspend bool) ([]string, error) {
+	var list struct {
+		Items []struct {
+			Metadata struct {
+				Name, Namespace string
+				Annotations     map[string]string
+			}
+			Spec struct{ Suspend bool }
+		}
+	}
+	if err := json.Unmarshal([]byte(helmReleasesJSON), &list); err != nil {
+		return nil, errors.Wrap(err, "failed to parse the HelmRelease list")
+	}
+	var out []string
+	for _, hr := range list.Items {
+		_, ours := hr.Metadata.Annotations[replaySuspendedAnnotation]
+		if (suspend && !hr.Spec.Suspend) || (!suspend && ours) {
+			out = append(out, hr.Metadata.Namespace+" "+hr.Metadata.Name)
+		}
+	}
+	return out, nil
+}
+
+// setFluxSuspendedForReplay suspends the workload HelmReleases while a resume replays the steps that run helm there
+// (Flux and the replay upgrading the same release race: "release: already exists", "another operation is in
+// progress"), and resumes them afterwards with a reconcile request. Before Flux is installed there is nothing to do.
+func setFluxSuspendedForReplay(n nodes.Node, kubeconfig string, suspend bool) error {
+	k := "kubectl --kubeconfig " + kubeconfig
+	out, err := commons.ExecuteCommand(n, k+" get helmreleases.helm.toolkit.fluxcd.io -A -o json", 5, 3)
+	if err != nil {
+		return nil
+	}
+	hrs, err := helmReleasesForReplay(out, suspend)
+	if err != nil {
+		return err
+	}
+	patch := `{"spec":{"suspend":true},"metadata":{"annotations":{"` + replaySuspendedAnnotation + `":"true"}}}`
+	if !suspend {
+		patch = `{"spec":{"suspend":null},"metadata":{"annotations":{"` + replaySuspendedAnnotation + `":null,"reconcile.fluxcd.io/requestedAt":"` + time.Now().UTC().Format(time.RFC3339) + `"}}}`
+	}
+	for _, hr := range hrs {
+		nsName := strings.Fields(hr)
+		c := k + " -n " + nsName[0] + " patch helmreleases.helm.toolkit.fluxcd.io " + nsName[1] + " --type merge -p '" + patch + "'"
+		if _, err := commons.ExecuteCommand(n, c, 5, 3); err != nil {
+			return errors.Wrap(err, "failed to set suspend on HelmRelease "+nsName[0]+"/"+nsName[1])
+		}
+	}
+	return nil
+}
+
 // releasePendingHelm drops the pending revisions a killed helm left (kubeconfig "" = bootstrap); otherwise every later
 // helm upgrade of that release fails with "another operation is in progress". In the workload a release Flux manages
 // gets fluxPendingGrace to leave its pending state on its own before it is treated as a leftover.

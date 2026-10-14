@@ -592,6 +592,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		// Only now: the workload token saved by the interrupted create may have expired
 		if a.resume {
+			if err := setFluxSuspendedForReplay(n, kubeconfigPath, true); err != nil {
+				return err
+			}
 			if err := releasePendingHelm(n, kubeconfigPath); err != nil {
 				return err
 			}
@@ -1070,6 +1073,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 					return errors.Wrap(err, "failed to install AWS LB controller in workload cluster")
 				}
 				ctx.Status.End(true) // End Installing AWS LB controller in workload cluster
+			}
+		}
+
+		// The replay no longer runs helm in the workload: Flux takes its releases back
+		if a.resume {
+			if err := setFluxSuspendedForReplay(n, kubeconfigPath, false); err != nil {
+				return err
 			}
 		}
 
