@@ -105,7 +105,9 @@ The labels `go`, `dependencies` and `skip doPushDockerECR` have to be created be
 
 Dependabot rebases its own pull requests when they conflict with `master`. If one is only behind `master`, comment `@dependabot rebase` on it.
 
-Observed volume over 8 days with this configuration: 4 pull requests (1 to 21 updates each), all in the group. The first run on a repository that has not been updated for a while opens a large group pull request.
+Do not merge Dependabot pull requests while a milestone is being prepared or while QA is testing a build of `master`: milestone releases (`X.Y.Z-m.N`) are built from `master`, so a dependency update merged then changes what QA tested. Leave the pull requests open; for a longer pause, set `open-pull-requests-limit: 0`.
+
+Observed volume over 8 days with this configuration: 4 pull requests (1 to 21 updates each), all in the group. The first run on `Stratio/kind` (2026-10-14) opened one group pull request with 40 updates.
 
 ## Validation gate: what is checked and what is not
 
