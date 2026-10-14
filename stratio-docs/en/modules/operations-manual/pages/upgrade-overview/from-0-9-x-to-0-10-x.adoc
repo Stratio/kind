@@ -1,92 +1,92 @@
-= Actualización de 0.9.x a 0.10.x
+= Upgrade from 0.9.x to 0.10.x
 
-Esta ficha resume el impacto de actualizar _Stratio Cloud Provisioner_ de 0.9.x a 0.10.x, la actualización que acompaña al paso al Universo 15.2 desde 15.1.x en los entornos desplegados en _cloud_. Utilízala para planificar la ventana de mantenimiento, saber qué preparar antes y qué comprobar después.
+This sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.9.x to 0.10.x, which accompanies the move to Universe 15.2 from 15.1.x in the environments deployed on the cloud. Use it to plan the maintenance window and to know what to prepare beforehand and what to check afterward.
 
-Cada sección responde a una pregunta y enlaza con la página que detalla el procedimiento. Cuando llegues a la ventana de intervención, sigue el xref:operations-manual:upgrade.adoc[procedimiento de actualización] paso a paso.
+Each section answers a question and links to the page that details the procedure. When you reach the intervention window, follow the xref:operations-manual:upgrade.adoc[upgrade procedure] step by step.
 
-IMPORTANT: Esta ruta tiene *dos ejecuciones de _script_*. Primero, `upgrade-providers.py` migra Cluster API y sus proveedores a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` de la 0.10.x actualiza el resto de componentes y la versión de Kubernetes: a 1.37 en EKS y en Azure VMs, y a 1.36 en GKE. Las secciones siguientes describen el primer paso, y el segundo tiene su propia sección en <<step2, Segundo paso>>.
+IMPORTANT: This route has *two _script_ runs*. First, `upgrade-providers.py` migrates Cluster API and its providers to the `v1beta2` API without changing the Kubernetes version. Then, the 0.10.x `upgrade-provisioner.py` upgrades the rest of the components and the Kubernetes version: to 1.37 on EKS and Azure VMs, and to 1.36 on GKE. The following sections describe the first step, and the second one has its own section in <<step2, Second step>>.
 
 [#summary]
 
-== Resumen
+== Summary
 
-La tabla responde, con una fila por decisión, a lo que necesitas para dimensionar la ventana del primer paso:
+The table answers, with one row per decision, what you need to size the window of the first step:
 
 [cols="2,3,1", options="header"]
 |===
-| Pregunta | Respuesta | Detalle
+| Question | Answer | Detail
 
-| ¿Cuánta parada hay en el peor caso?
-| *Ninguna a nivel de _cluster_.* `upgrade-providers.py` no cambia la versión de Kubernetes ni reemplaza nodos, y las cargas siguen funcionando. Lo que se detiene durante la ejecución es el escalado automático (_cluster-autoscaler_) y la reconciliación del `KeosCluster` (_cluster-operator_).
-| <<outage, Parada y disponibilidad>>
+| How much downtime is there in the worst case?
+| *None at cluster level.* `upgrade-providers.py` doesn't change the Kubernetes version or replace nodes, and the workloads keep running. What stops during the run is autoscaling (_cluster-autoscaler_) and the reconciliation of the `KeosCluster` (_cluster-operator_).
+| <<outage, Downtime and availability>>
 
-| ¿Cuánto dura?
-| Medido en ejecuciones reales: unos 6 minutos en GKE y unos 11 minutos en EKS y en Azure VMs. El _dry-run_ previo tarda entre medio minuto y 4 minutos. En un _cluster_ que viene de la 0.7.x, con los proveedores de kubeadm todavía por debajo de v1.10, el _script_ añade una fase más cuya duración está pendiente de medir.
-| <<phases, Pasos>>
+| How long does it take?
+| Measured in real runs: about 6 minutes on GKE and about 11 minutes on EKS and Azure VMs. The previous _dry-run_ takes between half a minute and 4 minutes. On a cluster that comes from 0.7.x, with the kubeadm providers still below v1.10, the _script_ adds one more phase whose duration hasn't been measured yet.
+| <<phases, Steps>>
 
-| ¿Puede dividirse el trabajo en varias ventanas?
-| *Sí, entre los dos pasos.* `upgrade-providers.py` deja el _cluster_ en Kubernetes 1.35, operativo, y el segundo paso puede ir en otra ventana. El primer paso, en cambio, es una sola ejecución que hay que llevar hasta el final.
-| <<phases, Pasos>>
+| Can the work be split into several windows?
+| *Yes, between the two steps.* `upgrade-providers.py` leaves the cluster on Kubernetes 1.35, operational, and the second step can go in another window. The first step, on the other hand, is a single run that must be completed.
+| <<phases, Steps>>
 
-| ¿Cambia el modelo de datos y hace falta copia de seguridad?
-| No hay migración de datos de aplicación. Lo que cambia es el almacenamiento de los objetos de Cluster API, que pasa a `v1beta2`. La copia de seguridad *la hace el propio _script_* al empezar.
-| <<data, Datos y consistencia>>
+| Does the data model change, and is a backup needed?
+| There's no application data migration. What changes is the storage of the Cluster API objects, which moves to `v1beta2`. *The _script_ itself takes the backup* when it starts.
+| <<data, Data and consistency>>
 
-| ¿Se puede volver atrás?
-| *No.* Cluster API no admite bajar de versión. Antes de lanzar el _script_, basta con no continuar; después, la salida va hacia adelante.
+| Can it be rolled back?
+| *No.* Cluster API doesn't support downgrades. Before you launch the _script_, you can simply not continue; afterward, the only way out is forward.
 | <<rollback, _Rollback_>>
 
-| ¿Cuál es el riesgo global?
-| *Medio.* No hay vuelta atrás, pero la migración no toca nodos ni cargas. Si falla a medias, el _script_ restaura lo que había desactivado y se puede relanzar con `--resume-from`.
-| <<known-issues, Avisos e incidencias conocidas>>
+| What is the overall risk?
+| *Medium.* There's no way back, but the migration doesn't touch nodes or workloads. If it fails halfway, the _script_ restores what it had disabled and can be relaunched with `--resume-from`.
+| <<known-issues, Warnings and known issues>>
 |===
 
-.Mensaje para transmitir
+.Message to communicate
 [caption=]
 ====
-La plataforma actualiza los componentes que gestionan la infraestructura del _cluster_. Las aplicaciones no se ven afectadas y no se reinicia ningún nodo. Durante unos minutos, el _cluster_ no añade ni quita nodos automáticamente y no acepta cambios en su configuración. La actualización de la versión de Kubernetes va en un paso posterior.
+The platform upgrades the components that manage the cluster infrastructure. Applications aren't affected and no node is restarted. For a few minutes, the cluster doesn't add or remove nodes automatically and doesn't accept changes to its configuration. The Kubernetes version upgrade comes in a later step.
 ====
 
 [#scope]
 
-== Alcance de la actualización
+== Scope of the upgrade
 
-La versión de origen es la 0.9.x, con el núcleo de Cluster API en v1.10.10 y _cluster-operator_ en la línea 0.7. El _script_ lo comprueba y se detiene si el núcleo está por debajo de v1.10 o si _cluster-operator_ no está en esa línea. Si el _cluster_ viene de la 0.7.x, actualízalo primero a la 0.9.x con `upgrade-provisioner.py` de esa versión.
+The source version is 0.9.x, with the Cluster API core on v1.10.10 and _cluster-operator_ on the 0.7 line. The _script_ checks it and stops if the core is below v1.10 or if _cluster-operator_ isn't on that line. If the cluster comes from 0.7.x, upgrade it first to 0.9.x with that version's `upgrade-provisioner.py`.
 
-La actualización solo está admitida en tres entornos, y cualquier otra combinación de proveedor y tipo de _control-plane_ se rechaza:
+The upgrade is only supported in three environments, and any other combination of provider and _control-plane_ type is rejected:
 
-* *EKS* en Amazon Web Services, con un _control-plane_ gestionado.
-* *Azure VMs* en Microsoft Azure, con _control-plane_ no gestionado.
-* *GKE* en Google Cloud Platform, con _control-plane_ gestionado.
+* *EKS* on Amazon Web Services, with a managed _control-plane_.
+* *Azure VMs* on Microsoft Azure, with an unmanaged _control-plane_.
+* *GKE* on Google Cloud Platform, with a managed _control-plane_.
 
 [#components]
 
-=== Componentes y orden de actualización
+=== Components and upgrade order
 
 [cols="4%,18%,40%,38%", options="header"]
 |===
-| Orden | Paso | Componentes | Por qué va en esa posición
+| Order | Step | Components | Why it goes in that position
 
 | 1
 | `upgrade-providers.py`
-| El núcleo de Cluster API y sus proveedores de _bootstrap_ y de _control-plane_, el proveedor de infraestructura y _cluster-operator_.
-| _cluster-operator_ 0.8.0 lee y escribe los objetos de Cluster API en `v1beta2`, así que necesita que Cluster API ya esté en v1.13.6.
+| The Cluster API core and its _bootstrap_ and _control-plane_ providers, the infrastructure provider, and _cluster-operator_.
+| _cluster-operator_ 0.8.0 reads and writes the Cluster API objects in `v1beta2`, so it needs Cluster API to be on v1.13.6 already.
 
 | 2
-| `upgrade-provisioner.py` de la 0.10.x
-| Los _charts_ del _cluster_ (_cert-manager_, Flux, Calico, _cluster-autoscaler_, _cluster-operator_ y los del proveedor) y la versión de Kubernetes del _control-plane_ y de los nodos.
-| Si Cluster API y sus proveedores no están ya en su versión de destino, se detiene sin cambiar nada y pide ejecutar antes `upgrade-providers.py`. Por eso nunca ejecuta `clusterctl`. Ver <<step2, Segundo paso>>.
+| 0.10.x `upgrade-provisioner.py`
+| The cluster _charts_ (_cert-manager_, Flux, Calico, _cluster-autoscaler_, _cluster-operator_, and the provider ones) and the Kubernetes version of the _control-plane_ and the nodes.
+| If Cluster API and its providers aren't on their target version yet, it stops without changing anything and asks you to run `upgrade-providers.py` first. That's why it never runs `clusterctl`. See <<step2, Second step>>.
 |===
 
-Versiones de destino del primer paso:
+Target versions of the first step:
 
 [cols="2,1,3", options="header"]
 |===
-| Componente | Versión de destino | Notas
+| Component | Target version | Notes
 
-| Cluster API, _bootstrap_ y _control-plane_
+| Cluster API, _bootstrap_, and _control-plane_
 | v1.13.6
-| Si los proveedores de kubeadm están por debajo de v1.10, el _script_ los sube antes a v1.10.10.
+| If the kubeadm providers are below v1.10, the _script_ first upgrades them to v1.10.10.
 
 | CAPA (EKS)
 | v2.13.0
@@ -94,7 +94,7 @@ Versiones de destino del primer paso:
 
 | CAPZ (Azure VMs)
 | v1.26.1
-| Incluye Azure Service Operator v2.18.0.
+| Includes Azure Service Operator v2.18.0.
 
 | CAPG (GKE)
 | 1.13.1-0.1.0
@@ -102,209 +102,209 @@ Versiones de destino del primer paso:
 
 | _cluster-operator_
 | 0.8.0
-| Primera versión que trabaja con los objetos de Cluster API en `v1beta2`.
+| First version that works with the Cluster API objects in `v1beta2`.
 |===
 
 [#phases]
 
-== Ejecución de la actualización
+== Execution of the upgrade
 
-=== Antes de la ventana
+=== Before the window
 
 [cols="1,3", options="header"]
 |===
-| Comprobación | Por qué
+| Check | Why
 
-| El registro del _cluster_ tiene las imágenes de destino de los proveedores y el _chart_ y la imagen de _cluster-operator_ 0.8.0.
-| El _script_ las descarga de ese registro y no comprueba antes que existan.
+| The cluster registry has the target images of the providers and the _cluster-operator_ 0.8.0 _chart_ and image.
+| The _script_ pulls them from that registry and doesn't check beforehand that they exist.
 
-| En EKS, el _kubeconfig_ obtiene el _token_ con `exec`. En GKE, el _token_ se genera justo antes de lanzar el contenedor.
-| Un _token_ estático de EKS caduca durante la ejecución.
+| On EKS, the _kubeconfig_ gets the _token_ with `exec`. On GKE, the _token_ is generated right before you launch the container.
+| A static EKS _token_ expires during the run.
 
-| Un _dry-run_ termina sin errores.
-| Hace las comprobaciones, la copia de seguridad y `clusterctl upgrade plan` sin cambiar nada.
+| A _dry-run_ ends without errors.
+| It runs the checks, the backup, and `clusterctl upgrade plan` without changing anything.
 |===
 
-=== Pasos de principio a fin
+=== Steps from beginning to end
 
-Los pasos detallados están en el xref:operations-manual:upgrade.adoc#upgrade_providers[procedimiento de `upgrade-providers.py`]. En resumen:
+The detailed steps are in the xref:operations-manual:upgrade.adoc#upgrade_providers[`upgrade-providers.py` procedure]. In short:
 
-. Comprobación previa y copia de seguridad.
-. Validación del plan con `clusterctl upgrade plan`.
-. Parada de _cluster-autoscaler_ y de _cluster-operator_.
-. Actualización de los proveedores con `clusterctl` y migración del almacenamiento a `v1beta2`.
-. Actualización de _cluster-operator_ a 0.8.0 y arranque de nuevo de _cluster-autoscaler_.
-. Verificación del resultado.
+. Pre-check and backup.
+. Validation of the plan with `clusterctl upgrade plan`.
+. Stop of _cluster-autoscaler_ and _cluster-operator_.
+. Upgrade of the providers with `clusterctl` and migration of the storage to `v1beta2`.
+. Upgrade of _cluster-operator_ to 0.8.0 and restart of _cluster-autoscaler_.
+. Verification of the result.
 
 [#providers]
 
-=== Diferencias por proveedor
+=== Differences by provider
 
 [cols="1,3", options="header"]
 |===
-| Proveedor | Diferencia
+| Provider | Difference
 
 | EKS
-| Crea temporalmente la `NetworkPolicy` `allow-all-egress` en los _namespaces_ de kubeadm. El _kubeconfig_ tiene que usar `exec`.
+| It temporarily creates the `allow-all-egress` `NetworkPolicy` in the kubeadm _namespaces_. The _kubeconfig_ must use `exec`.
 
 | GKE
-| Crea temporalmente la misma `NetworkPolicy`. El _kubeconfig_ necesita un _token_ de acceso generado justo antes de la ejecución.
+| It temporarily creates the same `NetworkPolicy`. The _kubeconfig_ needs an access _token_ generated right before the run.
 
 | Azure VMs
-| Etiqueta los CRD de Azure Service Operator como parte del proveedor de infraestructura antes de actualizar CAPZ. Los proveedores de kubeadm conservan sus réplicas porque gestionan el _control-plane_.
+| It labels the Azure Service Operator CRDs as part of the infrastructure provider before upgrading CAPZ. The kubeadm providers keep their replicas because they manage the _control-plane_.
 |===
 
 [#point-of-no-return]
 
-=== Punto de no retorno
+=== Point of no return
 
-El punto de no retorno es la actualización de los proveedores con `clusterctl` y la migración del almacenamiento de los CRD de Cluster API a `v1beta2`. A partir de ahí, la salida es completar la migración, si hace falta con `--resume-from`.
+The point of no return is the upgrade of the providers with `clusterctl` and the migration of the storage of the Cluster API CRDs to `v1beta2`. From there on, the way out is to complete the migration, with `--resume-from` if needed.
 
 [#data]
 
-=== Datos y consistencia
+=== Data and consistency
 
-No hay migración de datos de aplicación ni cambios en los volúmenes. El _script_ guarda, al empezar, una copia de los objetos de Cluster API, de los _namespaces_ de los proveedores, de los CRD, de los _webhooks_ y del estado de `KeosCluster`, `ClusterConfig`, _cluster-operator_ y _cluster-autoscaler_. Al terminar, compara el contenido de los objetos y de los nodos con una foto inicial y deja la diferencia en `content-diff.txt`.
+There's no application data migration and no change to the volumes. When it starts, the _script_ saves a copy of the Cluster API objects, of the provider _namespaces_, of the CRDs, of the _webhooks_, and of the state of `KeosCluster`, `ClusterConfig`, _cluster-operator_, and _cluster-autoscaler_. When it ends, it compares the content of the objects and of the nodes with an initial snapshot and leaves the difference in `content-diff.txt`.
 
 [#outage]
 
-=== Parada y disponibilidad
+=== Downtime and availability
 
-* Las cargas siguen funcionando: no se reemplaza ningún nodo y la versión de Kubernetes no cambia.
-* _cluster-autoscaler_ está detenido durante la ejecución, así que el _cluster_ no añade ni quita nodos.
-* _cluster-operator_ está detenido y su `HelmRelease` suspendido, así que los cambios en el `KeosCluster` no se aplican hasta el final.
+* The workloads keep running: no node is replaced and the Kubernetes version doesn't change.
+* _cluster-autoscaler_ is stopped during the run, so the cluster doesn't add or remove nodes.
+* _cluster-operator_ is stopped and its `HelmRelease` suspended, so the changes to the `KeosCluster` aren't applied until the end.
 
 [#in-flight]
 
-=== Trabajo en curso durante la ventana
+=== Work in progress during the window
 
-No hagas cambios en el `KeosCluster` mientras se ejecuta el _script_. La comprobación previa exige que todos los `MachinePool` y `MachineDeployment` estén en la fase `Running` y todos los nodos `Ready`, así que espera a que termine cualquier escalado en curso antes de lanzarlo.
+Don't make changes to the `KeosCluster` while the _script_ is running. The pre-check requires every `MachinePool` and `MachineDeployment` to be in the `Running` phase and every node to be `Ready`, so wait for any ongoing scaling to finish before you launch it.
 
 [#after]
 
-== Después de la actualización
+== After the upgrade
 
-=== Comprobaciones posteriores
+=== Post-upgrade checks
 
-El _script_ comprueba que los proveedores están en la versión de destino, que los CRD de Cluster API solo guardan `v1beta2`, que no se ha reemplazado ningún nodo y que el `KeosCluster` está listo. También lo puedes comprobar a mano:
+The _script_ checks that the providers are on the target version, that the Cluster API CRDs only store `v1beta2`, that no node has been replaced, and that the `KeosCluster` is ready. You can also check it by hand:
 
 [source,bash]
 ----
 kubectl get providers -A
 kubectl get crd clusters.cluster.x-k8s.io -o jsonpath='{.status.storedVersions}'
-kubectl get keoscluster <nombre-cluster> -n cluster-<nombre-cluster>
+kubectl get keoscluster <cluster-name> -n cluster-<cluster-name>
 ----
 
 [#if-something-fails]
 
-== Si algo va mal
+== If something goes wrong
 
 [#rollback]
 
 === _Rollback_
 
-No hay vuelta atrás soportada: Cluster API no admite bajar de versión. Si el _script_ falla antes de detener _cluster-autoscaler_, no ha cambiado nada. Si falla después, restaura lo que había desactivado y se relanza con `--resume-from` y la copia de seguridad de esa ejecución. Consulta la xref:operations-manual:upgrade.adoc#upgrade_providers_recuperacion[recuperación ante fallos].
+There's no supported way back: Cluster API doesn't support downgrades. If the _script_ fails before stopping _cluster-autoscaler_, nothing has changed. If it fails afterward, it restores what it had disabled and you relaunch it with `--resume-from` and that run's backup. See the xref:operations-manual:upgrade.adoc#upgrade_providers_recuperacion[recovery from failures].
 
 [#known-issues]
 
-=== Avisos e incidencias conocidas
+=== Warnings and known issues
 
-* El _script_ muestra los _feature gates_ de los _controllers_ antes y después, solo como informe. Los cambios que aparecen corresponden a los valores por defecto de las nuevas versiones.
+* The _script_ shows the _feature gates_ of the _controllers_ before and after, only as a report. The changes that appear correspond to the default values of the new versions.
 
 [#step2]
 
-== Segundo paso: `upgrade-provisioner.py`
+== Second step: `upgrade-provisioner.py`
 
-El segundo paso actualiza los _charts_ del _cluster_ y la versión de Kubernetes. Parte de un _cluster_ ya migrado por `upgrade-providers.py`, en Kubernetes 1.35. Los detalles están en el xref:operations-manual:upgrade.adoc#upgrade_provisioner_sintaxis[procedimiento de `upgrade-provisioner.py`].
+The second step upgrades the cluster _charts_ and the Kubernetes version. It starts from a cluster already migrated by `upgrade-providers.py`, on Kubernetes 1.35. The details are in the xref:operations-manual:upgrade.adoc#upgrade_provisioner_sintaxis[`upgrade-provisioner.py` procedure].
 
 [#step2-summary]
 
-=== Resumen del segundo paso
+=== Summary of the second step
 
 [cols="2,3,1", options="header"]
 |===
-| Pregunta | Respuesta | Detalle
+| Question | Answer | Detail
 
-| ¿A qué versión de Kubernetes llega?
-| *1.37 en EKS y en Azure VMs, y 1.36 en GKE.* En GKE, Google solo ofrece 1.37 en el _release channel_ `RAPID`, que _Stratio Cloud Provisioner_ no admite.
-| <<step2-providers, Diferencias por proveedor>>
+| Which Kubernetes version does it reach?
+| *1.37 on EKS and Azure VMs, and 1.36 on GKE.* On GKE, Google only offers 1.37 in the `RAPID` _release channel_, which _Stratio Cloud Provisioner_ doesn't support.
+| <<step2-providers, Differences by provider>>
 
-| ¿Cuánta parada hay en el peor caso?
-| *Ninguna a nivel de _cluster_*, pero se reemplazan todos los nodos. Las cargas se mueven de nodo a medida que se vacían, así que una carga con una sola réplica se reinicia.
-| <<step2-outage, Parada y disponibilidad>>
+| How much downtime is there in the worst case?
+| *None at cluster level*, but every node is replaced. The workloads move from node to node as the nodes are drained, so a workload with a single replica restarts.
+| <<step2-outage, Downtime and availability>>
 
-| ¿Cuánto dura?
-| Medido en ejecuciones reales del salto 1.35 → 1.36: unos 26 minutos en GKE y unos 38 minutos en Azure VMs. En EKS, el _control-plane_ tarda unos 10 minutos y los nodos, unos 12 más. El salto a 1.37 en EKS y Azure VMs cruza dos _minors_ y su duración está pendiente de medir.
-| <<step2-providers, Diferencias por proveedor>>
+| How long does it take?
+| Measured in real runs of the 1.35 → 1.36 jump: about 26 minutes on GKE and about 38 minutes on Azure VMs. On EKS, the _control-plane_ takes about 10 minutes and the nodes about 12 more. The jump to 1.37 on EKS and Azure VMs crosses two _minors_ and its duration hasn't been measured yet.
+| <<step2-providers, Differences by provider>>
 
-| ¿Se puede volver atrás?
-| *No.* Kubernetes no admite bajar de versión. Antes de confirmar el _bump_ de `k8s_version`, basta con no continuar.
-| <<step2-point-of-no-return, Punto de no retorno>>
+| Can it be rolled back?
+| *No.* Kubernetes doesn't support downgrades. Before you confirm the `k8s_version` _bump_, you can simply not continue.
+| <<step2-point-of-no-return, Point of no return>>
 
-| ¿Cuál es el riesgo global?
-| *Medio.* Se reemplazan todos los nodos, pero el _script_ espera a que cada _minor_ converja antes de seguir y se puede relanzar con el mismo comando.
-| xref:operations-manual:upgrade.adoc#upgrade_provisioner_recuperacion[Recuperación ante fallos]
+| What is the overall risk?
+| *Medium.* Every node is replaced, but the _script_ waits for each _minor_ to converge before it moves on and can be relaunched with the same command.
+| xref:operations-manual:upgrade.adoc#upgrade_provisioner_recuperacion[Recovery from failures]
 |===
 
 [#step2-before]
 
-=== Antes de la ventana del segundo paso
+=== Before the window of the second step
 
 [cols="1,3", options="header"]
 |===
-| Comprobación | Por qué
+| Check | Why
 
-| `upgrade-providers.py` terminó y los proveedores están en las versiones de <<components, Componentes y orden de actualización>>.
-| `upgrade-provisioner.py` comprueba al arrancar que cada proveedor está exactamente en su versión de destino. Si no, se detiene sin cambiar nada.
+| `upgrade-providers.py` finished and the providers are on the versions in <<components, Components and upgrade order>>.
+| When it starts, `upgrade-provisioner.py` checks that each provider is exactly on its target version. If not, it stops without changing anything.
 
-| El registro del _cluster_ tiene los _charts_ y las imágenes de la 0.10.x: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2 y _cluster-operator_ 0.8.0.
-| El _script_ los descarga de ese registro y no comprueba antes que existan.
+| The cluster registry has the 0.10.x _charts_ and images: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2, and _cluster-operator_ 0.8.0.
+| The _script_ pulls them from that registry and doesn't check beforehand that they exist.
 
-| En Azure VMs, el _cluster_ está en Kubernetes 1.35.
-| `upgrade-provisioner.py` sube un _minor_ cada vez a partir de 1.35. Si el _cluster_ está por debajo, se detiene al arrancar sin cambiar nada.
+| On Azure VMs, the cluster is on Kubernetes 1.35.
+| `upgrade-provisioner.py` goes up one _minor_ at a time starting from 1.35. If the cluster is below it, it stops at startup without changing anything.
 
-| En Azure VMs, tienes las imágenes de nodo de 1.36 y de 1.37 para `--node-image-map`.
-| Cada paso del _bump_ crea las máquinas nuevas con la imagen de su _minor_.
+| On Azure VMs, you have the 1.36 and 1.37 node images for `--node-image-map`.
+| Each step of the _bump_ creates the new machines with the image of its _minor_.
 
-| Un `--dry-run` termina sin errores.
-| Hace las comprobaciones y muestra el plan sin cambiar nada.
+| A `--dry-run` ends without errors.
+| It runs the checks and shows the plan without changing anything.
 |===
 
 [#step2-providers]
 
-=== Diferencias por proveedor
+=== Differences by provider
 
 [cols="1,3", options="header"]
 |===
-| Proveedor | Diferencia
+| Provider | Difference
 
 | EKS
-| Un solo _patch_ a 1.37, y AWS sube el _control-plane_ un _minor_ cada vez. Mientras tanto, los _logs_ de CAPA muestran errores transitorios de los complementos de EKS, que se resuelven solos. Después, el _script_ espera a que todos los _nodegroups_ y nodos lleguen a 1.37.
+| A single _patch_ to 1.37, and AWS upgrades the _control-plane_ one _minor_ at a time. Meanwhile, the CAPA _logs_ show transient errors from the EKS add-ons, which resolve on their own. Then, the _script_ waits for every _nodegroup_ and node to reach 1.37.
 
 | Azure VMs
-| Un _patch_ por _minor_ (`1.35`→`1.36`→`1.37`), cada uno con la imagen de nodo de `--node-image-map`. Al terminar, el _script_ fija el _cloud-controller-manager_ a la versión del _minor_ de destino.
+| One _patch_ per _minor_ (`1.35`→`1.36`→`1.37`), each one with the node image from `--node-image-map`. When it ends, the _script_ pins the _cloud-controller-manager_ to the version of the target _minor_.
 
 | GKE
-| Un solo paso, `1.35`→`1.36`. El _script_ usa el _patch_ más alto del _release channel_ del _cluster_ y espera a que todos los _node pools_ lleguen a esa versión.
+| A single step, `1.35`→`1.36`. The _script_ uses the highest _patch_ of the cluster's _release channel_ and waits for every _node pool_ to reach that version.
 |===
 
 [#step2-point-of-no-return]
 
-=== Punto de no retorno
+=== Point of no return
 
-El punto de no retorno es el _patch_ de `KeosCluster.spec.k8s_version`. El _script_ pide confirmación justo antes, salvo que se use `--start-from-k8s-version`.
+The point of no return is the _patch_ of `KeosCluster.spec.k8s_version`. The _script_ asks for confirmation right before it, unless you use `--start-from-k8s-version`.
 
 [#step2-outage]
 
-=== Parada y disponibilidad
+=== Downtime and availability
 
-* Los nodos se reemplazan de forma progresiva en cada _minor_. Revisa los _Pod Disruption Budget_ de las cargas antes de empezar: uno que impida vaciar un nodo detiene el reemplazo.
-* En EKS y Azure VMs, _cluster-autoscaler_ se detiene al principio y vuelve a 2 réplicas al terminar. En GKE, _Stratio Cloud Provisioner_ no lo despliega.
-* Los _webhooks_ de `KeosCluster` están desactivados durante la sección crítica, así que no hagas cambios en el `KeosCluster` mientras se ejecuta el _script_.
+* The nodes are replaced progressively on each _minor_. Review the _Pod Disruption Budgets_ of the workloads before you start: one that prevents a node from being drained stops the replacement.
+* On EKS and Azure VMs, _cluster-autoscaler_ stops at the beginning and goes back to 2 replicas at the end. On GKE, _Stratio Cloud Provisioner_ doesn't deploy it.
+* The `KeosCluster` _webhooks_ are disabled during the critical section, so don't make changes to the `KeosCluster` while the _script_ is running.
 
 [#step2-known-issues]
 
-=== Avisos del segundo paso
+=== Warnings of the second step
 
-* En EKS con grupos _MachinePool_, el _script_ deja la imagen oficial de _cluster-autoscaler_. Sustitúyela al terminar por la propia de Stratio, como indica la xref:operations-manual:upgrade.adoc#_upgrade_of_cluster_autoscaler_after_the_upgrade[actualización de _cluster-autoscaler_ tras la actualización].
-* Con Calico v3.33.0, `kubectl get tigerastatus` muestra `tiers` como _Degraded_ con el mensaje "Waiting for Tigera API server". Es esperable: _Stratio Cloud Provisioner_ no despliega el servidor de API de Calico. El resto de componentes de Calico queda en `Available`.
+* On EKS and Azure VMs, the _script_ leaves _cluster-autoscaler_ on the Stratio image, `v1.36.1`. It must already be replicated in the cluster registry before you launch it, as described in the xref:operations-manual:upgrade.adoc#_upgrade_of_cluster_autoscaler_after_the_upgrade[upgrade of _cluster-autoscaler_ after the upgrade].
+* With Calico v3.33.0, `kubectl get tigerastatus` shows `tiers` as _Degraded_ with the message "Waiting for Tigera API server". This is expected: _Stratio Cloud Provisioner_ doesn't deploy the Calico API server. The rest of the Calico components stay `Available`.

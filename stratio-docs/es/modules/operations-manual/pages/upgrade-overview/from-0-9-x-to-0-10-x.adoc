@@ -306,5 +306,5 @@ El punto de no retorno es el _patch_ de `KeosCluster.spec.k8s_version`. El _scri
 
 === Avisos del segundo paso
 
-* En EKS con grupos _MachinePool_, el _script_ deja la imagen oficial de _cluster-autoscaler_. Sustitúyela al terminar por la propia de Stratio, como indica la xref:operations-manual:upgrade.adoc#_actualización_de_cluster_autoscaler_tras_la_actualización[actualización de _cluster-autoscaler_ tras la actualización].
+* En EKS y Azure VMs, el _script_ deja _cluster-autoscaler_ con la imagen propia de Stratio, `v1.36.1`. Tiene que estar replicada en el registro del _cluster_ antes de lanzarlo, como indica la xref:operations-manual:upgrade.adoc#_actualización_de_cluster_autoscaler_tras_la_actualización[actualización de _cluster-autoscaler_ tras la actualización].
 * Con Calico v3.33.0, `kubectl get tigerastatus` muestra `tiers` como _Degraded_ con el mensaje "Waiting for Tigera API server". Es esperable: _Stratio Cloud Provisioner_ no despliega el servidor de API de Calico. El resto de componentes de Calico queda en `Available`.
