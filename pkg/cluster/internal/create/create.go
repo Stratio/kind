@@ -203,8 +203,12 @@ func resume(logger log.Logger, p providers.Provider, opts *ClusterOptions) error
 	if wait == 0 {
 		wait = 5 * time.Minute
 	}
+	// Only the API server is awaited: with a private registry the node stays NotReady until createworker installs the CNI
+	apiServerUp := func() bool { return nodes[0].Command("kubectl", "get", "--raw", "/readyz").Run() == nil }
+	if err := waitUntil(apiServerUp, wait, 2*time.Second); err != nil {
+		return failed(logger, p, opts, errors.Wrap(err, "the API server of the bootstrap container does not answer"))
+	}
 	actionsToRun := []actions.Action{
-		waitforready.NewAction(wait),
 		createworker.NewAction(opts.VaultPassword, opts.DescriptorPath, opts.MoveManagement, opts.AvoidCreation, true, opts.KeosCluster, opts.ClusterCredentials, opts.ClusterConfig),
 	}
 	actionsContext := actions.NewActionContext(logger, status, p, opts.Config)
@@ -214,6 +218,18 @@ func resume(logger log.Logger, p providers.Provider, opts *ClusterOptions) error
 		}
 	}
 	return finish(logger, p, opts, actionsContext)
+}
+
+// waitUntil polls ok every interval until it returns true or the timeout passes
+func waitUntil(ok func() bool, timeout, interval time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for !ok() {
+		if time.Now().After(deadline) {
+			return errors.Errorf("not ready after %s", timeout)
+		}
+		time.Sleep(interval)
+	}
+	return nil
 }
 
 // failed deletes the bootstrap container unless retained or AWS resources may already exist: then it keeps it and
