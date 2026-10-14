@@ -1,27 +1,39 @@
 # Go module updates for cloud-provisioner. See docs/dependabot/README.md
 version: 2
 updates:
+  # Go modules of the root go.mod only (hack/tools and images/kindnetd are left out)
   - package-ecosystem: "gomod"
     directory: "/"
+    # Only master; release branches (branch-X.Y) are never touched
     target-branch: "master"
+    # Labels on every Dependabot PR; they must exist in the repo or Dependabot drops them
     labels:
+      # Target-branch label, same convention as any PR
       - "master"
+      # Classification
       - "go"
       - "dependencies"
+      # Jenkins skips pushing the PR images to ECR; doDeploy cannot be skipped (it renames the tarball the next stage unpacks)
       - "skip doPushDockerECR"
+    # Daily check, 06:30 UTC
     schedule:
       interval: "daily"
       time: "06:30"
+    # Propose a version only after it has been public for 7 days (1 day for patches)
     cooldown:
       default-days: 7
       semver-patch-days: 1
+    # Direct and indirect (// indirect) requirements are both updated
     allow:
       - dependency-type: "direct"
       - dependency-type: "indirect"
+    # One PR with every minor and patch update; anything not matching the group gets its own PR
     groups:
       gomod-minor-patch:
         update-types: ["minor", "patch"]
+    # Updates Dependabot never proposes
     ignore:
+      # No major versions of anything: they change APIs and are upgraded by hand
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
       # Internal modules of the AWS SDK only move together with the SDK packages that use them
