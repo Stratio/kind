@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## 0.10.0 (upcoming)
 
 * [PLT-5023] tigera-operator no longer tolerates cordoned nodes: its tolerations are the bootstrap set of projectcalico/calico#14027 instead of the chart's blanket `NoSchedule`/`NoExecute` default, which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor (1.35, 1.36, 1.37), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)
@@ -17,6 +18,21 @@ All notable changes to this project will be documented in this file.
 * [PLT-4852] New `upgrade-providers.py` (upgrade image): moves a 0.9 cluster from Cluster API v1.10.10 to v1.13.6 (`v1beta2`) without changing its Kubernetes version — core and kubeadm providers, CAPA v2.13.0 on EKS, the rebased CAPG fork on GKE, CAPZ v1.26.1 on Azure VMs (one step from v1.21.3, labelling the ASO CRDs first), then the `v1beta2` cluster-operator; backups, dry-run, content diff before/after and controlled recovery
 * [PLT-4852] Install Cluster API v1.13.6, CAPA v2.13.0 and CAPZ v1.26.1 (bundled ASO v2.18.0, `clusterctl` v1.13.6); the worker `MachineHealthCheck` is written as `cluster.x-k8s.io/v1beta2`
 * [PLT-4852] GKE: install the rebased CAPG fork `1.13.1-0.1.0-M1`; `upgrade-providers.py` targets it (its manifests are now in the upgrade image), records it in the `ClusterConfig` and defaults to cluster-operator `0.8.0-m.1`
+=======
+## 0.9.7 (2026-10-15)
+
+* [PLT-5023] tigera-operator and calico-typha no longer tolerate cordoned nodes: their tolerations are the bootstrap set of projectcalico/calico#14027 instead of the blanket `NoSchedule`/`NoExecute` defaults (chart for the operator, operator v1.40.15 for typha), which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor with a template (1.32, 1.34, 1.35), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)
+* [PLT-5023] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.6 → 0.9.7) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.7
+* [PLT-5022] Installation docs (Azure VMs): document the extra permissions the deployment user needs to run the Stratio KEOS external-dns prerequisite — new `stratio-azure-keos-dns-role.json` attachment (public and private DNS zones, private zone link to the VNet and role assignments, with their deletes), which complements the deployment user role, and the Microsoft Graph `Application.ReadWrite.OwnedBy` application permission granted by an Entra ID administrator
+
+## 0.9.6 (2026-10-06)
+
+* [PLT-4916] `upgrade-provisioner.py` re-applies `priorityClassName: system-node-critical` to the CAPI and infrastructure provider Deployments (and the kubeadm ones on Azure VMs) after `clusterctl upgrade`, which recreates them without it
+* [PLT-4976] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.5 → 0.9.6) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.6; bump `cluster-operator` image and chart 0.7.4 → 0.7.5 (`CLUSTER_OPERATOR` and its `common_charts` entry, `DEPENDENCIES`, `docs/images`) for the OOMKilled fix (Stratio/cluster-operator#355)
+
+## 0.9.5 (2026-09-28)
+
+>>>>>>> 82837a53 ([PLT-5022] Documentar los permisos de Azure del prerrequisito de external-dns de Stratio KEOS (#1011))
 * [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; bump CAPG to 1.6.1-0.4.2 (grpc CVE, OpenSSL rebuild); bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.4 → 0.9.5, `CAPG`, `CLUSTER_OPERATOR` and its `common_charts` entry 0.7.3 → 0.7.4) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.5, `cluster-operator` image and chart to 0.7.4 (Stratio/cluster-operator#351) and `cluster-autoscaler` image to `v1.35.2` (see Stratio/kind#981)
 * [PLT-4896] Upgrade docs (GKE): document the CAPG reconciliation loop caused by GKE's automatic node pool labels as a pre-upgrade check and known issue of the 0.7.x → 0.9.x route, link it from the upgrade requirements and from the `UPGRADE_NODES` note, and add the `GCPManagedMachinePool` workaround for clusters created with 0.7.x
 * [PLT-4793] Document the post-install and post-upgrade override of the cluster-autoscaler image to Stratio's `v1.35.2` build (MachinePool scale-down fix, kubernetes/autoscaler#9693) on EKS clusters with MachinePool groups
