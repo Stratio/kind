@@ -86,10 +86,10 @@ For the case of resource group-level permissions, it is recommended:
 *** Control-plane: `Acrpull` on `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 *** Workers: `Acrpull` on `/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.ContainerRegistry/registries/<acr_name>`
 +
-Si el usuario de despliegue también prepara el prerrequisito de _external-dns_ de Stratio KEOS (zonas DNS, su _Service Principal_ y sus asignaciones de rol), necesita además:
+If the deployment user also prepares the external-dns prerequisite for _Stratio KEOS_ (the DNS zones, their _Service Principal_, and their role assignments), the following are also needed:
 +
-** xref:attachment$stratio-azure-keos-dns-role.json[Descargar permisos para el prerrequisito de _external-dns_ en Azure]. Complementan los permisos del usuario de despliegue, no los sustituyen.
-** El permiso de aplicación de Microsoft Graph `Application.ReadWrite.OwnedBy`. Lo concede un administrador de Microsoft Entra ID.
+** The role permissions for the external-dns prerequisite, which you can download from the xref:attachment$stratio-azure-keos-dns-role.json[`stratio-azure-keos-dns-role.json`] file. They complement the deployment user's permissions; they do not replace them.
+** The `Application.ReadWrite.OwnedBy` Microsoft Graph application permission must be granted by a Microsoft Entra ID administrator.
 
 * Certified operating systems
 +
