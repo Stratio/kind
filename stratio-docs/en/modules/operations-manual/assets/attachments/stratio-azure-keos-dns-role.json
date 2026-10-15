@@ -1,0 +1,22 @@
+{
+    "roleName": "stratio-azure-keos-dns-role",
+    "Id": "/subscriptions/<subscription-id>/providers/Microsoft.Authorization/roleDefinitions/<name>",
+    "IsCustom": true,
+    "Description": "Stratio KEOS external-dns prerequisite permissions (complements the deployment user role)",
+    "Actions": [
+      "Microsoft.Network/privateDnsZones/write",
+      "Microsoft.Network/privateDnsZones/delete",
+      "Microsoft.Network/privateDnsZones/virtualNetworkLinks/read",
+      "Microsoft.Network/privateDnsZones/virtualNetworkLinks/write",
+      "Microsoft.Network/privateDnsZones/virtualNetworkLinks/delete",
+      "Microsoft.Network/dnsZones/write",
+      "Microsoft.Network/dnsZones/delete",
+      "Microsoft.Network/virtualNetworks/join/action",
+      "Microsoft.Authorization/roleAssignments/write",
+      "Microsoft.Authorization/roleAssignments/delete"
+    ],
+    "NotActions": [],
+    "AssignableScopes": [
+      "/subscriptions/<subscription-id>"
+    ]
+  }
