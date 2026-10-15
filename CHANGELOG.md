@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.7 (2026-10-15)
 
+* `upgrade-provisioner.py` (GKE): `--node-convergence-timeout` now applies to the node pool wait. A second, older copy of that wait (90 minutes in total, without restarting on progress) overrode it, so on GKE the flag had no effect and a node pool rollout still advancing aborted after 90 minutes. Also drop an identical duplicate of the `KeosCluster` settle wait
 * [PLT-5023] tigera-operator and calico-typha no longer tolerate cordoned nodes: their tolerations are the bootstrap set of projectcalico/calico#14027 instead of the blanket `NoSchedule`/`NoExecute` defaults (chart for the operator, operator v1.40.15 for typha), which let the scheduler put the evicted pod back on the node being drained, so a Cluster API drain (Azure VMs control-plane rollout) could loop forever. `create cluster` renders the new list for every supported Kubernetes minor with a template (1.32, 1.34, 1.35), and `upgrade-provisioner.py` replaces the old default on existing clusters (tolerations customised in the override ConfigMap are kept)
 * [PLT-5023] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.6 → 0.9.7) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.7
 
