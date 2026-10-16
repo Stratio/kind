@@ -548,25 +548,6 @@ def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
         time.sleep(15)
     raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
 
-def wait_for_keoscluster_settled(cluster_name, timeout_minutes=30):
-    '''Wait for cluster-operator to finish its own reconcile — not the same as the infrastructure
-    having converged. Patching the next step mid-reconcile left the control plane stuck once
-    (live 2026-09-18, 19s before it closed); Azure buys the same margin with a fixed sleep.'''
-
-    print(f"[INFO] Waiting for the KeosCluster to settle before the next step (timeout {timeout_minutes}m):", end=" ", flush=True)
-    deadline = time.time() + timeout_minutes * 60
-    while time.time() < deadline:
-        output, _ = run_command(
-            f"{S.kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} "
-            f"-o jsonpath='{{.status.ready}} {{.status.phase}}'",
-            allow_errors=True
-        )
-        if output.strip() == "true Provisioned":
-            print("OK")
-            return
-        time.sleep(15)
-    raise Exception(f"Timed out after {timeout_minutes}m waiting for the KeosCluster to settle")
-
 def start_keoscluster_controller():
     '''Start the KEOSCluster controller'''
 
