@@ -1170,15 +1170,21 @@ NOTE: Since the installation descriptor file (_keos.yaml_) is regenerated on eac
 
 Applies to EKS with _MachinePool_ groups and `deploy_autoscaler: true` (on GKE, _Stratio Cloud Provisioner_ does not deploy _cluster-autoscaler_).
 
-IMPORTANT: Once the cluster is created, the default _cluster-autoscaler_ image must be replaced with the Stratio image `v1.35.2`. This image includes the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), which is not yet included in any official version of _cluster-autoscaler_.
+IMPORTANT: _cluster-autoscaler_ must use the Stratio image `v1.36.1`, the same for Kubernetes 1.36 and 1.37 clusters. This image includes the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), which is not yet included in any official version of _cluster-autoscaler_. *The official image `registry.k8s.io/autoscaling/cluster-autoscaler:v1.36.1` has the same _tag_ but doesn't include the fix.* With it, the scale-down of _MachinePool_ groups fails with the error `unknown machine for node`. The two images can only be told apart by their _digest_; the Stratio image's is `sha256:076ed41adf5e4131488b99ae447e4b0d51675f5bcf963a4068ddfe7caeca4098`.
 
-The image is published in `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2`. Replicate it in the cluster's Docker registry (the one marked with `keos_registry: true` in the descriptor) before applying the change:
+What _Stratio Cloud Provisioner_ deploys depends on the registry:
+
+* With a private registry (`private_registry: true`) and no ECR _pull-through cache_, it deploys `<registry>/autoscaling/cluster-autoscaler:v1.36.1`. If you replicate the Stratio image there before creating the cluster, there's nothing else to do.
+* With ECR _pull-through cache_ (`ecr_pull_through_cache_enabled: true`), it deploys `<registry>/k8s/autoscaling/cluster-autoscaler:v1.36.1`, which the cache serves from the official image. Follow the steps in this section.
+* Without a private registry, it deploys the official image from `registry.k8s.io`. Follow the steps in this section too.
+
+The image is published in `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1`. Replicate it in the cluster's Docker registry (the one marked with `keos_registry: true` in the descriptor):
 
 [source,bash]
 ----
-docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2
-docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2 <registry>/autoscaling/cluster-autoscaler:v1.35.2
-docker push <registry>/autoscaling/cluster-autoscaler:v1.35.2
+docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1
+docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1 <registry>/autoscaling/cluster-autoscaler:v1.36.1
+docker push <registry>/autoscaling/cluster-autoscaler:v1.36.1
 ----
 
 NOTE: If the registry uses ECR pull-through cache (`ecr_pull_through_cache_enabled`), the image is not served through the cache: the `repository` must point to `<registry>/autoscaling/cluster-autoscaler`, not to `<registry>/k8s/autoscaling/cluster-autoscaler`.
@@ -1198,7 +1204,7 @@ data:
   values.yaml: |
     image:
       repository: <registry>/autoscaling/cluster-autoscaler
-      tag: v1.35.2
+      tag: v1.36.1
 ----
 
 . Force the reconciliation of the _HelmRelease_:
@@ -1209,12 +1215,14 @@ kubectl -n kube-system annotate helmrelease cluster-autoscaler \
   reconcile.fluxcd.io/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --overwrite
 ----
 
-. Verify that the pods use the new image:
+. Verify that the pods run the Stratio image. Check the _digest_, not the _tag_, because the official image has the same _tag_:
 +
 [source,bash]
 ----
-kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].imageID}{"\n"}{end}' | grep cluster-autoscaler
 ----
++
+*Expected output:* every `cluster-autoscaler` pod ends in `sha256:076ed41adf5e4131488b99ae447e4b0d51675f5bcf963a4068ddfe7caeca4098`.
 
 === Load balancer
 

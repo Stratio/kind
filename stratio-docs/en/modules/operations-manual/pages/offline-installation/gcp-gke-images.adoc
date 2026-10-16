@@ -6,14 +6,14 @@
 | Installation | Version | Public Image | Version
 
 | *Installed by Cluster API - CAPG*
-| *1.6.1-0.4.1*
+| *1.13.1-0.1.0*
 |
 |
 
 |
 |
 | stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller
-| 1.6.1-0.4.1
+| 1.13.1-0.1.0
 
 | *Installed through templates*
 | ***
@@ -23,5 +23,5 @@
 |
 |
 | registry.k8s.io/coredns/coredns
-| v1.11.3
+| v1.14.2 (Kubernetes 1.36), v1.14.6 (Kubernetes 1.37)
 |===
