@@ -3,6 +3,7 @@ package createworker
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -66,6 +67,23 @@ func stepDone(step string, change ...func(*commons.CreateState)) {
 			c(s)
 		}
 	})
+}
+
+// writeHostKubeconfig saves the workload kubeconfig to .kube/config in the working directory
+func writeHostKubeconfig(kubeconfig string) error {
+	if err := os.MkdirAll(filepath.Dir(workKubeconfigPath), os.ModePerm); err != nil {
+		return err
+	}
+	return errors.Wrap(os.WriteFile(workKubeconfigPath, []byte(kubeconfig), 0600), "failed to save the workload cluster kubeconfig")
+}
+
+// saveHostKubeconfig copies the bootstrap container's workload kubeconfig to the host
+func saveHostKubeconfig(n nodes.Node) error {
+	kubeconfig, err := commons.ExecuteCommand(n, "cat "+kubeconfigPath, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to read "+kubeconfigPath)
+	}
+	return writeHostKubeconfig(kubeconfig)
 }
 
 func kindFileExists(n nodes.Node, path string) bool {

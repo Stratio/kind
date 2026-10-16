@@ -487,6 +487,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				return err
 			}
 		}
+		// The host copy is written only before the pivot: give it the kubeconfig that just reached the cluster
+		if err := saveHostKubeconfig(n); err != nil {
+			return err
+		}
 		// clusterctl deletes the source before it unpauses the target: a move stopped in between leaves it paused
 		if a.resume {
 			for _, c := range unpauseMovedCommands(kubeconfigPath, capiClustersNamespace, a.keosCluster.Metadata.Name) {
@@ -582,17 +586,8 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to create worker-kubeconfig secret")
 		}
 
-		workKubeconfigBasePath := strings.Split(workKubeconfigPath, "/")[0]
-		_, err = os.Stat(workKubeconfigBasePath)
-		if err != nil {
-			err := os.Mkdir(workKubeconfigBasePath, os.ModePerm)
-			if err != nil {
-				return err
-			}
-		}
-		err = os.WriteFile(workKubeconfigPath, []byte(kubeconfig), 0600)
-		if err != nil {
-			return errors.Wrap(err, "failed to save the workload cluster kubeconfig")
+		if err := writeHostKubeconfig(kubeconfig); err != nil {
+			return err
 		}
 		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
 		stepDone("kubeconfig")
