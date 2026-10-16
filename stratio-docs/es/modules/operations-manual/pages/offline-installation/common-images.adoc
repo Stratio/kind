@@ -115,7 +115,7 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 | stratio-releases.repo.stratio.com/stratio/cluster-operator
 | 0.8.0
 
-| *Installado por Cluster API - CAPI Component*
+| *Instalado por Cluster API - CAPI Component*
 | *v1.13.6*
 |
 |

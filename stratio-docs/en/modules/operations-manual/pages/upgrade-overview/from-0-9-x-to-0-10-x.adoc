@@ -1,10 +1,10 @@
 = Upgrade from 0.9.x to 0.10.x
 
-This sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.9.x to 0.10.x, which accompanies the move to Universe 15.2 from 15.1.x in the environments deployed on the cloud. Use it to plan the maintenance window and to know what to prepare beforehand and what to check afterward.
+This sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.9.x to 0.10.x in the environments deployed on the cloud. This upgrade accompanies the move to Universe 15.2 from 15.1.x. Use it to plan the maintenance window and to know what to prepare beforehand and what to check afterward.
 
 Each section answers a question and links to the page that details the procedure. When you reach the intervention window, follow the xref:operations-manual:upgrade.adoc[upgrade procedure] step by step.
 
-IMPORTANT: This route has *two _script_ runs*. First, `upgrade-providers.py` migrates Cluster API and its providers to the `v1beta2` API without changing the Kubernetes version. Then, the 0.10.x `upgrade-provisioner.py` upgrades the rest of the components and the Kubernetes version: to 1.37 on EKS and Azure VMs, and to 1.36 on GKE. The following sections describe the first step, and the second one has its own section in <<step2, Second step>>.
+IMPORTANT: This route has *two _script_ runs*. First, `upgrade-providers.py` migrates Cluster API, its providers and _cluster-operator_ to the `v1beta2` API without changing the Kubernetes version. Then, the 0.10.x `upgrade-provisioner.py` upgrades the rest of the components and the Kubernetes version. The target version is 1.37 on EKS and Azure VMs, and 1.36 on GKE. The following sections describe the first step, and the second one has its own section in <<step2, Second step>>.
 
 [#summary]
 
@@ -21,7 +21,7 @@ The table answers, with one row per decision, what you need to size the window o
 | <<outage, Downtime and availability>>
 
 | How long does it take?
-| Measured in real runs: about 6 minutes on GKE and about 11 minutes on EKS and Azure VMs. The previous _dry-run_ takes between half a minute and 4 minutes. On a cluster that comes from 0.7.x, with the kubeadm providers still below v1.10, the _script_ adds one more phase whose duration hasn't been measured yet.
+| Measured in test environments, with few nodes and without the volume or the workloads of a customer environment: take it as an indicative minimum. It takes about 6 minutes on GKE and about 11 minutes on EKS and Azure VMs. The previous _dry-run_ takes between half a minute and 4 minutes. On a cluster that comes from 0.7.x, with the kubeadm providers still below v1.10, the _script_ adds one more phase.
 | <<phases, Steps>>
 
 | Can the work be split into several windows?
@@ -44,7 +44,7 @@ The table answers, with one row per decision, what you need to size the window o
 .Message to communicate
 [caption=]
 ====
-The platform upgrades the components that manage the cluster infrastructure. Applications aren't affected and no node is restarted. For a few minutes, the cluster doesn't add or remove nodes automatically and doesn't accept changes to its configuration. The Kubernetes version upgrade comes in a later step.
+The platform upgrades the components that manage the cluster infrastructure. Applications aren't affected and no node is restarted. For a few minutes, the cluster doesn't add or remove nodes automatically and doesn't apply changes to its configuration. The Kubernetes version upgrade comes in a later step.
 ====
 
 [#scope]
@@ -75,7 +75,7 @@ The upgrade is only supported in three environments, and any other combination o
 | 2
 | 0.10.x `upgrade-provisioner.py`
 | The cluster _charts_ (_cert-manager_, Flux, Calico, _cluster-autoscaler_, _cluster-operator_, and the provider ones) and the Kubernetes version of the _control-plane_ and the nodes.
-| If Cluster API and its providers aren't on their target version yet, it stops without changing anything and asks you to run `upgrade-providers.py` first. That's why it never runs `clusterctl`. See <<step2, Second step>>.
+| If Cluster API and its providers aren't on their target version yet, it stops without changing anything and asks you to run `upgrade-providers.py` first. That's why it never upgrades the providers with `clusterctl`. See <<step2, Second step>>.
 |===
 
 Target versions of the first step:
@@ -116,7 +116,7 @@ Target versions of the first step:
 | Check | Why
 
 | The cluster registry has the target images of the providers and the _cluster-operator_ 0.8.0 _chart_ and image.
-| The _script_ pulls them from that registry and doesn't check beforehand that they exist.
+| The _cluster_ pulls them from that registry and the _script_ doesn't check beforehand that they exist.
 
 | On EKS, the _kubeconfig_ gets the _token_ with `exec`. On GKE, the _token_ is generated right before you launch the container.
 | A static EKS _token_ expires during the run.
@@ -158,13 +158,20 @@ The detailed steps are in the xref:operations-manual:upgrade.adoc#upgrade_provid
 
 === Point of no return
 
-The point of no return is the upgrade of the providers with `clusterctl` and the migration of the storage of the Cluster API CRDs to `v1beta2`. From there on, the way out is to complete the migration, with `--resume-from` if needed.
+The point of no return comes when the providers are upgraded with `clusterctl` and the Cluster API CRD storage is migrated to `v1beta2`. From there on, the way out is to complete the migration, with `--resume-from` if needed.
 
 [#data]
 
 === Data and consistency
 
-There's no application data migration and no change to the volumes. When it starts, the _script_ saves a copy of the Cluster API objects, of the provider _namespaces_, of the CRDs, of the _webhooks_, and of the state of `KeosCluster`, `ClusterConfig`, _cluster-operator_, and _cluster-autoscaler_. When it ends, it compares the content of the objects and of the nodes with an initial snapshot and leaves the difference in `content-diff.txt`.
+There's no application data migration and no change to the volumes. When it starts, the _script_ saves a copy of:
+
+* The Cluster API objects.
+* The provider _namespaces_.
+* The CRDs and the _webhooks_.
+* The state of `KeosCluster`, `ClusterConfig`, _cluster-operator_, and _cluster-autoscaler_.
+
+When it ends, it compares the content of the objects and of the nodes with an initial snapshot and leaves the difference in `content-diff.txt`.
 
 [#outage]
 
@@ -178,7 +185,7 @@ There's no application data migration and no change to the volumes. When it star
 
 === Work in progress during the window
 
-Don't make changes to the `KeosCluster` while the _script_ is running. The pre-check requires every `MachinePool` and `MachineDeployment` to be in the `Running` phase and every node to be `Ready`, so wait for any ongoing scaling to finish before you launch it.
+Don't make changes to the `KeosCluster` while the _script_ is running. The pre-check requires every `MachinePool` and `MachineDeployment` to be in the `Running` phase and every node to be `Ready` and schedulable (not cordoned), so wait for any ongoing scaling to finish before you launch it.
 
 [#after]
 
@@ -209,7 +216,7 @@ There's no supported way back: Cluster API doesn't support downgrades. If the _s
 
 === Warnings and known issues
 
-* The _script_ shows the _feature gates_ of the _controllers_ before and after, only as a report. The changes that appear correspond to the default values of the new versions.
+* The _script_ shows the _feature gates_ of the _controllers_ before and after, only as a report. The changes that appear correspond to the default values of the new versions and to the ones the _script_ itself sets.
 
 [#step2]
 
@@ -234,11 +241,11 @@ The second step upgrades the cluster _charts_ and the Kubernetes version. It sta
 | <<step2-outage, Downtime and availability>>
 
 | How long does it take?
-| Measured in real runs of the 1.35 → 1.36 jump: about 26 minutes on GKE and about 38 minutes on Azure VMs. On EKS, the _control-plane_ takes about 10 minutes and the nodes about 12 more. The jump to 1.37 on EKS and Azure VMs crosses two _minors_ and its duration hasn't been measured yet.
+| Measured in test environments, with few nodes and without the volume or the workloads of a customer environment: take it as an indicative minimum. It takes about 26 minutes on GKE (1.35 → 1.36), about 34 minutes on EKS (1.35 → 1.37), and about 82 minutes on Azure VMs (1.35 → 1.36 → 1.37).
 | <<step2-providers, Differences by provider>>
 
 | Can it be rolled back?
-| *No.* Kubernetes doesn't support downgrades. Before you confirm the `k8s_version` _bump_, you can simply not continue.
+| *No.* The _script_ doesn't support downgrading the Kubernetes version. Before the first confirmation, nothing has changed. If you don't confirm the `k8s_version` _bump_, the _charts_ are already upgraded and the _cluster_ stays on 1.35.
 | <<step2-point-of-no-return, Point of no return>>
 
 | What is the overall risk?
@@ -257,8 +264,8 @@ The second step upgrades the cluster _charts_ and the Kubernetes version. It sta
 | `upgrade-providers.py` finished and the providers are on the versions in <<components, Components and upgrade order>>.
 | When it starts, `upgrade-provisioner.py` checks that each provider is exactly on its target version. If not, it stops without changing anything.
 
-| The cluster registry has the 0.10.x _charts_ and images: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2, and _cluster-operator_ 0.8.0.
-| The _script_ pulls them from that registry and doesn't check beforehand that they exist.
+| The cluster registry has the 0.10.x _charts_ and images: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2, _cluster-operator_ 0.8.0, and, on EKS and Azure VMs, the Stratio _cluster-autoscaler_ `v1.36.1` image.
+| The _cluster_ pulls them from that registry and the _script_ doesn't check beforehand that they exist.
 
 | On Azure VMs, the cluster is on Kubernetes 1.35.
 | `upgrade-provisioner.py` goes up one _minor_ at a time starting from 1.35. If the cluster is below it, it stops at startup without changing anything.
@@ -279,7 +286,7 @@ The second step upgrades the cluster _charts_ and the Kubernetes version. It sta
 | Provider | Difference
 
 | EKS
-| A single _patch_ to 1.37, and AWS upgrades the _control-plane_ one _minor_ at a time. Meanwhile, the CAPA _logs_ show transient errors from the EKS add-ons, which resolve on their own. Then, the _script_ waits for every _nodegroup_ and node to reach 1.37.
+| A single _patch_ to 1.37, and CAPA upgrades the _control-plane_ one _minor_ at a time. Meanwhile, the CAPA _logs_ show transient errors from the EKS add-ons, which resolve on their own. Then, the _script_ waits for every _nodegroup_ and node to reach 1.37.
 
 | Azure VMs
 | One _patch_ per _minor_ (`1.35`→`1.36`→`1.37`), each one with the node image from `--node-image-map`. When it ends, the _script_ pins the _cloud-controller-manager_ to the version of the target _minor_.

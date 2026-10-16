@@ -35,7 +35,7 @@ TIP: Start with the summary section of the sheet. It answers, at a glance, every
 Each path tells you how many _script_ runs it needs:
 
 * *From 0.7.x to 0.9.x*: a single run of `upgrade-provisioner.py` upgrades Cluster API, its providers, the _charts_, and the Kubernetes version.
-* *From 0.9.x to 0.10.x*: two runs. First, `upgrade-providers.py` migrates Cluster API and its providers to the `v1beta2` API without changing the Kubernetes version. Then, `upgrade-provisioner.py` upgrades the rest of the components and the Kubernetes version.
+* *From 0.9.x to 0.10.x*: two runs. First, `upgrade-providers.py` migrates Cluster API, its providers and _cluster-operator_ to the `v1beta2` API without changing the Kubernetes version. Then, `upgrade-provisioner.py` upgrades the rest of the components and the Kubernetes version.
 ====
 
 == How to read a sheet
