@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 * [PLT-5022] Installation docs (Azure VMs): document the extra permissions the deployment user needs to run the Stratio KEOS external-dns prerequisite — new `stratio-azure-keos-dns-role.json` attachment (public and private DNS zones, private zone link to the VNet and role assignments, with their deletes), which complements the deployment user role, and the Microsoft Graph `Application.ReadWrite.OwnedBy` application permission granted by an Entra ID administrator
 * `upgrade-provisioner.py` (GKE): `--node-convergence-timeout` now applies to the node pool wait. A second, older copy of that wait (90 minutes in total, without restarting on progress) overrode it, so on GKE the flag had no effect and a node pool rollout still advancing aborted after 90 minutes. Also drop an identical duplicate of the `KeosCluster` settle wait
+* [PLT-5023] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.7 → 0.9.8) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.8
 
 ## 0.9.7 (2026-10-15)
 
