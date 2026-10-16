@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# vm-autostop - power off a bastion VM after a configured local time unless a cloud-provisioner bootstrap is running
+# vm-autostop - power off a bastion VM after a configured local time unless a cloud-provisioner bootstrap is running; keeps the root disk from filling up
 set -euo pipefail
 
 BIN=/usr/local/sbin/vm-autostop
@@ -21,7 +21,9 @@ Usage: vm-autostop <command>   (run as root)
   cancel              Cancel an already announced stop
   status              Config, next timer run, skip flag, pending shutdown, activity
   stop-if-idle [MIN]  Stop now (after MIN minutes, default 1) only if no bootstrap is running
-  check               Called by the timer every 15 min: stop if after HH:MM, before LAST_TRY and idle
+  housekeeping        Free the root disk: unused docker volumes always; at DISK_PRUNE_PCT % also unused local
+                      cloud-provisioner:<tag> builds older than IMAGE_MIN_AGE_H hours; warn at DISK_WARN_PCT %
+  check               Called by the timer every 15 min: housekeeping, then stop if after HH:MM, before LAST_TRY and idle
 EOF
 }
 
@@ -31,6 +33,7 @@ valid_time() { [[ "$1" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || { echo "invalid 
 
 load_conf() {
   ENABLED=1 TIME=18:00 TZONE=Europe/Madrid LAST_TRY=23:30 STOP_METHOD=poweroff
+  DISK_PRUNE_PCT=75 DISK_WARN_PCT=85 IMAGE_MIN_AGE_H=48
   # shellcheck disable=SC1090
   if [[ -f "$CONF" ]]; then . "$CONF"; fi
 }
@@ -49,6 +52,42 @@ activity() {
   procs=$(pgrep -af '^[^ ]*cloud-provisioner[^ /]*( |$)' || true)
   [[ -z "$ct" ]] || echo "bootstrap/upgrade container(s): $(echo $ct)"
   [[ -z "$procs" ]] || echo "process(es): $(echo "$procs" | cut -c1-120 | tr '\n' ';')"
+}
+
+root_pct() { df --output=pcent / | tail -1 | tr -dc 0-9; }
+
+# Local builds only (repository exactly cloud-provisioner, no registry host): --build-stratio-image recreates them,
+# while a published image may need a registry login to come back. Never an image a container (running or not) uses.
+prunable_images() {
+  local used cutoff ref id created
+  # Also skip an image that has a registry tag too (kind tags pulled images as cloud-provisioner:<tag>): untagging frees nothing
+  used=$(docker ps -aq | xargs -r docker inspect --format '{{.Image}}'; docker images --no-trunc --format '{{.Repository}} {{.ID}}' | awk '$1 ~ /\// {print $2}')
+  cutoff=$(( $(date +%s) - IMAGE_MIN_AGE_H * 3600 ))
+  docker images --no-trunc --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedAt}}' | while read -r ref id created; do
+    [[ "$ref" == cloud-provisioner:* && "$ref" != *:"<none>" ]] || continue
+    # Release-shaped tags are what creates pass to --image (retags of published images): never removed
+    [[ "${ref#cloud-provisioner:}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(m|rc)\.[0-9]+)?$ ]] && continue
+    grep -qx "$id" <<<"$used" && continue
+    (( $(date -d "${created% *}" +%s) < cutoff )) && echo "$ref"
+  done
+}
+
+cmd_housekeeping() {
+  load_conf
+  local out pct img
+  out=$(docker volume prune -f 2>&1 | tail -1)
+  [[ "$out" == *" 0B" ]] || log "housekeeping: volume prune - $out"
+  pct=$(root_pct)
+  if (( pct >= DISK_PRUNE_PCT )); then
+    for img in $(prunable_images); do
+      docker rmi "$img" >/dev/null 2>&1 && log "housekeeping: removed image $img (root disk was ${pct}%)"
+    done
+    pct=$(root_pct)
+  fi
+  if (( pct >= DISK_WARN_PCT )); then
+    log "housekeeping: root disk at ${pct}% after cleanup - free space by hand (docker images, /deployments is another disk)"
+    wall "vm-autostop: root disk at ${pct}% - a new bootstrap may fail with 'no space left on device'" 2>/dev/null || true
+  fi
 }
 
 # Schedules do-stop in MIN minutes as a transient timer; do-stop re-checks activity before stopping
@@ -120,8 +159,8 @@ cmd_enable() {
 }
 
 cmd_disable() {
+  # The timer keeps running for housekeeping; check skips the stop while ENABLED=0
   load_conf; ENABLED=0; save_conf
-  systemctl disable --now $UNIT.timer >/dev/null 2>&1
   log "disabled (re-enable with: sudo vm-autostop enable [HH:MM])"
 }
 
@@ -158,6 +197,7 @@ cmd_status() {
   echo "shutdown:    $(shutdown_pending && echo pending || echo none)"
   local a; a=$(activity)
   echo "activity:    ${a:-idle}"
+  echo "root disk:   $(root_pct)% (prune local images at $DISK_PRUNE_PCT%, warn at $DISK_WARN_PCT%)"
 }
 
 cmd_stop_if_idle() {
@@ -168,6 +208,8 @@ cmd_stop_if_idle() {
 }
 
 cmd_check() {
+  # Runs even with auto-stop disabled: a full root disk makes every new bootstrap fail
+  cmd_housekeeping || log "housekeeping failed"
   load_conf
   [[ "$ENABLED" == 1 ]] || exit 0
   [[ ! -f "$STATE/skip-$(today)" ]] || exit 0
@@ -189,6 +231,7 @@ case "$cmd" in
   cancel) need_root "$cmd"; cmd_cancel ;;
   status) cmd_status ;;
   stop-if-idle) need_root "$cmd"; cmd_stop_if_idle "$@" ;;
+  housekeeping) need_root "$cmd"; cmd_housekeeping ;;
   check) need_root "$cmd"; cmd_check ;;
   do-stop) need_root "$cmd"; cmd_do_stop ;;
   -h|--help|"") usage ;;

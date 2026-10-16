@@ -16,7 +16,7 @@ Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the
 
 Keep each VM **stopped** when not in use (auto-stop does it every evening), never delete and recreate it routinely. A stopped VM bills only its disk and keeps `/deployments` (per-cluster `.kube/`, `secrets.yml`, backups), the docker image cache (faster bootstraps) and the colleagues' users. Recreate only if the VM is broken or for an OS upgrade — EKS and Azure are fully reproducible with `eks-vm.sh create` / `azure-vm.sh create` (Azure recreated from scratch 2026-10-01).
 
-Housekeeping, monthly or when `df -h /` passes ~70%: `sudo docker image prune -a --filter until=168h` and remove `/deployments/<cluster>/` folders of clusters already deleted (move them to `/deployments/backup/` first if in doubt). Security patches: `unattended-upgrades` (installed by the EKS user-data and the Azure cloud-init).
+Root disk housekeeping is automatic: `vm-autostop` runs it every 15 min (see [Root disk housekeeping](#root-disk-housekeeping)). By hand, only when it warns: remove published images nobody uses (`sudo docker images`, `sudo docker rmi <image>`) and `/deployments/<cluster>/` folders of clusters already deleted (move them to `/deployments/backup/` first if in doubt; `/deployments` is another disk). Security patches: `unattended-upgrades` (installed by the EKS user-data and the Azure cloud-init).
 
 ## Persistent `/deployments` volume and its protection
 
@@ -262,17 +262,30 @@ From the laptop, `eks-vm.sh tools sync` / `azure-vm.sh tools sync` pushes the cu
 
 | Command (on the VM, `sudo`) | Effect |
 |---|---|
-| `vm-autostop status` | Enabled?, time, next timer run, skip flag, pending shutdown, current activity |
+| `vm-autostop status` | Enabled?, time, next timer run, skip flag, pending shutdown, current activity, root disk usage |
 | `vm-autostop enable [HH:MM]` | Turn on / change the time |
-| `vm-autostop disable` | Turn off until `enable` |
+| `vm-autostop disable` | Turn the stop off until `enable`; the timer keeps running the disk housekeeping |
+| `vm-autostop housekeeping` | Run the root disk housekeeping now (the timer runs it every 15 min) |
 | `vm-autostop skip-today` | No stop tonight (also cancels a pending one); normal again tomorrow |
 | `vm-autostop cancel` | Cancel an announced shutdown — the timer retries in 15 min, use `skip-today` to stop it for the night |
 | `vm-autostop stop-if-idle [MIN]` | Stop now (default 1 min) only if idle; exit code 2 and no stop if busy |
 | `vm-autostop install [HH:MM] [poweroff\|azure-deallocate]` / `uninstall` | Add / remove binary, timer, service and config |
 
+### Root disk housekeeping
+
+Each kind bootstrap takes ~4.5 GB of the root disk (image layers and its anonymous volume), and a failed or removed bootstrap leaves its volume behind. On 2026-10-16 the 30 GB root disk of `azure-vm-janr` reached 100% with two creates in parallel and both failed with `no space left on device`. Every timer run (every 15 min, also with the stop disabled) does, in this order:
+
+| Step | When | What | Why it is safe |
+|---|---|---|---|
+| 1 | Always | `docker volume prune -f` | Only volumes no container (running or stopped) uses; a running bootstrap keeps its own |
+| 2 | Root disk ≥ `DISK_PRUNE_PCT` (75) | `docker rmi` of local builds `cloud-provisioner:<tag>` older than `IMAGE_MIN_AGE_H` (48 h) | Never an image a container uses, one that also has a registry tag, nor a release-shaped tag (`X.Y.Z`, `X.Y.Z-m.N`, `X.Y.Z-rc.N`: the local name creates pass to `--image`); so only dev builds (`*-SNAPSHOT.N`, branch tags), which `--build-stratio-image` builds again. Published images (`<registry>/…`) are kept: pulling them again may need a registry login |
+| 3 | Still ≥ `DISK_WARN_PCT` (85) | Log + `wall` warning | The rest is freed by hand (published images, old `/deployments/<cluster>/`) |
+
+Every removal is logged (`journalctl -t vm-autostop`). The thresholds can be overridden in `/etc/vm-autostop.conf` (`DISK_PRUNE_PCT=`, `DISK_WARN_PCT=`, `IMAGE_MIN_AGE_H=`); `install` rewrites that file and puts the defaults back. Two bootstraps at a time is the practical limit of a 30 GB root disk.
+
 ### Changing the time, disabling and re-enabling — per provider
 
-The setting lives on the VM (`/etc/vm-autostop.conf` + `vm-autostop.timer`, `vm-autostop.sh:114-126`): it survives reboots and stop/start. The VM must be running to change it. `enable` without a time keeps the saved one.
+The setting lives on the VM (`/etc/vm-autostop.conf` + `vm-autostop.timer`, `cmd_enable`/`cmd_disable` in `vm-autostop.sh`): it survives reboots and stop/start. The VM must be running to change it. `enable` without a time keeps the saved one.
 
 ```bash
 # EKS — eks-vm-janr
