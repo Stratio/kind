@@ -49,4 +49,11 @@ func TestPrepareCreateState(t *testing.T) {
 	if err := prepareCreateState(&flagpole{Resume: true}, "c1", "v1"); err != nil {
 		t.Fatalf("resume by descriptor name: %v", err)
 	}
+	// --delete-previous starts over with a fresh state, even from another binary
+	if err := prepareCreateState(&flagpole{Name: "c1", ForceDelete: true}, "c1", "v2"); err != nil {
+		t.Fatalf("plain create with --delete-previous: %v", err)
+	}
+	if err := prepareCreateState(&flagpole{Name: "c1", Resume: true}, "c1", "v2"); err != nil {
+		t.Fatalf("the new state must belong to the new binary: %v", err)
+	}
 }

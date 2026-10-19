@@ -358,8 +358,12 @@ func prepareCreateState(flags *flagpole, descriptorName string, binaryVersion st
 		}
 		return state.CheckResumable(name, binaryVersion)
 	}
-	if state != nil {
-		return errors.Errorf("a create of %q was started in this directory (%s); use --resume, or remove %s to start over", state.ClusterName, commons.CreateStatePath, commons.CreateStateDir)
+	if state != nil && !flags.ForceDelete {
+		return errors.Errorf("a create of %q was started in this directory (%s); use --resume to continue it, or --delete-previous to start over", state.ClusterName, commons.CreateStatePath)
+	}
+	// --delete-previous starts over: the bootstrap container goes, and so does the state of the previous create
+	if state != nil && state.CloudResources {
+		fmt.Printf("WARNING: the previous create of %q may have created cloud resources; starting over does not delete them, check them in the cloud account\n", state.ClusterName)
 	}
 	return (&commons.CreateState{ClusterName: name, Version: binaryVersion}).Save()
 }
