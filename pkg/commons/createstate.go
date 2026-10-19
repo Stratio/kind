@@ -18,6 +18,9 @@ var (
 	KeosClusterValuesPath = filepath.Join(CreateStateDir, "keos-cluster-values.yaml")
 )
 
+// CreateStepDescriptor is the last step of createworker: past it only the cleanup of the bootstrap container is left.
+const CreateStepDescriptor = "keos-descriptor"
+
 // CreateState is an index of a create in progress; live checks, not this file, decide whether a step runs again.
 type CreateState struct {
 	ClusterName             string    `yaml:"clusterName"`

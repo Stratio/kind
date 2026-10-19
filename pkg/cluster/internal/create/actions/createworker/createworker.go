@@ -1200,6 +1200,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 	ctx.Status.End(true) // End Generating KEOS descriptor
+	stepDone(commons.CreateStepDescriptor)
 
 	// Stop kubeconfig refresher if it was started
 	if stopRefresher != nil {

@@ -187,6 +187,12 @@ func resume(logger log.Logger, p providers.Provider, opts *ClusterOptions) error
 		return err
 	}
 	if len(nodes) == 0 {
+		// A create interrupted while cleaning up the temporary cluster is complete: only the state file is left
+		if state, _ := commons.LoadCreateState(); state != nil && state.LastCompletedStep == commons.CreateStepDescriptor {
+			_ = os.Remove(commons.CreateStatePath)
+			logger.V(0).Infof("The create of cluster %q had already finished; it was interrupted while removing the temporary cluster. Nothing left to resume.\n", opts.Config.Name)
+			return nil
+		}
 		return errors.Errorf("the bootstrap container of %q no longer exists; resuming without it is not supported yet (PLT-4965)", opts.Config.Name)
 	}
 	// After a host reboot the container is stopped (restart policy on-failure)
