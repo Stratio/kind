@@ -16,7 +16,7 @@ Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the
 
 Keep each VM **stopped** when not in use (auto-stop does it every evening), never delete and recreate it routinely. A stopped VM bills only its disk and keeps `/deployments` (per-cluster `.kube/`, `secrets.yml`, backups), the docker image cache (faster bootstraps) and the colleagues' users. Recreate only if the VM is broken or for an OS upgrade — EKS and Azure are fully reproducible with `eks-vm.sh create` / `azure-vm.sh create` (Azure recreated from scratch 2026-10-01).
 
-Root disk housekeeping is automatic: `vm-autostop` runs it every 15 min (see [Root disk housekeeping](#root-disk-housekeeping)). By hand, only when it warns: remove published images nobody uses (`sudo docker images`, `sudo docker rmi <image>`) and `/deployments/<cluster>/` folders of clusters already deleted (move them to `/deployments/backup/` first if in doubt; `/deployments` is another disk). Security patches: `unattended-upgrades` (installed by the EKS user-data and the Azure cloud-init).
+Root disk housekeeping is automatic: `vm-autostop` runs it every 15 min (see [Root disk housekeeping](#root-disk-housekeeping)). By hand, only when it still warns after removing unused published images itself: local upgrade builds nobody uses (`sudo docker images`, `sudo docker rmi <image>`) and `/deployments/<cluster>/` folders of clusters already deleted (move them to `/deployments/backup/` first if in doubt; `/deployments` is another disk). Security patches: `unattended-upgrades` (installed by the EKS user-data and the Azure cloud-init).
 
 ## Persistent `/deployments` volume and its protection
 
@@ -265,7 +265,7 @@ From the laptop, `eks-vm.sh tools sync` / `azure-vm.sh tools sync` pushes the cu
 | `vm-autostop status` | Enabled?, time, next timer run, skip flag, pending shutdown, current activity, root disk usage |
 | `vm-autostop enable [HH:MM]` | Turn on / change the time |
 | `vm-autostop disable` | Turn the stop off until `enable`; the timer keeps running the disk housekeeping |
-| `vm-autostop housekeeping` | Run the root disk housekeeping now (the timer runs it every 15 min) |
+| `vm-autostop housekeeping [dry-run]` | Run the root disk housekeeping now (the timer runs it every 15 min); `dry-run` only lists what it would remove (positional, so `eks-vm.sh`/`azure-vm.sh autostop housekeeping dry-run` passes it through) |
 | `vm-autostop skip-today` | No stop tonight (also cancels a pending one); normal again tomorrow |
 | `vm-autostop cancel` | Cancel an announced shutdown — the timer retries in 15 min, use `skip-today` to stop it for the night |
 | `vm-autostop stop-if-idle [MIN]` | Stop now (default 1 min) only if idle; exit code 2 and no stop if busy |
@@ -278,10 +278,14 @@ Each kind bootstrap takes ~4.5 GB of the root disk (image layers and its anonymo
 | Step | When | What | Why it is safe |
 |---|---|---|---|
 | 1 | Always | `docker volume prune -f` | Only volumes no container (running or stopped) uses; a running bootstrap keeps its own |
-| 2 | Root disk ≥ `DISK_PRUNE_PCT` (75) | `docker rmi` of local builds `cloud-provisioner:<tag>` older than `IMAGE_MIN_AGE_H` (48 h) | Never an image a container uses, one that also has a registry tag, nor a release-shaped tag (`X.Y.Z`, `X.Y.Z-m.N`, `X.Y.Z-rc.N`: the local name creates pass to `--image`); so only dev builds (`*-SNAPSHOT.N`, branch tags), which `--build-stratio-image` builds again. Published images (`<registry>/…`) are kept: pulling them again may need a registry login |
-| 3 | Still ≥ `DISK_WARN_PCT` (85) | Log + `wall` warning | The rest is freed by hand (published images, old `/deployments/<cluster>/`) |
+| 2 | Always | `docker image prune -f` (dangling images) | Only untagged images no container uses: what a rebuild of the same tag (`--build-stratio-image`) leaves behind |
+| 3 | Root disk ≥ `DISK_PRUNE_PCT` (75) | `docker rmi` of unused local dev builds `cloud-provisioner:<tag>` older than `IMAGE_MIN_AGE_H` (48 h), and of unused `kindest/node:*` | Never an image a container uses, one that also has a registry tag, nor a release-shaped tag (`X.Y.Z`, `X.Y.Z-m.N`, `X.Y.Z-rc.N`); so only dev builds (`*-SNAPSHOT.N`, branch tags), which `--build-stratio-image` builds again. `kindest/node` is public and is pulled again |
+| 4 | Still ≥ `DISK_WARN_PCT` (85) | `docker rmi` of every tag of unused published images: release-shaped `cloud-provisioner:<tag>`, `<registry>/…/cloud-provisioner:*`, `<registry>/…/cloud-provisioner-upgrade:*` (and a local `cloud-provisioner-upgrade:<tag>` only when it also has a registry tag) | The next create (`--image`) or upgrade pulls them again, which may need a `docker login` to that registry; a local upgrade build without a registry tag is never removed, nothing recreates it |
+| 5 | Still ≥ `DISK_WARN_PCT` (85) | Log + `wall` warning | The rest is freed by hand (local upgrade builds, old `/deployments/<cluster>/`) |
 
-Every removal is logged (`journalctl -t vm-autostop`). The thresholds can be overridden in `/etc/vm-autostop.conf` (`DISK_PRUNE_PCT=`, `DISK_WARN_PCT=`, `IMAGE_MIN_AGE_H=`); `install` rewrites that file and puts the defaults back. Two bootstraps at a time is the practical limit of a 30 GB root disk.
+`sudo vm-autostop housekeeping dry-run` prints the disk usage and the images steps 3 and 4 would remove, without removing anything. Every removal is logged (`journalctl -t vm-autostop`). The thresholds can be overridden in `/etc/vm-autostop.conf` (`DISK_PRUNE_PCT=`, `DISK_WARN_PCT=`, `IMAGE_MIN_AGE_H=`); `install` rewrites that file and puts the defaults back. Two bootstraps at a time is the practical limit of a 30 GB root disk.
+
+Only one case can make a later create fail: `--use-local-stratio-image` reuses the local image without building it, so a dev build older than 48 h that step 3 removed is gone. Use `--build-stratio-image` (rebuilds it) or `--image` with a published tag.
 
 ### Changing the time, disabling and re-enabling — per provider
 
