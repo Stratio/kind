@@ -161,6 +161,13 @@ func applyIfAbsent(manifest string) string {
 	return "kubectl get -f " + manifest + " >/dev/null 2>&1 || kubectl apply -f " + manifest
 }
 
+// copyIfAbsentIn runs the copy of an object to the workload cluster only when it is not there yet: a hand-over
+// interrupted between the copy and the delete leaves it in both, and copying again carries the bootstrap resourceVersion
+// and uid (Conflict).
+func copyIfAbsentIn(kubeconfig, namespace, kind, name, copyCommand string) string {
+	return "kubectl --kubeconfig " + kubeconfig + " -n " + namespace + " get " + kind + " " + name + " >/dev/null 2>&1 || { " + copyCommand + "; }"
+}
+
 // bootstrapHas reports whether the bootstrap cluster still holds the object.
 func bootstrapHas(n nodes.Node, namespace, kind, name string) bool {
 	out, err := commons.ExecuteCommand(n, "kubectl -n "+namespace+" get "+kind+" "+name+" --ignore-not-found -o name", 5, 3)

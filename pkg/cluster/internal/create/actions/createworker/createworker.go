@@ -1261,7 +1261,7 @@ func (a *action) handOverToWorkloadOperator(n nodes.Node, capiClustersNamespace 
 
 		// Move clusterConfig to workload cluster
 		c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		_, err = commons.ExecuteCommand(n, copyIfAbsentIn(kubeconfigPath, capiClustersNamespace, "clusterconfig", a.clusterConfig.Metadata.Name, c), 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
 		}
@@ -1277,7 +1277,7 @@ func (a *action) handOverToWorkloadOperator(n nodes.Node, capiClustersNamespace 
 	if bootstrapHas(n, capiClustersNamespace, "keoscluster", a.keosCluster.Metadata.Name) {
 		// Move keoscluster to workload cluster
 		c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		_, err = commons.ExecuteCommand(n, copyIfAbsentIn(kubeconfigPath, capiClustersNamespace, "keoscluster", a.keosCluster.Metadata.Name, c), 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to move keoscluster to workload cluster")
 		}

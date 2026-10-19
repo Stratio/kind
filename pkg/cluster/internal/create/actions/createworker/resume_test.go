@@ -175,6 +175,15 @@ func TestResumeMoveState(t *testing.T) {
 	}
 }
 
+func TestCopyIfAbsentIn(t *testing.T) {
+	// gke-5084b 2026-10-19: hand-over interrupted after the KeosCluster copy, before its delete in the bootstrap
+	got := copyIfAbsentIn("/kind/worker-cluster.kubeconfig", "cluster-c1", "keoscluster", "c1", "COPY")
+	want := "kubectl --kubeconfig /kind/worker-cluster.kubeconfig -n cluster-c1 get keoscluster c1 >/dev/null 2>&1 || { COPY; }"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestApplyIfAbsent(t *testing.T) {
 	want := "kubectl get -f /kind/manifests/clusterconfig.yaml >/dev/null 2>&1 || kubectl apply -f /kind/manifests/clusterconfig.yaml"
 	if got := applyIfAbsent("/kind/manifests/clusterconfig.yaml"); got != want {
