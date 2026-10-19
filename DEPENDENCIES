@@ -23,12 +23,12 @@ core:
     cluster-operator:
       cluster-operator: 0.8.0-m.2
     flux:
-      flux-cli: v2.7.5
-      helm-controller: v1.4.5
-      kustomize-controller: v1.7.3
-      source-controller: v1.7.4
+      flux-cli: v2.8.8
+      helm-controller: v1.5.5
+      kustomize-controller: v1.8.5
+      source-controller: v1.8.5
     kind:
-      cloud-provisioner: 0.10.0-m.6
+      cloud-provisioner: 0.10.0-m.7
       coredns: v1.14.6
       etcd: 3.7.0-0
       kindnetd: v20260820-69b56db7
@@ -43,7 +43,7 @@ core:
     cluster-autoscaler: 9.59.0
     cluster-operator: 0.8.0-m.2
     crd.projectcalico.org.v1: v3.33.0
-    flux: 2.17.2
+    flux: 2.18.4
     tigera-operator: v3.33.0
 aws:
   capa:
