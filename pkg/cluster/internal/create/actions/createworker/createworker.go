@@ -520,9 +520,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		// From here a failure keeps the bootstrap container: the operator starts creating cloud resources
 		stepDone("keoscluster-applied", func(s *commons.CreateState) { s.CloudResources = true })
 
+		// Applied once: the operator fills ClusterConfig spec.charts and its webhook refuses that change on a resume
 		if a.clusterConfig != nil {
 			// Apply cluster manifests
-			c = "kubectl apply -f " + manifestsPath + "/clusterconfig.yaml"
+			c = applyIfAbsent(manifestsPath + "/clusterconfig.yaml")
 			_, err = commons.ExecuteCommand(n, c, 5, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to apply clusterconfig manifests")
@@ -530,7 +531,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		// Apply cluster manifests
-		c = "kubectl apply -f " + manifestsPath + "/keoscluster.yaml"
+		c = applyIfAbsent(manifestsPath + "/keoscluster.yaml")
 		_, err = commons.ExecuteCommand(n, c, 10, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to apply keoscluster manifests")

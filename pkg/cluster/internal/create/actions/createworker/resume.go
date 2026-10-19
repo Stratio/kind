@@ -153,6 +153,11 @@ func bootstrapMoveState(n nodes.Node, namespace, name string) (pivoted bool, ins
 	return false, !paused, nil
 }
 
+// applyIfAbsent applies a manifest only when its object does not exist yet in the bootstrap cluster.
+func applyIfAbsent(manifest string) string {
+	return "kubectl get -f " + manifest + " >/dev/null 2>&1 || kubectl apply -f " + manifest
+}
+
 // bootstrapHas reports whether the bootstrap cluster still holds the object.
 func bootstrapHas(n nodes.Node, namespace, kind, name string) bool {
 	out, err := commons.ExecuteCommand(n, "kubectl -n "+namespace+" get "+kind+" "+name+" --ignore-not-found -o name", 5, 3)
