@@ -106,7 +106,12 @@ func EnsureKubeconfigAccess(n nodes.Node, kubeconfigPath string, refresh func() 
 // writes it into kubeconfigPath: after the pivot nothing refreshes the CAPA token saved there (~15 min lifetime).
 func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region string, credentials map[string]string) error {
 	env := []string{"AWS_ACCESS_KEY_ID=" + credentials["AccessKey"], "AWS_SECRET_ACCESS_KEY=" + credentials["SecretKey"], "AWS_REGION=" + region}
-	out, err := ExecuteCommand(n, "aws eks get-token --cluster-name "+clusterName+" --region "+region+" --output json 2>/dev/null", 5, 3, env)
+	c := "aws eks get-token --cluster-name " + clusterName + " --region " + region + " --output json"
+	// With a role ARN, CAPA creates the cluster as that role and only it is mapped in the cluster
+	if roleARN := credentials["RoleARN"]; roleARN != "" {
+		c += " --role-arn " + roleARN
+	}
+	out, err := ExecuteCommand(n, c+" 2>/dev/null", 5, 3, env)
 	if err != nil {
 		return errors.Wrap(err, "failed to get a new EKS token")
 	}
