@@ -85,6 +85,14 @@ TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
 
 TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
 
+# Flux v2.8.8 components shipped by the flux2 2.18.4 chart, pinned in templates/common/<minor>/flux2-helm-values.tmpl.
+FLUX_IMAGE_TAGS = {
+    "cli": "v2.8.8",
+    "helmController": "v1.5.5",
+    "kustomizeController": "v1.8.5",
+    "sourceController": "v1.8.5",
+}
+
 # Bootstrap set of projectcalico/calico#14027: the chart's blanket default also tolerates the cordon taint (PLT-5023).
 TIGERA_OPERATOR_TOLERATIONS = [
     {"key": "CriticalAddonsOnly", "operator": "Exists"},
@@ -131,7 +139,7 @@ common_charts = {
         "repo": ""
     },
     "flux2": {
-        "version": "2.17.2",
+        "version": "2.18.4",
         "namespace": "kube-system",
         "repo": "https://fluxcd-community.github.io/helm-charts",
         "release_name": "flux"
