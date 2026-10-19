@@ -71,3 +71,15 @@ func TestEKSTokenFromExecCredential(t *testing.T) {
 		t.Error("non-JSON output: no error")
 	}
 }
+
+func TestEKSGetTokenCommand(t *testing.T) {
+	base := "aws eks get-token --cluster-name c1 --region eu-west-1 --output json"
+	if got := eksGetTokenCommand("c1", "eu-west-1", ""); got != base {
+		t.Errorf("no role: got %q", got)
+	}
+	// eks-4965-r10a 2026-10-19: only the role_arn identity is mapped in a 0.10 EKS cluster
+	arn := "arn:aws:iam::123456789012:role/capa-management-components"
+	if got := eksGetTokenCommand("c1", "eu-west-1", arn); got != base+" --role-arn "+arn {
+		t.Errorf("role: got %q", got)
+	}
+}

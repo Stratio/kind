@@ -154,3 +154,30 @@ func TestMoveDecision(t *testing.T) {
 		}
 	}
 }
+
+func TestResumeMoveState(t *testing.T) {
+	cases := []struct {
+		name                                  string
+		srcExists, srcPaused, kubeconfigSaved bool
+		pivoted, installOperator              bool
+	}{
+		{"before the workload cluster exists", false, false, false, false, true},
+		{"Cluster in the bootstrap, not moved", true, false, true, false, true},
+		// eks-4965-r10b 2026-10-19: half move, the operator was already uninstalled
+		{"half move, source paused", true, true, true, false, false},
+		{"move finished after the CLI was killed", false, false, true, true, false},
+	}
+	for _, c := range cases {
+		pivoted, install := resumeMoveState(c.srcExists, c.srcPaused, c.kubeconfigSaved)
+		if pivoted != c.pivoted || install != c.installOperator {
+			t.Errorf("%s: pivoted=%t installOperator=%t", c.name, pivoted, install)
+		}
+	}
+}
+
+func TestApplyIfAbsent(t *testing.T) {
+	want := "kubectl get -f /kind/manifests/clusterconfig.yaml >/dev/null 2>&1 || kubectl apply -f /kind/manifests/clusterconfig.yaml"
+	if got := applyIfAbsent("/kind/manifests/clusterconfig.yaml"); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

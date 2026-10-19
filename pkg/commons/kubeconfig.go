@@ -106,12 +106,7 @@ func EnsureKubeconfigAccess(n nodes.Node, kubeconfigPath string, refresh func() 
 // writes it into kubeconfigPath: after the pivot nothing refreshes the CAPA token saved there (~15 min lifetime).
 func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region string, credentials map[string]string) error {
 	env := []string{"AWS_ACCESS_KEY_ID=" + credentials["AccessKey"], "AWS_SECRET_ACCESS_KEY=" + credentials["SecretKey"], "AWS_REGION=" + region}
-	c := "aws eks get-token --cluster-name " + clusterName + " --region " + region + " --output json"
-	// With a role ARN, CAPA creates the cluster as that role and only it is mapped in the cluster
-	if roleARN := credentials["RoleARN"]; roleARN != "" {
-		c += " --role-arn " + roleARN
-	}
-	out, err := ExecuteCommand(n, c+" 2>/dev/null", 5, 3, env)
+	out, err := ExecuteCommand(n, eksGetTokenCommand(clusterName, region, credentials["RoleARN"])+" 2>/dev/null", 5, 3, env)
 	if err != nil {
 		return errors.Wrap(err, "failed to get a new EKS token")
 	}
@@ -131,6 +126,15 @@ func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region
 		return errors.Wrap(err, "failed to write "+kubeconfigPath)
 	}
 	return nil
+}
+
+// eksGetTokenCommand: with a role ARN, CAPA creates the cluster as that role and only it is mapped in the cluster.
+func eksGetTokenCommand(clusterName, region, roleARN string) string {
+	c := "aws eks get-token --cluster-name " + clusterName + " --region " + region + " --output json"
+	if roleARN != "" {
+		c += " --role-arn " + roleARN
+	}
+	return c
 }
 
 func GetKubeconfigFromSecret(n nodes.Node, namespace, clusterName string) (string, error) {

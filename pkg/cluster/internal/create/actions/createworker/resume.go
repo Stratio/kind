@@ -147,10 +147,13 @@ func bootstrapMoveState(n nodes.Node, namespace, name string) (pivoted bool, ins
 	if err != nil {
 		return false, false, err
 	}
-	if !exists {
-		return kindFileExists(n, kubeconfigPath), !kindFileExists(n, kubeconfigPath), nil
-	}
-	return false, !paused, nil
+	pivoted, installOperator = resumeMoveState(exists, paused, kindFileExists(n, kubeconfigPath))
+	return pivoted, installOperator, nil
+}
+
+func resumeMoveState(srcExists, srcPaused, kubeconfigSaved bool) (pivoted bool, installOperator bool) {
+	pivoted = resumePivoted(false, srcExists, kubeconfigSaved)
+	return pivoted, !pivoted && !srcPaused
 }
 
 // applyIfAbsent applies a manifest only when its object does not exist yet in the bootstrap cluster.
