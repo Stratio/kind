@@ -534,7 +534,7 @@ To start the upgrade, once the prerequisites are satisfied, a patch of _spec.k8s
 
 [source,bash]
 ----
-kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.32.x"}}'
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.37.x"}}'
 ----
 
 NOTE: The controller provisions a new node of the worker group with the updated version and, once it is _Ready_ in Kubernetes, deletes a node with the previous version. This way, the configured number of nodes is guaranteed.

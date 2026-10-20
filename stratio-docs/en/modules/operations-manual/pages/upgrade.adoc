@@ -26,7 +26,7 @@ To guarantee a reproducible execution environment, the `cloud-provisioner-upgrad
 * *Common components* for all platforms:
 ** _cluster-operator_: `0.8.0`
 ** _cert-manager_: `v1.21.2`
-** _flux2_: `2.17.2`
+** _flux2_: `2.18.4`
 ** _tigera-operator_: `v3.33.0`
 ** _cluster-autoscaler_: `9.59.0`
 
@@ -42,7 +42,7 @@ To guarantee a reproducible execution environment, the `cloud-provisioner-upgrad
 
 This _script_ doesn't upgrade Cluster API or its providers: `upgrade-providers.py` does it beforehand and leaves them on the versions in the xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc#components[route sheet].
 
-NOTE: In `cloud-provider-azure`, the _script_ also pins the image _tag_ of `cloudControllerManager`/`cloudNodeManager` to a known, published version, because the _chart_ itself can reference a _tag_ that isn't published yet for some _minors_. When it upgrades the _chart_, it uses the one for the cluster's current _minor_. When the `k8s_version` _bump_ ends, it switches it to the one for the target _minor_: `v1.36.6` for 1.36 and `v1.37.0` for 1.37. If a _minor_ isn't in the _script_'s internal table, it warns and leaves the _chart_ default values as they are.
+NOTE: In `cloud-provider-azure`, the _script_ also pins the image _tag_ of `cloudControllerManager`/`cloudNodeManager` to a known, published version, because the _chart_ itself can reference a _tag_ that isn't published yet for some _minors_. When it upgrades the _chart_, it uses the one for the cluster's current _minor_. When the `k8s_version` _bump_ ends, it switches it to the one for the target _minor_: `v1.37.0` for 1.37. If a _minor_ isn't in the _script_'s internal table, it warns and leaves the _chart_ default values as they are.
 
 == Requirements
 

@@ -731,7 +731,7 @@ Se presentan dos casos de uso del descriptor para demostrar la capacidad de _Str
 En este ejemplo se aprecian las siguientes particularidades:
 
 * _Cluster_ en AWS con _control-plane_ gestionado (EKS).
-* Kubernetes versión 1.26.x (EKS no considera la versión _patch_).
+* Kubernetes versión 1.37.x (EKS no considera la versión _patch_).
 * Uso de ECR como _Docker registry_ (no requiere credenciales).
 * Uso de VPC y _subnets_ personalizadas (creadas previamente). Este apartado es opcional.
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
@@ -766,7 +766,7 @@ spec:
       secret_key: wq3/Vsc..
       role_arn: arn:aws:iam::3683675..:role/my-aws-role
     github_token: github_pat_11APW..
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: eu-west-1
   external_domain: domain.ext
   networks:
@@ -794,7 +794,6 @@ spec:
   deploy_autoscaler: false
   keos:
     flavour: production
-    version: 1.3.x
   security:
     aws:
       create_iam: true
@@ -834,9 +833,9 @@ spec:
       size: t3.medium
       az: eu-west-1c
     - name: eks-prod-custom-ami
-      quantity: 2
+      quantity: 3
       max_size: 6
-      min_size: 2
+      min_size: 3
       size: m6i.large
       node_image: "ami-0a1234567890abcde"
       labels:
@@ -876,7 +875,7 @@ NOTE: El grupo `eks-prod-xlarge` es un grupo _MachinePool_ (sin `node++_++image`
 En este ejemplo se pueden ver las siguientes particularidades:
 
 * _Cluster_ en GCP con _control-plane_ gestionado.
-* Kubernetes versión 1.28.x.
+* Kubernetes versión 1.37.x.
 * Uso de un _Docker registry_ del tipo _gar_.
 * Uso de un repositorio de Helm del tipo _gar_.
 * _enable++_++secure++_++boot_ (habilitado por defecto).
@@ -934,7 +933,7 @@ spec:
         - "https://www.googleapis.com/auth/cloud-platform"
         - "https://www.googleapis.com/auth/userinfo.email"
     enable_secure_boot: true
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: europe-west4
   docker_registries:
       - url: europe-docker.pkg.dev/stratio-keos/keos
@@ -960,7 +959,6 @@ spec:
       labels: "owner=stratio"
   keos:
     flavour: production
-    version: 1.3.x
   control_plane:
     managed: true
     gcp:
@@ -1000,6 +998,8 @@ spec:
       size: c2d-highcpu-8
       labels:
         disktype: standard
+      additional_labels:
+        goog-gke-node-pool-provisioning-model: on-demand
       root_volume:
         size: 50
         type: pd-standard
@@ -1009,6 +1009,8 @@ spec:
       quantity: 3
       size: c2d-highcpu-4
       az: europe-west4-a
+      additional_labels:
+        goog-gke-node-pool-provisioning-model: on-demand
 ---
 apiVersion: installer.stratio.com/v1beta1
 kind: ClusterConfig
@@ -1057,7 +1059,7 @@ spec:
       client_secret: lSF8Q~n..
       subscription_id: '6e2a38cd-e..'
       tenant_id: '9c2f8eb6-5..'
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: westeurope
   docker_registries:
     - url: eosregistry.azurecr.io/keos
@@ -1077,7 +1079,6 @@ spec:
     manage_zone: false
   keos:
     flavour: production
-    version: 1.3.x
   security:
     control_plane_identity: "/subscriptions/6e2a38cd-../stratio-control-plane"
     nodes_identity: "/subscriptions/6e2a38cd-../stratio-nodes"
@@ -1114,7 +1115,6 @@ El binario ofrece actualmente las siguientes opciones:
 - `-d, --descriptor <string>`: permite especificar el nombre del descriptor ubicado en el directorio actual u en otro. Por defecto: _cluster.yaml_.
 - `-h, --help`: muestra la ayuda del comando.
 - `--keep-mgmt`: mantiene la gestión del _cluster_ en kind (solo en entornos *no productivos*).
-- `--local-stratio-image-version <string>`: sobrescribe la versión local de la imagen de _Stratio Cloud Provisioner_ cuando se utiliza `use-local-stratio-image`.
 - `-n, --name <string>`: nombre del _cluster_; sobrescribe la variable `KIND_CLUSTER_NAME`. Valor por defecto: _kind_.
 - `--retain`: conserva los nodos para la depuración en caso de que falle la creación del _cluster_.
 - `--use-local-stratio-image`: utiliza la imagen local de _Stratio Cloud Provisioner_ sin construirla ni descargarla.

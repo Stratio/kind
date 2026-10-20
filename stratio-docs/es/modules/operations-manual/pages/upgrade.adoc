@@ -26,7 +26,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 * *Componentes comunes* a todas las plataformas:
 ** _cluster-operator_: `0.8.0`
 ** _cert-manager_: `v1.21.2`
-** _flux2_: `2.17.2`
+** _flux2_: `2.18.4`
 ** _tigera-operator_: `v3.33.0`
 ** _cluster-autoscaler_: `9.59.0`
 
@@ -42,7 +42,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 
 Este _script_ no actualiza Cluster API ni sus proveedores: eso lo hace antes `upgrade-providers.py`, que los deja en las versiones de la xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc#components[ficha de la ruta].
 
-NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada, porque el propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Al actualizar el _chart_, usa la del _minor_ actual del _cluster_. Al terminar el _bump_ de `k8s_version`, la cambia por la del _minor_ de destino: `v1.36.6` para 1.36 y `v1.37.0` para 1.37. Si un _minor_ no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
+NOTE: En `cloud-provider-azure`, el _script_ fija además el _tag_ de imagen de `cloudControllerManager`/`cloudNodeManager` a una versión conocida y publicada, porque el propio _chart_ puede referenciar un _tag_ aún no publicado en algunos _minors_. Al actualizar el _chart_, usa la del _minor_ actual del _cluster_. Al terminar el _bump_ de `k8s_version`, la cambia por la del _minor_ de destino: `v1.37.0` para 1.37. Si un _minor_ no está en la tabla interna del _script_, avisa y deja los valores por defecto del _chart_ tal cual.
 
 == Requisitos
 

@@ -264,7 +264,7 @@ The second step upgrades the cluster _charts_ and the Kubernetes version. It sta
 | `upgrade-providers.py` finished and the providers are on the versions in <<components, Components and upgrade order>>.
 | When it starts, `upgrade-provisioner.py` checks that each provider is exactly on its target version. If not, it stops without changing anything.
 
-| The cluster registry has the 0.10.x _charts_ and images: Calico v3.33.0, Flux 2.17.2, _cert-manager_ v1.21.2, _cluster-operator_ 0.8.0, and, on EKS and Azure VMs, the Stratio _cluster-autoscaler_ `v1.36.1` image.
+| The cluster registry has the 0.10.x _charts_ and images: Calico v3.33.0, Flux 2.18.4, _cert-manager_ v1.21.2, _cluster-operator_ 0.8.0, and, on EKS and Azure VMs, the Stratio _cluster-autoscaler_ `v1.36.1` image.
 | The _cluster_ pulls them from that registry and the _script_ doesn't check beforehand that they exist.
 
 | On Azure VMs, the cluster is on Kubernetes 1.35.
