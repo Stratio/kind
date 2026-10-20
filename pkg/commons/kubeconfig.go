@@ -1,6 +1,7 @@
 package commons
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/google"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/errors"
 )
@@ -114,6 +116,51 @@ func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region
 	if err != nil {
 		return err
 	}
+	return writeKubeconfigToken(n, kubeconfigPath, token)
+}
+
+// RefreshGKEKubeconfigToken mints a new GCP access token with the deploy service account and writes it into
+// kubeconfigPath: CAPG renews the token only in the kubeconfig secret, not in the copies made from it.
+func RefreshGKEKubeconfigToken(n nodes.Node, kubeconfigPath string, credentials map[string]string) error {
+	token, err := gcpAccessToken(credentials)
+	if err != nil {
+		return err
+	}
+	return writeKubeconfigToken(n, kubeconfigPath, token)
+}
+
+// gcpServiceAccountJSON builds the service account key from the descriptor credentials
+func gcpServiceAccountJSON(credentials map[string]string) ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"type":           "service_account",
+		"project_id":     credentials["ProjectID"],
+		"private_key_id": credentials["PrivateKeyID"],
+		"private_key":    credentials["PrivateKey"],
+		"client_email":   credentials["ClientEmail"],
+		"client_id":      credentials["ClientID"],
+		"token_uri":      "https://accounts.google.com/o/oauth2/token",
+	})
+}
+
+// gcpAccessToken uses the scope CAPG requests for the GKE kubeconfig
+func gcpAccessToken(credentials map[string]string) (string, error) {
+	key, err := gcpServiceAccountJSON(credentials)
+	if err != nil {
+		return "", err
+	}
+	creds, err := google.CredentialsFromJSON(context.Background(), key, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read the GCP service account")
+	}
+	t, err := creds.TokenSource.Token()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get a new GCP access token")
+	}
+	return t.AccessToken, nil
+}
+
+// writeKubeconfigToken replaces the bearer token of the kubeconfig at kubeconfigPath
+func writeKubeconfigToken(n nodes.Node, kubeconfigPath, token string) error {
 	kubeconfig, err := ExecuteCommand(n, "cat "+kubeconfigPath, 5, 3)
 	if err != nil {
 		return errors.Wrap(err, "failed to read "+kubeconfigPath)

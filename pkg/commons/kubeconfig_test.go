@@ -1,6 +1,7 @@
 package commons
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -69,6 +70,25 @@ func TestEKSTokenFromExecCredential(t *testing.T) {
 	}
 	if _, err := eksTokenFromExecCredential("An error occurred (UnrecognizedClientException)"); err == nil {
 		t.Error("non-JSON output: no error")
+	}
+}
+
+func TestGCPServiceAccountJSON(t *testing.T) {
+	creds := map[string]string{"ProjectID": "p1", "PrivateKeyID": "k1", "PrivateKey": "not-a-pem", "ClientEmail": "sa@p1.iam.gserviceaccount.com", "ClientID": "42"}
+	raw, err := gcpServiceAccountJSON(creds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]string
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["type"] != "service_account" || got["client_email"] != creds["ClientEmail"] || got["private_key"] != creds["PrivateKey"] || got["project_id"] != "p1" {
+		t.Errorf("service account JSON: %v", got)
+	}
+	// the key is parsed before any request: a broken key fails locally
+	if _, err := gcpAccessToken(creds); err == nil {
+		t.Error("invalid private key: no error")
 	}
 }
 

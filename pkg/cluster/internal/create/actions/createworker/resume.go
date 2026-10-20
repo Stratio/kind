@@ -356,14 +356,23 @@ func replaceDir(src, dst string) error {
 	return os.Rename(src, dst)
 }
 
-// eksTokenRefresh mints a new workload token with the deploy user on EKS (nil elsewhere): CAPA's token lasts ~15 min
-func (a *action) eksTokenRefresh(n nodes.Node) func() error {
-	if a.keosCluster.Spec.InfraProvider != "aws" || !a.keosCluster.Spec.ControlPlane.Managed {
+// workloadTokenRefresh mints a new workload token with the deploy credentials on EKS (CAPA's token lasts ~15 min) and
+// GKE (CAPG's access token, ~1 h); nil elsewhere: the kubeadm kubeconfig carries a client certificate
+func (a *action) workloadTokenRefresh(n nodes.Node) func() error {
+	if !a.keosCluster.Spec.ControlPlane.Managed {
 		return nil
 	}
-	return func() error {
-		return commons.RefreshEKSKubeconfigToken(n, kubeconfigPath, a.keosCluster.Metadata.Name, a.keosCluster.Spec.Region, a.clusterCredentials.ProviderCredentials)
+	switch a.keosCluster.Spec.InfraProvider {
+	case "aws":
+		return func() error {
+			return commons.RefreshEKSKubeconfigToken(n, kubeconfigPath, a.keosCluster.Metadata.Name, a.keosCluster.Spec.Region, a.clusterCredentials.ProviderCredentials)
+		}
+	case "gcp":
+		return func() error {
+			return commons.RefreshGKEKubeconfigToken(n, kubeconfigPath, a.clusterCredentials.ProviderCredentials)
+		}
 	}
+	return nil
 }
 
 // resumePivoted tells whether the CAPI objects already live in the workload cluster: a move started by a killed CLI can
