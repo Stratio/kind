@@ -599,6 +599,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			if err := commons.EnsureKubeconfigAccess(n, kubeconfigPath, a.workloadTokenRefresh(n)); err != nil {
 				return errors.Wrap(err, "cannot reach the workload cluster with "+kubeconfigPath)
 			}
+			// the host copy above came from that stale secret: give it the kubeconfig that just reached the cluster
+			if err := saveHostKubeconfig(n); err != nil {
+				return err
+			}
 			if err := setFluxSuspendedForReplay(n, kubeconfigPath, true); err != nil {
 				return err
 			}
