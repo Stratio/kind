@@ -356,6 +356,9 @@ func prepareCreateState(flags *flagpole, descriptorName string, binaryVersion st
 		if state == nil {
 			return errors.Errorf("nothing to resume: %s not found in this directory", commons.CreateStatePath)
 		}
+		if !state.CloudResources && !state.BootstrapReady() {
+			return errors.Errorf("nothing to resume: the create of %q stopped before its bootstrap cluster was ready and created nothing in the cloud; run it again with --delete-previous instead of --resume", state.ClusterName)
+		}
 		return state.CheckResumable(name, binaryVersion)
 	}
 	if state != nil && !flags.ForceDelete {

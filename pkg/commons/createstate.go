@@ -77,6 +77,11 @@ func UpdateCreateState(change func(*CreateState)) error {
 	return s.Save()
 }
 
+// BootstrapReady is false until createworker finished its first step: a resume does not re-run kind's own phase.
+func (s *CreateState) BootstrapReady() bool {
+	return s.LastCompletedStep != ""
+}
+
 // CheckResumable refuses a resume of another cluster or with another binary (no mixed-version resume).
 func (s *CreateState) CheckResumable(clusterName, version string) error {
 	if s.ClusterName != clusterName {

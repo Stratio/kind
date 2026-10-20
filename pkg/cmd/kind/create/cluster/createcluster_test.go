@@ -39,6 +39,13 @@ func TestPrepareCreateState(t *testing.T) {
 	if err := prepareCreateState(&flagpole{Name: "c1"}, "c1", "v1"); err == nil || !strings.Contains(err.Error(), "use --resume") {
 		t.Fatalf("second plain create: %v", err)
 	}
+	// killed inside kind's own phase: the resume does not re-run it, so it starts over instead
+	if err := prepareCreateState(&flagpole{Name: "c1", Resume: true}, "c1", "v1"); err == nil || !strings.Contains(err.Error(), "--delete-previous instead of --resume") {
+		t.Fatalf("resume before the bootstrap cluster was ready: %v", err)
+	}
+	if err := commons.UpdateCreateState(func(s *commons.CreateState) { s.LastCompletedStep = "pull-charts" }); err != nil {
+		t.Fatal(err)
+	}
 	if err := prepareCreateState(&flagpole{Name: "c1", Resume: true}, "c1", "v1"); err != nil {
 		t.Fatalf("resume: %v", err)
 	}
@@ -52,6 +59,9 @@ func TestPrepareCreateState(t *testing.T) {
 	// --delete-previous starts over with a fresh state, even from another binary
 	if err := prepareCreateState(&flagpole{Name: "c1", ForceDelete: true}, "c1", "v2"); err != nil {
 		t.Fatalf("plain create with --delete-previous: %v", err)
+	}
+	if err := commons.UpdateCreateState(func(s *commons.CreateState) { s.LastCompletedStep = "pull-charts" }); err != nil {
+		t.Fatal(err)
 	}
 	if err := prepareCreateState(&flagpole{Name: "c1", Resume: true}, "c1", "v2"); err != nil {
 		t.Fatalf("the new state must belong to the new binary: %v", err)
