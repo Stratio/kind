@@ -108,10 +108,10 @@ Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8
 
 `vm-autostop` installed 2026-10-05 (18:00 `Europe/Madrid`, `poweroff` → instance `TERMINATED`); `stop-if-idle 5` tested live. Right after `instances start`, `gcloud compute ssh/scp` can fail for ~20-40 s with IAP `4003: failed to connect to backend` (sshd not up yet) — retry.
 
-inotify limits set by hand 2026-10-20 (`/etc/sysctl.d/90-kind.conf`, same values the `eks-vm.sh`/`azure-vm.sh` user-data writes): with the Ubuntu default `fs.inotify.max_user_instances=128`, a third parallel kind bootstrap failed in "Preparing nodes" (`could not find a log line that matches "Reached target .*Multi-User System.*"`; root used 142 instances, containerd logged `failed to create inotify fd`).
+inotify limits and IP forwarding set by hand 2026-10-20 (`/etc/sysctl.d/90-kind.conf`; the inotify values are the ones the `eks-vm.sh`/`azure-vm.sh` user-data writes): with the Ubuntu default `fs.inotify.max_user_instances=128`, a third parallel kind bootstrap failed in "Preparing nodes" (`could not find a log line that matches "Reached target .*Multi-User System.*"`; root used 142 instances, containerd logged `failed to create inotify fd`). The file also sets `net.ipv4.ip_forward = 1`: the GCE image ships `/etc/sysctl.d/60-gce-network-security.conf` with `net.ipv4.ip_forward=0`, so `sysctl --system` turns off the forwarding Docker enabled and every kind container loses egress (2026-10-20, 09:07–10:25Z). Load only this file, never `sysctl --system`:
 
 ```bash
-printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' | sudo tee /etc/sysctl.d/90-kind.conf && sudo sysctl --system
+printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\nnet.ipv4.ip_forward = 1\n' | sudo tee /etc/sysctl.d/90-kind.conf && sudo sysctl -p /etc/sysctl.d/90-kind.conf
 ```
 
 ```bash
