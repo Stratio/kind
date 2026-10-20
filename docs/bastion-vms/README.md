@@ -108,6 +108,12 @@ Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8
 
 `vm-autostop` installed 2026-10-05 (18:00 `Europe/Madrid`, `poweroff` → instance `TERMINATED`); `stop-if-idle 5` tested live. Right after `instances start`, `gcloud compute ssh/scp` can fail for ~20-40 s with IAP `4003: failed to connect to backend` (sshd not up yet) — retry.
 
+inotify limits set by hand 2026-10-20 (`/etc/sysctl.d/90-kind.conf`, same values the `eks-vm.sh`/`azure-vm.sh` user-data writes): with the Ubuntu default `fs.inotify.max_user_instances=128`, a third parallel kind bootstrap failed in "Preparing nodes" (`could not find a log line that matches "Reached target .*Multi-User System.*"`; root used 142 instances, containerd logged `failed to create inotify fd`).
+
+```bash
+printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' | sudo tee /etc/sysctl.d/90-kind.conf && sudo sysctl --system
+```
+
 ```bash
 O=(--project=clusterapi-369611 --zone=europe-west4-a --tunnel-through-iap)
 gcloud compute ssh gke-vm-janr-10 "${O[@]}"
