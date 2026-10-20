@@ -93,6 +93,11 @@ cmd_housekeeping() {
     for tier in 1 2; do echo "tier $tier: $(prunable_images $tier | tr '\n' ' ')"; done
     return 0
   fi
+  # A build in progress keeps its layers untagged: an image prune then breaks it (--build-stratio-image, 2026-10-20)
+  if pgrep -f '^docker build' >/dev/null; then
+    log "housekeeping: skipped, docker build in progress"
+    return 0
+  fi
   out=$(docker volume prune -f 2>&1 | tail -1)
   [[ "$out" == *" 0B" ]] || log "housekeeping: volume prune - $out"
   # Dangling layers: a rebuild that reuses a tag leaves the previous image untagged

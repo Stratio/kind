@@ -283,6 +283,7 @@ Each kind bootstrap takes ~4.5 GB of the root disk (image layers and its anonymo
 
 | Step | When | What | Why it is safe |
 |---|---|---|---|
+| 0 | A `docker build` is running | Skip the whole run (logged: `housekeeping: skipped, docker build in progress`) | A build keeps its intermediate layers untagged until it finishes, so step 2 would remove them: on 2026-10-20 a `--build-stratio-image` on `azure-vm-janr` failed at 08:30:09 with `failed to export layer … rename … ingest/… no such file or directory` seven seconds after a dangling prune. The next run, 15 min later, cleans up |
 | 1 | Always | `docker volume prune -f` | Only volumes no container (running or stopped) uses; a running bootstrap keeps its own |
 | 2 | Always | `docker image prune -f` (dangling images) | Only untagged images no container uses: what a rebuild of the same tag (`--build-stratio-image`) leaves behind |
 | 3 | Root disk ≥ `DISK_PRUNE_PCT` (75) | `docker rmi` of unused local dev builds `cloud-provisioner:<tag>` older than `IMAGE_MIN_AGE_H` (48 h), and of unused `kindest/node:*` | Never an image a container uses, one that also has a registry tag, nor a release-shaped tag (`X.Y.Z`, `X.Y.Z-m.N`, `X.Y.Z-rc.N`); so only dev builds (`*-SNAPSHOT.N`, branch tags), which `--build-stratio-image` builds again. `kindest/node` is public and is pulled again |
