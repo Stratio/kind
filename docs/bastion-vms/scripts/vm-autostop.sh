@@ -21,8 +21,9 @@ Usage: vm-autostop <command>   (run as root)
   cancel              Cancel an already announced stop
   status              Config, next timer run, skip flag, pending shutdown, activity
   stop-if-idle [MIN]  Stop now (after MIN minutes, default 1) only if no bootstrap is running
-  housekeeping        Free the root disk: unused docker volumes always; at DISK_PRUNE_PCT % also unused local
-                      cloud-provisioner:<tag> builds older than IMAGE_MIN_AGE_H hours; warn at DISK_WARN_PCT %
+  housekeeping [dry-run]  Free the root disk: unused docker volumes and dangling images always; at DISK_PRUNE_PCT %
+                      unused local cloud-provisioner:<tag> builds older than IMAGE_MIN_AGE_H hours and kindest/node; at
+                      DISK_WARN_PCT % also unused published cloud-provisioner(-upgrade) images, then warn if still above
   check               Called by the timer every 15 min: housekeeping, then stop if after HH:MM, before LAST_TRY and idle
 EOF
 }
@@ -56,34 +57,55 @@ activity() {
 
 root_pct() { df --output=pcent / | tail -1 | tr -dc 0-9; }
 
-# Local builds only (repository exactly cloud-provisioner, no registry host): --build-stratio-image recreates them,
-# while a published image may need a registry login to come back. Never an image a container (running or not) uses.
+# Unused image tags of a tier, never one a container (running or not) uses. Tier 1: local dev builds cloud-provisioner:<tag>
+# older than IMAGE_MIN_AGE_H (--build-stratio-image recreates them) and kindest/node. Tier 2: also published cloud-provisioner
+# and cloud-provisioner-upgrade images, every tag (pulled again by the next create/upgrade, may need a registry login).
 prunable_images() {
-  local used cutoff ref id created
-  # Also skip an image that has a registry tag too (kind tags pulled images as cloud-provisioner:<tag>): untagging frees nothing
-  used=$(docker ps -aq | xargs -r docker inspect --format '{{.Image}}'; docker images --no-trunc --format '{{.Repository}} {{.ID}}' | awk '$1 ~ /\// {print $2}')
+  local tier=$1 used pulled cutoff ref id created
+  used=$(docker ps -aq | xargs -r docker inspect --format '{{.Image}}')
+  pulled=$(docker images --no-trunc --format '{{.Repository}} {{.ID}}' | awk '$1 ~ /\// {print $2}')
   cutoff=$(( $(date +%s) - IMAGE_MIN_AGE_H * 3600 ))
   docker images --no-trunc --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedAt}}' | while read -r ref id created; do
-    [[ "$ref" == cloud-provisioner:* && "$ref" != *:"<none>" ]] || continue
-    # Release-shaped tags are what creates pass to --image (retags of published images): never removed
-    [[ "${ref#cloud-provisioner:}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(m|rc)\.[0-9]+)?$ ]] && continue
+    [[ "$ref" != *:"<none>" ]] || continue
     grep -qx "$id" <<<"$used" && continue
-    (( $(date -d "${created% *}" +%s) < cutoff )) && echo "$ref"
+    case "$ref" in
+      kindest/node:*) echo "$ref" ;;
+      cloud-provisioner:*)
+        # Release-shaped tags (what creates pass to --image) and retags of a pulled image are published images
+        if [[ "${ref#cloud-provisioner:}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(m|rc)\.[0-9]+)?$ ]] || grep -qx "$id" <<<"$pulled"; then
+          (( tier >= 2 )) && echo "$ref"
+        elif (( $(date -d "${created% *}" +%s) < cutoff )); then
+          echo "$ref"
+        fi ;;
+      */cloud-provisioner:*|*/cloud-provisioner-upgrade:*) (( tier >= 2 )) && echo "$ref" ;;
+      # A local upgrade build only goes with its registry tag: nothing recreates it
+      cloud-provisioner-upgrade:*) (( tier >= 2 )) && grep -qx "$id" <<<"$pulled" && echo "$ref" ;;
+    esac
   done
 }
 
 cmd_housekeeping() {
   load_conf
-  local out pct img
+  local out pct img tier
+  # Positional, not --dry-run: eks-vm.sh/azure-vm.sh keep the --options for themselves
+  if [[ "${1:-}" == dry-run ]]; then
+    echo "root disk $(root_pct)% (tier 1 at ${DISK_PRUNE_PCT}%, tier 2 at ${DISK_WARN_PCT}%)"
+    for tier in 1 2; do echo "tier $tier: $(prunable_images $tier | tr '\n' ' ')"; done
+    return 0
+  fi
   out=$(docker volume prune -f 2>&1 | tail -1)
   [[ "$out" == *" 0B" ]] || log "housekeeping: volume prune - $out"
+  # Dangling layers: a rebuild that reuses a tag leaves the previous image untagged
+  out=$(docker image prune -f 2>&1 | tail -1)
+  [[ "$out" == *" 0B" ]] || log "housekeeping: dangling image prune - $out"
   pct=$(root_pct)
-  if (( pct >= DISK_PRUNE_PCT )); then
-    for img in $(prunable_images); do
-      docker rmi "$img" >/dev/null 2>&1 && log "housekeeping: removed image $img (root disk was ${pct}%)"
+  for tier in 1 2; do
+    (( pct >= (tier == 1 ? DISK_PRUNE_PCT : DISK_WARN_PCT) )) || break
+    for img in $(prunable_images $tier); do
+      docker rmi "$img" >/dev/null 2>&1 && log "housekeeping: removed image $img (tier $tier, root disk was ${pct}%)"
     done
     pct=$(root_pct)
-  fi
+  done
   if (( pct >= DISK_WARN_PCT )); then
     log "housekeeping: root disk at ${pct}% after cleanup - free space by hand (docker images, /deployments is another disk)"
     wall "vm-autostop: root disk at ${pct}% - a new bootstrap may fail with 'no space left on device'" 2>/dev/null || true
@@ -197,7 +219,7 @@ cmd_status() {
   echo "shutdown:    $(shutdown_pending && echo pending || echo none)"
   local a; a=$(activity)
   echo "activity:    ${a:-idle}"
-  echo "root disk:   $(root_pct)% (prune local images at $DISK_PRUNE_PCT%, warn at $DISK_WARN_PCT%)"
+  echo "root disk:   $(root_pct)% (prune unused images: dev builds at $DISK_PRUNE_PCT%, published at $DISK_WARN_PCT%, then warn)"
 }
 
 cmd_stop_if_idle() {
@@ -231,7 +253,7 @@ case "$cmd" in
   cancel) need_root "$cmd"; cmd_cancel ;;
   status) cmd_status ;;
   stop-if-idle) need_root "$cmd"; cmd_stop_if_idle "$@" ;;
-  housekeeping) need_root "$cmd"; cmd_housekeeping ;;
+  housekeeping) need_root "$cmd"; cmd_housekeeping "$@" ;;
   check) need_root "$cmd"; cmd_check ;;
   do-stop) need_root "$cmd"; cmd_do_stop ;;
   -h|--help|"") usage ;;
