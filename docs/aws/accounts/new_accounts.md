@@ -12,14 +12,16 @@
 
 ## Quotas
 
-Lo primero que haremos será solicitar un aumento de cuotas para los siguientes recursos:
+Lo primero que haremos será solicitar un aumento de cuotas para los siguientes recursos. Las cuotas son por región: pedirlas en cada región donde se vayan a crear clusters.
 
-| Recurso | Cantidad |
-|---------|----------|
-| Elastic IP address quota per NAT gateway | 8 |
-| NAT gateways per Availability Zone | 30 |
-| Internet gateways per Region | 20 |
-| EC2-VPC Elastic IPs | 50 |
+| Recurso | Código | Por defecto | Cantidad |
+|---------|--------|-------------|----------|
+| Elastic IP address quota per NAT gateway | `vpc` `L-5F53652F` | 2 | 8 |
+| NAT gateways per Availability Zone | `vpc` `L-FE5A380F` | 5 | 30 |
+| Internet gateways per Region | `vpc` `L-A4707A72` | 5 | 20 |
+| EC2-VPC Elastic IPs | `ec2` `L-0263D0A3` | 5 | 50 |
+
+Son los valores de la cuenta 963 en `eu-west-1`; la 975 sigue en los valores por defecto salvo 12 Elastic IPs (comprobado el 2026-10-21).
 
 Pre-requisitos usuario con los permisos necesarios para poder hacer las queries a la API de AWS.
 
@@ -30,37 +32,45 @@ Pre-requisitos usuario con los permisos necesarios para poder hacer las queries 
 ## Get service quotas
 
 ```bash
+REGION=eu-west-1
 # Elastic IP address quota per NAT gateway
-aws service-quotas get-service-quota --service-code vpc --quota-code L-5F53652F | jq '.Quota.Value' | cat
+aws service-quotas get-service-quota --region $REGION --service-code vpc --quota-code L-5F53652F | jq '.Quota.Value' | cat
 # NAT gateways per Availability Zone
-aws service-quotas get-service-quota --service-code vpc --quota-code L-026E1A4D | jq '.Quota.Value' | cat
+aws service-quotas get-service-quota --region $REGION --service-code vpc --quota-code L-FE5A380F | jq '.Quota.Value' | cat
 # Internet gateways per Region
-aws service-quotas get-service-quota --service-code vpc --quota-code L-A4707A72 | jq '.Quota.Value' | cat
+aws service-quotas get-service-quota --region $REGION --service-code vpc --quota-code L-A4707A72 | jq '.Quota.Value' | cat
 # EC2-VPC Elastic IPs
-aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 | jq '.Quota.Value' | cat
+aws service-quotas get-service-quota --region $REGION --service-code ec2 --quota-code L-0263D0A3 | jq '.Quota.Value' | cat
+```
+
+Para pedir el aumento (ejemplo con NAT gateways):
+
+```bash
+aws service-quotas request-service-quota-increase --region $REGION --service-code vpc --quota-code L-FE5A380F --desired-value 30
 ```
 
 # IAM
 
 ## Esquema de usuarios y políticas
 
-> User: cloud-provisioner  
->>  Description: Full access to enhance development  
-    Policy: stratio-cloud-provisioner  
+Esquema de la cuenta 963 (comprobado el 2026-10-21):
 
-> User: cloud-provisioner-eks
->>    Description: Only EKS deployments  
->>    Policy:  
->>        - stratio-eks-policy (EKS deployments) [stratio-eks-policy](../Permissions/EKS/eks_permission_ref.json)  
->>        - stratio-eks-cf-policy (CloudFormation, ver [CloudFormation](#cloudformation)) [stratio-aws-temp-policy.json](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json)  
->>        - stratio-eks-offline (Offline EKS deployments)  
+| Identidad | Tipo | Para qué | Políticas |
+|---|---|---|---|
+| `cloud-provisioner` | Usuario | Desarrollo, acceso amplio | `stratio-cloud-provisioner`, `stratio-eks-full`, `stratio-ecr-full`, `ecr-public-read`, `capa-management-components-policy` y gestionadas de AWS (`AmazonEC2FullAccess`, `AmazonRoute53FullAccess`, `AmazonRoute53ResolverFullAccess`, `CloudWatchLogsFullAccess`, `AmazonSSMReadOnlyAccess`) |
+| `cloud-provisioner-eks` | Usuario | Despliegues de EKS | `stratio-eks-policy`, `stratio-eks-cf-policy`, `capa-management-components-policy` |
+| `capa-management-components` | Rol | Rol que se asume con `role_arn` en el descriptor de credenciales | `stratio-eks-policy`, `stratio-aws-cf-policy` |
+| `capa-management-components-1` | Rol | Igual que el anterior | `stratio-eks-policy`, `stratio-eks-cf-policy` |
 
-> User: cloud-provisioner-aws
->>    Description: Only AWS deployments  
->>    Policy:  
->>        - stratio-aws-policy (AWS deployments) [stratio-aws-policy](../Permissions/AWS/aws_permission_ref.json)  
->>        - stratio-eks-cf-policy (CloudFormation, ver [CloudFormation](#cloudformation)) [stratio-aws-temp-policy.json](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json)  
->>        - stratio-aws-offline (Offline AWS deployments)  
+Contenido de cada política:
+
+| Política | Referencia |
+|---|---|
+| `stratio-eks-policy` | [`stratio-eks-policy.json`](../../../stratio-docs/es/modules/ROOT/assets/attachments/stratio-eks-policy.json) (la de la documentación de producto). La de la 963 no es idéntica: le faltan las acciones de launch templates y Auto Scaling groups (`ec2:CreateLaunchTemplate`, `autoscaling:CreateAutoScalingGroup`…) y tiene además `eks:UpdateNodegroupVersion` |
+| `stratio-eks-cf-policy` / `stratio-aws-cf-policy` | [`stratio-aws-temp-policy.json`](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json), ver [CloudFormation](#cloudformation) |
+| `capa-management-components-policy` | Solo `sts:AssumeRole` sobre los dos roles `capa-management-components*` |
+
+`docs/aws/Permissions/EKS/eks_permission_ref.json` está desactualizado respecto a `stratio-eks-policy.json` (le faltan 23 acciones): usar el de stratio-docs.
 
 * Nota: Todas las políticas/roles deberían de llevar la misma nomenclatura, por ejemplo: 'stratio-'
 
@@ -108,7 +118,9 @@ No hace falta crearlo a mano: EKS lo crea al crear el primer cluster de la cuent
 
 # ECR
 
-Crear repositorio y subir todas las imagenes necesarias para los despliegues
+Crear los repositorios y subir las imágenes que usan los despliegues. Listas por componente en [`docs/images/aws/`](../../images/aws/) y [`docs/images/commons/`](../../images/commons/).
+
+Si los clusters van a usar ECR pull-through cache (`ecr_pull_through_cache_enabled: true`), crear antes las reglas de pull-through para `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io` y `public.ecr.aws` (prerrequisitos en `stratio-docs/es/modules/operations-manual/pages/installation.adoc`, apartado "Prerrequisitos para `ecr_pull_through_cache_enabled`"), y la política del rol `eks-nodegroup` de [Nodos MachinePool con ECR pull-through](#nodos-machinepool-con-ecr-pull-through).
 
 # Lambda
 
