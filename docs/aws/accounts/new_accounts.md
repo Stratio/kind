@@ -60,7 +60,6 @@ Esquema de la cuenta 963 (comprobado el 2026-10-21):
 | `cloud-provisioner` | Usuario | Desarrollo, acceso amplio | `stratio-cloud-provisioner`, `stratio-eks-full`, `stratio-ecr-full`, `ecr-public-read`, `capa-management-components-policy` y gestionadas de AWS (`AmazonEC2FullAccess`, `AmazonRoute53FullAccess`, `AmazonRoute53ResolverFullAccess`, `CloudWatchLogsFullAccess`, `AmazonSSMReadOnlyAccess`) |
 | `cloud-provisioner-eks` | Usuario | Despliegues de EKS | `stratio-eks-policy`, `stratio-eks-cf-policy`, `capa-management-components-policy` |
 | `capa-management-components` | Rol | Rol que se asume con `role_arn` en el descriptor de credenciales | `stratio-eks-policy`, `stratio-aws-cf-policy` |
-| `capa-management-components-1` | Rol | Igual que el anterior | `stratio-eks-policy`, `stratio-eks-cf-policy` |
 
 Contenido de cada política:
 
@@ -68,7 +67,7 @@ Contenido de cada política:
 |---|---|
 | `stratio-eks-policy` | [`stratio-eks-policy.json`](../../../stratio-docs/es/modules/ROOT/assets/attachments/stratio-eks-policy.json) (la de la documentación de producto). La de la 963 no es idéntica: le faltan las acciones de launch templates y Auto Scaling groups (`ec2:CreateLaunchTemplate`, `autoscaling:CreateAutoScalingGroup`…) y tiene además `eks:UpdateNodegroupVersion` |
 | `stratio-eks-cf-policy` / `stratio-aws-cf-policy` | [`stratio-aws-temp-policy.json`](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json), ver [CloudFormation](#cloudformation) |
-| `capa-management-components-policy` | Solo `sts:AssumeRole` sobre los dos roles `capa-management-components*` |
+| `capa-management-components-policy` | Solo `sts:AssumeRole` sobre el rol `capa-management-components` |
 
 `docs/aws/Permissions/EKS/eks_permission_ref.json` está desactualizado respecto a `stratio-eks-policy.json` (le faltan 23 acciones): usar el de stratio-docs.
 
