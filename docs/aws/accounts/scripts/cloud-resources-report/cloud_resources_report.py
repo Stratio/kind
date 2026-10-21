@@ -233,64 +233,111 @@ def cost_yesterday(now):
                        key=lambda r: -r[1])
 
 
-def line(*fields):
-    return "- " + " | ".join(str(f) for f in fields)
+RULE = "━" * 64
 
 
-def render_daily(now, data, cleanup, cost, oidc_doomed):
+def section(icon, title, rows, note="", count=None):
+    # SNS sends plain text only, so sections are marked with an emoji, upper-case title and a rule line
+    n = len(rows) if count is None else count
+    head = f"{icon}  {title}" + (f" ({n})" if n != "" else "") + (f"  ·  {note}" if note else "")
+    return ["", head, RULE] + (rows or ["   ✅ none"])
+
+
+def item(*fields):
+    return "   • " + "  |  ".join(str(f) for f in fields if f != "")
+
+
+def render_daily(now, data, cleanup, cost, oidc_doomed, scan_errors):
     day, services = cost
-    out = [f"Account {ACCOUNT} — daily resources report {now:%Y-%m-%d %H:%M} UTC. Report only: nothing is stopped or deleted.", ""]
     risky = [i for i in data["instances"] if i["risky"]]
-    out.append(f"RISKY INSTANCES (GPU/accelerator or >= {RISKY_MIN_XLARGE}xlarge): {len(risky)}")
-    out += [line(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", i["age"]) for i in risky]
     old = [i for i in data["instances"] if i["old"] and not i["risky"]]
-    out += ["", f"INSTANCES RUNNING > 8 h: {len(old)}"]
-    out += [line(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", i["age"]) for i in old]
-    out += ["", f"EKS CLUSTERS > 1 day: {len(data['eks'])}"]
-    for c in data["eks"]:
-        out.append(line(c["region"], c["name"], c["version"], f"owner: {c['owner'] or '-'}", c["age"]))
-        out += [f"    nodegroup {g}" for g in c["nodegroups"]]
-    out += ["", f"NAT GATEWAYS: {len(data['nat'])}"]
-    out += [line(n["region"], n["id"], n["name"], f"owner: {n['owner'] or '-'}", n["age"],
-                 "VPC WITH NO RUNNING INSTANCE" if n["idle"] else "in use") for n in data["nat"]]
+    idle_nat = [n for n in data["nat"] if n["idle"]]
     kept = [v for v in data["vpc"] if v["kept"]]
-    out += ["", f"VPCs WITH NO RUNNING INSTANCE (default VPCs excluded): {len(data['vpc'])}, "
-                f"of which {len(kept)} kept on purpose (tag NoAutoDelete=true)"]
-    out += [line(v["region"], v["id"], v["name"], v["cidr"], f"owner: {v['owner'] or '-'}",
-                 f"KEPT ON PURPOSE ({v['reason'] or 'no reason given'})" if v["kept"] else "CLUSTER GONE" if v["cluster_gone"] else "")
-            for v in sorted(data["vpc"], key=lambda v: v["kept"])]
-    out += ["", f"LOAD BALANCERS: {len(data['lb'])}"]
-    out += [line(lb["region"], lb["name"], lb["type"], f"cluster: {lb['cluster'] or '-'}", lb["age"],
-                 "CLUSTER GONE" if lb["orphan"] else "") for lb in data["lb"]]
-    out += ["", f"UNASSOCIATED ELASTIC IPs: {len(data['eip'])}"]
-    out += [line(e["region"], e["id"], e["ip"], e["name"], "RELEASED TONIGHT" if e["tonight"] else "waiting") for e in data["eip"]]
     loose = [v for v in data["ebs"] if v["loose"]]
-    out += ["", f"UNATTACHED EBS VOLUMES: {len(loose)}"]
-    out += [line(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"],
-                 "PROTECTED (NoAutoDelete)" if v["protected"] else "DELETED TONIGHT" if v["tonight"] else "waiting") for v in loose]
     piops = [v for v in data["ebs"] if not v["loose"]]
-    out += ["", f"IO1/IO2 VOLUMES IN USE: {len(piops)}"]
-    out += [line(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"]) for v in piops]
     gone = [g for g in data["logs"] if g["orphan"]]
-    out += ["", f"EKS LOG GROUPS: {len(data['logs'])}, of which {len(gone)} of clusters that no longer exist "
-                f"({sum(g['mb'] for g in gone)} MB stored, {sum(1 for g in gone if g['retention_d'] == 'never')} never expire). Largest 10:"]
-    out += [line(g["region"], g["name"], f"{g['mb']} MB", f"retention: {g['retention_d']}", "CLUSTER GONE" if g["orphan"] else "")
-            for g in sorted(data["logs"], key=lambda g: -g["mb"])[:10]]
-    out += ["", f"OIDC PROVIDERS DELETED TONIGHT: {len(oidc_doomed)}"] + [line(u) for u in oidc_doomed]
-    out += ["", "CLEANUP LAMBDAS — LAST 24 h"]
+    tonight = len(oidc_doomed) + sum(e["tonight"] for e in data["eip"]) + sum(v["tonight"] for v in loose)
+    failed = [r for r in cleanup if r["invocations"] == 0 or r["errors"]]
+    total = sum(t for _, t, _ in services)
+
+    def flag(n):
+        return "🔴" if n else "✅"
+
+    out = [f"☁️  CLOUDS · AWS {ACCOUNT} · DAILY RESOURCES REPORT",
+           f"📅  {now:%Y-%m-%d %H:%M} UTC  ·  report only: nothing is stopped or deleted by this report", RULE,
+           f"   {flag(risky)} Risky instances (GPU/accelerator or >= {RISKY_MIN_XLARGE}xlarge): {len(risky)}",
+           f"   {flag(old)} Instances running > 8 h: {len(old)}",
+           f"   {flag(data['eks'])} EKS clusters > 1 day: {len(data['eks'])}",
+           f"   {flag(idle_nat)} NAT gateways in a VPC with no running instance: {len(idle_nat)}",
+           f"   {'🗑️' if tonight else '✅'} Deleted by the cleanup tonight: {tonight}",
+           f"   {flag(failed)} Cleanup Lambdas failed or not run: {len(failed)}",
+           f"   💶 Cost of {day}: {total:.2f} USD"]
+
+    out += section("🔥", f"RISKY INSTANCES (GPU/accelerator or >= {RISKY_MIN_XLARGE}xlarge)",
+                   [item(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", i["age"]) for i in risky])
+    out += section("🖥️", "INSTANCES RUNNING > 8 h",
+                   [item(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", i["age"]) for i in old])
+    eks_rows = []
+    for c in data["eks"]:
+        eks_rows.append(item(c["region"], c["name"], f"k8s {c['version']}", f"owner: {c['owner'] or '-'}", c["age"]))
+        eks_rows += [f"       ↳ nodegroup {g}" for g in c["nodegroups"]]
+    out += section("☸️", "EKS CLUSTERS > 1 day", eks_rows)
+    out += section("🌐", "NAT GATEWAYS",
+                   [item(n["region"], n["id"], n["name"], f"owner: {n['owner'] or '-'}", n["age"],
+                         "⚠️ VPC with no running instance" if n["idle"] else "in use") for n in data["nat"]])
+    out += section("🏗️", "VPCs WITH NO RUNNING INSTANCE",
+                   [item(v["region"], v["id"], v["name"], f"owner: {v['owner'] or '-'}",
+                         f"🛡️ kept on purpose ({v['reason'] or 'no reason given'})" if v["kept"]
+                         else "💀 cluster gone" if v["cluster_gone"] else "")
+                    for v in sorted(data["vpc"], key=lambda v: v["kept"])],
+                   f"{len(kept)} kept on purpose (tag NoAutoDelete=true), default VPCs excluded")
+    out += section("⚖️", "LOAD BALANCERS",
+                   [item(lb["region"], lb["name"], lb["type"], f"cluster: {lb['cluster'] or '-'}", lb["age"],
+                         "💀 cluster gone" if lb["orphan"] else "") for lb in data["lb"]])
+    out += section("📍", "UNASSOCIATED ELASTIC IPs",
+                   [item(e["region"], e["id"], e["ip"], e["name"], "🗑️ released tonight" if e["tonight"] else "⏳ waiting")
+                    for e in data["eip"]])
+    out += section("💽", "UNATTACHED EBS VOLUMES",
+                   [item(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"],
+                         "🛡️ protected (NoAutoDelete)" if v["protected"] else "🗑️ deleted tonight" if v["tonight"] else "⏳ waiting")
+                    for v in loose])
+    out += section("⚡", "IO1/IO2 VOLUMES IN USE",
+                   [item(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"]) for v in piops])
+    out += section("📜", "EKS LOG GROUPS",
+                   [item(g["region"], g["name"], f"{g['mb']} MB", f"retention: {g['retention_d']}", "💀 cluster gone" if g["orphan"] else "")
+                    for g in sorted(data["logs"], key=lambda g: -g["mb"])[:10]],
+                   f"{len(gone)} of clusters that no longer exist ({sum(g['mb'] for g in gone)} MB); largest 10 shown",
+                   count=len(data["logs"]))
+    out += section("🔑", "OIDC PROVIDERS DELETED TONIGHT", [item(u) for u in oidc_doomed])
+    rows = []
     for r in cleanup:
         s = r["summary"]
-        state = "DID NOT RUN" if r["invocations"] == 0 else "FAILED" if r["errors"] else "ok"
+        state = "❌ did not run" if r["invocations"] == 0 else "❌ failed" if r["errors"] else "✅ ok"
         detail = (f"mode {s['mode']}, deleted {len(s['deleted'])}, errors {len(s['errors'])}, waiting {len(s['waiting'])}"
                   if s else "no CLEANUP_SUMMARY line")
-        out.append(line(r["lambda"], state, f"runs {r['invocations']}, failed runs {r['errors']}", detail))
+        rows.append(item(r["lambda"], state, f"runs {r['invocations']}, failed runs {r['errors']}", detail))
         if s:
-            out += [f"    deleted {d['id']}" for d in s["deleted"]] + [f"    error {e['id']}: {e['error']}" for e in s["errors"]]
-    out += ["", f"COST OF {day} (whole day, USD, from Cost Explorer): total {sum(t for _, t, _ in services):.2f}"]
-    for s, total, items in services:
-        out.append(f"- {total:.2f} USD  {s}")
-        out += [f"    {c:6.2f}  {what}  [{qty}]" for c, what, qty in items[:5]]
+            rows += [f"       ↳ 🗑️ deleted {d['id']}" for d in s["deleted"]] + [f"       ↳ ❌ error {e['id']}: {e['error']}" for e in s["errors"]]
+    out += section("🧹", "CLEANUP LAMBDAS — last 24 h", rows, count=len(cleanup))
+    cost_rows = []
+    for s, t, items in services:
+        cost_rows.append(f"   • {t:8.2f} USD  {s}")
+        cost_rows += [f"       ↳ {c:6.2f}  {what}  [{qty}]" for c, what, qty in items[:5]]
+    out += section("💶", f"COST OF {day} BY SERVICE — total {total:.2f} USD (Cost Explorer)", cost_rows, count="")
+    if scan_errors:
+        out += section("❗", "REGIONS NOT FULLY SCANNED (the lists above may be incomplete)", [item(e) for e in scan_errors])
+    out += FOOTER
     return "\n".join(out) + "\n"
+
+
+DOCS_URL = "https://github.com/Stratio/kind/blob/master/docs/aws/accounts/new_accounts.md#lambda"
+FOOTER = ["", "ℹ️  HOW TO ACT", RULE,
+          "   • 🗑️ / ⏳ marks: the nightly cleanup (MON-FRI 23:00 UTC) deletes it if it is still loose; ⏳ = first seen, not yet due",
+          "   • Keep an EBS volume: tag it NoAutoDelete=true (or attach it again)",
+          "   • Keep a VPC on purpose: tags NoAutoDelete=true and keep-reason=<why>",
+          "   • Elastic IPs cannot be protected: any IP unassociated for more than 1 day is released",
+          "   • Nothing here stops instances: switch off or delete what you no longer need",
+          f"   • Docs and code: {DOCS_URL}"]
 
 
 def publish(subject, body, dry_run):
@@ -317,9 +364,12 @@ def main(event, context):
         print(f"{len(risky)} risky instances, dry_run={dry_run}")
         if not risky:
             return {"mode": mode, "risky": 0, "published": False}
-        body = (f"Account {ACCOUNT}: {len(risky)} risky instances running (GPU/accelerator or >= {RISKY_MIN_XLARGE}xlarge).\n\n"
-                + "\n".join(line(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", i["age"]) for i in risky)
-                + "\n\nReport only: nothing is stopped or deleted. This alert repeats every 4 hours while they run.\n")
+        body = "\n".join(
+            [f"🚨  CLOUDS · AWS {ACCOUNT} · {len(risky)} RISKY INSTANCES RUNNING",
+             f"📅  {now:%Y-%m-%d %H:%M} UTC  ·  GPU/accelerator families or >= {RISKY_MIN_XLARGE}xlarge, every region", RULE]
+            + [item(i["region"], i["id"], i["type"], i["name"], f"owner: {i['owner'] or '-'}", f"running {i['age']}") for i in risky]
+            + ["", "⚠️  Nothing is stopped automatically. This alert repeats every 4 hours while they run:",
+               "   switch them off or delete them if nobody needs them."] + FOOTER[-1:]) + "\n"
         sent = publish(f"[Clouds][AWS][{ACCOUNT}][URGENT] {len(risky)} risky instances running", body, dry_run)
         return {"mode": mode, "risky": len(risky), "published": sent}
 
@@ -333,8 +383,6 @@ def main(event, context):
                 data[k] += v
         except ClientError as e:
             errors.append(f"{region}: {e.response['Error']['Code']}")
-    body = render_daily(now, data, cleanup_last_runs(now), cost_yesterday(now), oidc_tonight(issuers, next_run))
-    if errors:
-        body += "\nREGIONS NOT FULLY SCANNED:\n" + "\n".join(line(e) for e in errors) + "\n"
+    body = render_daily(now, data, cleanup_last_runs(now), cost_yesterday(now), oidc_tonight(issuers, next_run), errors)
     sent = publish(f"[Clouds][AWS][{ACCOUNT}][Report] daily resources {now:%Y-%m-%d}", body, dry_run)
     return {"mode": mode, "published": sent, "scan_errors": len(errors)}
