@@ -111,7 +111,7 @@ En fin de semana no se ejecuta ninguna limpieza: lo marcado el viernes se anunci
 
 ## Correo
 
-Los correos llegan por Amazon SNS desde `no-reply@sns.amazonaws.com`, con asunto `[Clouds][AWS][<cuenta>][Report] daily resources <fecha>` o `[Clouds][AWS][<cuenta>][URGENT] <n> risky instances running`. Los destinatarios son las suscripciones de email confirmadas del topic de cada cuenta. SNS solo envía texto plano: el informe empieza con un resumen con semáforo (🔴 hay algo que revisar, ✅ nada), sigue con una sección por tipo de recurso (🗑️ se borra esta noche, ⏳ en espera, 🛡️ conservado a propósito, 💀 su cluster ya no existe) y termina con cómo actuar. Amazon SES no sirve aquí: el DMARC de `stratio.com` (`p=reject`, alineación estricta) rechaza los correos que SES firma como `amazonses.com`.
+Los correos llegan por Amazon SNS desde `no-reply@sns.amazonaws.com`, con asunto `[Clouds][AWS][<cuenta>][Report] daily resources <fecha>` o `[Clouds][AWS][<cuenta>][URGENT] <n> risky instances running`. Los destinatarios son las suscripciones de email confirmadas del topic de cada cuenta; hoy, `platform@stratio.com`. Una suscripción confirmada pulsando el enlace del email se puede dar de baja desde el pie de cualquier informe; por eso se confirma con `confirm-subscription.sh` (ver abajo). SNS solo envía texto plano: el informe empieza con un resumen con semáforo (🔴 hay algo que revisar, ✅ nada), sigue con una sección por tipo de recurso (🗑️ se borra esta noche, ⏳ en espera, 🛡️ conservado a propósito, 💀 su cluster ya no existe) y termina con cómo actuar. Amazon SES no sirve aquí: el DMARC de `stratio.com` (`p=reject`, alineación estricta) rechaza los correos que SES firma como `amazonses.com`.
 
 ## Desplegar en una cuenta
 
@@ -126,10 +126,14 @@ PROFILE=<perfil> bash cleanup-lambdas/deploy.sh
 # Informe y aviso urgente; CREATE_TOPIC=1 crea el topic SNS si no existe
 PROFILE=<perfil> TOPIC=cloud-resources-report CREATE_TOPIC=1 bash cloud-resources-report/deploy.sh
 
-# Suscribir un correo (llega un email de confirmación que hay que aceptar)
+# Suscribir un correo: llega un email "Subscription Confirmation" al destinatario
 aws sns subscribe --profile <perfil> --region eu-west-1 \
   --topic-arn arn:aws:sns:eu-west-1:<cuenta>:cloud-resources-report \
   --protocol email --notification-endpoint <correo>
+
+# Confirmarlo SIN pulsar el enlace del email: copiar la dirección del enlace "Confirm subscription" y pasarla aquí.
+# Así se confirma con AuthenticateOnUnsubscribe=true y nadie puede dar de baja al destinatario desde el pie de los correos.
+PROFILE=<perfil> bash cloud-resources-report/confirm-subscription.sh '<enlace de confirmación>'
 
 # Probar el informe diario sin enviarlo (tarda ~1 min; desde el portátil es mucho más lento)
 aws lambda invoke --profile <perfil> --region eu-west-1 --function-name CloudResourcesReport \
