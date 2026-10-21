@@ -1,0 +1,8 @@
+azure-functions
+azure-identity
+azure-mgmt-compute
+azure-mgmt-network
+azure-mgmt-resource
+azure-mgmt-costmanagement
+azure-storage-blob
+boto3

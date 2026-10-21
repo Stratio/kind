@@ -1,0 +1,10 @@
+{
+  "Name": "Clouds cleanup (disks and public IPs)",
+  "Description": "Delete unattached managed disks and unassociated public IPs; used by the cloud-resources-report Function App.",
+  "Actions": [
+    "Microsoft.Compute/disks/delete",
+    "Microsoft.Network/publicIPAddresses/delete"
+  ],
+  "NotActions": [],
+  "AssignableScopes": ["/subscriptions/SUBSCRIPTION_ID"]
+}

@@ -123,7 +123,7 @@ Si los clusters van a usar ECR pull-through cache (`ecr_pull_through_cache_enabl
 
 # Lambda
 
-Cada cuenta lleva cinco funciones Lambda que vigilan el gasto: una envía avisos e informes por correo y cuatro limpian por la noche los recursos que quedan sueltos tras borrar clusters de prueba. Todas viven en `eu-west-1`, recorren todas las regiones habilitadas de la cuenta y corren en Python 3.12. El código y los scripts de despliegue están en [`scripts/`](scripts/).
+Cada cuenta lleva cinco funciones Lambda que vigilan el gasto: una envía avisos e informes por correo y cuatro limpian por la noche los recursos que quedan sueltos tras borrar clusters de prueba. Todas viven en `eu-west-1`, recorren todas las regiones habilitadas de la cuenta y corren en Python 3.12. El código y los scripts de despliegue están en [`scripts/`](scripts/). La versión equivalente para Azure está en [`docs/azure/cloud-resources-report.md`](../../azure/cloud-resources-report.md).
 
 Horas en UTC.
 
