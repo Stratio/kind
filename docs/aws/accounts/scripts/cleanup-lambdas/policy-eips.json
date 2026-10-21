@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "logs:CreateLogGroup",
+      "Resource": "arn:aws:logs:eu-west-1:ACCOUNT_ID:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": ["arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/deleteUnusedEIPs:*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ec2:DescribeAddresses", "ec2:DescribeRegions", "ec2:ReleaseAddress"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ec2:CreateTags", "ec2:DeleteTags"],
+      "Resource": "arn:aws:ec2:*:ACCOUNT_ID:elastic-ip/*"
+    }
+  ]
+}

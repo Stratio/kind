@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["ec2:DescribeRegions", "eks:ListClusters", "logs:DescribeLogGroups"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:PutRetentionPolicy", "logs:ListTagsForResource", "logs:TagResource", "logs:DeleteLogGroup"],
+      "Resource": "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/eks/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/cleanupEksLogGroups:*"
+    }
+  ]
+}

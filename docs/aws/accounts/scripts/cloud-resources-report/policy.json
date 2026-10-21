@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeRegions", "ec2:DescribeInstances", "ec2:DescribeVpcs", "ec2:DescribeNatGateways",
+        "ec2:DescribeAddresses", "ec2:DescribeVolumes",
+        "eks:ListClusters", "eks:DescribeCluster", "eks:ListNodegroups", "eks:DescribeNodegroup",
+        "elasticloadbalancing:DescribeLoadBalancers", "elasticloadbalancing:DescribeTags",
+        "logs:DescribeLogGroups", "cloudwatch:GetMetricStatistics", "ce:GetCostAndUsage",
+        "iam:ListOpenIDConnectProviders", "iam:GetOpenIDConnectProvider"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:FilterLogEvents"],
+      "Resource": [
+        "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/deleteoldOIDC:*",
+        "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/deleteUnusedEBS:*",
+        "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/deleteUnusedEIPs:*",
+        "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/cleanupEksLogGroups:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["sns:Publish"],
+      "Resource": "TOPIC_ARN"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:eu-west-1:ACCOUNT_ID:log-group:/aws/lambda/CloudResourcesReport:*"
+    }
+  ]
+}
