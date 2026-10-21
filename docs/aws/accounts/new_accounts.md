@@ -52,14 +52,14 @@ aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 
 >>    Description: Only EKS deployments  
 >>    Policy:  
 >>        - stratio-eks-policy (EKS deployments) [stratio-eks-policy](../Permissions/EKS/eks_permission_ref.json)  
->>        - stratio-fc-policy (CloudFormation) [stratio-fc-policy](../Permissions/EKS/eks_Cloud_Formation.json)  
+>>        - stratio-eks-cf-policy (CloudFormation, ver [CloudFormation](#cloudformation)) [stratio-aws-temp-policy.json](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json)  
 >>        - stratio-eks-offline (Offline EKS deployments)  
 
 > User: cloud-provisioner-aws
 >>    Description: Only AWS deployments  
 >>    Policy:  
 >>        - stratio-aws-policy (AWS deployments) [stratio-aws-policy](../Permissions/AWS/aws_permission_ref.json)  
->>        - stratio-fc-policy (CloudFormation) [stratio-fc-policy](../Permissions/AWS/aws_Cloud_Formation.json)  
+>>        - stratio-eks-cf-policy (CloudFormation, ver [CloudFormation](#cloudformation)) [stratio-aws-temp-policy.json](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json)  
 >>        - stratio-aws-offline (Offline AWS deployments)  
 
 * Nota: Todas las políticas/roles deberían de llevar la misma nomenclatura, por ejemplo: 'stratio-'
@@ -71,9 +71,40 @@ Compartir de forma segura mediante passbolt las credenciales de los usuarios cre
 
 # CloudFormation
 
-Asegurarse de que el despliegue del stack de CloudFormation se hace de forma satisfactoria, desplegando un cluster de EKS con el cloud-provisioner.
+El stack `cluster-api-provider-aws-sigs-k8s-io` crea los roles y políticas de IAM que usan CAPA y los nodos de EKS. Lo crea o actualiza `cloud-provisioner create cluster` cuando el descriptor lleva `spec.security.aws.create_iam: true` (paso `[CAPA] Ensuring IAM security`): ejecuta `clusterawsadm bootstrap iam create-cloudformation-stack` con la configuración de `createCloudFormationStack` en [`aws.go`](../../../pkg/cluster/internal/create/actions/createworker/aws.go). Con `create_iam: false` (valor por defecto) el stack tiene que existir ya.
 
-Crear de forma manual el role: "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy".
+Qué crea (todos los nombres acaban en `.cluster-api-provider-aws.sigs.k8s.io`; comprobado en las cuentas 963 y 975 el 2026-10-21):
+
+| Recurso | Nombres |
+|---|---|
+| Roles | `controllers`, `control-plane`, `nodes`, `eks-controlplane`, `eks-nodegroup` |
+| Instance profiles | `controllers`, `control-plane`, `nodes` |
+| Políticas gestionadas | `controllers`, `controllers-eks`, `control-plane`, `csi`, `nodes` |
+
+Comprobar que existe y está bien:
+
+```bash
+aws cloudformation describe-stacks --stack-name cluster-api-provider-aws-sigs-k8s-io --region eu-west-1 \
+  --query 'Stacks[0].[StackStatus,CreationTime,LastUpdatedTime]' --output text | cat
+```
+
+## Una sola región por cuenta
+
+El stack se crea en la región del cluster (`AWS_REGION`), pero los roles de IAM son globales y tienen nombre fijo. Si ya existe en una región, crearlo en otra falla con `Resource of type 'AWS::IAM::Role' with identifier 'nodes.cluster-api-provider-aws.sigs.k8s.io' already exists` y el stack queda en `ROLLBACK_COMPLETE` (pasó en la 963, `eu-west-2`, 2023-12-14). En nuestras cuentas vive en `eu-west-1`: los clusters de otras regiones van con `create_iam: false` (no probado en vivo).
+
+## Permisos del usuario de despliegue
+
+Con `create_iam: true` el usuario de despliegue necesita las acciones de IAM y CloudFormation de [`stratio-aws-temp-policy.json`](../../../stratio-docs/es/modules/operations-manual/assets/attachments/stratio-aws-temp-policy.json). En la 963 es la política `stratio-eks-cf-policy`, adjunta a `cloud-provisioner-eks`, con las mismas acciones (comprobado el 2026-10-21).
+
+## Nodos MachinePool con ECR pull-through
+
+El rol `eks-nodegroup` solo admite ARNs de políticas gestionadas. Si los clusters usan `docker_registries[].ecr_pull_through_cache_enabled: true`, crear antes una política con `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository` y pasar su ARN en `spec.security.aws.nodegroup_extra_policy_arn` (exige `create_iam: true`). En la 963 el rol ya lleva `ecr-pull-through-cache-machinepool` (actualización del stack del 2026-10-08); en la 975 no.
+
+El stack se actualiza con la configuración de cada create con `create_iam: true`: sin `nodegroup_extra_policy_arn`, la plantilla generada no incluye esa política (comprobado con `clusterawsadm bootstrap iam print-cloudformation-template`). No está probado si al actualizar el stack se desasocia del rol; en la 963, lanzar los create con `create_iam: false` o con ese ARN.
+
+## Rol AWSServiceRoleForAmazonEKS
+
+No hace falta crearlo a mano: EKS lo crea al crear el primer cluster de la cuenta ([documentación de AWS](https://docs.aws.amazon.com/eks/latest/userguide/using-service-linked-roles-eks.html#create-service-linked-role-eks)), y `stratio-eks-policy` incluye `iam:CreateServiceLinkedRole`. En la 963 y la 975 ya existe (desde 2023), así que la creación automática no se ha probado en nuestras cuentas.
 
 # ECR
 
