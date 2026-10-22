@@ -25,7 +25,7 @@ gcloud services enable $G cloudscheduler.googleapis.com cloudfunctions.googleapi
 if [ -z "${RUN_AS_SA:-}" ]; then
   gcloud iam service-accounts describe $SA $G >/dev/null 2>&1 || \
     gcloud iam service-accounts create $SA_NAME $G --display-name "Clouds cloud-resources-report"
-  PERMS=compute.instances.list,compute.disks.list,compute.disks.delete,compute.disks.setLabels,compute.addresses.list,compute.addresses.delete,compute.addresses.setLabels,compute.globalAddresses.list,compute.globalAddresses.delete,compute.globalAddresses.setLabels,compute.routers.list,compute.forwardingRules.list,compute.globalForwardingRules.list,container.clusters.list
+  PERMS=compute.instances.list,compute.disks.list,compute.disks.delete,compute.disks.setLabels,compute.addresses.list,compute.globalAddresses.list,compute.routers.list,compute.forwardingRules.list,compute.globalForwardingRules.list,container.clusters.list
   gcloud iam roles describe $ROLE_ID $G >/dev/null 2>&1 \
     && gcloud iam roles update $ROLE_ID $G --permissions $PERMS --quiet >/dev/null \
     || gcloud iam roles create $ROLE_ID $G --title "Clouds cleanup and report" --permissions $PERMS --stage GA --quiet >/dev/null

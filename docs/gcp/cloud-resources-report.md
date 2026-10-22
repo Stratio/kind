@@ -1,6 +1,6 @@
 # Informe de recursos y limpieza en GCP
 
-Cloud Function (gen2) que vigila el gasto de un proyecto de GCP: avisa de instancias de riesgo, envía un informe diario y limpia de noche los discos y las IPs externas reservadas que quedan sueltos. Es la versión GCP de las Lambdas de AWS descritas en [`docs/aws/accounts/new_accounts.md`](../aws/accounts/new_accounts.md#lambda) y de la Function App de [Azure](../azure/cloud-resources-report.md), y usa el mismo canal de correo.
+Cloud Function (gen2) que vigila el gasto de un proyecto de GCP: avisa de instancias de riesgo, envía un informe diario y limpia de noche los discos que quedan sueltos. Es la versión GCP de las Lambdas de AWS descritas en [`docs/aws/accounts/new_accounts.md`](../aws/accounts/new_accounts.md#lambda) y de la Function App de [Azure](../azure/cloud-resources-report.md), y usa el mismo canal de correo.
 
 Horas en UTC. Las lanza Cloud Scheduler con una petición HTTP autenticada (OIDC).
 
@@ -8,7 +8,7 @@ Horas en UTC. Las lanza Cloud Scheduler con una petición HTTP autenticada (OIDC
 |---|---|---|---|
 | `urgent` | Correo con las instancias encendidas de riesgo (con GPU o familia de aceleradores, o 32 vCPU o más), solo si hay alguna | Cada 4 h | No, solo lee |
 | `daily` | Informe: instancias, clusters GKE, Cloud NAT, forwarding rules (balanceadores), IPs externas reservadas sin usar, discos sueltos y resultado de la última limpieza | Lunes a viernes, 07:00 | No, solo lee |
-| `cleanup` | Borra los discos sin conectar y las IPs externas reservadas sin usar que llevan más de 1 día así | Lunes a viernes, 23:00 | Solo con `CLEANUP_MODE=actual_deletion`. En `report_only` solo marca y anuncia |
+| `cleanup` | Borra los discos sin conectar que llevan más de 1 día así | Lunes a viernes, 23:00 | Solo con `CLEANUP_MODE=actual_deletion`. En `report_only` solo marca y anuncia |
 
 No hay sección de coste: el proyecto no exporta la facturación a BigQuery.
 
@@ -16,7 +16,7 @@ Estado en `clusterapi-369611`: la limpieza está en `report_only`. El informe mu
 
 ## Cómo se evita borrar algo por sorpresa
 
-1. La primera noche que la limpieza ve un disco o una IP sueltos, solo los **marca** con la hora (labels `cleanup-unattached-since` y `cleanup-unassociated-since`, en segundos epoch: los valores de label de GCP no admiten `:`).
+1. La primera noche que la limpieza ve un disco suelto, solo lo **marca** con la hora (label `cleanup-unattached-since`, en segundos epoch: los valores de label de GCP no admiten `:`).
 2. El informe de la mañana siguiente los muestra como "se borra esta noche".
 3. Si a la noche siguiente siguen sueltos, se borran. El informe del día después muestra lo borrado y los errores (lo lee de la línea `CLEANUP_SUMMARY {json}` que deja la limpieza en Cloud Logging).
 
@@ -26,7 +26,7 @@ Para conservar algo a propósito:
 |---|---|
 | Disco | Label `noautodelete=true` (GCP solo admite minúsculas en las claves) o volver a conectarlo |
 | Disco de una PVC (el driver PD CSI guarda la PVC en la descripción del disco, clave `kubernetes.io/created-for/pvc/name`) | Automático: se conserva mientras haya algún cluster GKE en su región. El informe lo muestra como "PVC of a live cluster" |
-| IP externa | No hay forma: toda IP reservada sin usar más de 1 día se borra |
+| IP externa reservada | Nada: son reservas de los administradores del proyecto. El informe las lista y la limpieza no las toca |
 
 ## Correo
 
@@ -38,7 +38,7 @@ La función publica en AWS **sin ningún secreto guardado**: pide a Google un to
 
 | Cuenta de servicio | Permisos | Cuándo |
 |---|---|---|
-| `cloud-resources-report@<proyecto>` | Rol propio `cloudsCleanupReport` (listar instancias, discos, direcciones, routers, forwarding rules y clusters; borrar y etiquetar discos y direcciones) + `roles/logging.viewer`, y `roles/run.invoker` sobre la función | Diseño final. Crear el rol y asignarlo requiere `roles/iam.roleAdmin` y `roles/resourcemanager.projectIamAdmin` |
+| `cloud-resources-report@<proyecto>` | Rol propio `cloudsCleanupReport` (listar instancias, discos, direcciones, routers, forwarding rules y clusters; borrar y etiquetar discos) + `roles/logging.viewer`, y `roles/run.invoker` sobre la función | Diseño final. Crear el rol y asignarlo requiere `roles/iam.roleAdmin` y `roles/resourcemanager.projectIamAdmin` |
 | Cuenta por defecto de Compute (`<número>-compute@developer.gserviceaccount.com`, `roles/editor`) | Todos los que necesita la función | Provisional en `clusterapi-369611` mientras no se asignen los roles anteriores. Cualquier VM que corra con esa cuenta puede publicar en los topics del informe |
 
 ## Desplegar en un proyecto
