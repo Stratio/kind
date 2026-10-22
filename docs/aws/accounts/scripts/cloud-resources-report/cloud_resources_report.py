@@ -336,7 +336,7 @@ def render_daily(now, data, cleanup, cost, oidc_doomed, scan_errors):
     return "\n".join(out) + "\n"
 
 
-DOCS_URL = "https://github.com/Stratio/kind/blob/master/docs/aws/accounts/new_accounts.md#lambda"
+DOCS_URL = "https://github.com/Stratio/kind/blob/master/docs/aws/cloud-resources-report.md"
 FOOTER = ["", "ℹ️  HOW TO ACT", RULE,
           "   • 🗑️ / ⏳ marks: the nightly cleanup (MON-FRI 23:00 UTC) deletes it if it is still loose; ⏳ = first seen, not yet due",
           "   • Keep an EBS volume: tag it NoAutoDelete=true (or attach it again)",

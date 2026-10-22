@@ -26,7 +26,7 @@ Root disk housekeeping is automatic: `vm-autostop` runs it every 15 min (see [Ro
 |---|---|---|
 | Volume | EBS gp3 `<name>-data`, encrypted, tags `persistent=true`, `NoAutoDelete=true` | Managed disk `<name>-data` in its own RG `<rg>-data` |
 | Survives VM deletion | Yes — attached after launch, so it is not deleted with the instance | Yes — different RG |
-| Delete protection | **EBS no tiene bloqueo nativo.** La Lambda `deleteUnusedEBS` (lunes a viernes a las 23:00 UTC, misma cuenta) borra los volúmenes que llevan más de 1 día sin conectar, después de anunciarlos en el informe diario, y nunca toca los que llevan la etiqueta `NoAutoDelete=true`, que es la que lleva este volumen. Solo está sin conectar mientras se recrea la VM. Código y reglas: [`docs/aws/accounts/new_accounts.md`](../aws/accounts/new_accounts.md#lambda) | `CanNotDelete` lock on `<rg>-data`: blocks deleting the RG or the disk, still allows attach/detach. Remove the lock on purpose before a real deletion |
+| Delete protection | **EBS no tiene bloqueo nativo.** La Lambda `deleteUnusedEBS` (lunes a viernes a las 23:00 UTC, misma cuenta) borra los volúmenes que llevan más de 1 día sin conectar, después de anunciarlos en el informe diario, y nunca toca los que llevan la etiqueta `NoAutoDelete=true`, que es la que lleva este volumen. Solo está sin conectar mientras se recrea la VM. Código y reglas: [`docs/aws/cloud-resources-report.md`](../aws/cloud-resources-report.md) | `CanNotDelete` lock on `<rg>-data`: blocks deleting the RG or the disk, still allows attach/detach. Remove the lock on purpose before a real deletion |
 
 Rule for recreating the EKS VM: do it **before 23:00 UTC** on weekdays, or make sure the new VM attaches the volume the same session.
 

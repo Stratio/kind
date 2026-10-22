@@ -1,6 +1,6 @@
 # Informe de recursos y limpieza en Azure
 
-Function App de Azure que vigila el gasto de una suscripción: avisa de VMs de riesgo, envía un informe diario y limpia de noche los discos e IPs públicas que quedan sueltos. Es la versión Azure de las Lambdas de AWS descritas en [`docs/aws/accounts/new_accounts.md`](../aws/accounts/new_accounts.md#lambda) y usa el mismo canal de correo.
+Function App de Azure que vigila el gasto de una suscripción: avisa de VMs de riesgo, envía un informe diario y limpia de noche los discos e IPs públicas que quedan sueltos. Es la versión Azure de las Lambdas de AWS descritas en [`docs/aws/cloud-resources-report.md`](../aws/cloud-resources-report.md) y usa el mismo canal de correo.
 
 Horas en UTC.
 

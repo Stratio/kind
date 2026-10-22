@@ -1,6 +1,6 @@
 # Informe de recursos y limpieza en GCP
 
-Cloud Function (gen2) que vigila el gasto de un proyecto de GCP: avisa de instancias de riesgo, envía un informe diario y limpia de noche los discos que quedan sueltos. Es la versión GCP de las Lambdas de AWS descritas en [`docs/aws/accounts/new_accounts.md`](../aws/accounts/new_accounts.md#lambda) y de la Function App de [Azure](../azure/cloud-resources-report.md), y usa el mismo canal de correo.
+Cloud Function (gen2) que vigila el gasto de un proyecto de GCP: avisa de instancias de riesgo, envía un informe diario y limpia de noche los discos que quedan sueltos. Es la versión GCP de las Lambdas de AWS descritas en [`docs/aws/cloud-resources-report.md`](../aws/cloud-resources-report.md) y de la Function App de [Azure](../azure/cloud-resources-report.md), y usa el mismo canal de correo.
 
 Horas en UTC. Las lanza Cloud Scheduler con una petición HTTP autenticada (OIDC).
 
