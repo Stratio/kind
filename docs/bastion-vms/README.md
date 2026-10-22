@@ -191,6 +191,7 @@ Run long operations inside `tmux` (installed) so they survive an SSH disconnect;
 | Tool | EKS VM | Azure VM | Installed by | Updated how |
 |---|---|---|---|---|
 | docker, git, jq, python3, unzip, curl, tmux | yes | yes | Ubuntu apt (curl, tmux already in the image) | `unattended-upgrades` daily — enabled origins are `${distro_codename}` and `${distro_codename}-security` only, **not** `-updates`: security fixes, no feature upgrades |
+| make | yes | yes | Ubuntu apt: user-data of `eks-vm.sh`/`azure-vm.sh` on new VMs, `bastion-tools sync` on existing ones (added 2026-10-22, for builds run on the VM instead of the laptop) | Same as the row above |
 | kubectl | 1.36.5 (default), 1.33.13 | same | asdf (`asdf-community/asdf-kubectl`) | Never automatically — edit `.tool-versions` + `bastion-tools sync` |
 | helm | 3.19.0 | 3.19.0 | asdf (`Antiarchitect/asdf-helm`) — same version as `DEPENDENCIES` | Same |
 | yq | 4.54.1 | 4.54.1 | asdf (`sudermanjr/asdf-yq`) | Same |

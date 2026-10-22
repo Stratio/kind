@@ -107,7 +107,7 @@ custom_data() {
 set -euxo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y docker.io jq unzip git python3 unattended-upgrades
+apt-get install -y docker.io jq unzip git python3 make unattended-upgrades
 systemctl enable --now docker unattended-upgrades
 # kind documented known issue: 4 parallel bootstraps exhaust the Ubuntu inotify default (128) and kube-proxy dies with 'too many open files'
 printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' > /etc/sysctl.d/90-kind.conf
