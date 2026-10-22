@@ -239,7 +239,7 @@ def _cleanup_one(summary, now, actual, rid, name, kind, since_value, tag, delete
 
 
 def render_daily(now, data, last_cleanup, cost):
-    day, currency, services = cost
+    day, currency, services, cost_err = cost
     risky = [v for v in data["vms"] if v["risky"] and v["state"] == "running"]
     old = [v for v in data["vms"] if v["old"] and v["state"] == "running" and not v["risky"]]
     idle_nat = [n for n in data["nat"] if n["idle"]]
@@ -259,7 +259,7 @@ def render_daily(now, data, last_cleanup, cost):
            f"   {flag(idle_nat)} NAT gateways in a resource group with no running VM: {len(idle_nat)}",
            f"   {'🗑️' if tonight else '✅'} Deleted by the cleanup tonight: {tonight}",
            f"   {'❌' if failed else '✅'} Last nightly cleanup: {'with errors' if failed else 'no errors' if last_cleanup else 'no run recorded'}",
-           f"   💶 Cost of {day}: {total:.2f} {currency}"]
+           f"   ⚠️ Cost of {day}: unavailable ({cost_err})" if cost_err else f"   💶 Cost of {day}: {total:.2f} {currency}"]
     out += section("🔥", f"RISKY VMs RUNNING (GPU N-series or >= {RISKY_MIN_VCPU} vCPU)",
                    [item(v["rg"], v["name"], v["size"], f"created {v['age']} ago") for v in risky])
     out += section("🖥️", "VMs RUNNING, CREATED MORE THAN 8 h AGO",
@@ -290,7 +290,7 @@ def render_daily(now, data, last_cleanup, cost):
         rows += [f"       ↳ 🔒 locked, kept {e['kind']} {e['rg']}/{e['name']}" for e in last_cleanup.get("locked", [])]
         rows += [f"       ↳ ❌ error {e['kind']} {e['rg']}/{e['name']}: {e['error']}" for e in last_cleanup["errors"]]
     out += section("🧹", "NIGHTLY CLEANUP — last run", rows, count="")
-    cost_rows = []
+    cost_rows = [f"   ⚠️ Cost Management query failed: {cost_err}"] if cost_err else []
     for s, t, items in services:
         cost_rows.append(f"   • {t:8.2f} {currency}  {s}")
         cost_rows += [f"       ↳ {c:6.2f}  {what}" for c, what in items[:5]]
@@ -349,6 +349,10 @@ def main(event):
         sent = publish(f"[Clouds][Azure][{SUB_NAME}][URGENT] {len(risky)} risky VMs running", body, dry_run)
         return {"mode": mode, "risky": len(risky), "published": sent}
     next_run = next_cleanup_run(now)
-    body = render_daily(now, scan(now, next_run), load_summary(), cost_yesterday(now))
+    try:
+        cost = (*cost_yesterday(now), "")
+    except Exception as e:  # e.g. 429 from Cost Management: the report still goes out without the cost
+        cost = ((now - timedelta(days=1)).date(), "", [], str(e).splitlines()[0][:200])
+    body = render_daily(now, scan(now, next_run), load_summary(), cost)
     sent = publish(f"[Clouds][Azure][{SUB_NAME}][Report] daily resources {now:%Y-%m-%d}", body, dry_run)
     return {"mode": mode, "published": sent}

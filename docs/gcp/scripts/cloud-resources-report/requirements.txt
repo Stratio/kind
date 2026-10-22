@@ -1,0 +1,6 @@
+functions-framework==3.*
+google-cloud-compute
+google-cloud-container
+google-cloud-logging
+google-auth
+boto3

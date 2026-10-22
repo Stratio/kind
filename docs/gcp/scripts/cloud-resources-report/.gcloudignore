@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+deploy.sh
+README-es.md
+.gcloudignore
