@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # GCP counterpart of the AWS CloudResourcesReport for one project: urgent alert (risky instances), daily report and
-# nightly cleanup (unattached disks, <cluster>-apiserver IPs of gone clusters; other reservations are the admins'). Mail via the AWS SNS topic.
+# nightly cleanup (unattached disks; IPs, firewall rules, routes and subnets of gone clusters; base networks untouched). Mail via AWS SNS.
 # main({"mode": "urgent"|"daily"|"cleanup", "dry_run": bool, "operating_mode": "actual_deletion", "no_writes": bool}); never stops VMs.
 
 import json
@@ -128,11 +128,54 @@ def orphan_cluster_ip(a, clusters, instance_names):
     return cluster not in {c.name for c in clusters} and not any(n.startswith(cluster + "-") for n in instance_names)
 
 
+GKE_RES = re.compile(r"^gke-(.+)-[0-9a-f]{8}-")  # gke-<cluster>-<8 hex>-<suffix>: firewall rules and subnets GKE creates per cluster
+CAPG_FW = re.compile(r"^allow-(.+)-(cluster|healthchecks)$")  # firewall rules CAPG creates per cluster
+
+
+def cluster_leftovers(clusters):
+    # firewall rules, routes and subnets a cluster created and left behind; base networks and their own rules never match
+    if clusters is None:
+        return []
+    gke = {c.name for c in clusters}
+    raw = [i for _, p in compute_v1.InstancesClient().aggregated_list(project=PROJECT) for i in p.instances]
+    names, tags = [i.name for i in raw], {t for i in raw for t in i.tags.items}
+
+    def gone(c):
+        return c not in gke and not any(n.startswith(c + "-") for n in names)
+
+    out = []
+    for f in compute_v1.FirewallsClient().list(project=PROJECT):
+        m, g = CAPG_FW.match(f.name), GKE_RES.match(f.name)
+        cluster = m.group(1) if m else g.group(1) if g else ""
+        lb_rule = f.name.startswith("k8s-") and bool(f.target_tags) and not tags & set(f.target_tags)  # its nodes are gone
+        if (cluster and gone(cluster)) or (not cluster and lb_rule):
+            out.append({"kind": "firewall", "loc": "global", "name": f.name, "cluster": cluster or "?", "created": ts(f.creation_timestamp)})
+    for r in compute_v1.RoutesClient().list(project=PROJECT):
+        if r.next_hop_instance and last(r.next_hop_instance) not in names:
+            out.append({"kind": "route", "loc": "global", "name": r.name, "cluster": "?", "created": ts(r.creation_timestamp)})
+    for scope, page in compute_v1.SubnetworksClient().aggregated_list(project=PROJECT):
+        for s in page.subnetworks:
+            g = GKE_RES.match(s.name)
+            if g and g.group(1) not in gke:
+                out.append({"kind": "subnet", "loc": last(scope), "name": s.name, "cluster": g.group(1), "created": ts(s.creation_timestamp)})
+    return out
+
+
+def delete_leftover(r):
+    if r["kind"] == "firewall":
+        compute_v1.FirewallsClient().delete(project=PROJECT, firewall=r["name"]).result()
+    elif r["kind"] == "route":
+        compute_v1.RoutesClient().delete(project=PROJECT, route=r["name"]).result()
+    else:
+        compute_v1.SubnetworksClient().delete(project=PROJECT, region=r["loc"], subnetwork=r["name"]).result()
+
+
 def scan(now, next_run):
     instances = scan_instances(now)
     running_nets = {n for i in instances if i["state"] == "RUNNING" for n in i["networks"]}
     clusters = live_clusters()
-    data = {"instances": instances, "clusters": [], "disks": [], "ips": [], "nat": [], "lb": []}
+    data = {"instances": instances, "clusters": [], "disks": [], "ips": [], "nat": [], "lb": [],
+            "leftovers": [{**r, "tonight": next_run - r["created"] >= CLEANUP_MIN_AGE} for r in cluster_leftovers(clusters)]}
     for c in clusters or []:
         created = ts(c.create_time)
         data["clusters"].append({"location": c.location, "name": c.name, "nodes": c.current_node_count, "age": age(now, created),
@@ -224,6 +267,15 @@ def cleanup(now, actual, no_writes):
                 _safe(summary, loc, a.name, "address", lambda: set_label(loc, "address", a, IP_SINCE_LABEL, None, no_writes))
             continue
         _safe(summary, loc, a.name, "address", lambda: _cleanup_one(summary, now, actual, no_writes, loc, "address", a, IP_SINCE_LABEL))
+    for r in cluster_leftovers(clusters):  # no labels on firewall rules/routes/subnets: the 1-day margin counts from creation
+        entry = {"kind": r["kind"], "loc": r["loc"], "name": r["name"], "loose_h": int((now - r["created"]).total_seconds() // 3600)}
+        if now - r["created"] < CLEANUP_MIN_AGE:
+            summary["waiting"].append(entry)
+        elif not actual or no_writes:
+            summary["would_delete"].append(entry)
+        else:
+            print(f"Deleting {r['kind']} {r['loc']}/{r['name']}")
+            _safe(summary, r["loc"], r["name"], r["kind"], lambda r=r, entry=entry: (delete_leftover(r), summary["deleted"].append(entry)))
     print("CLEANUP_SUMMARY " + json.dumps(summary))
     return summary
 
@@ -282,7 +334,7 @@ def render_daily(now, data, last_cleanup):
     old = [i for i in running if i["old"] and not i["risky"]]
     old_clusters = [c for c in data["clusters"] if c["old"]]
     idle_nat = [n for n in data["nat"] if n["idle"]]
-    tonight = sum(d["tonight"] for d in data["disks"]) + sum(i["tonight"] for i in data["ips"])
+    tonight = sum(d["tonight"] for d in data["disks"]) + sum(i["tonight"] for i in data["ips"]) + sum(r["tonight"] for r in data["leftovers"])
     stale = not last_cleanup or now - datetime.fromisoformat(last_cleanup["time"]) > timedelta(hours=30)
     failed = bool(last_cleanup and last_cleanup["errors"])
 
@@ -313,6 +365,9 @@ def render_daily(now, data, last_cleanup):
     out += section("📍", "RESERVED UNUSED EXTERNAL IPs",
                    [item(i["loc"], i["name"], i["ip"], (DUE if i["tonight"] else "⏳ waiting (its cluster is gone)") if i["orphan"]
                          else "🛡️ admins' reservation, never cleaned") for i in data["ips"]])
+    out += section("🧩", "LEFTOVERS OF GONE CLUSTERS (firewall rules, routes, subnets)",
+                   [item(r["kind"], r["loc"], r["name"], f"cluster {r['cluster']}", DUE if r["tonight"] else "⏳ waiting (created < 1 day ago)")
+                    for r in data["leftovers"]])
     out += section("💽", "UNATTACHED DISKS",
                    [item(d["loc"], d["name"], d["type"], f"{d['gb']} GB", d["age"],
                          "🛡️ protected (noautodelete)" if d["protected"] else "🛡️ PVC of a live cluster" if d["pvc_live"]
@@ -331,6 +386,7 @@ def render_daily(now, data, last_cleanup):
             "   • Keep a disk: label it noautodelete=true (or attach it again)",
             "   • PVC disks are kept while a GKE cluster lives in their region",
             "   • Reserved external IPs are never touched, except <cluster>-apiserver ones whose cluster no longer exists",
+            "   • Firewall rules, routes and subnets a cluster created are deleted once the cluster is gone; base networks are never touched",
             "   • Nothing here stops instances or clusters: delete what you no longer need",
             f"   • Docs and code: {DOCS_URL}"]
     return "\n".join(out) + "\n"
