@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # GCP counterpart of the AWS CloudResourcesReport for one project: urgent alert (risky instances), daily report and
-# nightly cleanup (unattached disks only; reserved external IPs belong to the project admins). Mail goes through the AWS SNS topic.
+# nightly cleanup (unattached disks, <cluster>-apiserver IPs of gone clusters; other reservations are the admins'). Mail via the AWS SNS topic.
 # main({"mode": "urgent"|"daily"|"cleanup", "dry_run": bool, "operating_mode": "actual_deletion", "no_writes": bool}); never stops VMs.
 
 import json
@@ -20,6 +20,8 @@ GPU_FAMILIES = ("a2-", "a3-", "a4-", "a4x-", "g2-", "g4-", "ct", "tpu")  # machi
 INSTANCE_MAX_AGE = timedelta(hours=8)
 CLUSTER_MAX_AGE = timedelta(days=1)
 DISK_SINCE_LABEL = "cleanup-unattached-since"  # value: epoch seconds (label values cannot hold ":" or "+")
+IP_SINCE_LABEL = "cleanup-unassociated-since"
+CLUSTER_IP_SUFFIX = "-apiserver"  # <cluster>-apiserver: API server IP of a cluster; every other reservation belongs to the admins
 KEEP_LABEL = "noautodelete"  # GCE label keys are lower case only
 PVC_KEY = "kubernetes.io/created-for/pvc/name"  # PD CSI driver writes it into the disk description JSON
 CLUSTER_LABEL = "goog-k8s-cluster-name"  # unverified: label GKE puts on its PD CSI disks
@@ -118,6 +120,14 @@ def loose_address(a):
     return a.address_type == "EXTERNAL" and a.status == "RESERVED"
 
 
+def orphan_cluster_ip(a, clusters, instance_names):
+    # only <cluster>-apiserver IPs whose cluster has no GKE cluster and no instance left (any state)
+    if not a.name.endswith(CLUSTER_IP_SUFFIX) or clusters is None:
+        return False
+    cluster = a.name[: -len(CLUSTER_IP_SUFFIX)]
+    return cluster not in {c.name for c in clusters} and not any(n.startswith(cluster + "-") for n in instance_names)
+
+
 def scan(now, next_run):
     instances = scan_instances(now)
     running_nets = {n for i in instances if i["state"] == "RUNNING" for n in i["networks"]}
@@ -136,9 +146,12 @@ def scan(now, next_run):
                               "protected": kept(d.labels), "pvc_live": pvc_live,
                               "tonight": bool(since) and not kept(d.labels) and not pvc_live
                               and next_run - datetime.fromtimestamp(int(since), timezone.utc) >= CLEANUP_MIN_AGE})
+    names = [i["name"] for i in instances]
     for loc, a in addresses_by_scope():
-        if loose_address(a):  # reserved by the project admins: listed only, never cleaned
-            data["ips"].append({"loc": loc, "name": a.name, "ip": a.address})
+        if loose_address(a):
+            orphan, since = orphan_cluster_ip(a, clusters, names), a.labels.get(IP_SINCE_LABEL)
+            data["ips"].append({"loc": loc, "name": a.name, "ip": a.address, "orphan": orphan,
+                                "tonight": orphan and bool(since) and next_run - datetime.fromtimestamp(int(since), timezone.utc) >= CLEANUP_MIN_AGE})
     for scope, page in compute_v1.RoutersClient().aggregated_list(project=PROJECT):
         for r in page.routers:
             for n in r.nats:
@@ -204,6 +217,13 @@ def cleanup(now, actual, no_writes):
             summary["pvc_kept"].append({"kind": "disk", "loc": loc, "name": d.name, "pvc": pvc})
             continue
         _safe(summary, loc, d.name, "disk", lambda: _cleanup_one(summary, now, actual, no_writes, loc, "disk", d, DISK_SINCE_LABEL))
+    names = [i["name"] for i in scan_instances(now)]
+    for loc, a in addresses_by_scope():
+        if not (loose_address(a) and orphan_cluster_ip(a, clusters, names)):
+            if IP_SINCE_LABEL in a.labels:  # in use again or its cluster is back: reset the clock
+                _safe(summary, loc, a.name, "address", lambda: set_label(loc, "address", a, IP_SINCE_LABEL, None, no_writes))
+            continue
+        _safe(summary, loc, a.name, "address", lambda: _cleanup_one(summary, now, actual, no_writes, loc, "address", a, IP_SINCE_LABEL))
     print("CLEANUP_SUMMARY " + json.dumps(summary))
     return summary
 
@@ -262,7 +282,7 @@ def render_daily(now, data, last_cleanup):
     old = [i for i in running if i["old"] and not i["risky"]]
     old_clusters = [c for c in data["clusters"] if c["old"]]
     idle_nat = [n for n in data["nat"] if n["idle"]]
-    tonight = sum(d["tonight"] for d in data["disks"])
+    tonight = sum(d["tonight"] for d in data["disks"]) + sum(i["tonight"] for i in data["ips"])
     stale = not last_cleanup or now - datetime.fromisoformat(last_cleanup["time"]) > timedelta(hours=30)
     failed = bool(last_cleanup and last_cleanup["errors"])
 
@@ -290,8 +310,9 @@ def render_daily(now, data, last_cleanup):
                     for n in data["nat"]])
     out += section("⚖️", "FORWARDING RULES (load balancers)",
                    [item(f["loc"], f["name"], f["ip"], f["scheme"], f"created {f['age']} ago") for f in data["lb"]])
-    out += section("📍", "RESERVED UNUSED EXTERNAL IPs (project admins' reservations, never cleaned)",
-                   [item(i["loc"], i["name"], i["ip"]) for i in data["ips"]])
+    out += section("📍", "RESERVED UNUSED EXTERNAL IPs",
+                   [item(i["loc"], i["name"], i["ip"], (DUE if i["tonight"] else "⏳ waiting (its cluster is gone)") if i["orphan"]
+                         else "🛡️ admins' reservation, never cleaned") for i in data["ips"]])
     out += section("💽", "UNATTACHED DISKS",
                    [item(d["loc"], d["name"], d["type"], f"{d['gb']} GB", d["age"],
                          "🛡️ protected (noautodelete)" if d["protected"] else "🛡️ PVC of a live cluster" if d["pvc_live"]
@@ -309,7 +330,7 @@ def render_daily(now, data, last_cleanup):
             "   • 🗑️ / ⏳ marks: the nightly cleanup (MON-FRI 23:00 UTC) deletes it if it is still loose; ⏳ = first seen, not yet due",
             "   • Keep a disk: label it noautodelete=true (or attach it again)",
             "   • PVC disks are kept while a GKE cluster lives in their region",
-            "   • Reserved external IPs belong to the project admins: listed only, the cleanup never touches them",
+            "   • Reserved external IPs are never touched, except <cluster>-apiserver ones whose cluster no longer exists",
             "   • Nothing here stops instances or clusters: delete what you no longer need",
             f"   • Docs and code: {DOCS_URL}"]
     return "\n".join(out) + "\n"
