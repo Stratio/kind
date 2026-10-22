@@ -3,7 +3,7 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["ec2:DescribeRegions", "ec2:DescribeInstances", "ec2:DescribeVolumes"],
+      "Action": ["ec2:DescribeRegions", "ec2:DescribeInstances", "ec2:DescribeVolumes", "eks:ListClusters"],
       "Resource": "*"
     },
     {

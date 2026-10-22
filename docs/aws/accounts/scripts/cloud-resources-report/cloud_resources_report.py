@@ -23,6 +23,7 @@ EBS_SINCE_TAG = "cleanup.stratio.com/unattached-since"
 EIP_SINCE_TAG = "cleanup.stratio.com/unassociated-since"
 CLEANUP_MIN_AGE = timedelta(hours=23)  # same rule as the cleanup Lambdas
 OIDC_MIN_AGE = timedelta(days=2)
+PVC_TAG = "kubernetes.io/created-for/pvc/name"  # EBS CSI volumes; kept by the cleanup while their cluster lives
 
 
 def tags_of(resource):
@@ -83,8 +84,10 @@ def scan_region(region, now, next_run, live_clusters):
                                "kept": tags.get("NoAutoDelete", "").lower() == "true", "reason": tags.get("keep-reason", "")})
 
     eks = boto3.client("eks", region_name=region)
+    region_clusters = []
     for page in eks.get_paginator("list_clusters").paginate():
         for name in page["clusters"]:
+            region_clusters.append(name)
             c = eks.describe_cluster(name=name)["cluster"]
             if now - c["createdAt"] <= EKS_MAX_AGE:
                 continue
@@ -119,10 +122,12 @@ def scan_region(region, now, next_run, live_clusters):
             if not loose and v["VolumeType"] not in ("io1", "io2"):
                 continue
             since = tags.get(EBS_SINCE_TAG)
+            pvc_cluster = tags.get("KubernetesCluster") or next((k.split("/", 2)[2] for k in tags if k.startswith("kubernetes.io/cluster/")), "")
+            pvc_live = PVC_TAG in tags and (pvc_cluster in live_clusters if pvc_cluster else bool(region_clusters))
             out["ebs"].append({"region": region, "id": v["VolumeId"], "type": v["VolumeType"], "size_gb": v["Size"],
-                               "loose": loose, "protected": tags.get("NoAutoDelete", "").lower() == "true",
+                               "loose": loose, "protected": tags.get("NoAutoDelete", "").lower() == "true", "pvc_live": pvc_live,
                                "owner": owner_of(tags), "age": age(now, v["CreateTime"]),
-                               "tonight": loose and bool(since) and next_run - datetime.fromisoformat(since) >= CLEANUP_MIN_AGE})
+                               "tonight": loose and not pvc_live and bool(since) and next_run - datetime.fromisoformat(since) >= CLEANUP_MIN_AGE})
 
     elbv2 = boto3.client("elbv2", region_name=region)
     lbs = [lb for page in elbv2.get_paginator("describe_load_balancers").paginate() for lb in page["LoadBalancers"]]
@@ -299,7 +304,8 @@ def render_daily(now, data, cleanup, cost, oidc_doomed, scan_errors):
                     for e in data["eip"]])
     out += section("💽", "UNATTACHED EBS VOLUMES",
                    [item(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"],
-                         "🛡️ protected (NoAutoDelete)" if v["protected"] else "🗑️ deleted tonight" if v["tonight"] else "⏳ waiting")
+                         "🛡️ protected (NoAutoDelete)" if v["protected"] else "🛡️ PVC of a live cluster" if v["pvc_live"]
+                         else "🗑️ deleted tonight" if v["tonight"] else "⏳ waiting")
                     for v in loose])
     out += section("⚡", "IO1/IO2 VOLUMES IN USE",
                    [item(v["region"], v["id"], v["type"], f"{v['size_gb']} GB", f"owner: {v['owner'] or '-'}", v["age"]) for v in piops])
@@ -314,7 +320,7 @@ def render_daily(now, data, cleanup, cost, oidc_doomed, scan_errors):
         s = r["summary"]
         state = "❌ did not run" if r["invocations"] == 0 else "❌ failed" if r["errors"] else "✅ ok"
         detail = (f"mode {s['mode']}, deleted {len(s['deleted'])}, errors {len(s['errors'])}, waiting {len(s['waiting'])}"
-                  if s else "no CLEANUP_SUMMARY line")
+                  + (f", PVC of live cluster kept {len(s['pvc_kept'])}" if s.get("pvc_kept") else "") if s else "no CLEANUP_SUMMARY line")
         rows.append(item(r["lambda"], state, f"runs {r['invocations']}, failed runs {r['errors']}", detail))
         if s:
             rows += [f"       ↳ 🗑️ deleted {d['id']}" for d in s["deleted"]] + [f"       ↳ ❌ error {e['id']}: {e['error']}" for e in s["errors"]]

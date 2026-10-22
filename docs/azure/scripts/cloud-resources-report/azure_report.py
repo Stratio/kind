@@ -22,6 +22,7 @@ RISKY_MIN_VCPU = 32  # Azure sizes carry the vCPU count in their name (Standard_
 INSTANCE_MAX_AGE = timedelta(hours=8)
 DISK_SINCE_TAG = "cleanup-unattached-since"  # Azure tag names cannot contain "/"
 IP_SINCE_TAG = "cleanup-unassociated-since"
+PVC_TAG = "kubernetes.io-created-for-pvc-name"  # set by azuredisk-csi-driver on every PVC disk
 CLEANUP_MIN_AGE = timedelta(hours=23)  # 1 day, minus slack so the next nightly run qualifies
 SUMMARY_CONTAINER, SUMMARY_BLOB = "cloud-cleanup", "last-summary.json"
 DOCS_URL = "https://github.com/Stratio/kind/blob/master/docs/azure/cloud-resources-report.md"
@@ -90,14 +91,18 @@ def scan_vms(now):
 def scan(now, next_run):
     vms = scan_vms(now)
     running_rgs = {v["rg"].lower() for v in vms if v["state"] == "running"}
+    vm_rgs = {v["rg"].lower() for v in vms}  # any state: a deallocated cluster is still a live cluster
     data = {"vms": vms, "disks": [], "ips": [], "nat": [], "lb": [], "vnet": [], "bastion": []}
     for d in compute.disks.list():
         if d.disk_state != "Unattached":
             continue
-        since = (d.tags or {}).get(DISK_SINCE_TAG)
+        tags = d.tags or {}
+        since = tags.get(DISK_SINCE_TAG)
+        pvc_live = PVC_TAG in tags and rg_of(d.id).lower() in vm_rgs
         data["disks"].append({"rg": rg_of(d.id), "name": d.name, "gb": d.disk_size_gb, "sku": val(d.sku.name) if d.sku else "",
-                              "age": age(now, d.time_created), "protected": kept(d.tags),
-                              "tonight": bool(since) and not kept(d.tags) and next_run - datetime.fromisoformat(since) >= CLEANUP_MIN_AGE})
+                              "age": age(now, d.time_created), "protected": kept(tags), "pvc_live": pvc_live,
+                              "tonight": bool(since) and not kept(tags) and not pvc_live
+                              and next_run - datetime.fromisoformat(since) >= CLEANUP_MIN_AGE})
     for ip in network.public_ip_addresses.list_all():
         if ip.ip_configuration is None and ip.nat_gateway is None:
             since = (ip.tags or {}).get(IP_SINCE_TAG)
@@ -170,7 +175,8 @@ def save_summary(summary):
 
 def cleanup(now, actual):
     summary = {"time": now.isoformat(), "mode": "actual_deletion" if actual else "report_only",
-               "deleted": [], "would_delete": [], "waiting": [], "locked": [], "protected": 0, "errors": []}
+               "deleted": [], "would_delete": [], "waiting": [], "locked": [], "pvc_kept": [], "protected": 0, "errors": []}
+    vm_rgs = {rg_of(vm.id).lower() for vm in compute.virtual_machines.list_all()}
     for d in compute.disks.list():
         tags = d.tags or {}
         if d.disk_state != "Unattached":
@@ -179,6 +185,11 @@ def cleanup(now, actual):
             continue
         if kept(tags):
             summary["protected"] += 1
+            continue
+        if PVC_TAG in tags and rg_of(d.id).lower() in vm_rgs:
+            if DISK_SINCE_TAG in tags:
+                _safe(summary, d.id, d.name, "disk", lambda d=d: set_tag(d.id, DISK_SINCE_TAG))  # restart the clock once the cluster is gone
+            summary["pvc_kept"].append({"kind": "disk", "rg": rg_of(d.id), "name": d.name, "pvc": tags[PVC_TAG]})
             continue
         _safe(summary, d.id, d.name, "disk", lambda d=d, tags=tags: _cleanup_one(
             summary, now, actual, d.id, d.name, "disk", tags.get(DISK_SINCE_TAG), DISK_SINCE_TAG,
@@ -267,13 +278,14 @@ def render_daily(now, data, last_cleanup, cost):
                    [item(i["rg"], i["name"], i["ip"], "🗑️ deleted tonight" if i["tonight"] else "⏳ waiting") for i in data["ips"]])
     out += section("💽", "UNATTACHED DISKS",
                    [item(d["rg"], d["name"], d["sku"], f"{d['gb']} GB", d["age"],
-                         "🛡️ protected (NoAutoDelete)" if d["protected"] else "🗑️ deleted tonight" if d["tonight"] else "⏳ waiting")
+                         "🛡️ protected (NoAutoDelete)" if d["protected"] else "🛡️ PVC of a live cluster" if d["pvc_live"]
+                         else "🗑️ deleted tonight" if d["tonight"] else "⏳ waiting")
                     for d in data["disks"]])
     rows = []
     if last_cleanup:
         rows.append(item(f"run {last_cleanup['time'][:16]} UTC", f"mode {last_cleanup['mode']}", f"deleted {len(last_cleanup['deleted'])}",
                          f"errors {len(last_cleanup['errors'])}", f"waiting {len(last_cleanup['waiting'])}",
-                         "⚠️ older than 30 h" if stale else ""))
+                         f"pvc kept {len(last_cleanup.get('pvc_kept', []))}", "⚠️ older than 30 h" if stale else ""))
         rows += [f"       ↳ 🗑️ deleted {e['kind']} {e['rg']}/{e['name']}" for e in last_cleanup["deleted"]]
         rows += [f"       ↳ 🔒 locked, kept {e['kind']} {e['rg']}/{e['name']}" for e in last_cleanup.get("locked", [])]
         rows += [f"       ↳ ❌ error {e['kind']} {e['rg']}/{e['name']}: {e['error']}" for e in last_cleanup["errors"]]
@@ -286,6 +298,7 @@ def render_daily(now, data, last_cleanup, cost):
     out += ["", "ℹ️  HOW TO ACT", RULE,
             "   • 🗑️ / ⏳ marks: the nightly cleanup (MON-FRI 23:00 UTC) deletes it if it is still loose; ⏳ = first seen, not yet due",
             "   • Keep a disk: tag it NoAutoDelete=true (or attach it again)",
+            "   • PVC disks (tag kubernetes.io-created-for-pvc-name) are kept while their resource group has a VM",
             "   • Keep a VNet on purpose: tags NoAutoDelete=true and keep-reason=<why> (VNets are never deleted)",
             "   • Public IPs cannot be protected: any IP unassociated for more than 1 day is deleted",
             "   • Nothing here stops VMs: deallocate or delete what you no longer need",

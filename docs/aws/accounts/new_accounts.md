@@ -146,6 +146,7 @@ Para conservar algo a propósito:
 | Recurso | Cómo |
 |---|---|
 | Volumen EBS | Etiqueta `NoAutoDelete=true` (o volver a conectarlo) |
+| Volumen de una PVC (etiqueta `kubernetes.io/created-for/pvc/name`, la pone el driver EBS CSI) | Automático: se conserva mientras exista su cluster EKS (etiqueta `KubernetesCluster` o `kubernetes.io/cluster/<nombre>`); si no lleva etiqueta de cluster, mientras haya algún EKS en su región. El informe lo muestra como "PVC of a live cluster" |
 | VPC | Etiquetas `NoAutoDelete=true` y `keep-reason=<motivo>`; el informe la lista como "KEPT ON PURPOSE (<motivo>)". Ninguna función borra VPCs |
 | Elastic IP | No hay forma: toda IP sin asociar más de 1 día se libera |
 

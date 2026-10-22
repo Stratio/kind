@@ -21,6 +21,7 @@ Para conservar algo a propósito:
 | Recurso | Cómo |
 |---|---|
 | Disco | Etiqueta `NoAutoDelete=true` (o volver a conectarlo) |
+| Disco de una PVC (etiqueta `kubernetes.io-created-for-pvc-name`, la pone el driver Azure Disk CSI) | Automático: se conserva mientras su grupo de recursos tenga alguna VM, aunque esté desasignada. El informe lo muestra como "PVC of a live cluster" |
 | VNet | Etiquetas `NoAutoDelete=true` y `keep-reason=<motivo>`. La limpieza nunca borra VNets |
 | IP pública | No hay forma: toda IP sin asociar más de 1 día se borra |
 | Grupo con bloqueo `CanNotDelete` | Lo que haya dentro no se puede borrar; el informe lo muestra como "locked, kept" |

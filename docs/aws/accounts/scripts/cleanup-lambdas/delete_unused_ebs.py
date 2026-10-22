@@ -9,14 +9,33 @@ from datetime import datetime, timezone, timedelta
 
 SINCE_TAG = "cleanup.stratio.com/unattached-since"
 MIN_AGE = timedelta(hours=23)  # 1 day, minus slack so the next nightly run qualifies
+PVC_TAG = "kubernetes.io/created-for/pvc/name"  # set by the EBS CSI driver on every PVC volume
+
+
+def pvc_cluster(tags):
+    # the driver adds the cluster tags only when started with a cluster id (aws-ebs-csi-driver pkg/driver/controller.go)
+    return tags.get("KubernetesCluster") or next((k.split("/", 2)[2] for k in tags if k.startswith("kubernetes.io/cluster/")), "")
+
+
+def pvc_of_live_cluster(tags, region, live):
+    cluster = pvc_cluster(tags)
+    return cluster in live["all"] if cluster else bool(live["by_region"].get(region, True))  # unknown cluster: any live EKS in the region
 
 
 def main(event, context):
     actual = (event or {}).get("operating_mode") == "actual_deletion"
     now = datetime.now(timezone.utc)
     summary = {"lambda": "deleteUnusedEBS", "mode": "actual_deletion" if actual else "report_only",
-               "deleted": [], "would_delete": [], "waiting": [], "protected": 0, "errors": []}
+               "deleted": [], "would_delete": [], "waiting": [], "pvc_kept": [], "protected": 0, "errors": []}
     regions = [r["RegionName"] for r in boto3.client("ec2", region_name="eu-west-1").describe_regions()["Regions"]]
+    live = {"all": set(), "by_region": {}}
+    for region in regions:  # a region whose EKS list fails counts as live, so its PVC volumes are kept
+        try:
+            names = [n for p in boto3.client("eks", region_name=region).get_paginator("list_clusters").paginate() for n in p["clusters"]]
+            live["all"].update(names)
+            live["by_region"][region] = bool(names)
+        except Exception:
+            live["by_region"][region] = True
     for region in regions:
         ec2 = boto3.client("ec2", region_name=region)
         for page in ec2.get_paginator("describe_volumes").paginate():
@@ -30,6 +49,11 @@ def main(event, context):
                     continue
                 if tags.get("NoAutoDelete", "").lower() == "true":
                     summary["protected"] += 1
+                    continue
+                if PVC_TAG in tags and pvc_of_live_cluster(tags, region, live):
+                    if SINCE_TAG in tags:
+                        ec2.delete_tags(Resources=[vid], Tags=[{"Key": SINCE_TAG}])  # restart the clock once the cluster is gone
+                    summary["pvc_kept"].append({"region": region, "id": vid, "pvc": tags[PVC_TAG], "cluster": pvc_cluster(tags) or "?"})
                     continue
                 if SINCE_TAG in tags:
                     since = datetime.fromisoformat(tags[SINCE_TAG])
