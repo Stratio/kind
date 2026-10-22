@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/kind/pkg/commons"
 
 	"sigs.k8s.io/kind/pkg/cmd"
+	"sigs.k8s.io/kind/pkg/cmd/kind/version"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/log"
 
@@ -56,6 +57,7 @@ type flagpole struct {
 	ValidateOnly         bool
 	UseLocalStratioImage bool
 	BuildStratioImage    bool
+	Resume               bool
 }
 
 const clusterDefaultPath = "./cluster.yaml"
@@ -161,6 +163,12 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		false,
 		"by setting this flag the Stratio cloud-provisioner image will not be pulled and will be build and this built image will be used. This flag is intended for development purposes only",
 	)
+	cmd.Flags().BoolVar(
+		&flags.Resume,
+		"resume",
+		false,
+		"resume a failed create from the same directory, reusing its bootstrap container (state in "+commons.CreateStatePath+")",
+	)
 
 	return cmd
 }
@@ -229,6 +237,10 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		return nil
 	}
 
+	if err := prepareCreateState(flags, keosCluster.Metadata.Name, version.Version(true)); err != nil {
+		return err
+	}
+
 	// handle config flag, we might need to read from stdin
 	withConfig, err := configOption(flags.Config, streams.In)
 	if err != nil {
@@ -254,6 +266,7 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		cluster.CreateWithMove(flags.MoveManagement),
 		cluster.CreateWithAvoidCreation(flags.AvoidCreation),
 		cluster.CreateWithForceDelete(flags.ForceDelete),
+		cluster.CreateWithResume(flags.Resume),
 		cluster.CreateWithWaitForReady(flags.Wait),
 		cluster.CreateWithKubeconfigPath(flags.Kubeconfig),
 		cluster.CreateWithDisplayUsage(true),
@@ -323,5 +336,37 @@ func validateFlags(flags *flagpole) error {
 	if count > 1 {
 		return errors.New("Flags --retain, --avoid-creation, and --keep-mgmt are mutually exclusive")
 	}
+	if flags.Resume && (flags.ForceDelete || flags.AvoidCreation || flags.ValidateOnly) {
+		return errors.New("Flag --resume cannot be used with --delete-previous, --avoid-creation or --validate-only")
+	}
 	return nil
+}
+
+// prepareCreateState refuses a plain create over an unfinished one and a resume without a matching state file.
+func prepareCreateState(flags *flagpole, descriptorName string, binaryVersion string) error {
+	name := flags.Name
+	if name == "" {
+		name = descriptorName
+	}
+	state, err := commons.LoadCreateState()
+	if err != nil {
+		return err
+	}
+	if flags.Resume {
+		if state == nil {
+			return errors.Errorf("nothing to resume: %s not found in this directory", commons.CreateStatePath)
+		}
+		if !state.CloudResources && !state.BootstrapReady() {
+			return errors.Errorf("nothing to resume: the create of %q stopped before its bootstrap cluster was ready and created nothing in the cloud; run it again with --delete-previous instead of --resume", state.ClusterName)
+		}
+		return state.CheckResumable(name, binaryVersion)
+	}
+	if state != nil && !flags.ForceDelete {
+		return errors.Errorf("a create of %q was started in this directory (%s); use --resume to continue it, or --delete-previous to start over", state.ClusterName, commons.CreateStatePath)
+	}
+	// --delete-previous starts over: the bootstrap container goes, and so does the state of the previous create
+	if state != nil && state.CloudResources {
+		fmt.Printf("WARNING: the previous create of %q may have created cloud resources; starting over does not delete them, check them in the cloud account\n", state.ClusterName)
+	}
+	return (&commons.CreateState{ClusterName: name, Version: binaryVersion}).Save()
 }

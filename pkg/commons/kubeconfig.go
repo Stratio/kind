@@ -1,55 +1,187 @@
 package commons
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/google"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/errors"
 )
 
-func StartKubeconfigRefresher(n nodes.Node, namespace, clusterName, kubeconfigPath string, stopChan <-chan struct{}) {
+// StartKubeconfigRefresher rewrites kubeconfigPath from the CAPI kubeconfig secret every 2 minutes. fallback (may be
+// nil) runs when that kubeconfig does not reach the cluster, e.g. a paused Cluster whose EKS token CAPA stopped renewing.
+func StartKubeconfigRefresher(n nodes.Node, namespace, clusterName, kubeconfigPath string, stopChan <-chan struct{}, fallback func() error) {
 	ticker := time.NewTicker(2 * time.Minute)
 	defer ticker.Stop()
 
 	// Perform an initial kubeconfig refresh
-	refreshKubeconfig(n, namespace, clusterName, kubeconfigPath)
+	refreshKubeconfig(n, namespace, clusterName, kubeconfigPath, fallback)
 
 	for {
 		select {
 		case <-ticker.C:
-			refreshKubeconfig(n, namespace, clusterName, kubeconfigPath)
+			refreshKubeconfig(n, namespace, clusterName, kubeconfigPath, fallback)
 		case <-stopChan:
 			return
 		}
 	}
 }
 
-func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath string) {
-	kubeconfig, err := GetKubeconfigFromSecret(n, namespace, clusterName)
-	if err != nil {
+func refreshKubeconfig(n nodes.Node, namespace, clusterName, kubeconfigPath string, fallback func() error) {
+	refreshWith(
+		func() (string, error) { return GetKubeconfigFromSecret(n, namespace, clusterName) },
+		func(kubeconfig string) bool { return writeWorkingKubeconfig(n, kubeconfig, kubeconfigPath) },
+		fallback,
+	)
+}
+
+// refreshWith writes the fetched kubeconfig only if it works; otherwise the current one stays and fallback runs
+func refreshWith(fetch func() (string, error), writeIfWorking func(string) bool, fallback func() error) {
+	if kubeconfig, err := fetch(); err == nil && writeIfWorking(kubeconfig) {
 		return
 	}
-
-	// Extract the directory from the path
-	kubeconfigDir := filepath.Dir(kubeconfigPath)
-
-	// Create the directory inside the container
-	createDirCmd := fmt.Sprintf("mkdir -p %s", kubeconfigDir)
-	_, err = ExecuteCommand(n, createDirCmd, 5, 3)
-	if err != nil {
-		return
+	if fallback != nil {
+		_ = fallback()
 	}
+}
 
-	// Write the kubeconfig to the specified path inside the container
-	writeFileCmd := fmt.Sprintf("echo '%s' > %s", kubeconfig, kubeconfigPath)
-	_, err = ExecuteCommand(n, writeFileCmd, 5, 3)
-	if err != nil {
-		return
+// writeWorkingKubeconfig puts kubeconfig at kubeconfigPath only when it reaches the cluster
+func writeWorkingKubeconfig(n nodes.Node, kubeconfig, kubeconfigPath string) bool {
+	tmp := kubeconfigPath + ".new"
+	if _, err := ExecuteCommand(n, fmt.Sprintf("mkdir -p %s && echo '%s' > %s", filepath.Dir(kubeconfigPath), kubeconfig, tmp), 5, 3); err != nil {
+		return false
 	}
+	if _, err := ExecuteCommand(n, "kubectl --kubeconfig "+tmp+" get ns kube-system -o name", 1, 1); err != nil {
+		return false
+	}
+	_, err := ExecuteCommand(n, "mv "+tmp+" "+kubeconfigPath, 5, 3)
+	return err == nil
+}
+
+var kubeconfigTokenLine = regexp.MustCompile(`(?m)^([ \t]*token:[ \t]*)\S+[ \t]*$`)
+
+// ReplaceKubeconfigToken swaps the bearer token of the kubeconfig's only token user
+func ReplaceKubeconfigToken(kubeconfig, token string) (string, error) {
+	if n := len(kubeconfigTokenLine.FindAllString(kubeconfig, -1)); n != 1 {
+		return "", errors.Errorf("expected one token in the kubeconfig, found %d", n)
+	}
+	return kubeconfigTokenLine.ReplaceAllStringFunc(kubeconfig, func(line string) string {
+		return kubeconfigTokenLine.FindStringSubmatch(line)[1] + token
+	}), nil
+}
+
+// eksTokenFromExecCredential reads status.token from the ExecCredential printed by `aws eks get-token`
+func eksTokenFromExecCredential(out string) (string, error) {
+	var cred struct {
+		Status struct {
+			Token string `json:"token"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(out), &cred); err != nil || cred.Status.Token == "" {
+		return "", errors.Errorf("unexpected aws eks get-token output: %v", err)
+	}
+	return cred.Status.Token, nil
+}
+
+// EnsureKubeconfigAccess checks that kubeconfigPath reaches the cluster; if not, it runs refresh (may be nil) and checks again
+func EnsureKubeconfigAccess(n nodes.Node, kubeconfigPath string, refresh func() error) error {
+	check := "kubectl --kubeconfig " + kubeconfigPath + " get ns kube-system -o name"
+	_, err := ExecuteCommand(n, check, 5, 3)
+	if err == nil || refresh == nil {
+		return err
+	}
+	if rerr := refresh(); rerr != nil {
+		return errors.Wrap(rerr, "the workload kubeconfig does not work and refreshing its token failed")
+	}
+	_, err = ExecuteCommand(n, check, 5, 3)
+	return err
+}
+
+// RefreshEKSKubeconfigToken mints a new EKS token with the deploy user credentials inside the bootstrap container and
+// writes it into kubeconfigPath: after the pivot nothing refreshes the CAPA token saved there (~15 min lifetime).
+func RefreshEKSKubeconfigToken(n nodes.Node, kubeconfigPath, clusterName, region string, credentials map[string]string) error {
+	env := []string{"AWS_ACCESS_KEY_ID=" + credentials["AccessKey"], "AWS_SECRET_ACCESS_KEY=" + credentials["SecretKey"], "AWS_REGION=" + region}
+	out, err := ExecuteCommand(n, eksGetTokenCommand(clusterName, region, credentials["RoleARN"])+" 2>/dev/null", 5, 3, env)
+	if err != nil {
+		return errors.Wrap(err, "failed to get a new EKS token")
+	}
+	token, err := eksTokenFromExecCredential(out)
+	if err != nil {
+		return err
+	}
+	return writeKubeconfigToken(n, kubeconfigPath, token)
+}
+
+// RefreshGKEKubeconfigToken mints a new GCP access token with the deploy service account and writes it into
+// kubeconfigPath: CAPG renews the token only in the kubeconfig secret, not in the copies made from it.
+func RefreshGKEKubeconfigToken(n nodes.Node, kubeconfigPath string, credentials map[string]string) error {
+	token, err := gcpAccessToken(credentials)
+	if err != nil {
+		return err
+	}
+	return writeKubeconfigToken(n, kubeconfigPath, token)
+}
+
+// gcpServiceAccountJSON builds the service account key from the descriptor credentials
+func gcpServiceAccountJSON(credentials map[string]string) ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"type":           "service_account",
+		"project_id":     credentials["ProjectID"],
+		"private_key_id": credentials["PrivateKeyID"],
+		"private_key":    credentials["PrivateKey"],
+		"client_email":   credentials["ClientEmail"],
+		"client_id":      credentials["ClientID"],
+		"token_uri":      "https://accounts.google.com/o/oauth2/token",
+	})
+}
+
+// gcpAccessToken uses the scope CAPG requests for the GKE kubeconfig
+func gcpAccessToken(credentials map[string]string) (string, error) {
+	key, err := gcpServiceAccountJSON(credentials)
+	if err != nil {
+		return "", err
+	}
+	creds, err := google.CredentialsFromJSON(context.Background(), key, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read the GCP service account")
+	}
+	t, err := creds.TokenSource.Token()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get a new GCP access token")
+	}
+	return t.AccessToken, nil
+}
+
+// writeKubeconfigToken replaces the bearer token of the kubeconfig at kubeconfigPath
+func writeKubeconfigToken(n nodes.Node, kubeconfigPath, token string) error {
+	kubeconfig, err := ExecuteCommand(n, "cat "+kubeconfigPath, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to read "+kubeconfigPath)
+	}
+	kubeconfig, err = ReplaceKubeconfigToken(kubeconfig, token)
+	if err != nil {
+		return err
+	}
+	if _, err := ExecuteCommand(n, fmt.Sprintf("echo '%s' > %s.tok && mv %s.tok %s", kubeconfig, kubeconfigPath, kubeconfigPath, kubeconfigPath), 5, 3); err != nil {
+		return errors.Wrap(err, "failed to write "+kubeconfigPath)
+	}
+	return nil
+}
+
+// eksGetTokenCommand: with a role ARN, CAPA creates the cluster as that role and only it is mapped in the cluster.
+func eksGetTokenCommand(clusterName, region, roleARN string) string {
+	c := "aws eks get-token --cluster-name " + clusterName + " --region " + region + " --output json"
+	if roleARN != "" {
+		c += " --role-arn " + roleARN
+	}
+	return c
 }
 
 func GetKubeconfigFromSecret(n nodes.Node, namespace, clusterName string) (string, error) {

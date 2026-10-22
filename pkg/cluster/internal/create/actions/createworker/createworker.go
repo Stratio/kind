@@ -29,6 +29,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
+	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
 	"sigs.k8s.io/kind/pkg/exec"
@@ -39,6 +40,7 @@ type action struct {
 	descriptorPath     string
 	moveManagement     bool
 	avoidCreation      bool
+	resume             bool
 	keosCluster        commons.KeosCluster
 	clusterCredentials commons.ClusterCredentials
 	clusterConfig      *commons.ClusterConfig
@@ -88,12 +90,13 @@ var rbacInternalLoadBalancing string
 var rbacAWSNode string
 
 // NewAction returns a new action for installing default CAPI
-func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, clusterConfig *commons.ClusterConfig) actions.Action {
+func NewAction(vaultPassword string, descriptorPath string, moveManagement bool, avoidCreation bool, resume bool, keosCluster commons.KeosCluster, clusterCredentials commons.ClusterCredentials, clusterConfig *commons.ClusterConfig) actions.Action {
 	return &action{
 		vaultPassword:      vaultPassword,
 		descriptorPath:     descriptorPath,
 		moveManagement:     moveManagement,
 		avoidCreation:      avoidCreation,
+		resume:             resume,
 		keosCluster:        keosCluster,
 		clusterCredentials: clusterCredentials,
 		clusterConfig:      clusterConfig,
@@ -113,6 +116,29 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	n, err := ctx.GetNode()
 	if err != nil {
 		return err
+	}
+
+	pivoted := false
+	if a.resume {
+		state, err := commons.LoadCreateState()
+		if err != nil {
+			return err
+		}
+		pivoted = state != nil && state.Pivoted
+		// A killed CLI does not stop what it started with docker exec: let an in-flight move end, stop the rest
+		if err := waitInFlightMove(n, moveLeftoverWait); err != nil {
+			return err
+		}
+		stopped, err := commons.ExecuteCommand(n, stopLeftovers, 1, 1)
+		if err != nil {
+			return errors.Wrap(err, "failed to stop the commands left running by the interrupted create")
+		}
+		if s := strings.TrimSpace(stopped); s != "" {
+			ctx.Logger.V(0).Infof(" • Stopped what the interrupted create left running (also any kubectl opened by hand in %s): %s", n.String(), strings.ReplaceAll(s, "\n", ", "))
+		}
+		if err := releasePendingHelm(n, ""); err != nil {
+			return err
+		}
 	}
 
 	providerParams := ProviderParams{
@@ -142,6 +168,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	}
 
 	ctx.Status.End(true)
+	stepDone("pull-charts")
 
 	for _, registry := range a.keosCluster.Spec.DockerRegistries {
 		if registry.KeosRegistry {
@@ -200,7 +227,8 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 	}
 
-	if privateParams.Private {
+	// The CNI rewrite is not idempotent (the registry prefix contains docker.io): a marker skips it on resume
+	if privateParams.Private && !kindFileExists(n, privateCNIMarker) {
 		ctx.Status.Start("Installing Private CNI 🎖️")
 		defer ctx.Status.End(false)
 
@@ -231,7 +259,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 
 		ctx.Status.Start("Deleting local storage plugin 🎖️")
 		defer ctx.Status.End(false)
-		c = `kubectl delete -f ` + storageDefaultPath + ` --force`
+		c = `kubectl delete -f ` + storageDefaultPath + ` --force --ignore-not-found && touch ` + privateCNIMarker
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -268,7 +296,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	c = "kubectl -n kube-system create secret docker-registry regcred" +
 		" --docker-server=" + strings.Split(keosRegistry.url, "/")[0] +
 		" --docker-username=" + keosRegistry.user +
-		" --docker-password=" + keosRegistry.pass
+		" --docker-password=" + keosRegistry.pass + applyCreated
 
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
@@ -280,7 +308,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		infraComponents := CAPILocalRepository + "/infrastructure-" + provider.capxProvider + "/" + provider.capxVersion + "/infrastructure-components.yaml"
 
 		// Create provider-system namespace
-		c = "kubectl create namespace " + provider.capxName + "-system"
+		c = "kubectl create namespace " + provider.capxName + "-system" + applyCreated
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -292,7 +320,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			" --docker-server=" + strings.Split(keosRegistry.url, "/")[0] +
 			" --docker-username=" + keosRegistry.user +
 			" --docker-password=" + keosRegistry.pass +
-			" --namespace=" + provider.capxName + "-system"
+			" --namespace=" + provider.capxName + "-system" + applyCreated
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -300,7 +328,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		// Add imagePullSecrets to infrastructure-components.yaml
-		c = "sed -i '/containers:/i\\      imagePullSecrets:\\n      - name: regcred' " + infraComponents
+		c = "grep -q 'name: regcred' " + infraComponents + " || sed -i '/containers:/i\\      imagePullSecrets:\\n      - name: regcred' " + infraComponents
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -317,8 +345,9 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 
-	c = "echo \"cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
-		"echo \"  version: " + certManagerVersion + "\" >> /root/.cluster-api/clusterctl.yaml "
+	// clusterctl.yaml is appended to: guard each block so a resume does not duplicate it
+	c = "grep -q '^cert-manager:' /root/.cluster-api/clusterctl.yaml || { echo \"cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
+		"echo \"  version: " + certManagerVersion + "\" >> /root/.cluster-api/clusterctl.yaml; }"
 
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
@@ -328,7 +357,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	if privateParams.Private {
 
 		k8sRegUrl := commons.GetPrefixedRegistryURL("registry.k8s.io", keosRegistry.url, keosRegistry.ecrPullThroughCacheEnabled)
-		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
+		c = "grep -q '^images:' /root/.cluster-api/clusterctl.yaml || { echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cluster-api:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + k8sRegUrl + "/cluster-api\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPI_Version + "\" >> /root/.cluster-api/clusterctl.yaml && " +
@@ -354,7 +383,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			"echo \"  infrastructure-azure/nmi:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/oss/azure/aad-pod-identity\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  cert-manager:\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    repository: " + commons.GetPrefixedRegistryURL("quay.io", keosRegistry.url, keosRegistry.ecrPullThroughCacheEnabled) + "/jetstack\" >> /root/.cluster-api/clusterctl.yaml "
+			"echo \"    repository: " + commons.GetPrefixedRegistryURL("quay.io", keosRegistry.url, keosRegistry.ecrPullThroughCacheEnabled) + "/jetstack\" >> /root/.cluster-api/clusterctl.yaml; }"
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to add private image registry clusterctl config")
@@ -366,10 +395,10 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return err
 		}
 	} else if gcpGKEEnabled {
-		c = "echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
+		c = "grep -q '^images:' /root/.cluster-api/clusterctl.yaml || { echo \"images:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"  infrastructure-gcp:\" >> /root/.cluster-api/clusterctl.yaml && " +
 			"echo \"    repository: " + keosRegistry.url + "/stratio\" >> /root/.cluster-api/clusterctl.yaml && " +
-			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml "
+			"echo \"    tag: " + a.clusterConfig.Spec.Capx.CAPG_Image_version + "\" >> /root/.cluster-api/clusterctl.yaml; }"
 
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
@@ -385,6 +414,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	capiClustersNamespace := "cluster-" + a.keosCluster.Metadata.Name
 
 	ctx.Status.End(true) // End Installing CAPx
+	stepDone("capx")
 
 	ctx.Status.Start("Generating secrets file 📝🗝️")
 	defer ctx.Status.End(false)
@@ -402,12 +432,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 	defer ctx.Status.End(true) // End Generating secrets file
 
 	// Create namespace for CAPI clusters (it must exists)
-	c = "kubectl create ns " + capiClustersNamespace
+	c = "kubectl create ns " + capiClustersNamespace + applyCreated
 
 	_, err = commons.ExecuteCommand(n, c, 5, 3)
 	if err != nil {
 		return errors.Wrap(err, "failed to create cluster's Namespace")
 	}
+	stepDone("secrets")
 
 	// Create the allow-all-egress network policy file in the container
 	allowCommonEgressNetPolPath := "/kind/allow-all-egress_netpol.yaml"
@@ -418,17 +449,60 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return errors.Wrap(err, "failed to write the allow-all-egress network policy")
 	}
 
-	ctx.Status.Start("Installing keos cluster operator 💻")
-	defer ctx.Status.End(false)
-
-	err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", true, helmRegistry)
-	if err != nil {
-		return errors.Wrap(err, "failed to deploy cluster operator")
+	handover := operatorHandover{provider, privateParams, keosRegistry, helmRegistry, providerParams.Credentials["RoleARN"]}
+	installOperator := true
+	if a.resume && !pivoted {
+		pivoted, installOperator, err = bootstrapMoveState(n, capiClustersNamespace, a.keosCluster.Metadata.Name)
+		if err != nil {
+			return err
+		}
+		// A move can finish after the CLI that started it was killed, before the state recorded it
+		if pivoted {
+			stepDone("move", func(s *commons.CreateState) { s.Pivoted = true })
+		}
 	}
 
-	defer ctx.Status.End(true) // End installing keos cluster operator
+	// A moved or half-moved Cluster must not meet an operator in the bootstrap: it would render the CAPI objects again
+	if installOperator && !pivoted {
+		ctx.Status.Start("Installing keos cluster operator 💻")
+		defer ctx.Status.End(false)
 
-	if !a.avoidCreation {
+		err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", true, helmRegistry)
+		if err != nil {
+			return errors.Wrap(err, "failed to deploy cluster operator")
+		}
+
+		defer ctx.Status.End(true) // End installing keos cluster operator
+	}
+
+	if !a.avoidCreation && pivoted {
+		// The CAPI objects already live in the workload cluster: only adoption, post-install and the descriptor remain
+		if err := checkWorkloadAccess(n); err != nil {
+			// EKS/GKE tokens expire and nothing refreshes them after the pivot: mint one with the deploy credentials
+			refresh := a.workloadTokenRefresh(n)
+			if refresh == nil {
+				return err
+			}
+			if err := commons.EnsureKubeconfigAccess(n, kubeconfigPath, refresh); err != nil {
+				return err
+			}
+		}
+		// The host copy is written only before the pivot: give it the kubeconfig that just reached the cluster
+		if err := saveHostKubeconfig(n); err != nil {
+			return err
+		}
+		// clusterctl deletes the source before it unpauses the target: a move stopped in between leaves it paused
+		if a.resume {
+			for _, c := range unpauseMovedCommands(kubeconfigPath, capiClustersNamespace, a.keosCluster.Metadata.Name) {
+				if _, err := commons.ExecuteCommand(n, c, 5, 3); err != nil {
+					return errors.Wrap(err, "failed to unpause the moved Cluster in the workload cluster")
+				}
+			}
+		}
+		if err := a.afterPivot(ctx, n, infra, capiClustersNamespace, handover); err != nil {
+			return err
+		}
+	} else if !a.avoidCreation {
 		if a.keosCluster.Spec.InfraProvider == "aws" && a.keosCluster.Spec.Security.AWS.CreateIAM {
 			ctx.Status.Start("[CAPA] Ensuring IAM security 👮")
 			defer ctx.Status.End(false)
@@ -443,9 +517,13 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		ctx.Status.Start("Creating the workload cluster 💥")
 		defer ctx.Status.End(false)
 
+		// From here a failure keeps the bootstrap container: the operator starts creating cloud resources
+		stepDone("keoscluster-applied", func(s *commons.CreateState) { s.CloudResources = true })
+
+		// Applied once: the operator fills ClusterConfig spec.charts and its webhook refuses that change on a resume
 		if a.clusterConfig != nil {
 			// Apply cluster manifests
-			c = "kubectl apply -f " + manifestsPath + "/clusterconfig.yaml"
+			c = applyIfAbsent(manifestsPath + "/clusterconfig.yaml")
 			_, err = commons.ExecuteCommand(n, c, 5, 5)
 			if err != nil {
 				return errors.Wrap(err, "failed to apply clusterconfig manifests")
@@ -453,7 +531,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		// Apply cluster manifests
-		c = "kubectl apply -f " + manifestsPath + "/keoscluster.yaml"
+		c = applyIfAbsent(manifestsPath + "/keoscluster.yaml")
 		_, err = commons.ExecuteCommand(n, c, 10, 5)
 		if err != nil {
 			return errors.Wrap(err, "failed to apply keoscluster manifests")
@@ -465,14 +543,16 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return errors.Wrap(err, "failed to wait for cluster")
 		}
 
-		// Wait for the control plane initialization
-		c = "kubectl -n " + capiClustersNamespace + " wait --for=condition=ControlPlaneInitialized --timeout=25m cluster " + a.keosCluster.Metadata.Name
+		// Wait for the control plane initialization. Not on the ControlPlaneInitialized condition: CAPI keeps its
+		// observedGeneration from the first reconcile, and kubectl 1.35 ignores it once a resume re-applies the chart.
+		c = "kubectl -n " + capiClustersNamespace + " wait --for=jsonpath='{.status.initialization.controlPlaneInitialized}'=true --timeout=25m cluster " + a.keosCluster.Metadata.Name
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create the workload cluster")
 		}
 
 		ctx.Status.End(true) // End Creating the workload cluster
+		stepDone("workload-cluster")
 
 		ctx.Status.Start("Saving the workload cluster kubeconfig 📝")
 		defer ctx.Status.End(false)
@@ -501,29 +581,39 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		// Create worker-kubeconfig secret for keos cluster
-		c = "kubectl -n " + capiClustersNamespace + " create secret generic worker-kubeconfig --from-file " + kubeconfigPath
+		c = "kubectl -n " + capiClustersNamespace + " create secret generic worker-kubeconfig --from-file " + kubeconfigPath + applyCreated
 		_, err = commons.ExecuteCommand(n, c, 5, 3)
 		if err != nil {
 			return errors.Wrap(err, "failed to create worker-kubeconfig secret")
 		}
 
-		workKubeconfigBasePath := strings.Split(workKubeconfigPath, "/")[0]
-		_, err = os.Stat(workKubeconfigBasePath)
-		if err != nil {
-			err := os.Mkdir(workKubeconfigBasePath, os.ModePerm)
-			if err != nil {
+		if err := writeHostKubeconfig(kubeconfig); err != nil {
+			return err
+		}
+		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
+		stepDone("kubeconfig")
+
+		// Only now: the workload token saved by the interrupted create may have expired
+		if a.resume {
+			// a move stopped halfway leaves the Cluster paused: CAPA/CAPG stop renewing the token in the kubeconfig secret
+			if err := commons.EnsureKubeconfigAccess(n, kubeconfigPath, a.workloadTokenRefresh(n)); err != nil {
+				return errors.Wrap(err, "cannot reach the workload cluster with "+kubeconfigPath)
+			}
+			// the host copy above came from that stale secret: give it the kubeconfig that just reached the cluster
+			if err := saveHostKubeconfig(n); err != nil {
+				return err
+			}
+			if err := setFluxSuspendedForReplay(n, kubeconfigPath, true); err != nil {
+				return err
+			}
+			if err := releasePendingHelm(n, kubeconfigPath); err != nil {
 				return err
 			}
 		}
-		err = os.WriteFile(workKubeconfigPath, []byte(kubeconfig), 0600)
-		if err != nil {
-			return errors.Wrap(err, "failed to save the workload cluster kubeconfig")
-		}
-		ctx.Status.End(true) // End Saving the workload cluster kubeconfig
 
 		// Start kubeconfig refresher in background
 		stopRefresher = make(chan struct{})
-		go commons.StartKubeconfigRefresher(n, capiClustersNamespace, a.keosCluster.Metadata.Name, kubeconfigPath, stopRefresher)
+		go commons.StartKubeconfigRefresher(n, capiClustersNamespace, a.keosCluster.Metadata.Name, kubeconfigPath, stopRefresher, a.workloadTokenRefresh(n))
 
 		// Install unmanaged cluster addons
 		if !a.keosCluster.Spec.ControlPlane.Managed {
@@ -620,6 +710,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		}
 
 		ctx.Status.End(true) // End Preparing nodes in workload cluster
+		stepDone("nodes")
 
 		if gcpGKEEnabled {
 			ctx.Status.Start("Enabling CoreDNS as DNS server 📡")
@@ -705,6 +796,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			return err
 		}
 		ctx.Status.End(true) // End Installing CAPx in workload cluster
+		stepDone("capx-workload")
 
 		if !a.clusterConfig.Spec.GitOpsEnabled {
 			ctx.Status.Start("Configuring Flux in workload cluster 🧭")
@@ -767,6 +859,12 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("Reconciling the existing Helm charts in workload cluster 🧲")
 			defer ctx.Status.End(false)
 
+			// From here Flux upgrades the releases and the step waits for their HelmReleases to be ready
+			if a.resume {
+				if err := setFluxSuspendedForReplay(n, kubeconfigPath, false); err != nil {
+					return err
+				}
+			}
 			err = reconcileCharts(n, kubeconfigPath, privateParams, a.keosCluster.Spec, chartsList)
 			if err != nil {
 				return errors.Wrap(err, "failed to reconcile with Flux the existing Helm charts in workload cluster")
@@ -926,15 +1024,18 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 				ctx.Status.End(true) // End Installing cluster-autoscaler in workload cluster
 			}
 
-			ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
-			defer ctx.Status.End(false)
+			// It copies the values of the bootstrap release, which a move killed midway already uninstalled
+			if installOperator {
+				ctx.Status.Start("Installing keos cluster operator in workload cluster 💻")
+				defer ctx.Status.End(false)
 
-			err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
+				err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, kubeconfigPath, true, helmRegistry)
+				if err != nil {
+					return errors.Wrap(err, "failed to deploy cluster operator in workload cluster")
+				}
+
+				ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 			}
-
-			ctx.Status.End(true) // Installing keos cluster operator in workload cluster
 		}
 
 		// Apply custom CoreDNS configuration
@@ -992,43 +1093,66 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 		}
 
+		// Also when the Flux step did not run: no HelmRelease stays suspended by the replay
+		if a.resume {
+			if err := setFluxSuspendedForReplay(n, kubeconfigPath, false); err != nil {
+				return err
+			}
+		}
+
 		// Create cloud-provisioner Objects backup
 		ctx.Status.Start("Creating cloud-provisioner Objects backup 🗄️")
 		defer ctx.Status.End(false)
 
-		if _, err := os.Stat(localBackupPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(localBackupPath, 0755); err != nil {
-				return errors.Wrap(err, "failed to create local backup directory")
+		srcPaused := false
+		if a.resume {
+			if _, srcPaused, err = clusterMoveState(n, "", capiClustersNamespace, a.keosCluster.Metadata.Name); err != nil {
+				return err
 			}
 		}
+		if !skipBackup(a.resume, srcPaused) {
+			// Start from empty dirs: --from-directory restores every file, including those of objects deleted since
+			newBackupPath := localBackupPath + ".new"
+			if err := os.RemoveAll(newBackupPath); err != nil {
+				return errors.Wrap(err, "failed to clean the local backup directory")
+			}
+			if err := os.MkdirAll(newBackupPath, 0755); err != nil {
+				return errors.Wrap(err, "failed to create local backup directory")
+			}
 
-		c = "mkdir -p " + cloudProviderBackupPath + " && chmod -R 0755 " + cloudProviderBackupPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
-		}
+			c = "rm -rf " + cloudProviderBackupPath + " && mkdir -p " + cloudProviderBackupPath + " && chmod -R 0755 " + cloudProviderBackupPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to create cloud-provisioner backup directory")
+			}
 
-		c = "clusterctl move -n " + capiClustersNamespace + " --to-directory " + cloudProviderBackupPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
-		}
+			c = "clusterctl move -n " + capiClustersNamespace + " --to-directory " + cloudProviderBackupPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to backup cloud-provisioner Objects")
+			}
 
-		for _, path := range PathsToBackupLocally {
-			raw := bytes.Buffer{}
-			cmd := exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+n.String()+":"+path+" "+localBackupPath)
-			if err := cmd.SetStdout(&raw).Run(); err != nil {
-				return errors.Wrap(err, "failed to copy "+path+" to local host")
+			for _, path := range PathsToBackupLocally {
+				raw := bytes.Buffer{}
+				cmd := exec.CommandContext(context.Background(), "sh", "-c", "docker cp "+n.String()+":"+path+" "+newBackupPath)
+				if err := cmd.SetStdout(&raw).Run(); err != nil {
+					return errors.Wrap(err, "failed to copy "+path+" to local host")
+				}
+			}
+			// The previous backup is only replaced once the new one is complete
+			if err := replaceDir(newBackupPath, localBackupPath); err != nil {
+				return errors.Wrap(err, "failed to replace the local backup directory")
 			}
 		}
 
 		ctx.Status.End(true)
+		stepDone("backup")
 
 		if !a.moveManagement {
 			ctx.Status.Start("Moving the management role 🗝️")
 			defer ctx.Status.End(false)
 
-			c = "helm uninstall cluster-operator -n kube-system"
+			c = "if helm status cluster-operator -n kube-system >/dev/null 2>&1; then helm uninstall cluster-operator -n kube-system; fi"
 			_, err = commons.ExecuteCommand(n, c, 5, 3)
 			if err != nil {
 				return errors.Wrap(err, "Uninstalling cluster-operator")
@@ -1046,102 +1170,25 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			}
 
 			// Pivot management role to worker cluster
-			c = "clusterctl move -n " + capiClustersNamespace + " --to-kubeconfig " + kubeconfigPath
-			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			moved, err := movePrecheck(n, capiClustersNamespace, a.keosCluster.Metadata.Name)
 			if err != nil {
-				return errors.Wrap(err, "failed to pivot management role to worker cluster")
+				return err
 			}
-
-			if !a.clusterConfig.Spec.GitOpsEnabled {
-				// Wait for keoscluster-controller-manager deployment to be ready
-				c = "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
+			if !moved {
+				c = "clusterctl move -n " + capiClustersNamespace + " --to-kubeconfig " + kubeconfigPath
 				_, err = commons.ExecuteCommand(n, c, 5, 3)
 				if err != nil {
-					return errors.Wrap(err, "failed to wait for keoscluster controller ready")
-				}
-
-				if a.clusterConfig != nil {
-
-					c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
-					_, err = commons.ExecuteCommand(n, c, 5, 3)
-					if err != nil {
-						return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
-					}
-
-					// Move clusterConfig to workload cluster
-					c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-					_, err = commons.ExecuteCommand(n, c, 5, 3)
-					if err != nil {
-						return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
-					}
-
-					// Delete clusterconfig in management cluster
-					c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
-					_, err = commons.ExecuteCommand(n, c, 5, 3)
-					if err != nil {
-						return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
-					}
-
-				}
-
-				// Move keoscluster to workload cluster
-				c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to move keoscluster to workload cluster")
-				}
-
-				c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
-				}
-
-				// Delete keoscluster in management cluster
-				c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
-				_, err = commons.ExecuteCommand(n, c, 5, 3)
-				if err != nil {
-					return errors.Wrap(err, "failed to delete keoscluster in management cluster")
-				}
-
-				err = provider.deployClusterOperator(n, privateParams, a.clusterCredentials, keosRegistry, a.clusterConfig, "", false, helmRegistry)
-				if err != nil {
-					return errors.Wrap(err, "failed to deploy cluster operator")
-				}
-
-				// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
-				if providerParams.Credentials["RoleARN"] != "" {
-					// check awsmanagedcontrolplane exists if not wait till it exists
-					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
-					_, err = commons.ExecuteCommand(n, c, 5, 3)
-					if err != nil {
-						// wait for awsmanagedcontrolplane to be created
-						c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
-						_, err = commons.ExecuteCommand(n, c, 5, 3)
-						if err != nil {
-							return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
-						}
-					}
-					// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
-					c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
-					_, err = commons.ExecuteCommand(n, c, 5, 3)
-					if err != nil {
-						return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
-					}
+					return errors.Wrap(err, "failed to pivot management role to worker cluster")
 				}
 			}
-			ctx.Status.End(true) // End Moving the cluster-operator
+			stepDone("move", func(s *commons.CreateState) { s.Pivoted = true })
+
+			ctx.Status.End(true) // End Moving the management role
 		}
 
-		ctx.Status.Start("Executing post-install steps 🎖️")
-		defer ctx.Status.End(false)
-
-		err = infra.postInstallPhase(n, kubeconfigPath)
-		if err != nil {
+		if err := a.afterPivot(ctx, n, infra, capiClustersNamespace, handover); err != nil {
 			return err
 		}
-
-		ctx.Status.End(true)
 	}
 
 	ctx.Status.Start("Generating the KEOS descriptor 📝")
@@ -1157,11 +1204,127 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 	ctx.Status.End(true) // End Generating KEOS descriptor
+	stepDone(commons.CreateStepDescriptor)
 
 	// Stop kubeconfig refresher if it was started
-	if !a.avoidCreation {
+	if stopRefresher != nil {
 		close(stopRefresher)
 	}
 
+	return nil
+}
+
+// afterPivot hands the KeosCluster over to the operator in the workload cluster and runs the post-install steps (also
+// the whole work of a resumed, already pivoted create).
+func (a *action) afterPivot(ctx *actions.ActionContext, n nodes.Node, infra *Infra, capiClustersNamespace string, h operatorHandover) error {
+	if !a.moveManagement && !a.clusterConfig.Spec.GitOpsEnabled {
+		ctx.Status.Start("Moving the keos cluster operator 🗝️")
+		defer ctx.Status.End(false)
+
+		if err := a.handOverToWorkloadOperator(n, capiClustersNamespace, h); err != nil {
+			return err
+		}
+		ctx.Status.End(true) // End Moving the keos cluster operator
+		stepDone("operator-handover")
+	}
+
+	ctx.Status.Start("Executing post-install steps 🎖️")
+	defer ctx.Status.End(false)
+
+	if err := infra.postInstallPhase(n, kubeconfigPath); err != nil {
+		return err
+	}
+	ctx.Status.End(true)
+	stepDone("post-install")
+	return nil
+}
+
+type operatorHandover struct {
+	provider      Provider
+	privateParams PrivateParams
+	keosRegistry  KeosRegistry
+	helmRegistry  HelmRegistry
+	roleARN       string
+}
+
+// handOverToWorkloadOperator moves the ClusterConfig and KeosCluster to the workload cluster. Each one is copied only
+// while it is still in the bootstrap, so a resume after a partial handover skips what already moved.
+func (a *action) handOverToWorkloadOperator(n nodes.Node, capiClustersNamespace string, h operatorHandover) error {
+	// Wait for keoscluster-controller-manager deployment to be ready
+	c := "kubectl --kubeconfig " + kubeconfigPath + " rollout status deploy keoscluster-controller-manager -n kube-system --timeout=5m"
+	_, err := commons.ExecuteCommand(n, c, 5, 3)
+	if err != nil {
+		return errors.Wrap(err, "failed to wait for keoscluster controller ready")
+	}
+
+	if a.clusterConfig != nil && bootstrapHas(n, capiClustersNamespace, "clusterconfig", a.clusterConfig.Metadata.Name) {
+		c = "kubectl -n " + capiClustersNamespace + " patch clusterconfig " + a.clusterConfig.Metadata.Name + " -p '{\"metadata\":{\"ownerReferences\":null,\"finalizers\":null}}' --type=merge"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to remove clusterconfig ownerReferences and finalizers")
+		}
+
+		// Move clusterConfig to workload cluster
+		c = "kubectl -n " + capiClustersNamespace + " get clusterconfig " + a.clusterConfig.Metadata.Name + " -o json | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
+		_, err = commons.ExecuteCommand(n, copyIfAbsentIn(kubeconfigPath, capiClustersNamespace, "clusterconfig", a.clusterConfig.Metadata.Name, c), 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to move clusterconfig to workload cluster")
+		}
+
+		// Delete clusterconfig in management cluster
+		c = "kubectl -n " + capiClustersNamespace + " delete clusterconfig " + a.clusterConfig.Metadata.Name
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete clusterconfig in management cluster")
+		}
+	}
+
+	if bootstrapHas(n, capiClustersNamespace, "keoscluster", a.keosCluster.Metadata.Name) {
+		// Move keoscluster to workload cluster
+		c = "kubectl -n " + capiClustersNamespace + " get keoscluster " + a.keosCluster.Metadata.Name + " -o json | jq 'del(.status)' | kubectl apply --kubeconfig " + kubeconfigPath + " -f-"
+		_, err = commons.ExecuteCommand(n, copyIfAbsentIn(kubeconfigPath, capiClustersNamespace, "keoscluster", a.keosCluster.Metadata.Name, c), 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to move keoscluster to workload cluster")
+		}
+
+		c = "kubectl -n " + capiClustersNamespace + " patch keoscluster " + a.keosCluster.Metadata.Name + " -p '{\"metadata\":{\"finalizers\":null}}' --type=merge"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to scale keoscluster deployment to 1")
+		}
+
+		// Delete keoscluster in management cluster
+		c = "kubectl -n " + capiClustersNamespace + " delete keoscluster " + a.keosCluster.Metadata.Name
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete keoscluster in management cluster")
+		}
+	}
+
+	err = h.provider.deployClusterOperator(n, h.privateParams, a.clusterCredentials, h.keosRegistry, a.clusterConfig, "", false, h.helmRegistry)
+	if err != nil {
+		return errors.Wrap(err, "failed to deploy cluster operator")
+	}
+
+	// [EKS] Patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity
+	if h.roleARN != "" {
+		// check awsmanagedcontrolplane exists if not wait till it exists
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " get awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			// wait for awsmanagedcontrolplane to be created
+			c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " wait --for=condition=Available --timeout=5m awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane"
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to wait for awsmanagedcontrolplane to be created")
+			}
+		}
+		// patch awsmanagedcontrolplane to use identityRef AWSClusterRoleIdentity with name "<cluster-name>-role-identity"
+		c = "kubectl --kubeconfig " + kubeconfigPath + " -n cluster-" + a.keosCluster.Metadata.Name + " patch awsmanagedcontrolplane " + a.keosCluster.Metadata.Name + "-control-plane --type='merge' -p '{\"spec\": {\"identityRef\": {\"kind\": \"AWSClusterRoleIdentity\", \"name\": \"" + a.keosCluster.Metadata.Name + "-role-identity\"}}}'"
+		_, err = commons.ExecuteCommand(n, c, 5, 3)
+		if err != nil {
+			return errors.Wrap(err, "Failed to patch AWSManagedControlPlane to use identityRef AWSClusterRoleIdentity")
+		}
+	}
 	return nil
 }
