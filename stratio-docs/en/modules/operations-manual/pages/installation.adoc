@@ -731,7 +731,7 @@ Two use cases of the descriptor demonstrate the capability of _Stratio Cloud Pro
 In this example, the following particularities can be seen:
 
 * Cluster on AWS with managed _control-plane_ (EKS).
-* Kubernetes version 1.26.x (EKS does not consider the patch version).
+* Kubernetes version 1.37.x (EKS does not consider the patch version).
 * Use of ECR as a Docker registry (does not require credentials).
 * Use of custom VPC and subnets (previously created). This section is optional.
 * Definition of a default _StorageClass_. This section is optional.
@@ -766,7 +766,7 @@ spec:
       secret_key: wq3/Vsc..
       role_arn: arn:aws:iam::3683675..:role/my-aws-role
     github_token: github_pat_11APW..
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: eu-west-1
   external_domain: domain.ext
   networks:
@@ -794,7 +794,6 @@ spec:
   deploy_autoscaler: false
   keos:
     flavour: production
-    version: 1.3.x
   security:
     aws:
       create_iam: true
@@ -834,9 +833,9 @@ spec:
       size: t3.medium
       az: eu-west-1c
     - name: eks-prod-custom-ami
-      quantity: 2
+      quantity: 3
       max_size: 6
-      min_size: 2
+      min_size: 3
       size: m6i.large
       node_image: "ami-0a1234567890abcde"
       labels:
@@ -876,7 +875,7 @@ NOTE: The `eks-prod-xlarge` group is a _MachinePool_ group (without `node_image`
 In this example, the following particularities can be seen:
 
 * Cluster on GCP with managed control-plane.
-* Kubernetes version 1.28.x.
+* Kubernetes version 1.37.x.
 * Use of a _gar_ type Docker registry.
 * Use of a _gar_ type Helm repository.
 * _enable++_++secure++_++boot_ (enabled by default).
@@ -934,7 +933,7 @@ spec:
         - "https://www.googleapis.com/auth/cloud-platform"
         - "https://www.googleapis.com/auth/userinfo.email"
     enable_secure_boot: true
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: europe-west4
   docker_registries:
       - url: europe-docker.pkg.dev/stratio-keos/keos
@@ -960,7 +959,6 @@ spec:
       labels: "owner=stratio"
   keos:
     flavour: production
-    version: 1.3.x
   control_plane:
     managed: true
     gcp:
@@ -1000,6 +998,8 @@ spec:
       size: c2d-highcpu-8
       labels:
         disktype: standard
+      additional_labels:
+        goog-gke-node-pool-provisioning-model: on-demand
       root_volume:
         size: 50
         type: pd-standard
@@ -1009,6 +1009,8 @@ spec:
       quantity: 3
       size: c2d-highcpu-4
       az: europe-west4-a
+      additional_labels:
+        goog-gke-node-pool-provisioning-model: on-demand
 ---
 apiVersion: installer.stratio.com/v1beta1
 kind: ClusterConfig
@@ -1057,7 +1059,7 @@ spec:
       client_secret: lSF8Q~n..
       subscription_id: '6e2a38cd-e..'
       tenant_id: '9c2f8eb6-5..'
-  k8s_version: v1.32.x
+  k8s_version: v1.37.x
   region: westeurope
   docker_registries:
     - url: eosregistry.azurecr.io/keos
@@ -1077,7 +1079,6 @@ spec:
     manage_zone: false
   keos:
     flavour: production
-    version: 1.3.x
   security:
     control_plane_identity: "/subscriptions/6e2a38cd-../stratio-control-plane"
     nodes_identity: "/subscriptions/6e2a38cd-../stratio-nodes"
@@ -1114,7 +1115,6 @@ The binary currently offers the following options:
 - `-d, --descriptor <string>`: allows specifying the name of the descriptor located in the current directory or another. Default: _cluster.yaml_.
 - `-h, --help`: shows the help of the command.
 - `--keep-mgmt`: keeps the management of the cluster on kind (only in *non-production* environments).
-- `--local-stratio-image-version <string>`: overrides the local version of the _Stratio Cloud Provisioner_ image when `use-local-stratio-image` is used.
 - `-n, --name <string>`: name of the cluster; overrides the `KIND_CLUSTER_NAME` variable. Default value: _kind_.
 - `--retain`: retains the nodes for debugging in case the cluster creation fails.
 - `--use-local-stratio-image`: uses the local _Stratio Cloud Provisioner_ image without building it or downloading it.
@@ -1170,15 +1170,21 @@ NOTE: Since the installation descriptor file (_keos.yaml_) is regenerated on eac
 
 Applies to EKS with _MachinePool_ groups and `deploy_autoscaler: true` (on GKE, _Stratio Cloud Provisioner_ does not deploy _cluster-autoscaler_).
 
-IMPORTANT: Once the cluster is created, the default _cluster-autoscaler_ image must be replaced with the Stratio image `v1.35.2`. This image includes the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), which is not yet included in any official version of _cluster-autoscaler_.
+IMPORTANT: _cluster-autoscaler_ must use the Stratio image `v1.36.1`, the same for Kubernetes 1.36 and 1.37 clusters. This image includes the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), which is not yet included in any official version of _cluster-autoscaler_. *The official image `registry.k8s.io/autoscaling/cluster-autoscaler:v1.36.1` has the same _tag_ but doesn't include the fix.* With it, the scale-down of _MachinePool_ groups fails with the error `unknown machine for node`. The two images can only be told apart by their _digest_; the Stratio image's is `sha256:076ed41adf5e4131488b99ae447e4b0d51675f5bcf963a4068ddfe7caeca4098`.
 
-The image is published in `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2`. Replicate it in the cluster's Docker registry (the one marked with `keos_registry: true` in the descriptor) before applying the change:
+What _Stratio Cloud Provisioner_ deploys depends on the registry:
+
+* With a private registry (`private_registry: true`) and no ECR _pull-through cache_, it deploys `<registry>/autoscaling/cluster-autoscaler:v1.36.1`. If you replicate the Stratio image there before creating the cluster, there's nothing else to do.
+* With ECR _pull-through cache_ (`ecr_pull_through_cache_enabled: true`), it deploys `<registry>/k8s/autoscaling/cluster-autoscaler:v1.36.1`, which the cache serves from the official image. Follow the steps in this section.
+* Without a private registry, it deploys the official image from `registry.k8s.io`. Follow the steps in this section too.
+
+The image is published in `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1`. Replicate it in the cluster's Docker registry (the one marked with `keos_registry: true` in the descriptor):
 
 [source,bash]
 ----
-docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2
-docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2 <registry>/autoscaling/cluster-autoscaler:v1.35.2
-docker push <registry>/autoscaling/cluster-autoscaler:v1.35.2
+docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1
+docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.36.1 <registry>/autoscaling/cluster-autoscaler:v1.36.1
+docker push <registry>/autoscaling/cluster-autoscaler:v1.36.1
 ----
 
 NOTE: If the registry uses ECR pull-through cache (`ecr_pull_through_cache_enabled`), the image is not served through the cache: the `repository` must point to `<registry>/autoscaling/cluster-autoscaler`, not to `<registry>/k8s/autoscaling/cluster-autoscaler`.
@@ -1198,7 +1204,7 @@ data:
   values.yaml: |
     image:
       repository: <registry>/autoscaling/cluster-autoscaler
-      tag: v1.35.2
+      tag: v1.36.1
 ----
 
 . Force the reconciliation of the _HelmRelease_:
@@ -1209,12 +1215,14 @@ kubectl -n kube-system annotate helmrelease cluster-autoscaler \
   reconcile.fluxcd.io/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --overwrite
 ----
 
-. Verify that the pods use the new image:
+. Verify that the pods run the Stratio image. Check the _digest_, not the _tag_, because the official image has the same _tag_:
 +
 [source,bash]
 ----
-kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].imageID}{"\n"}{end}' | grep cluster-autoscaler
 ----
++
+*Expected output:* every `cluster-autoscaler` pod ends in `sha256:076ed41adf5e4131488b99ae447e4b0d51675f5bcf963a4068ddfe7caeca4098`.
 
 === Load balancer
 
