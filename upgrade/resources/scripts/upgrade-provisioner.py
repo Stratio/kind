@@ -118,6 +118,14 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
 
+# Image hosts create cluster replaces with the keos registry in private mode (templates/*/<minor>/*-helm-values.tmpl).
+PUBLIC_IMAGE_REGISTRIES = {"quay.io", "docker.io", "registry.k8s.io", "ghcr.io", "public.ecr.aws", "mcr.microsoft.com"}
+# A previous keos registry in another account/region/project (ECR, ACR, GAR, GCR).
+PRIVATE_IMAGE_REGISTRY_PATTERNS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+GCR_IMAGE_REGISTRIES = {"gcr.io", "eu.gcr.io", "us.gcr.io", "asia.gcr.io"}
+# Registries owned by the cloud provider (EKS add-on images), never moved.
+PROVIDER_OWNED_IMAGE_REGISTRIES = ("602401143452.dkr.ecr.",)
+
 # AWS only: same manifest as create cluster (pkg/cluster/internal/create/actions/createworker/files/aws/aws-node_rbac.yaml).
 AWS_NODE_ANNOTATE_POD_IP_RBAC = """---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1064,6 +1072,36 @@ def render_values_template(values_file, keos_cluster, cluster_config):
     except Exception as e:
         raise e
 
+def rewrite_values_image_registry(values, registry_url, chart_name):
+    '''Move the image references of a chart's values to the keos registry, as create cluster renders them in private mode'''
+
+    registry_url = registry_url.rstrip("/")
+    registry_path_segments = len([s for s in registry_url.split("/")[1:] if s])
+    line_re = re.compile(r'^(\s*-?\s*(?:image|repository|registry|imageRepository|baseRepo):\s*["\']?)([^"\'\s#]+)(["\']?\s*)$')
+    changes = []
+    lines = values.split("\n")
+    for i, line in enumerate(lines):
+        match = line_re.match(line)
+        if not match:
+            continue
+        ref = match.group(2)
+        if ref == registry_url or ref.startswith(registry_url + "/"):
+            continue
+        host, _, rest = ref.partition("/")
+        is_public = host in PUBLIC_IMAGE_REGISTRIES
+        is_private = host in GCR_IMAGE_REGISTRIES or any(p in host for p in PRIVATE_IMAGE_REGISTRY_PATTERNS)
+        if not (is_public or is_private) or any(host.startswith(p) for p in PROVIDER_OWNED_IMAGE_REGISTRIES):
+            continue
+        if is_private:
+            # An old keos registry carries the same number of path segments (GAR project/repo, ACR prefix) as the current one.
+            rest = "/".join(rest.split("/")[registry_path_segments:]) if rest else rest
+        new_ref = registry_url + ("/" + rest if rest else "")
+        lines[i] = match.group(1) + new_ref + match.group(3)
+        changes.append(f"{ref} -> {new_ref}")
+    if changes:
+        print(f"\n[INFO] Moving the {chart_name} images to the keos registry: " + ", ".join(changes), end=" ", flush=True)
+    return "\n".join(lines)
+
 def create_default_values(chart_name, namespace, values_file, provider):
     '''Create defaults values file'''
 
@@ -1076,6 +1114,8 @@ def create_default_values(chart_name, namespace, values_file, provider):
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config)
         else:
             values, err = run_command(f"{helm} get values {chart_name} -n {namespace} --output yaml")
+        if is_private_registry_enabled(cluster_config):
+            values = rewrite_values_image_registry(values, get_keos_registry_url(keos_cluster), chart_name)
         if is_ecr_pull_through_enabled(keos_cluster):
             registry_url = get_keos_registry_url(keos_cluster)
             pull_through_substitutions = [
@@ -1556,9 +1596,9 @@ def upgrade_charts(charts, chart_current_versions=None):
     # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
     never_skip = {"cluster-autoscaler", "tigera-operator"}
-    if is_ecr_pull_through_enabled(keos_cluster):
-        # create_default_values() rewrites image paths for pull-through — an already-matching
-        # chart would otherwise SKIP and keep its pre-pull-through path forever.
+    if is_ecr_pull_through_enabled(keos_cluster) or is_private_registry_enabled(cluster_config):
+        # create_default_values() rewrites image paths for pull-through and moves them to the keos
+        # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
     try:
         print(f"[INFO] Updating charts versions:")
