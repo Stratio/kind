@@ -118,6 +118,42 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
 
+# EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
+CLUSTER_AUTOSCALER_EKS_RBAC = """---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterapi-cluster-autoscaler
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: cluster-<CLUSTER_NAME>
+rules:
+  - apiGroups:
+    - infrastructure.cluster.x-k8s.io
+    resources:
+    - awsmanagedmachinepools
+    - awsmachinetemplates
+    verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterapi-cluster-autoscaler
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: cluster-<CLUSTER_NAME>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+subjects:
+- kind: ServiceAccount
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: kube-system"""
+
 # Image hosts create cluster replaces with the keos registry in private mode (templates/*/<minor>/*-helm-values.tmpl).
 PUBLIC_IMAGE_REGISTRIES = {"quay.io", "docker.io", "registry.k8s.io", "ghcr.io", "public.ecr.aws", "mcr.microsoft.com"}
 # A previous keos registry in another account/region/project (ECR, ACR, GAR, GCR).
@@ -165,6 +201,14 @@ CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
     "1.32": "v1.34.2",
     "1.34": "v1.34.2",
     "1.35": "v1.35.9",
+}
+
+# flux2 chart 2.17.2 controller tags, as create cluster sets them (templates/common/<minor>/flux2-helm-values.tmpl).
+FLUX_IMAGE_TAGS = {
+    "cli": "v2.7.5",
+    "helmController": "v1.4.5",
+    "kustomizeController": "v1.7.3",
+    "sourceController": "v1.7.4",
 }
 
 common_charts = {
@@ -464,6 +508,13 @@ def restore_capsule(dry_run):
             execute_command(command, False)
     else:
         print("DRY-RUN")
+
+def ensure_cluster_autoscaler_eks_rbac(cluster_name, dry_run):
+    '''Ensure the cluster-autoscaler Role that create cluster applies on EKS (templates/common/autoscaler_rbac.tmpl), with awsmanagedmachinepools'''
+
+    print("[INFO] Ensuring cluster-autoscaler Role and RoleBinding for AWSManagedMachinePools:", end=" ", flush=True)
+    command = kubectl + " apply -f - <<'EOF'\n" + CLUSTER_AUTOSCALER_EKS_RBAC.replace("<CLUSTER_NAME>", cluster_name) + "\nEOF"
+    execute_command(command, dry_run)
 
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
@@ -1146,6 +1197,27 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def update_flux_image_tag_values(values_file):
+    '''Set the flux2 controller image tags of the target chart, as create cluster does, dropping stale pinned tags of disabled controllers'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for component, tag in FLUX_IMAGE_TAGS.items():
+            if not isinstance(values.get(component), dict):
+                values[component] = {}
+            values[component]['tag'] = tag
+        for component in ("notificationController", "imageAutomationController", "imageReflectionController"):
+            if isinstance(values.get(component), dict):
+                values[component].pop('tag', None)
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 def update_cluster_autoscaler_image_tag_value(values_file):
     '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). This custom image lives
     at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
@@ -1467,6 +1539,8 @@ def upgrade_chart(chart_name, chart_data):
             update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
+        elif release_name == "flux":
+            update_flux_image_tag_values(default_values_file)
         # elif release_name == "cluster-autoscaler" and provider == "aws":
         #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.59.0/v1.35.0)
         #     update_cluster_autoscaler_image_tag_value(default_values_file)
@@ -1593,9 +1667,9 @@ def upgrade_charts(charts, chart_current_versions=None):
     reconciliation is idempotent — verified live, re-running an unchanged chart creates no new revision).'''
 
     chart_current_versions = chart_current_versions or {}
-    # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
+    # cluster-autoscaler/tigera-operator/flux2 carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
-    never_skip = {"cluster-autoscaler", "tigera-operator"}
+    never_skip = {"cluster-autoscaler", "tigera-operator", "flux2"}
     if is_ecr_pull_through_enabled(keos_cluster) or is_private_registry_enabled(cluster_config):
         # create_default_values() rewrites image paths for pull-through and moves them to the keos
         # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
@@ -1983,6 +2057,36 @@ def patch_clusterctl_images(registry_url):
 
     print("OK")
 
+def release_cert_manager_from_clusterctl(dry_run):
+    '''Remove the clusterctl ownership label/annotation from cert-manager objects when the cert-manager HelmRelease manages it'''
+
+    # clusterctl upgrade replaces cert-manager whenever it finds objects labelled core=cert-manager in these namespaces,
+    # judging the version by its own annotation, not the running one (cluster-api v1.10.10 cert_manager.go:60,246-296,336-391).
+    label = "clusterctl.cluster.x-k8s.io/core"
+    annotation = "certmanager.clusterctl.cluster.x-k8s.io/version"
+    print("[INFO] Releasing the Helm-managed cert-manager from clusterctl:", end=" ", flush=True)
+    helmrelease, _ = run_command(f"{kubectl} -n cert-manager get helmrelease cert-manager --ignore-not-found -o name", allow_errors=True)
+    if not helmrelease.strip():
+        print("SKIP (no cert-manager HelmRelease)")
+        return
+    objs = []
+    for ns in ["cert-manager", "kube-system"]:
+        out, _ = run_command(f"{kubectl} -n {ns} get all,sa,role,rolebinding,secret,configmap -l {label}=cert-manager -o name", allow_errors=True)
+        objs += [(ns, o) for o in out.split()]
+    out, _ = run_command(f"{kubectl} get clusterrole,clusterrolebinding,crd,mutatingwebhookconfiguration,validatingwebhookconfiguration -l {label}=cert-manager -o name", allow_errors=True)
+    objs += [(None, o) for o in out.split()]
+    if not objs:
+        print("SKIP (no clusterctl-labelled objects)")
+        return
+    if dry_run:
+        print(f"DRY-RUN ({len(objs)} objects)")
+        return
+    for ns, obj in objs:
+        ns_flag = f"-n {ns} " if ns else ""
+        execute_command(f"{kubectl} {ns_flag}label {obj} {label}-", False, False)
+        execute_command(f"{kubectl} {ns_flag}annotate {obj} {annotation}-", False, False)
+    print(f"OK ({len(objs)} objects)")
+
 def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     '''Upgrade CAPI core/infra providers via clusterctl. clusterctl always scales down and
     recreates each provider's Deployment even if already at target version (upgrader.go
@@ -2005,6 +2109,8 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     ):
         print("[INFO] Upgrading Cluster API providers: already at target versions: SKIP")
         return
+
+    release_cert_manager_from_clusterctl(config["dry_run"])
 
     print("[INFO] Upgrading Cluster API providers:", end=" ", flush=True)
 
@@ -3140,6 +3246,7 @@ if __name__ == '__main__':
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
+        ensure_cluster_autoscaler_eks_rbac(cluster_name, config["dry_run"])
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)
