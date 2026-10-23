@@ -10,7 +10,7 @@
 #   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 import argparse
 import os
@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.8"
+CLOUD_PROVISIONER = "0.9.9"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
@@ -117,6 +117,38 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
+
+# AWS only: same manifest as create cluster (pkg/cluster/internal/create/actions/createworker/files/aws/aws-node_rbac.yaml).
+AWS_NODE_ANNOTATE_POD_IP_RBAC = """---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: aws-node
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-node-annotate-pod-ip
+subjects:
+- kind: ServiceAccount
+  name: aws-node
+  namespace: kube-system"""
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
@@ -425,41 +457,12 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def patch_clusterrole_aws_node(dry_run):
-    '''Patch aws-node ClusterRole'''
+def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
+    '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
 
-    aws_node_clusterrole_name = "aws-node"
-    print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
-    if not dry_run:
-        command = f"{kubectl} get clusterrole -o json {aws_node_clusterrole_name} | jq -r '.rules'"
-        cluster_role_rules_output = execute_command(command, False, False)
-
-        try:
-            cluster_role_rules = json.loads(cluster_role_rules_output)
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse ClusterRole rules as JSON: {e}")
-            sys.exit(1)
-
-        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rules) if 'pods' in rule.get('resources', [])), None)
-        if rule_pods_index is not None:
-            verbs = cluster_role_rules[rule_pods_index].get('verbs', [])
-            if 'patch' not in verbs:
-                patch = [
-                    {
-                        "op": "add",
-                        "path": f"/rules/{rule_pods_index}/verbs/-",
-                        "value": "patch"
-                    }
-                ]
-                patch_command = f"{kubectl} patch clusterrole {aws_node_clusterrole_name} --type=json -p='{json.dumps(patch)}'"
-                execute_command(patch_command, False, True)
-            else:
-                print("SKIP")
-        else:
-            print(f"[ERROR] Pods resource not found in the ClusterRole {aws_node_clusterrole_name}")
-            sys.exit(1)
-    else:
-        print("DRY-RUN")
+    print("[INFO] Ensuring aws-node-annotate-pod-ip ClusterRole and ClusterRoleBinding:", end=" ", flush=True)
+    command = kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
+    execute_command(command, dry_run)
 
 def scale_cluster_autoscaler(replicas, dry_run):
     '''Scale cluster-autoscaler deployment'''
@@ -3094,6 +3097,9 @@ if __name__ == '__main__':
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     scale_cluster_autoscaler(0, config["dry_run"])
+
+    if provider == "aws":
+        ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)

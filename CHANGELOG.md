@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.9 (upcoming)
+
+* [PLT-5116] `upgrade-provisioner.py` (EKS): before the upgrade, ensure the `aws-node-annotate-pod-ip` ClusterRole and ClusterRoleBinding that `create cluster` applies since 0.17.0-0.6.0. Clusters created with earlier versions only had the `patch` permission on pods inside the `aws-node` ClusterRole, which the vpc-cni addon rewrites without it when the Kubernetes version bump re-applies it; once CAPA sets `ANNOTATE_POD_IP` again, new pods get no IP address. The step also runs on a relaunch. Drop the unused `patch_clusterrole_aws_node`
+* [PLT-5116] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.8 → 0.9.9)
+
 ## 0.9.8 (2026-10-16)
 
 * [PLT-5022] Installation docs (Azure VMs): document the extra permissions the deployment user needs to run the Stratio KEOS external-dns prerequisite — new `stratio-azure-keos-dns-role.json` attachment (public and private DNS zones, private zone link to the VNet and role assignments, with their deletes), which complements the deployment user role, and the Microsoft Graph `Application.ReadWrite.OwnedBy` application permission granted by an Entra ID administrator
