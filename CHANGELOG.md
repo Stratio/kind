@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 * [PLT-5116] `upgrade-provisioner.py` (EKS): before the upgrade, ensure the `aws-node-annotate-pod-ip` ClusterRole and ClusterRoleBinding that `create cluster` applies since 0.17.0-0.6.0. Clusters created with earlier versions only had the `patch` permission on pods inside the `aws-node` ClusterRole, which the vpc-cni addon rewrites without it when the Kubernetes version bump re-applies it; once CAPA sets `ANNOTATE_POD_IP` again, new pods get no IP address. The step also runs on a relaunch. Drop the unused `patch_clusterrole_aws_node`
 * [PLT-5116] Bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.8 → 0.9.9)
+* [PLT-5116] The `cloud-provisioner-upgrade` image ships `clusterawsadm` from the same CAPA release the upgrade installs (v2.9.3, the version `create cluster` uses on 0.9.x), so `clusterawsadm bootstrap iam create-cloudformation-stack` can be run from the upgrade container. The new `aws-secrets-exec.py` runs it with the AWS access key of the secrets file, the same identity `create cluster` uses for `clusterawsadm`, instead of any mounted AWS profile: `python3 aws-secrets-exec.py -p <vault-password> -- clusterawsadm bootstrap iam create-cloudformation-stack --config <file>`
 
 ## 0.9.8 (2026-10-16)
 

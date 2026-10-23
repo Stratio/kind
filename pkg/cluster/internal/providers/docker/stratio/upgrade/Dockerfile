@@ -103,6 +103,13 @@ RUN curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/${C
     chmod +x /usr/local/bin/clusterctl
 
 # =========================
+# Install clusterawsadm (same release as the CAPA version the upgrade installs)
+# =========================
+RUN curl -L https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/download/${CAPA}/clusterawsadm-linux-amd64 \
+    -o /usr/local/bin/clusterawsadm && \
+    chmod +x /usr/local/bin/clusterawsadm
+
+# =========================
 # Prepare Cluster API local repository
 # =========================
 RUN mkdir -p \
@@ -160,6 +167,7 @@ COPY ${UPGRADE_DIR}/templates /upgrade/templates
 COPY ${UPGRADE_DIR}/upgrade-provisioner.py /upgrade
 COPY ${UPGRADE_DIR}/activate-capa-machinepool-features.py /upgrade
 COPY ${UPGRADE_DIR}/ecr_pull_through.py /upgrade
+COPY ${UPGRADE_DIR}/aws-secrets-exec.py /upgrade
 COPY ${UPGRADE_DIR}/requirements.txt /upgrade
 
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
