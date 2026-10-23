@@ -2704,25 +2704,51 @@ def configure_gcp_credentials(vault_secrets_data):
         gcp_creds = vault_secrets_data['secrets']['gcp']['credentials']
         project_id = gcp_creds['project_id']
 
-        # Check if service_account_key exists (JSON key content)
-        if 'service_account_key' in gcp_creds:
-            # Write service account key to temporary file
-            import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as key_file:
-                json.dump(gcp_creds['service_account_key'], key_file)
-                key_path = key_file.name
+        # Service account key: either the JSON content (service_account_key) or the
+        # loose fields keos-installer writes to secrets.yml (client_email, private_key, ...)
+        key_data = gcp_creds.get('service_account_key')
+        if not key_data and 'client_email' in gcp_creds and 'private_key' in gcp_creds:
+            key_data = {
+                "type": "service_account",
+                "project_id": project_id,
+                "private_key_id": gcp_creds.get('private_key_id', ''),
+                "private_key": gcp_creds['private_key'],
+                "client_email": gcp_creds['client_email'],
+                "client_id": gcp_creds.get('client_id', ''),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        if not key_data:
+            print("FAILED")
+            print("[ERROR] secrets.gcp.credentials has neither service_account_key nor client_email/private_key")
+            sys.exit(1)
 
-            # Activate service account
-            activate_cmd = f"gcloud auth activate-service-account --key-file={key_path} --quiet"
-            result = subprocess.run(activate_cmd, shell=True, capture_output=True, text=True)
+        # Write service account key to temporary file
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as key_file:
+            json.dump(key_data, key_file)
+            key_path = key_file.name
 
-            # Clean up key file
-            os.remove(key_path)
+        # Activate service account
+        activate_cmd = f"gcloud auth activate-service-account --key-file={key_path} --quiet"
+        result = subprocess.run(activate_cmd, shell=True, capture_output=True, text=True)
 
-            if result.returncode != 0:
-                print("FAILED")
-                print(f"[ERROR] gcloud auth failed: {result.stderr}")
-                sys.exit(1)
+        # Clean up key file
+        os.remove(key_path)
+
+        if result.returncode != 0:
+            print("FAILED")
+            print(f"[ERROR] gcloud auth failed: {result.stderr}")
+            sys.exit(1)
+
+        # The active account must be the one from secrets.yml, not the VM default one
+        expected_account = key_data.get('client_email')
+        active_account = subprocess.run("gcloud config get-value account", shell=True,
+                                        capture_output=True, text=True).stdout.strip()
+        if expected_account and active_account != expected_account:
+            print("FAILED")
+            print(f"[ERROR] Active gcloud account is {active_account or 'none'}, expected {expected_account}")
+            sys.exit(1)
 
         # Set default project
         project_cmd = f"gcloud config set project {project_id} --quiet"
