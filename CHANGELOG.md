@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.9 (upcoming)
+
+* [PLT-5130] `upgrade-provisioner.py` (GKE): activate the service account from the loose fields `keos-installer` writes to `secrets.yml` (`client_email`, `private_key`, `private_key_id`, ...). It was only activated when `secrets.gcp.credentials` carried a `service_account_key`, so with the usual `secrets.yml` gcloud kept the VM default account, the script still printed `Configuring GCP gcloud credentials OK` and, on a VM without the `cloud-platform` scope, the kubeconfig refresh failed with `403 insufficient authentication scopes`. It now fails when `secrets.yml` has no usable service account, or when the active account is not the one in `secrets.yml`
+
 ## 0.9.8 (2026-10-16)
 
 * [PLT-5022] Installation docs (Azure VMs): document the extra permissions the deployment user needs to run the Stratio KEOS external-dns prerequisite — new `stratio-azure-keos-dns-role.json` attachment (public and private DNS zones, private zone link to the VNet and role assignments, with their deletes), which complements the deployment user role, and the Microsoft Graph `Application.ReadWrite.OwnedBy` application permission granted by an Entra ID administrator
