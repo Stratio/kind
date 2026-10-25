@@ -102,8 +102,8 @@ kubectl get pods -n kube-system -l app.kubernetes.io/name=keoscluster-controller
 +
 [source,bash]
 ----
-kubectl logs -n capi-system deploy/capi-controller-manager | grep -i error
-kubectl logs -n kube-system deploy/keoscluster-controller-manager | grep -i error
+kubectl logs -n capi-system deploy/capi-controller-manager --since=1h | grep -i error
+kubectl logs -n kube-system deploy/keoscluster-controller-manager --since=1h | grep -i error
 ----
 +
 *Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.

@@ -149,7 +149,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager | grep -i error
+  kubectl logs -n capa-system deploy/capa-controller-manager --since=1h | grep -i error
 ----
 +
 *Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.
