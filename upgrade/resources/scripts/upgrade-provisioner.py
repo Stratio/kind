@@ -524,27 +524,27 @@ def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     execute_command(command, dry_run)
 
 def scale_cluster_autoscaler(replicas, dry_run):
-    '''Scale cluster-autoscaler deployment'''
+    '''Scale cluster-autoscaler deployment and return the replicas it had (None if not deployed)'''
 
     command = kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --ignore-not-found -o=jsonpath='{.spec.replicas}'"
     output = execute_command(command, False, False)
 
     if output.strip() == "":
         print("[INFO] Cluster autoscaler not deployed: SKIP")
-        return
+        return None
 
     current_replicas = int(output)
 
     if current_replicas == replicas:
         print("[INFO] Cluster autoscaler already at desired replicas: SKIP")
-        return
+        return current_replicas
 
     scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
     print(f"[INFO] {scaling_type} cluster autoscaler replicas:", end=" ", flush=True)
 
     if dry_run:
         print("DRY-RUN")
-        return
+        return current_replicas
 
     # Scale
     command = kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
@@ -555,6 +555,7 @@ def scale_cluster_autoscaler(replicas, dry_run):
     execute_command(command, False, False)
 
     print("OK")
+    return current_replicas
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
     '''Wait for the KeosCluster to be ready'''
@@ -3242,7 +3243,8 @@ if __name__ == '__main__':
         config["helm_repository_override"] = helm_repository
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
-    scale_cluster_autoscaler(0, config["dry_run"])
+    # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
+    cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
@@ -3359,6 +3361,10 @@ if __name__ == '__main__':
 
     upgrade_charts(charts_to_upgrade, chart_current_versions)
     print("[INFO] All charts updated successfully")
+
+    # The cluster-autoscaler chart upgrade brings it back to its replicaCount: keep it at 0 until the end
+    print("[INFO] Scaling cluster-autoscaler back to 0 after the charts update")
+    scale_cluster_autoscaler(0, config["dry_run"])
 
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -3518,7 +3524,7 @@ if __name__ == '__main__':
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
 
     print("[INFO] Restoring cluster-autoscaler replicas")
-    scale_cluster_autoscaler(2, config["dry_run"])
+    scale_cluster_autoscaler(cluster_autoscaler_replicas, config["dry_run"])
 
     end_time = time.time()
     elapsed_time = end_time - start_time
