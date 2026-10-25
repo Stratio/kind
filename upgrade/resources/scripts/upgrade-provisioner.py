@@ -115,7 +115,7 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
-# fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
+# fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
 
 # EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
@@ -1542,9 +1542,8 @@ def upgrade_chart(chart_name, chart_data):
             update_tigera_operator_image_tag_value(default_values_file)
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
-        # elif release_name == "cluster-autoscaler" and provider == "aws":
-        #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.59.0/v1.35.0)
-        #     update_cluster_autoscaler_image_tag_value(default_values_file)
+        elif release_name == "cluster-autoscaler" and provider == "aws":
+            update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
 
