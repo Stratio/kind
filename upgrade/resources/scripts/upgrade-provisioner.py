@@ -118,6 +118,9 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
 
+# EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
+EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+
 # EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
 CLUSTER_AUTOSCALER_EKS_RBAC = """---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -515,6 +518,24 @@ def ensure_cluster_autoscaler_eks_rbac(cluster_name, dry_run):
     print("[INFO] Ensuring cluster-autoscaler Role and RoleBinding for AWSManagedMachinePools:", end=" ", flush=True)
     command = kubectl + " apply -f - <<'EOF'\n" + CLUSTER_AUTOSCALER_EKS_RBAC.replace("<CLUSTER_NAME>", cluster_name) + "\nEOF"
     execute_command(command, dry_run)
+
+def ensure_mp_role_name(cluster_name, dry_run):
+    '''Set KeosCluster spec.control_plane.aws.mp_role_name to the clusterawsadm EKS nodegroup role when unset; cluster-operator uses it as roleName of every AWSManagedMachinePool'''
+
+    print("[INFO] Ensuring KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
+    current, _ = run_command(f"{kubectl} -n cluster-{cluster_name} get keoscluster {cluster_name} -o jsonpath='{{.spec.control_plane.aws.mp_role_name}}'", allow_errors=True)
+    if current.strip():
+        print(f"SKIP (already set: {current.strip()})")
+        return
+    role, err = run_command(f"aws iam get-role --role-name {EKS_NODEGROUP_ROLE} --query Role.RoleName --output text", allow_errors=True)
+    if role.strip() != EKS_NODEGROUP_ROLE:
+        print("WARN")
+        print(f"[WARN] IAM role {EKS_NODEGROUP_ROLE} not found or not readable: {err.strip()}")
+        print(f"[WARN] To give MachinePools a fixed role, create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: "
+              f"kubectl -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{{\"spec\":{{\"control_plane\":{{\"aws\":{{\"mp_role_name\":\"{EKS_NODEGROUP_ROLE}\"}}}}}}}}'")
+        return
+    patch = json.dumps({"spec": {"control_plane": {"aws": {"mp_role_name": EKS_NODEGROUP_ROLE}}}})
+    execute_command(f"{kubectl} -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{patch}'", dry_run)
 
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
@@ -1320,13 +1341,12 @@ def update_tigera_operator_image_tag_value(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def create_empty_values_file(values_file):
-    ''' Create an empty values file'''
+def create_override_values_file(configmap_name, namespace, values_file):
+    '''Write the current values of the override ConfigMap (empty if it does not exist), so the user's overrides survive the chart upgrade'''
 
-    try:
-        open(values_file, 'w').close()
-    except Exception as e:
-        raise e
+    values, _ = run_command(f"{kubectl} -n {namespace} get configmap {configmap_name} --ignore-not-found -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    with open(values_file, 'w') as file:
+        file.write(values)
 
 def create_configmap_from_values(configmap_name, namespace, values_file):
     '''Create a ConfigMap from values'''
@@ -1523,11 +1543,11 @@ def upgrade_chart(chart_name, chart_data):
             repo_schema = "oci"
 
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
-    empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
+    override_values_file = f"/tmp/{release_name}_override_values.yaml"
 
     # Cleanup function for temp files
     def cleanup_temp_files():
-        for temp_file in [default_values_file, empty_values_file]:
+        for temp_file in [default_values_file, override_values_file]:
             if os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
@@ -1547,10 +1567,10 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
 
-        create_empty_values_file(empty_values_file)
+        create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
         create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
-        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
+        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
         helm_repo_data = {
             'repository_name': repo_name,
@@ -3521,6 +3541,9 @@ if __name__ == '__main__':
         print("[INFO] keoscluster-controller-manager is Available")
     except Exception as e:
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
+
+    if provider == "aws":
+        ensure_mp_role_name(cluster_name, config["dry_run"])
 
     print("[INFO] Restoring cluster-autoscaler replicas")
     scale_cluster_autoscaler(cluster_autoscaler_replicas, config["dry_run"])
