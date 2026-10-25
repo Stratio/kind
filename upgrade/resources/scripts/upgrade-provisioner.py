@@ -527,15 +527,34 @@ def ensure_mp_role_name(cluster_name, dry_run):
     if current.strip():
         print(f"SKIP (already set: {current.strip()})")
         return
+    manual_patch = (f"kubectl -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p "
+                    f"'{{\"spec\":{{\"control_plane\":{{\"aws\":{{\"mp_role_name\":\"{EKS_NODEGROUP_ROLE}\"}}}}}}}}'")
     role, err = run_command(f"aws iam get-role --role-name {EKS_NODEGROUP_ROLE} --query Role.RoleName --output text", allow_errors=True)
     if role.strip() != EKS_NODEGROUP_ROLE:
         print("WARN")
         print(f"[WARN] IAM role {EKS_NODEGROUP_ROLE} not found or not readable: {err.strip()}")
-        print(f"[WARN] To give MachinePools a fixed role, create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: "
-              f"kubectl -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{{\"spec\":{{\"control_plane\":{{\"aws\":{{\"mp_role_name\":\"{EKS_NODEGROUP_ROLE}\"}}}}}}}}'")
+        print(f"[WARN] To give MachinePools a fixed role, create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: {manual_patch}")
         return
+    if dry_run:
+        print("DRY-RUN")
+        return
+    print("role found")
+    # The KeosCluster webhook rejects updates until the cluster is ready (e.g. right after a k8s_version bump)
+    try:
+        wait_for_keoscluster_settled(cluster_name)
+    except Exception as e:
+        print("TIMEOUT")
+        print(f"[WARN] {e}: mp_role_name not set. Once the KeosCluster is ready, run: {manual_patch}")
+        return
+    print("[INFO] Setting KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
     patch = json.dumps({"spec": {"control_plane": {"aws": {"mp_role_name": EKS_NODEGROUP_ROLE}}}})
-    execute_command(f"{kubectl} -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{patch}'", dry_run)
+    out, err = run_command(f"{kubectl} -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{patch}'", allow_errors=True)
+    if "patched" not in out:
+        print("WARN")
+        print(f"[WARN] Could not set mp_role_name: {err.strip()}")
+        print(f"[WARN] Run it by hand: {manual_patch}")
+        return
+    print("OK")
 
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
@@ -3542,11 +3561,11 @@ if __name__ == '__main__':
     except Exception as e:
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
 
-    if provider == "aws":
-        ensure_mp_role_name(cluster_name, config["dry_run"])
-
     print("[INFO] Restoring cluster-autoscaler replicas")
     scale_cluster_autoscaler(cluster_autoscaler_replicas, config["dry_run"])
+
+    if provider == "aws":
+        ensure_mp_role_name(cluster_name, config["dry_run"])
 
     end_time = time.time()
     elapsed_time = end_time - start_time
