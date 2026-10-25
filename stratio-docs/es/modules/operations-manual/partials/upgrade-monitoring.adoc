@@ -1,0 +1,29 @@
+* Monitorizar _pods_ no sanos. Es un comando genérico, válido para cualquier _provider_, que no depende de una lista de nombres de componentes que pueda quedar desactualizada.
++
+[source,bash]
+----
+watch -n5 'kubectl get pods -A | grep -Ev "Running|Completed"'
+----
++
+NOTE: Es normal ver la cabecera y _pods_ en `Pending`, `ContainerCreating` o `Terminating` mientras se reemplazan; vigila los que se quedan en `CrashLoopBackOff`, `ImagePullBackOff` o `Error`.
+
+* Seguir _HelmReleases_.
++
+[source,bash]
+----
+watch -n2 kubectl get helmreleases -A
+----
+
+* Seguir los nodos. La columna `VERSION` muestra la versión de kubelet de cada nodo.
++
+[source,bash]
+----
+watch -n10 kubectl get nodes
+----
+
+* Seguir las versiones de los proveedores de Cluster API (columna `VERSION`).
++
+[source,bash]
+----
+watch -n2 kubectl get providers -A
+----

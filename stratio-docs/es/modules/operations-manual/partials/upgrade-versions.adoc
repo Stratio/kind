@@ -1,0 +1,24 @@
+Un guion indica que el componente no se usa en ese entorno. Si un _chart_ de la tabla no está en tu _cluster_ (por ejemplo, aws-load-balancer-controller, que es opcional en EKS, o _cluster-autoscaler_ si el _cluster_ se creó sin él), el _script_ lo omite.
+
+[%header,cols="3,2,2,2"]
+|===
+| Componente | EKS | Azure VMs | GKE
+
+| Kubernetes
+| 1.32 → 1.35, solo el _control-plane_ (los grupos _MachineDeployment_ se quedan en 1.32)
+| 1.32 → 1.35
+| 1.32 → 1.35
+
+| _cluster-operator_ | `0.7.5` | `0.7.5` | `0.7.5`
+| _cert-manager_ | `v1.21.2` | `v1.21.2` | `v1.21.2`
+| _flux2_ | `2.17.2` | `2.17.2` | `2.17.2`
+| _tigera-operator_ | `v3.31.7` | `v3.31.7` | -
+| _cluster-autoscaler_ | `9.59.0` | `9.59.0` | -
+| _aws-load-balancer-controller_ | `3.4.0` | - | -
+| _azuredisk-csi-driver_ | - | `1.34.5` | -
+| _azurefile-csi-driver_ | - | `1.35.7` | -
+| _cloud-provider-azure_ | - | `1.35.3` | -
+| _cluster-api_ (CAPI) | `v1.10.10` | `v1.10.10` | `v1.10.10`
+| _bootstrap-kubeadm_ y _control-plane-kubeadm_ | - | `v1.10.10` | -
+| Proveedor de infraestructura | CAPA `v2.9.3` | CAPZ `v1.21.3` | CAPG `1.6.1-0.4.2`
+|===

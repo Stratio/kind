@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.9 (upcoming)
 
 * [PLT-5130] `upgrade-provisioner.py` (GKE): activate the service account from the loose fields `keos-installer` writes to `secrets.yml` (`client_email`, `private_key`, `private_key_id`, ...). It was only activated when `secrets.gcp.credentials` carried a `service_account_key`, so with the usual `secrets.yml` gcloud kept the VM default account, the script still printed `Configuring GCP gcloud credentials OK` and, on a VM without the `cloud-platform` scope, the kubeconfig refresh failed with `403 insufficient authentication scopes`. It now fails when `secrets.yml` has no usable service account, or when the active account is not the one in `secrets.yml`
+* [PLT-5116] Upgrade docs: the 0.7.x → 0.9.x upgrade page becomes a common page (what is upgraded, common requirements, interactive prompts, final checks) plus one step-by-step runbook per environment, starting with EKS: requirements, permissions, upgrade container, pre-checks, IAM stack update, optional ECR pull-through migration, dry-run, real run, monitoring, post-checks, move to MachinePools and troubleshooting. Validated live by following it literally on 0.7.5 clusters
 
 ## 0.9.8 (2026-10-16)
 

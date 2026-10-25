@@ -77,7 +77,7 @@ La actualización solo está admitida en tres entornos, y cualquier otra combina
 * *Azure VMs* en Microsoft Azure, con _control-plane_ no gestionado. Microsoft AKS no está admitido.
 * *GKE* en Google Cloud Platform, con _control-plane_ gestionado.
 
-Queda fuera de esta ficha la migración de grupos de nodos `MachineDeployment` a `MachinePool`, que es una operación distinta, asistida, exclusiva de EKS y posterior a esta actualización: consulta los xref:operations-manual:upgrade.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
+Queda fuera de esta ficha la migración de grupos de nodos `MachineDeployment` a `MachinePool`, que es una operación distinta, asistida, exclusiva de EKS y posterior a esta actualización: consulta los xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
 
 [#components]
 
@@ -580,7 +580,7 @@ Ninguna de estas regresiones bloquea la actualización, pero sí afecta a funcio
 
 | Los grupos de nodos siguen siendo `MachineDeployment` en EKS
 | Los grupos gestionados por EKS solo se crean en _clusters_ nuevos: la actualización no convierte los grupos existentes.
-| Migrarlos es una operación aparte, asistida y por fases, posterior a esta actualización: consulta los xref:operations-manual:upgrade.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
+| Migrarlos es una operación aparte, asistida y por fases, posterior a esta actualización: consulta los xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
 | Los grupos existentes siguen funcionando como instancias autogestionadas.
 
 | El autoescalado no vuelve solo si la actualización aborta
@@ -763,7 +763,7 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | Modificar el `KeosCluster` con `kubectl apply`
 | En cualquier momento, también fuera de la ventana
 | No lo hagas: `cluster-operator` detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
-| xref:operations-manual:upgrade.adoc#_clusters_eks_con_machinepools[_Clusters_ EKS con _MachinePools_]
+| xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_Clusters_ EKS con _MachinePools_]
 
 | El _scale-down_ de cluster-autoscaler sobre grupos gestionados de EKS
 | Después de la ventana, al retirar nodos de un grupo gestionado
