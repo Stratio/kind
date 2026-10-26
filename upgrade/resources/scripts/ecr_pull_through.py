@@ -250,7 +250,8 @@ def enable_pull_through_in_keos_yaml(backup_dir):
         print(f"[ACTION REQUIRED] Set docker_registry.ecr_pull_through_cache_enabled: true in {KEOS_YAML} by hand")
         return False
     print("OK")
-    print("[ACTION REQUIRED] Set the same value in the keos CR (kubectl edit keos keos -n keos-ops) before the next keos-installer run")
+    print("[ACTION REQUIRED] Set spec.docker_registry.ecr_pull_through_cache_enabled: true with "
+          "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
     return True
 
 
@@ -399,7 +400,8 @@ def restore(backup_dir):
         with open(keos_yaml_backup) as src, open(KEOS_YAML, "w") as dst:
             dst.write(src.read())
         print("OK")
-        print("[ACTION REQUIRED] Restore the same value in the keos CR (kubectl edit keos keos -n keos-ops) before the next keos-installer run")
+        print("[ACTION REQUIRED] Restore spec.docker_registry.ecr_pull_through_cache_enabled as in keos.yaml with "
+              "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
 
     print(f"\n[OK] Restored cluster-operator {state['cluster_operator_version']} and prior registry configuration from {backup_dir}.")
 
