@@ -195,6 +195,25 @@ def strip_server_side_fields(obj):
         obj["metadata"].pop(field, None)
 
 
+def get_helmrepository_keos_spec():
+    '''Live spec of the Flux HelmRepository keos ({} if it does not exist).'''
+    out, _ = run_command(f"{kubectl} get helmrepository keos -n kube-system -o jsonpath='{{.spec}}'", allow_errors=True)
+    return json.loads(out) if out.strip() else {}
+
+
+def helmrepository_keos_patch(url, current_spec):
+    '''JSON patch for HelmRepository keos: the url plus the type create sets for it (oci:// -> oci, else default).
+    An ECR repository authenticates through the HelmRepository provider, as create does without auth_required, so a
+    secretRef left from the previous repository is dropped.'''
+    ops = [
+        {"op": "replace", "path": "/spec/url", "value": url},
+        {"op": "add", "path": "/spec/type", "value": "oci" if url.startswith("oci://") else "default"},
+    ]
+    if ".dkr.ecr." in url and "secretRef" in current_spec:
+        ops.append({"op": "remove", "path": "/spec/secretRef"})
+    return json.dumps(ops)
+
+
 def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current, cm_json):
     '''Snapshot everything this script is about to mutate, for manual recovery only (not an automatic rollback).'''
     backup_dir = os.path.join("backup", "ecr_pull_through", datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
@@ -214,7 +233,7 @@ def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current,
     with open(os.path.join(backup_dir, "configmap-default-values.json"), "w") as f:
         f.write(json.dumps(cm_json, indent=2))
 
-    helmrepo_url_out, _ = run_command(f"{kubectl} get helmrepository keos -n kube-system -o jsonpath='{{.spec.url}}'", allow_errors=True)
+    helmrepo_spec = get_helmrepository_keos_spec()
     ecr_pull_through_out, _ = run_command(
         f"{kubectl} get keoscluster {kc_name} -n {kc_ns} "
         f"-o jsonpath='{{.spec.docker_registries[0].ecr_pull_through_cache_enabled}}'",
@@ -226,7 +245,9 @@ def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current,
         "keoscluster_namespace": kc_ns,
         "cluster_operator_version": old_version,
         "keoscluster_helm_repository_url": helm_repo_url_current,
-        "helmrepository_keos_url": helmrepo_url_out.strip(),
+        "helmrepository_keos_url": helmrepo_spec.get("url", ""),
+        "helmrepository_keos_type": helmrepo_spec.get("type", "default"),
+        "helmrepository_keos_secret_ref": helmrepo_spec.get("secretRef", {}).get("name", ""),
         "ecr_pull_through_cache_enabled_before": ecr_pull_through_out.strip() or "false",
     }
     with open(os.path.join(backup_dir, "state.json"), "w") as f:
@@ -294,9 +315,15 @@ def restore(backup_dir):
     print("OK")
 
     print(f"[INFO] Restoring HelmRepository keos url to {state['helmrepository_keos_url']}", end=" ", flush=True)
+    helmrepo_restore = {"url": state["helmrepository_keos_url"]}
+    # Backups taken before type/secretRef tracking only restore the url.
+    if "helmrepository_keos_type" in state:
+        helmrepo_restore["type"] = state["helmrepository_keos_type"]
+    if state.get("helmrepository_keos_secret_ref"):
+        helmrepo_restore["secretRef"] = {"name": state["helmrepository_keos_secret_ref"]}
     run_command(
         f"{kubectl} patch helmrepository keos -n kube-system --type=merge "
-        f"-p '{{\"spec\":{{\"url\":\"{state['helmrepository_keos_url']}\"}}}}'"
+        f"-p '{json.dumps({'spec': helmrepo_restore})}'"
     )
     print("OK")
 
@@ -424,10 +451,10 @@ def run(new_co_version, helm_registry_override=None):
         )
         print("OK")
 
-        print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
+        print("[INFO] Patching HelmRepository keos url and type", end=" ", flush=True)
         run_command(
             f"{kubectl} patch helmrepository keos -n kube-system "
-            f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
+            f"--type=json -p '{helmrepository_keos_patch(helm_repo_url, get_helmrepository_keos_spec())}'"
         )
         print("OK")
 
