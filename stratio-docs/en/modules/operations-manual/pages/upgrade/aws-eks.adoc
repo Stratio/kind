@@ -134,6 +134,16 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 +
 *Expected output:* all with `PHASE = Running`.
 
+* Máquinas en ejecución:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
+----
++
+*Salida esperada:* todas con `PHASE = Running`.
+
 * _MachineDeployments_:
 +
 [source,bash]
@@ -162,7 +172,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager --since=1h | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 *Expected output:* no errors. If any appear, review them before continuing.
@@ -478,7 +488,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 NOTE: During the `k8s_version` change, the `capa-controller-manager` logs may transiently show the message "InvalidParameterException: Addon version specified is not supported" when updating the EKS addons (for example, `coredns` or `kube-proxy`). It is only a problem if it appears after the upgrade finishes.

@@ -162,7 +162,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager --since=1h | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 *Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.
@@ -346,6 +346,8 @@ Cuando pregunte por el repositorio de Helm, pulsa Intro para mantener el actual 
 
 Si el _script_ no puede actualizar _keos.yaml_ (por ejemplo, porque no está montado), muestra "[ERROR] keos.yaml not updated: <motivo>" y termina con "[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).". En ese caso, establece `docker_registry.ecr_pull_through_cache_enabled: true` en _keos.yaml_ manualmente.
 
+Si el _script_ no puede actualizar `keos.yaml` (por ejemplo, porque no está montado), muestra `[ERROR] keos.yaml not updated: <motivo>` y termina con `[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).` En ese caso, pon `docker_registry.ecr_pull_through_cache_enabled: true` en `keos.yaml` a mano.
+
 Ejemplo de salida (resumida):
 
 [source,text]
@@ -410,6 +412,8 @@ python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_throug
 IMPORTANT: La ruta es relativa al directorio de trabajo *dentro del contenedor* (`/upgrade`, donde está montado `-v $PWD/backup:/upgrade/backup`), nunca la ruta del _host_. Para listar las copias disponibles y copiar el nombre exacto, ejecuta `ls backup/ecr_pull_through/` dentro del propio contenedor antes de ejecutar `--restore`.
 
 La opción revierte, en este orden, los CRD, el _ConfigMap_ de valores de _cluster-operator_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, la versión del _chart_ en el _HelmRelease_ y, por último, `ecr_pull_through_cache_enabled` a su valor anterior. Durante el proceso, espera a que el _HelmRelease_ esté en estado `Ready` y el `KeosCluster` en estado `Provisioned`, al igual que en una actualización normal.
+
+`--restore` también devuelve `keos.yaml` a su contenido anterior. El objeto `keos` de _Stratio KEOS_ no lo restaura: si lo cambiaste, deja `ecr_pull_through_cache_enabled` con el mismo valor que `keos.yaml`, con el mismo `kubectl edit` del apartado <<ecr_pull_through_objeto_keos, objeto `keos` de _Stratio KEOS_>>.
 
 == _Dry-run_ de `upgrade-provisioner.py`
 
@@ -478,7 +482,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 NOTE: Durante el cambio de `k8s_version`, en los _logs_ de `capa-controller-manager` puede aparecer, de forma transitoria, el mensaje "InvalidParameterException: Addon version specified is not supported" al actualizar los _addons_ de EKS (por ejemplo, `coredns` o `kube-proxy`). Solo es un problema si aparece después de que termina la actualización.
