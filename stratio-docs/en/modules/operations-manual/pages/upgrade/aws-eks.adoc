@@ -1,95 +1,95 @@
-= Actualización en EKS
+= Upgrade on EKS
+
 :sectnums:
 :sectnumlevels: 1
 
+This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.x with Kubernetes 1.35. Read the complete procedure before applying it, then follow the sections in order.
 
-Este procedimiento actualiza un _cluster_ de EKS creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.x, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
+== Before starting
 
-== Antes de empezar
+On EKS, the upgrade changes the following:
 
-En EKS, la actualización cambia lo siguiente:
+* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated] table.
+* The version of the _control-plane_, from 1.32 to 1.35. The script changes `KeosCluster.spec.k8s_version` only once, and CAPA raises the EKS _control-plane_ minor by minor up to 1.35.
+* Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced. To raise their version, migrate them to _MachinePool_ after the upgrade (see the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>).
 
-* Los componentes de la columna EKS de la tabla de xref:operations-manual:upgrade.adoc#_qué_se_actualiza[qué se actualiza].
-* La versión del _control-plane_, de 1.32 a 1.35. El _script_ cambia `KeosCluster.spec.k8s_version` una sola vez y CAPA sube el _control-plane_ de EKS de _minor_ en _minor_ hasta 1.35.
-* Nada en los nodos de trabajo: los grupos _MachineDeployment_ se quedan en 1.32 y no se sustituye ningún nodo. Para subirlos de versión, mígralos a _MachinePool_ después de la actualización (ver <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>).
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow you to return to a previous version.
 
-IMPORTANT: El cambio de versión de Kubernetes es el punto de no retorno. El _script_ pide confirmación antes de aplicarlo (ver xref:operations-manual:upgrade.adoc#_interactive_prompts[_prompts_ interactivos]) y no permite volver a una versión anterior.
-
-En EKS, la imagen de actualización incluye tres _scripts_. Se ejecutan en este orden:
+On EKS, the upgrade image includes three scripts. They are run in this order:
 
 [%header,cols="2,4,2"]
 |===
-| _Script_ | Qué hace | Cuándo lo usas
+| Script | What it does | When to use it
 
 | `ecr_pull_through.py`
-| Actualiza _cluster-operator_ y activa `ecr_pull_through_cache_enabled` en un _cluster_ existente. No cambia ninguna imagen.
-| Solo si activas la caché, antes de `upgrade-provisioner.py`.
+| Updates _cluster-operator_ and enables `ecr_pull_through_cache_enabled` on an existing cluster. It does not change any image.
+| Only if the cache is enabled, before `upgrade-provisioner.py`.
 
 | `upgrade-provisioner.py`
-| Actualiza los componentes y la versión de Kubernetes de 0.7.x a 0.9.x.
-| Siempre.
+| Updates the components and the Kubernetes version from 0.7.x to 0.9.x.
+| Always.
 
 | `activate-capa-machinepool-features.py`
-| Comprueba, sin cambiar nada, que _cluster-operator_, CAPA y sus _feature gates_ permiten usar _MachinePool_. No modifica CAPA: los _feature gates_ los activa `upgrade-provisioner.py` al reinstalar CAPA, y un cambio manual se perdería en la siguiente actualización.
-| Antes de migrar grupos a _MachinePool_, después de la actualización.
+| Checks, without changing anything, that _cluster-operator_, CAPA, and their feature gates allow using _MachinePool_. It does not modify CAPA: `upgrade-provisioner.py` enables the feature gates on reinstalling CAPA, and a manual change would be lost on the next upgrade.
+| Before migrating groups to _MachinePool_, after the upgrade.
 |===
 
-== Requisitos
+== Requirements
 
-Además de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], en EKS necesitas:
+In addition to the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], on EKS the following is needed:
 
-* Que las credenciales de AWS de `secrets.yml` (la clave de acceso y, si existe, el `role_arn`) sigan siendo válidas. Los tres _scripts_ las usan para todas sus llamadas a AWS.
+* That the AWS credentials in _secrets.yml_ (the access key and, if it exists, the `role_arn`) continue to be valid. The three scripts use them for all AWS calls.
 
 [NOTE]
 ====
-Al arrancar, el _script_ comprueba el acceso al _cluster_ y, si falla, regenera el _kubeconfig_ con las credenciales de `secrets.yml`.
+On startup, the script checks access to the cluster and, if it fails, regenerates the kubeconfig with the credentials of `secrets.yml`.
 
-Si la regeneración también falla, el _script_ se detiene. Revisa que las credenciales de AWS de `secrets.yml` sean válidas y tengan acceso al _cluster_.
+If the regeneration also fails, the script stops. Review that the AWS credentials in _secrets.yml_ are valid and have access to the cluster.
 ====
 
-== Permisos
+== Permissions
 
-Antes de empezar, comprueba los permisos de cada identidad:
+Before starting, check the permissions of each identity:
 
-* *Usuario que ejecuta los _scripts_ de actualización*: la identidad de `secrets.yml` (la clave de acceso o, si existe, el `role_arn`). Necesita los permisos de xref:attachment$stratio-eks-policy.json[`stratio-eks-policy.json`], los mismos que en la instalación.
-* *Usuario que ejecuta `clusterawsadm`* para actualizar el _stack_ de CloudFormation. Puede ser otro usuario. Necesita los permisos temporales de xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`]. Mantenlos hasta terminar `upgrade-provisioner.py`: el _script_ los usa para comprobar el _role_ de los _MachinePool_.
-* *_Roles_ de los nodos* (`nodes` y `eks-nodegroup`). Sus permisos no están en estos ficheros: se añaden al _stack_ en los apartados de migración a ECR _pull-through cache_ y de _MachinePools_.
+* *User who runs the upgrade scripts*: the identity of _secrets.yml_ (the access key or, if it exists, the `role_arn`). It needs the permissions of xref:attachment$stratio-eks-policy.json[`stratio-eks-policy.json`], the same as in the installation.
+* *User who runs `clusterawsadm`* to update the CloudFormation stack. It can be another user. It needs the temporary permissions of xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`]. Keep them until `upgrade-provisioner.py` finishes: the script uses them to check the role of the _MachinePools_.
+* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files: they are added to the stack in the sections on migration to ECR pull-through cache and _MachinePools_.
 
-IMPORTANT: Todos estos permisos son bloqueantes. Algunos se aplican en el paso que los necesita, pero tenlo todo preparado antes de empezar: los permisos de los dos usuarios y la política IAM independiente para el _role_ `eks-nodegroup`. Así no tendrás que detener la actualización a mitad para pedirlos.
+IMPORTANT: All these permissions are blocking. Some are applied in the step where they are needed, but have everything prepared before starting: the two users' permissions and the independent IAM policy for the `eks-nodegroup` role. This way, you won't need to stop the upgrade midway to request them.
 
-== Contenedor de actualización
+== Upgrade container
 
-=== Preparación
+=== Preparation
 
-Posiciónate en el directorio de trabajo desde el que se ejecutará el contenedor. Normalmente es el mismo _workspace_ desde el que se instaló el _cluster_ y `keos-installer`, ya que probablemente ya contenga varios de los ficheros necesarios (ver <<_estructura_necesaria, estructura necesaria>>); si no, usa un directorio específico para ello.
+Change to the working directory where the container will run. It is usually the same workspace from which the cluster and _keos-installer_ were installed, since it likely already contains several of the required files (see the <<_required_structure, required structure>>); if not, use a specific directory for it.
 
-Crea un directorio local para copias de seguridad:
+Create a local directory for backups:
 
 [source,bash]
 ----
 mkdir -p $PWD/backup
 ----
 
-=== Estructura necesaria
+=== Required structure
 
-Asegúrate de que el directorio de trabajo incluya los siguientes elementos. Solo hace falta lo que se monta desde el _host_; el _script_ principal, las plantillas Jinja2 y las dependencias ya están en la imagen y no es necesario tenerlos aquí:
+Make sure the working directory includes the following elements. Only what is mounted from the host is needed; the main script, the Jinja2 templates, and the dependencies are already in the image and do not need to be here:
 
-* `secrets.yml`: credenciales del _cluster_.
-* `.kube/config`: fichero _kubeconfig_ del _cluster_.
-* `backup/`: directorio para copias de seguridad (puede estar vacío al inicio).
+* `secrets.yml`: credentials of the cluster.
+* `.kube/config`: kubeconfig file of the cluster.
+* `backup/`: directory for backups (can be empty at the start).
 
-=== Ejecución del contenedor
+=== Running the container
 
-Este paso es común a los tres _scripts_ de la imagen: `ecr_pull_through.py`, `upgrade-provisioner.py` y `activate-capa-machinepool-features.py`.
+This step is common to the three scripts in the image: `ecr_pull_through.py`, `upgrade-provisioner.py`, and `activate-capa-machinepool-features.py`.
 
-Descarga la imagen:
+Download the image:
 
 [source,bash]
 ----
 docker pull <registry>/cloud-provisioner-upgrade:0.9.X
 ----
 
-Arranca el contenedor:
+Start the container:
 
 [source,bash]
 ----
@@ -100,26 +100,39 @@ docker run \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v $PWD/backup:/upgrade/backup \
+  -v $PWD/keos.yaml:/upgrade/keos.yaml \
   <registry>/cloud-provisioner-upgrade:0.9.X
 ----
 
-NOTE: Ninguno de los dos _scripts_ genera un fichero de registro propio con marca de tiempo; toda su salida va a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero del volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
+NOTE: Mount the _keos.yaml_ that _Stratio KEOS_ uses (the one in its working directory). If the pull-through cache is enabled, `ecr_pull_through.py` sets `docker_registry.ecr_pull_through_cache_enabled: true` in it. Before starting the container, check that the file exists: if it does not exist, Docker creates a directory with that name and the script ends, indicating that it could not update _keos.yaml_.
+
+NOTE: None of the scripts generate their own timestamped log files; all output goes to the container console. To keep a complete log of the execution, redirect the output to a file on the mounted volume, for example, by adding `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` to the script command.
 
 [NOTE]
 ====
-Si el acceso al _cluster_ falla, los _scripts_ regeneran el _kubeconfig_ montado (`/upgrade/.kube/config`): el contexto nuevo usa `aws eks get-token` y necesita credenciales de AWS. Por eso, lanza los comandos `kubectl` de este procedimiento dentro del contenedor, con las credenciales de `secrets.yml`:
+If access to the cluster fails, the scripts regenerate the kubeconfig mounted at `/upgrade/.kube/config`: the new context uses `aws eks get-token` and requires AWS credentials. For this reason, run the `kubectl` commands of this procedure inside the container, with the credentials of _secrets.yml_:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A
 ----
 
-Antes de la salida del comando, `aws-secrets-exec.py` muestra la identidad de AWS que usa (`[INFO] Running with the AWS identity of the secrets file: <ARN>`).
+Before executing the command, `aws-secrets-exec.py` shows the AWS identity it uses (`[INFO] Running with the AWS identity of the secrets file: <ARN>`).
 ====
 
-== Comprobaciones previas
+== Pre-checks
 
-Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], comprueba en EKS:
+In addition to the functional checks of the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], check on EKS:
+
+* Running machines:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
+----
++
+*Expected output:* all with `PHASE = Running`.
 
 * _MachineDeployments_:
 +
@@ -129,12 +142,12 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 ----
 +
-*Salida esperada:*
+*Expected output:*
 +
 ** `READY = REPLICAS`
 ** `UNAVAILABLE = 0`
 
-* _Pods_ del proveedor:
+* Provider pods:
 +
 [source,bash]
 ----
@@ -142,9 +155,9 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get pods -n capa-system
 ----
 +
-*Salida esperada:* todos los _pods_ en estado `Running`.
+*Expected output:* all pods in `Running` state.
 
-* _Logs_ del proveedor:
+* Provider logs:
 +
 [source,bash]
 ----
@@ -152,16 +165,17 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl logs -n capa-system deploy/capa-controller-manager --since=1h | grep -i error
 ----
 +
-*Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.
+*Expected output:* no errors. If any appear, review them before continuing.
 
-NOTE: Si el `KeosCluster` define `spec.networks.pods_cidr`, el _script_ comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ de EKS. Si no coincide, lo corrige. Con `--dry-run` no lo corrige.
+NOTE: If the `KeosCluster` defines `spec.networks.pods_cidr`, the script checks that the `ENIConfig`s use the security group of the EKS cluster. If it does not match, it corrects it. With `--dry-run`, it does not correct it.
 
-[[actualizacion_stack_iam]]
-== Actualización del _stack_ de IAM
+[#actualizacion_stack_iam]
 
-Desde el contenedor, actualiza el _stack_ de CloudFormation a la configuración de la versión 0.9. Así se crea el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, que usan los _MachinePool_, y el _role_ `nodes` recibe los permisos de ECR:
+== Update of the IAM stack
 
-. Si el _cluster_ usa o va a usar ECR _pull-through cache_, crea la política de ECR para los nodos _MachinePool_. El _role_ `eks-nodegroup` solo admite políticas gestionadas por ARN:
+From the container, update the CloudFormation stack to version 0.9. In this way, the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role is created, which the _MachinePools_ use, and the `nodes` role receives the ECR permissions:
+
+. If the cluster uses or is going to use the ECR pull-through cache, create the ECR policy for the _MachinePool_ nodes. The `eks-nodegroup` role only accepts policies managed by ARN:
 +
 [source,bash]
 ----
@@ -184,17 +198,17 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   --query Policy.Arn --output text
 ----
 +
-Guarda el ARN que devuelve. Si la política ya existe (`EntityAlreadyExists`), su ARN es `arn:aws:iam::<id-de-cuenta>:policy/ecr-pull-through-cache-machinepool`. Compruébalo:
+Save the ARN that it returns. If the policy already exists (`EntityAlreadyExists`), its ARN is `arn:aws:iam::<account-id>:policy/ecr-pull-through-cache-machinepool`. Check it:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
   aws iam get-policy \
-  --policy-arn arn:aws:iam::<id-de-cuenta>:policy/ecr-pull-through-cache-machinepool \
+  --policy-arn arn:aws:iam::<account-id>:policy/ecr-pull-through-cache-machinepool \
   --query Policy.Arn --output text
 ----
 
-. Comprueba el estado del _stack_:
+. Check the state of the stack:
 +
 [source,bash]
 ----
@@ -204,9 +218,9 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   --query 'Stacks[0].StackStatus' --output text
 ----
 +
-*Salida esperada:* `CREATE_COMPLETE` o `UPDATE_COMPLETE`. Con cualquier otro estado, no continúes: corrige antes el estado del _stack_ y vuelve a comprobarlo.
+*Expected output:* `CREATE_COMPLETE` or `UPDATE_COMPLETE`. If it shows any other state, do not continue; first correct the stack state and check it again.
 
-. Actualiza el _stack_ con esta configuración. Si usas la política del paso 1, quita el `#` de la línea del ARN y pon el suyo, junto a `AmazonEBSCSIDriverPolicy`:
+. Update the stack with this configuration. If the policy from step 1 is used, remove the `#` from the line of the ARN and insert its ARN next to `AmazonEBSCSIDriverPolicy`:
 +
 [source,bash]
 ----
@@ -225,7 +239,7 @@ spec:
         disable: false
         extraPolicyAttachments:
         - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
-        # - <ARN de la política del paso 1>
+        # - <ARN of the policy from step 1>
   controlPlane:
     enableCSIPolicy: true
   nodes:
@@ -245,111 +259,116 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   --config /upgrade/backup/eks-iam.config
 ----
 +
-*Salida esperada:* una tabla con los recursos del _stack_ (`Resource | Type | Status`), entre ellos el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`.
+*Expected output:* a table with the resources of the stack (`Resource | Type | Status`), among them the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role.
 +
-Si el _stack_ ya estaba al día, el comando termina con este error, que no cambia nada y puedes ignorar:
+If the stack was already up to date, the command ends with this error, which changes nothing and can be ignored:
 +
+[source,text]
 ----
 Error: failed to update AWS CloudFormation stack: operation error CloudFormation: UpdateStack, https response error StatusCode: 400, RequestID: <id>, api error ValidationError: No updates are to be performed.
 ----
 
-== Migración a ECR _pull-through cache_ (opcional)
+== Migration to ECR pull-through cache (optional)
 
-El _script_ `ecr_pull_through.py` actualiza _cluster-operator_ a la versión indicada y activa `ecr_pull_through_cache_enabled` en el `KeosCluster`. No cambia ninguna otra imagen: las mueve a la caché de Amazon ECR `upgrade-provisioner.py`, cuando se ejecuta con el campo activo.
+The `ecr_pull_through.py` script updates _cluster-operator_ to the indicated version and enables `ecr_pull_through_cache_enabled` in the `KeosCluster`. It does not change any other images; they are moved to the Amazon ECR cache when you run `upgrade-provisioner.py` with the field enabled.
 
-IMPORTANT: Si vas a activar la caché, ejecuta este _script_ antes de `upgrade-provisioner.py`. Así, la misma actualización mueve a la caché las imágenes de los _charts_ que actualiza (ver xref:operations-manual:upgrade.adoc#_qué_se_actualiza[qué se actualiza]) y, con registro privado, las de Cluster API. Los _charts_ de _Stratio KEOS_ no cambian. Si lo haces después, tendrás que volver a ejecutar `upgrade-provisioner.py` para mover esos _charts_.
+IMPORTANT: If the cache is going to be enabled, run this script before running `upgrade-provisioner.py`. This way, the same upgrade moves the images of the charts it updates to the cache (see xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated]) and, with a private registry, those of Cluster API. The _Stratio KEOS_ charts do not change. If you do this afterward, you'll need to run `upgrade-provisioner.py` again to move those charts.
 
-Antes de aplicar cualquier cambio, el _script_ guarda automáticamente una copia del estado previo (los CRD `keosclusters.installer.stratio.com`/`clusterconfigs.installer.stratio.com`, el `ConfigMap` de valores de _cluster-operator_ y un `state.json` con la versión y las URL anteriores) en `backup/ecr_pull_through/<marca-de-tiempo>/`. Esta copia es la que usa el _flag_ `--restore` (ver <<ecr_pull_through_recuperacion, recuperación ante fallos de `ecr_pull_through.py`>>) para deshacer la operación.
+Before applying any change, the script automatically saves a copy of the previous state (the `keosclusters.installer.stratio.com` and `clusterconfigs.installer.stratio.com` CRDs, the _ConfigMap_ of _cluster-operator_ values, and a `state.json` with the previous version and URLs) in `backup/ecr_pull_through/<timestamp>/`. This copy is the one that the `--restore` option uses (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>) to undo the operation.
 
-=== Prerrequisitos
+=== Prerequisites
 
-* En `--cluster-operator`, indica la versión 0.7.x de _cluster-operator_ del Universo 15.1.
+* In `--cluster-operator`, the 0.7.x version of _cluster-operator_ from Universe 15.1 is specified.
+* The pull-through cache rules must already exist in the cloud account for the upstreams that _Stratio KEOS_ uses (`registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io`, `public.ecr.aws`). The script doesn't create them; it assumes they already exist.
+* The destination repositories must already have the _cluster-operator_ chart in the version of `--cluster-operator` and its image.
 
-* Las reglas de _pull-through cache_ deben existir ya en la cuenta _cloud_ para los _upstreams_ que utiliza _Stratio KEOS_ (`registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io`, `public.ecr.aws`). El _script_ no las crea; da por hecho que ya existen.
-* Los repositorios de destino deben tener ya el _chart_ de _cluster-operator_ en la versión de `--cluster-operator` y su imagen.
-
-=== Sintaxis
+=== Syntax
 
 [source,bash]
 ----
-python3 ecr_pull_through.py -p <vault-password> --cluster-operator <versión>
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version>
 ----
 
 [%header,cols="1,2,1,1"]
 |===
-| _Flag_ | Descripción | Valor predeterminado | Obligatoria
+| Option | Description | Default value | Mandatory
 
 | `-p`, `--vault-password`
-| Contraseña de Vault para descifrar los secretos.
+| Vault password to decrypt the secrets.
 |
-| Sí
+| Yes
 
 | `-s`, `--secrets`
-| Fichero de secretos cifrados.
-| secrets.yml
+| Encrypted secrets file.
+| `secrets.yml`
 | No
 
 | `-k`, `--kubeconfig`
-| Fichero _kubeconfig_ a utilizar. Dentro del contenedor se ignora: el _script_ usa la variable `KUBECONFIG=/upgrade/.kube/config` que define la imagen.
-| ~/.kube/config
+| kubeconfig file to be used. Inside the container, it is ignored: the script uses the `KUBECONFIG=/upgrade/.kube/config` variable that the image defines.
+| `~/.kube/config`
 | No
 
 | `--cluster-operator`
-| Versión objetivo de _cluster-operator_.
+| Target version of _cluster-operator_.
 |
-| Sí
+| Yes
 
 | `--helm-registry`
-| Fuerza el repositorio de Helm a utilizar, sin preguntar de forma interactiva.
-| _(repositorio actual del `KeosCluster`)_
+| Forces the Helm repository to be used, without asking interactively.
+| _(current repository of the `KeosCluster`)_
 | No
 
 | `--restore`
-| Restaura una copia de seguridad anterior en lugar de actualizar (ver <<ecr_pull_through_recuperacion, recuperación ante fallos de `ecr_pull_through.py`>>). Sin ruta, restaura la más reciente de `backup/ecr_pull_through/`. Con `--restore` presente, `--cluster-operator` deja de ser obligatorio.
-| _(ninguno: modo actualización)_
+| Restores a previous backup instead of updating (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>). Without a path, it restores the most recent one from `backup/ecr_pull_through/`. With `--restore`, `--cluster-operator` is no longer mandatory.
+| _(none: update mode)_
 | No
 |===
 
-Al arrancar, si no se especifica `--helm-registry`, el _script_ muestra el repositorio de Helm actualmente configurado en `KeosCluster.spec.helm_repository.url` y permite especificar uno nuevo. Pulsa ENTER para mantener el actual. El repositorio que indiques, con el _flag_ o en el _prompt_, se guarda en `KeosCluster.spec.helm_repository.url` y en el `HelmRepository` `keos`.
+On startup, if `--helm-registry` is not specified, the script shows the Helm repository configured in `KeosCluster.spec.helm_repository.url` and allows a new one to be specified. Press Enter to keep the current one. The repository indicated, with the option or in the prompt, is saved in `KeosCluster.spec.helm_repository.url` and in the `keos` `HelmRepository`.
 
-=== Ejecución de `ecr_pull_through.py`
+=== Running `ecr_pull_through.py`
 
-Dentro del contenedor, lanza el _script_. No tiene modo `--dry-run`:
+Inside the container, run the script. It has no `--dry-run` mode:
 
 [source,bash]
 ----
-python3 ecr_pull_through.py -p <vault-password> --cluster-operator <versión> 2>&1 | tee /upgrade/backup/ecr-pull-through-$(date +%Y%m%d-%H%M%S).log
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version> 2>&1 | tee /upgrade/backup/ecr-pull-through-$(date +%Y%m%d-%H%M%S).log
 ----
 
-Cuando pregunte por el repositorio de Helm, pulsa ENTER para mantener el actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+When it asks for the Helm repository, press Enter to keep the current one if you aren't changing the repository, or enter the URL of the destination repository.
 
-*Salida esperada al terminar:*
+*Expected output on completion:*
 
-* `[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster`
-* `[OK] cluster-operator upgrade and ECR pull-through flag enabled.`
+* "[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster".
+* "[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in keos.yaml OK".
+* "[ACTION REQUIRED] Set the same value in the keos CR (kubectl edit keos keos -n keos-ops) before the next keos-installer run."
+* "[OK] cluster-operator upgrade and ECR pull-through flag enabled."
 
-Ejemplo de salida (resumida):
+If the script cannot update _keos.yaml_ (for example, because it is not mounted), it shows "[ERROR] keos.yaml not updated: <reason>" and ends with "[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).". In that case, set `docker_registry.ecr_pull_through_cache_enabled: true` in _keos.yaml_ manually.
 
+Sample output (abbreviated):
+
+[source,text]
 ----
 [INFO] Validating kubectl access to the cluster: FAILED (attempting kubeconfig refresh)
-[INFO] Attempting to refresh kubeconfig for cluster: <nombre-cluster>
-Added new context arn:aws:eks:<región>:<id-de-cuenta>:cluster/<nombre-cluster> to /upgrade/.kube/config
+[INFO] Attempting to refresh kubeconfig for cluster: <cluster-name>
+Added new context arn:aws:eks:<region>:<account-id>:cluster/<cluster-name> to /upgrade/.kube/config
 OK (kubeconfig refreshed)
-The current Helm registry is: oci://<registro>/<repositorio-actual>. Press ENTER to use it or specify a different one:
-[INFO] Helm registry: oci://<registro>/<repositorio-destino>
-[INFO] Detecting current cluster-operator version from ConfigMap OK (<versión-actual>)
-[INFO] Backing up pre-upgrade state to backup/ecr_pull_through/<marca-de-tiempo> OK
+The current Helm registry is: oci://<registry>/<current-repository>. Press ENTER to use it or specify a different one:
+[INFO] Helm registry: oci://<registry>/<destination-repository>
+[INFO] Detecting current cluster-operator version from ConfigMap OK (<current-version>)
+[INFO] Backing up pre-upgrade state to backup/ecr_pull_through/<timestamp> OK
 [...]
 [INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster
 
 [OK] cluster-operator upgrade and ECR pull-through flag enabled.
 ----
 
-El `FAILED` de la primera línea no es un error: indica que el _script_ regenera el _kubeconfig_ (ver la nota de <<_ejecución_del_contenedor, ejecución del contenedor>>).
+The `FAILED` on the first line is not an error: it indicates that the script regenerates the kubeconfig (see the note on <<_running_the_container, running the container>>).
 
-Si falla, el _script_ muestra el comando de `--restore` con la ruta de su copia de seguridad (ver <<ecr_pull_through_recuperacion, recuperación ante fallos de `ecr_pull_through.py`>>).
+If it fails, the script shows the `--restore` command with the path of its backup (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>).
 
-=== Verificación
+=== Verification
 
 [source,bash]
 ----
@@ -357,117 +376,119 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get helmrelease cluster-operator -n kube-system \
   -o jsonpath='{.spec.chart.spec.version} {.status.conditions[?(@.type=="Ready")].status}{"\n"}'
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl get keoscluster <nombre-cluster> -n cluster-<nombre-cluster> \
+  kubectl get keoscluster <cluster-name> -n cluster-<cluster-name> \
   -o jsonpath='{.spec.docker_registries[0].ecr_pull_through_cache_enabled}{"\n"}'
 ----
 
-*Salida esperada:*
+*Expected output:*
 
-* Primer comando: la versión de `--cluster-operator` y `True`, por ejemplo `0.7.5 True`.
-* Segundo comando: `true`.
+* First command: the version of `--cluster-operator` and `True`, for example `0.7.5 True`.
+* Second command: `true`.
 
-[[ecr_pull_through_recuperacion]]
-=== Recuperación ante fallos de `ecr_pull_through.py`
+[#ecr_pull_through_recuperacion]
 
-Si el fallo se debe a que la imagen o el _chart_ de la versión indicada aún no están publicados en el repositorio de destino, la solución más sencilla es publicar el artefacto que falte y volver a ejecutar el _script_: es idempotente ante un intento previo incompleto; no es necesario restaurar nada.
+=== Recovery on failures of `ecr_pull_through.py`
 
-Para deshacer una actualización ya aplicada (o parcialmente aplicada), usa `--restore` con el mismo resto de credenciales (`-p`, `-s`, `-k`):
+If the failure is due to the image or the chart of the indicated version not yet being published in the destination repository, the simplest solution is to publish the missing artifact and run the script again: it is idempotent in the face of a previous incomplete attempt, so there is no need to restore anything.
+
+To undo an upgrade already applied (or partially applied), use `--restore` with the same credentials (`-p`, `-s`, `-k`):
 
 [source,bash]
 ----
 python3 ecr_pull_through.py -p <vault-password> --restore
 ----
 
-Sin ruta tras `--restore`, restaura la copia más reciente de `backup/ecr_pull_through/`.
+Without a path after `--restore`, it restores the most recent copy from `backup/ecr_pull_through/`.
 
-IMPORTANT: Si relanzaste el _script_ después de un fallo, la copia más reciente ya no guarda el estado original: se tomó cuando _cluster-operator_ ya estaba cambiado. Para volver al estado original, restaura la copia del primer intento indicando su ruta:
+IMPORTANT: If the script was relaunched after a failure, the most recent copy no longer saves the original state: it was taken when _cluster-operator_ had already been changed. To return to the original state, restore the copy of the first attempt by indicating its path:
 
 [source,bash]
 ----
-python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_through/<marca-de-tiempo>
+python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_through/<timestamp>
 ----
 
-IMPORTANT: La ruta es relativa al directorio de trabajo *dentro del contenedor* (`/upgrade`, donde está montado `-v $PWD/backup:/upgrade/backup`), nunca la ruta del *host*. Para listar las copias disponibles y copiar el nombre exacto, ejecuta `ls backup/ecr_pull_through/` dentro del propio contenedor antes de ejecutar `--restore`.
+IMPORTANT: The path is relative to the working directory *inside the container* (`/upgrade`, where `-v $PWD/backup:/upgrade/backup` is mounted), never the host path. To list the available copies and copy the exact name, run `ls backup/ecr_pull_through/` inside the container itself before running `--restore`.
 
-El _flag_ revierte, en este orden, los CRD, el `ConfigMap` de valores de _cluster-operator_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, la versión del _chart_ en el `HelmRelease` y, por último, `ecr_pull_through_cache_enabled` a su valor anterior. Durante el proceso, espera a que el `HelmRelease` esté en estado `Ready` y el `KeosCluster` en estado `Provisioned`, igual que en una actualización normal.
+The option reverts, in this order, the CRDs, the _cluster-operator_ values _ConfigMap_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, the chart version in the _HelmRelease_, and, finally, `ecr_pull_through_cache_enabled` to its previous value. During the process, it waits for the _HelmRelease_ to be in `Ready` state and the `KeosCluster` in `Provisioned` state, just as in a normal upgrade.
 
-== _Dry-run_ de `upgrade-provisioner.py`
+== Dry-run of `upgrade-provisioner.py`
 
-Dentro del contenedor, ejecuta el _script_ con `--dry-run`. No cambia nada en el _cluster_:
+Inside the container, run the script with the `--dry-run` option. It does not change anything in the cluster:
 
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p <vault-password> --dry-run 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
 ----
 
-En el _dry-run_, el _script_ solo pregunta por el repositorio de Helm: pulsa ENTER para mantener el actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+In the dry run, the script asks for the Helm repository: press Enter to keep the current one if you don't change the repository, or enter the URL of the destination repository.
 
-*Salida esperada:*
+*Expected output:*
 
-* Al principio: `[INFO] Mode: DRY-RUN (no changes will be applied)`.
-* Al final: `[INFO] Upgrade process finished successfully in ...` y `[INFO] Mode was: DRY-RUN (no changes were applied)`.
+* At the start: "[INFO] Mode: DRY-RUN (no changes will be applied)".
+* At the end: "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: DRY-RUN (no changes were applied)".
 
-Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real.
+If any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the real upgrade.
 
-== Ejecución de `upgrade-provisioner.py`
+== Running `upgrade-provisioner.py`
 
-Dentro del contenedor, lanza la actualización:
+Inside the container, launch the upgrade:
 
 [source,bash]
 ----
 python3 upgrade-provisioner.py -p <vault-password> 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
 ----
 
-Responde a los _prompts_ en este orden:
+Respond to the prompts in this order:
 
-. `Press ENTER to continue upgrading the cluster or any other key to abort:` pulsa ENTER.
-. `The current helm repository is: <url>. Do you want to indicate a new helm repository? Press enter or specify new repository:` pulsa ENTER para mantener el actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
-. `Proceed with the k8s_version bump <versión actual> -> v1.35.0? [y/N]:` escribe `y`. Es el punto de no retorno.
+. "Press ENTER to continue upgrading the cluster or any other key to abort:" press Enter.
+. "The current Helm repository is: <url>. Do you want to indicate a new Helm repository? Press enter or specify new repository:" press Enter to keep the current repository if the repository is not changed, or enter the URL of the destination repository.
+. "Proceed with the k8s_version bump <current version> -> v1.35.0? [y/N]:" enter `y`. It is the point of no return.
 
-*Salida esperada al terminar:* `[INFO] Upgrade process finished successfully in ...` y `[INFO] Mode was: REAL — changes were applied`.
+*Expected output on completion:* "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: REAL — changes were applied".
 
-== Seguimiento de la actualización
+== Tracking the upgrade
 
-Mientras se ejecuta el _script_, sigue el estado del _cluster_ desde tu equipo, en otra terminal, con tu propio _kubeconfig_ y tus credenciales de AWS:
+While the script runs, follow the state of the cluster from the user's computer, in another terminal, with their own kubeconfig and AWS credentials:
 
 include::partial$upgrade-monitoring.adoc[]
 
-=== Cambio de `k8s_version`
+=== Change of `k8s_version`
 
-Mientras el _control-plane_ cambia de versión, el _script_ no muestra progreso.
+While the _control-plane_ changes version, the script does not show the progress.
 
-Sigue el estado real del _control-plane_ directamente en AWS:
+Follow the actual state of the _control-plane_ directly in AWS:
 
 [source,bash]
 ----
-watch -n30 aws eks describe-cluster --name <nombre-cluster> --query 'cluster.{status:status,version:version}' --output table
+watch -n30 aws eks describe-cluster --name <cluster-name> --query 'cluster.{status:status,version:version}' --output table
 ----
-----PLACEHOLDER----
 
-*Salida esperada:* `UPDATING` mientras sube y una versión que avanza de _minor_ en _minor_ (1.33, 1.34, 1.35). Al terminar, `ACTIVE` y `1.35`.
+*Expected output:* `UPDATING` while it goes up and a version that advances minor by minor (1.33, 1.34, 1.35). On completion, `ACTIVE` and `1.35`.
 
-== Comprobaciones posteriores
+== Post-upgrade checks
 
-Además de la xref:operations-manual:upgrade.adoc#_final_verification[verificación final] común, comprueba en EKS:
+In addition to the common xref:operations-manual:upgrade.adoc#_verificación_final[final verification], check on EKS:
 
-* Grupos de nodos y _logs_ del _provider_:
+* Node groups and provider logs:
 +
 [source,bash]
 ----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl logs -n capa-system deploy/capa-controller-manager | grep -i error
 ----
 +
-NOTE: Durante el cambio de `k8s_version`, en los _logs_ de `capa-controller-manager` puede aparecer de forma transitoria `InvalidParameterException: Addon version specified is not supported` al actualizar los _addons_ de EKS (por ejemplo, `coredns` o `kube-proxy`). Solo es un problema si aparece después de terminar la actualización.
+NOTE: During the `k8s_version` change, the `capa-controller-manager` logs may transiently show the message "InvalidParameterException: Addon version specified is not supported" when updating the EKS addons (for example, `coredns` or `kube-proxy`). It is only a problem if it appears after the upgrade finishes.
 +
-*Salida esperada:*
+*Expected output:*
 +
-** Los grupos _MachineDeployment_ siguen en 1.32 en la columna `VERSION`: no cambian hasta que se migren a _MachinePool_, y no es un fallo de la actualización.
-** En los _logs_ de CAPA, ningún error salvo los transitorios de la nota.
+** The _MachineDeployment_ groups remain on 1.32 in the `VERSION` column; they don't change until they are migrated to _MachinePool_, and this isn't an upgrade failure.
+** In the CAPA logs, there are no errors except the transient ones noted.
 
-* Imagen de _cluster-autoscaler_:
+* _cluster-autoscaler_ image:
 +
 [source,bash]
 ----
@@ -475,30 +496,31 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Salida esperada:* `<registro>/autoscaling/cluster-autoscaler:v1.35.2`, la imagen propia de Stratio con la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
+*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.2`, the proprietary Stratio image with the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
 
-== Tareas posteriores
+== Post-upgrade tasks
 
-Después de la actualización solo queda una tarea: pasar los grupos _MachineDeployment_ a _MachinePool_.
+After the upgrade, only one task remains: moving the _MachineDeployment_ groups to _MachinePool_.
 
-[[_clusters_eks_con_machinepools]]
-=== Paso a _MachinePools_
+[#_clusters_eks_con_machinepools]
 
-NOTE: Con esta versión, los grupos de trabajo sin `node_image` se crean como _MachinePool_. Los grupos _MachineDeployment_ de un _cluster_ actualizado no se migran solos: sigue la <<_migración_de_machinedeployments_a_machinepools, migración de _MachineDeployments_ a _MachinePools_>>.
+=== Move to _MachinePools_
 
-==== Migración de _MachineDeployments_ a _MachinePools_
+NOTE: With this version, the worker groups without `node_image` are created as _MachinePool_. The _MachineDeployment_ groups of an upgraded cluster are not automatically migrated: follow the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>.
 
-Migrar un grupo de trabajo existente de _MachineDeployment_ a _MachinePool_ consta de tres partes: confirmar que el _cluster_ cumple los prerrequisitos, configurar el _role_ IAM fijo obligatorio para los _MachinePool_, y migrar cada grupo de nodos manualmente.
+==== Migration of _MachineDeployments_ to _MachinePools_
 
-===== Prerrequisitos
+Migrating an existing worker group from _MachineDeployment_ to _MachinePool_ has three parts: confirming the cluster meets the prerequisites, configuring the fixed IAM role required for _MachinePools_, and migrating each node group manually.
 
-El _cluster_ necesita:
+===== Prerequisites
 
-* cluster-operator >= 0.7.0 y CAPA >= v2.9.3 (si no, ejecuta primero `upgrade-provisioner.py`).
+The cluster needs:
+
+* _cluster-operator_ 0.7.0 or later and CAPA v2.9.3 or later (if not, first run `upgrade-provisioner.py`).
 * `KeosCluster.status.ready = true`.
-* Los permisos del apartado <<_permisos, Permisos>>: los de `stratio-eks-policy.json` de esta versión para el usuario de despliegue y, para crear el _role_ y la política de los nodos, los de `stratio-aws-temp-policy.json`.
+* The permissions of the <<_permissions, Permissions>> section: those of `stratio-eks-policy.json` of this version for the deployment user and, to create the role and the node policy, those of `stratio-aws-temp-policy.json`.
 
-Para confirmar los dos primeros puntos de una vez, ejecuta este _script_ (de solo lectura, no actualiza ni crea nada) en el mismo contenedor de actualización donde ejecutaste `upgrade-provisioner.py`:
+To confirm the first two points at once, run this script (read-only; it does not update or create anything) in the same upgrade container where `upgrade-provisioner.py` was run:
 
 [source,bash]
 ----
@@ -507,99 +529,99 @@ python3 activate-capa-machinepool-features.py \
   2>&1 | tee /upgrade/backup/activate-mp-$(date +%Y%m%d-%H%M%S).log
 ----
 
-*Salida esperada al terminar:* `PREPARATION COMPLETE` y `cluster-operator/CAPA versions and CAPA feature gates verified.`
+*Expected output on completion:* `PREPARATION COMPLETE` and `cluster-operator/CAPA versions and CAPA feature gates verified.`
 
-Además de las versiones y de `KeosCluster.status.ready`, comprueba que los _feature gates_ de CAPA (`MachinePool=true`, `EKSAllowAddRoles=true`) ya estén habilitados. No los activa él mismo: eso lo hace `upgrade-provisioner.py` al reinstalar CAPA mediante `clusterctl upgrade apply`. Si falla la comprobación de versiones o de _feature gates_, el _script_ indica que primero hay que ejecutar `upgrade-provisioner.py`. Si el _cluster_ ya pasó por esta actualización, ejecutarlo es solo una confirmación rápida, no un paso imprescindible.
+In addition to the versions and `KeosCluster.status.ready`, the script checks that the CAPA feature gates (`MachinePool=true` and `EKSAllowAddRoles=true`) are already enabled. It does not enable them itself: `upgrade-provisioner.py` does that on reinstalling CAPA through `clusterctl upgrade apply`. If the version check or the feature gates check fails, the script indicates that `upgrade-provisioner.py` must be run first. If the cluster has already gone through this upgrade, running it is only a quick confirmation, not an essential step.
 
-IMPORTANT: Si acabas de ejecutar `upgrade-provisioner.py`, no asumas que `KeosCluster.status.ready` ya es `true` solo porque el _script_ terminó con `Upgrade process finished successfully`. Comprueba el valor real (`python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A`, esperando `PHASE: Provisioned` y `READY: true`) antes de continuar.
+IMPORTANT: If `upgrade-provisioner.py` has just been run, do not assume that `KeosCluster.status.ready` is already `true` just because the script ended with `Upgrade process finished successfully`. Check the actual value (`python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A`, expecting `PHASE: Provisioned` and `READY: true`) before continuing.
 
-===== Configurar el _role_ IAM fijo para los _MachinePool_
+===== Configure the fixed IAM role for the _MachinePools_
 
-Para que todos los nodos _MachinePool_ usen el mismo _role_ IAM y los mismos permisos, `upgrade-provisioner.py` fija `spec.control_plane.aws.mp_role_name` a `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` si ese _role_ existe y el campo estaba vacío. Compruébalo:
+So that all _MachinePool_ nodes use the same IAM role and the same permissions, `upgrade-provisioner.py` sets `spec.control_plane.aws.mp_role_name` to `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` if that role exists and the field is empty. Check it:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl get keoscluster <nombre-cluster> -n cluster-<nombre-cluster> \
+  kubectl get keoscluster <cluster-name> -n cluster-<cluster-name> \
   -o jsonpath='{.spec.control_plane.aws.mp_role_name}{"\n"}'
 ----
 
-*Salida esperada:* `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`.
+*Expected output:* `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`.
 
-Si sale vacío, `upgrade-provisioner.py` no pudo fijarlo: busca su `[WARN]` en el registro de la ejecución. Como _workaround_, fíjalo tú:
+If it comes out empty, `upgrade-provisioner.py` could not set it: look for its `[WARN]` in the execution log. As an alternative solution, set it manually:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl patch keoscluster <nombre-cluster> -n cluster-<nombre-cluster> --type=merge \
+  kubectl patch keoscluster <cluster-name> -n cluster-<cluster-name> --type=merge \
   -p '{"spec":{"control_plane":{"aws":{"mp_role_name":"eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"}}}}'
 ----
 
+With ECR pull-through cache, the _MachinePool_ nodes use the ECR policy that was added in the <<actualizacion_stack_iam, update of the IAM stack>>.
 
-Con ECR _pull-through cache_, los nodos _MachinePool_ usan la política de ECR que añadiste en <<actualizacion_stack_iam, actualización del _stack_ de IAM>>.
+===== Migrate a node group
 
-===== Migrar un grupo de nodos
-
-Estos son los pasos para migrar un grupo, con comandos de ejemplo. Adáptalos a la configuración de cada grupo y repítelos para cada uno que migres. El orden es siempre: crear el grupo _MachinePool_, validar que funciona y solo después quitar el _MachineDeployment_.
+These are the steps to migrate a group, with example commands. Adapt them to each group's configuration and repeat them for each group being migrated. The order is always: create the _MachinePool_ group, validate that it works, and then remove the _MachineDeployment_.
 
 [IMPORTANT]
 ====
-El comando del paso 1 es solo un ejemplo con los campos mínimos. Haz ese paso a mano, a partir de la entrada del grupo _MachineDeployment_ que sustituyes, para que el grupo nuevo conserve su configuración (`labels`, `taints`, etc.). Los campos que admite un grupo _MachinePool_ están en xref:operations-manual:installation.adoc#_nodos_worker[Nodos _worker_]. Mira la entrada actual:
+The command in step 1 is only an example with the minimum fields. Do that step manually, starting from the entry where the _MachineDeployment_ group is replaced, so the new group keeps its configuration (`labels`, `taints`, and so on). The fields that a _MachinePool_ group accepts are found in xref:operations-manual:installation.adoc#_nodos_worker[Worker nodes]. Look at the current entry:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> get keoscluster <nombre-cluster> \
-  -o jsonpath='{.spec.worker_nodes[<posición>]}{"\n"}'
+  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
+  -o jsonpath='{.spec.worker_nodes[<position>]}{"\n"}'
 ----
 
-Copia sus campos en el grupo nuevo, con otro nombre y sin `node_image`. También puedes hacer el cambio a mano, editando el objeto `KeosCluster`:
+Copy its fields to the new group, with another name and without `node_image`. The change can also be made manually by editing the `KeosCluster` object:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> edit keoscluster <nombre-cluster>
+  kubectl -n cluster-<cluster-name> edit keoscluster <cluster-name>
 ----
+
 ====
 
-. Añade el nuevo grupo _MachinePool_ al objeto `KeosCluster`. Omite `node_image` e indica `ami_type` de forma opcional (por defecto, "BOTTLEROCKET_x86_64"):
+. Add the new _MachinePool_ group to the `KeosCluster` object. Omit `node_image` and specify `ami_type` optionally (by default, `BOTTLEROCKET_x86_64`):
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> patch keoscluster <nombre-cluster> \
+  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> \
   --type=json \
-  -p '[{"op":"add","path":"/spec/worker_nodes/-","value":{"name":"<nombre>","size":"<size>","quantity":<n>,"az":"<az>","min_size":<min>,"max_size":<max>}}]'
+  -p '[{"op":"add","path":"/spec/worker_nodes/-","value":{"name":"<name>","size":"<size>","quantity":<n>,"az":"<az>","min_size":<min>,"max_size":<max>}}]'
 ----
 +
-NOTE: Usa siempre `kubectl patch` sobre el `KeosCluster`, nunca `kubectl apply`.
+NOTE: Always use `kubectl patch` on the `KeosCluster`, never `kubectl apply`.
 +
-WARNING: `spec.worker_nodes[].name` (`<nombre>` arriba) admite entre 3 y 25 caracteres (_webhook_ de `KeosCluster`) y debe ser único. *No le añadas tú el sufijo `-mp`/`-md`*: _cluster-operator_ ya añade automáticamente `-mp-<índice>` (o `-md-<índice>` en _MachineDeployment_) al nombre que des.
+WARNING: `spec.worker_nodes[].name` (`<name>` in the command) accepts between 3 and 25 characters (`KeosCluster` webhook) and must be unique. *Do not add the `-mp` or `-md` suffix*: _cluster-operator_ automatically adds `-mp-<index>` (or `-md-<index>` on _MachineDeployment_) to the name given.
 
-. Espera a que el nuevo grupo esté listo:
+. Wait for the new group to be ready:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> get machinepool | grep <nombre>-mp-
+  kubectl -n cluster-<cluster-name> get machinepool | grep <name>-mp-
 ----
 +
-*Salida esperada:* todos los _MachinePool_ `<nombre>-mp-<índice>` del grupo con `PHASE` en `Running`.
+*Expected output:* all `<name>-mp-<index>` _MachinePools_ of the group with `PHASE` in `Running`.
 
-. Identifica los nodos reales del _MachineDeployment_ a reemplazar y drénalos uno a uno, verificando el estado del _cluster_ entre cada uno:
+. Identify the actual nodes of the _MachineDeployment_ that will be replaced and drain them one by one, verifying the cluster state between each one:
 +
-IMPORTANT: El _label_ `cluster.x-k8s.io/deployment-name` vive en el objeto `Machine` (CAPI), no en el `Node` de Kubernetes, así que `kubectl get nodes -l cluster.x-k8s.io/deployment-name=...` no devuelve nada por defecto. Resuelve el nombre real del `Node` a través del `Machine`:
+IMPORTANT: The `cluster.x-k8s.io/deployment-name` label is on the `Machine` object (CAPI), not on the Kubernetes `Node`, so `kubectl get nodes -l cluster.x-k8s.io/deployment-name=...` does not return anything by default. Obtain the actual `Node` name through the `Machine`:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> get machine -l cluster.x-k8s.io/deployment-name=<nombre>-md-<índice> \
+  kubectl -n cluster-<cluster-name> get machine -l cluster.x-k8s.io/deployment-name=<name>-md-<index> \
   -o jsonpath='{.items[*].status.nodeRef.name}'
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl drain <nodo> --ignore-daemonsets --delete-emptydir-data --timeout=10m
+  kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --timeout=10m
 ----
 
-. Comprueba que las cargas funcionan en los nodos nuevos:
+. Check that the workloads work on the new nodes:
 +
 [source,bash]
 ----
@@ -607,82 +629,84 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get pods -A -o wide | grep -Ev "Running|Completed"
 ----
 +
-*Salida esperada:* solo la cabecera. Los _pods_ de los nodos drenados están `Running` en los nodos del grupo _MachinePool_.
-
+*Expected output:* only the header. The pods on the drained nodes are in `Running` state in the _MachinePool_ group.
++
 [WARNING]
 ====
-No quites el grupo _MachineDeployment_ si detectas cualquier problema en el grupo nuevo o en las cargas. Para volver atrás, vuelve a habilitar sus nodos:
+Do not delete the _MachineDeployment_ group if you detect any problems in the new group or its workloads. To go back, enable its nodes again:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl uncordon <nodo>
+  kubectl uncordon <node>
 ----
+
 ====
 
-. Quita el grupo _MachineDeployment_ de `spec.worker_nodes`. Busca su posición en la lista (empieza en 0):
+. Remove the _MachineDeployment_ group from `spec.worker_nodes`. Find its position in the list (starts at 0):
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> get keoscluster <nombre-cluster> \
+  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
   -o jsonpath='{range .spec.worker_nodes[*]}{.name}{"\n"}{end}' | grep -v '^\[INFO\]' | nl -v0
 ----
 +
-y bórralo:
+And delete it:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> patch keoscluster <nombre-cluster> --type=json \
-  -p '[{"op":"remove","path":"/spec/worker_nodes/<posición>"}]'
+  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> --type=json \
+  -p '[{"op":"remove","path":"/spec/worker_nodes/<position>"}]'
 ----
 +
-_cluster-operator_ borra sus _MachineDeployment_ y plantillas, y espera a que desaparezcan las máquinas. Compruébalo:
+_cluster-operator_ deletes its _MachineDeployments_ and templates, and waits for the machines to disappear. Check it:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<nombre-cluster> get machinedeployment | grep <nombre>-md-
+  kubectl -n cluster-<cluster-name> get machinedeployment | grep <name>-md-
 ----
 +
-*Salida esperada:* nada.
+*Expected output:* nothing.
 
-
-== Resolución de problemas
+== Troubleshooting
 
 include::partial$upgrade-recovery.adoc[]
 
-=== Fallo de `clusterctl upgrade apply` con el _namespace_ del _provider_ sin componentes
+=== Failure of `clusterctl upgrade apply` with the provider namespace without components
 
-`clusterctl upgrade apply` borra los componentes del _provider_ de infraestructura en su versión actual antes de instalar la nueva, y conserva el _namespace_, los CRD y su inventario. Si el comando falla entre ambos pasos, `capa-system` puede quedar sin `Deployment`, sin RBAC, sin _webhooks_ y, lo más importante, sin el secreto de credenciales que el propio _provider_ gestiona (`capa-manager-bootstrap-credentials`).
+`clusterctl upgrade apply` deletes the infrastructure provider components in their current version before installing the new ones, and preserves the namespace, the CRDs, and their inventory. If the command fails between the two steps, `capa-system` can be left without `Deployment`, without RBAC, without webhooks and, most importantly, without the credentials secret that the provider itself manages (`capa-manager-bootstrap-credentials`).
 
-La recuperación automática del _script_ (restaurar _webhooks_ de `KeosCluster` y reiniciar su controlador) no toca este secreto ni reinstala el _provider_: es un problema distinto y más profundo, fuera del alcance de esa recuperación.
+The automatic recovery of the script (restoring the `KeosCluster` webhooks and restarting its controller) does not touch this secret or reinstall the provider: it is a different and deeper problem, outside the scope of that recovery.
 
-*Síntoma en el siguiente reintento*: `upgrade-provisioner.py` vuelve a fallar en el mismo paso (`clusterctl upgrade apply`), esta vez con un error de sintaxis de _shell_ poco descriptivo (`Syntax error: "(" unexpected`) en lugar de un mensaje claro sobre el secreto faltante. Esto ocurre porque el _script_ construye la variable `AWS_B64ENCODED_CREDENTIALS` leyendo ese secreto sin comprobar si la lectura fue exitosa; si el secreto no existe, el propio mensaje de error de `kubectl` se interpola sin querer en el comando de `clusterctl` que se ejecuta a continuación.
+*Symptom on the next retry*: `upgrade-provisioner.py` fails again at the same step (`clusterctl upgrade apply`), this time with a scarcely descriptive shell syntax error ("Syntax error: \"(\" unexpected") instead of a clear message about the missing secret. This happens because the script builds the `AWS_B64ENCODED_CREDENTIALS` variable by reading that secret without checking whether the read succeeded; if the secret does not exist, the kubectl error message itself is inadvertently interpolated into the `clusterctl` command that is run next.
 
-*Recuperación manual*:
+*Manual recovery*:
 
-. Localiza el secreto en la copia de los secretos CAPX que el _script_ guarda en cada ejecución real sin `--disable-backup` (`Backing up CAPX secrets: OK`), en `backup/upgrade/<marca-de-tiempo>/capx-secrets/capa-system/`. Usa la copia de la ejecución en la que falló `clusterctl` (o una anterior): se toma antes de `clusterctl`. Las copias de los reintentos posteriores ya no contienen el secreto:
+. Locate the secret in the copy of the CAPX secrets that the script saves on each real execution without `--disable-backup` (`Backing up CAPX secrets: OK`), in `backup/upgrade/<timestamp>/capx-secrets/capa-system/`. Use a copy from an execution where `clusterctl` failed (or an earlier one), because it was taken before `clusterctl` ran. The copies of subsequent retries no longer contain the secret:
 +
 [source,bash]
 ----
 find backup/upgrade/*/capx-secrets/capa-system -name "capa-manager-bootstrap-credentials.yaml"
 ----
 
-. Restaura el secreto:
+. Restore the secret:
 +
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl apply -f backup/upgrade/<marca-de-tiempo-correcta>/capx-secrets/capa-system/capa-manager-bootstrap-credentials.yaml
+  kubectl apply -f backup/upgrade/<correct-timestamp>/capx-secrets/capa-system/capa-manager-bootstrap-credentials.yaml
 ----
 
-. Vuelve a ejecutar `upgrade-provisioner.py` con el mismo comando. Con el secreto restaurado, `clusterctl upgrade apply` se ejecuta correctamente y reinstala el _provider_ completo (`Deployment`, RBAC, CRD, _webhooks_).
+. Run `upgrade-provisioner.py` again with the same command. With the secret restored, `clusterctl upgrade apply` runs correctly and reinstalls the complete provider (`Deployment`, RBAC, CRDs, and webhooks).
 
-IMPORTANT: Si el fallo de `clusterctl` ocurrió dentro de la sección crítica, el reintento puede tropezar además con dos efectos secundarios de esa misma interrupción, independientes entre sí:
+[IMPORTANT]
+====
+If the `clusterctl` failure occurred inside the critical section, the retry may additionally encounter two side effects of that same interruption, independent of each other:
 
-* *`capi-controller-manager` con menos de 2 réplicas disponibles*. Bloquea la comprobación previa del _script_ (`availableReplicas=1 (expected 2 for HA)`). Corrígelo antes de reintentar:
+* *`capi-controller-manager` with fewer than 2 available replicas*. It blocks the script's pre-check (`availableReplicas=1 (expected 2 for HA)`). Correct it before retrying:
 +
 [source,bash]
 ----
@@ -690,4 +714,5 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl scale deployment capi-controller-manager -n capi-system --replicas=2
 ----
 
-* *`HelmRelease` de `cluster-operator` con `spec.suspend: true`*. La sección crítica lo suspende y lo reactiva al finalizar. Si el fallo interrumpió ese ciclo antes de la reactivación, el propio _script_ lo detecta y lo reactiva automáticamente en el siguiente reintento, tras actualizar los _charts_, sin intervención manual. En la consola verás el mensaje "[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting".
+* *`cluster-operator`'s `HelmRelease` with `spec.suspend: true`*. The critical section suspends it and reactivates it on completion. If the failure interrupted that cycle before reactivation, the script detects it and automatically reactivates it on the next retry, after updating the charts, without manual intervention. In the console, the "[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting" message will be seen.
+====
