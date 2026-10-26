@@ -616,6 +616,18 @@ def validate_helm_repository(helm_repository):
     except ValueError:
         raise ValueError(f"The Helm repository '{helm_repository}' is invalid.")
 
+CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+
+
+def helm_credentials_for_other_cloud_host(credentials_url, repo_url):
+    '''True when the secrets-file Helm credentials belong to another host and repo_url is on ECR/ACR/GAR: create sets
+    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.'''
+    if not credentials_url:
+        return False
+    host_changed = urlparse(credentials_url).netloc != urlparse(repo_url).netloc
+    return host_changed and any(m in repo_url for m in CLOUD_REGISTRY_MARKERS)
+
+
 def update_helm_repository(cluster_name, helm_repository, dry_run):
     '''Update the Helm repository'''
 
@@ -644,7 +656,7 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
         current_out, _ = run_command(f"{kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
         current_spec = json.loads(current_out or "{}")
         host_changed = urlparse(current_spec.get("url", "")).netloc != urlparse(helm_repository).netloc
-        cloud_registry = any(m in helm_repository for m in (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev"))
+        cloud_registry = any(m in helm_repository for m in CLOUD_REGISTRY_MARKERS)
         if "secretRef" in current_spec and host_changed and cloud_registry:
             patch_helmRepository.append({"op": "remove", "path": "/spec/secretRef"})
         patch_json = json.dumps(patch_helmRepository)
@@ -1561,9 +1573,12 @@ def upgrade_chart(chart_name, chart_data):
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
-                    repo_auth_required= True
-                    repo_username = vault_secrets_data["secrets"]["helm_repository"]["user"]
-                    repo_password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
+                    if helm_credentials_for_other_cloud_host(vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url):
+                        print(f"[INFO] Helm repository credentials in the secrets file are for another host: {repo_url} authenticates through the HelmRepository provider")
+                    else:
+                        repo_auth_required= True
+                        repo_username = vault_secrets_data["secrets"]["helm_repository"]["user"]
+                        repo_password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
                 else:
                     print("[ERROR] Helm repository credentials not found in secrets file")
                     sys.exit(1)
