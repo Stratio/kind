@@ -77,7 +77,7 @@ The upgrade is only supported in three environments, and any other combination o
 * *Azure VMs* on Microsoft Azure, with an unmanaged _control-plane_. Microsoft AKS is not supported.
 * *GKE* on Google Cloud Platform, with a managed _control-plane_.
 
-Migrating `MachineDeployment` node groups to `MachinePool` is outside the scope of this sheet; it is a separate, assisted operation exclusive to EKS and occurs after this upgrade. See the xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_].
+Migrating `MachineDeployment` node groups to `MachinePool` is outside the scope of this sheet; it is a separate, assisted operation exclusive to EKS and occurs after this upgrade. See the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
 
 [#components]
 
@@ -580,7 +580,7 @@ None of these regressions block the upgrade, but they do affect specific functio
 
 | The node groups remain `MachineDeployment` on EKS
 | EKS-managed node groups are only created on new clusters; the upgrade does not convert existing groups.
-| Migrating them is a separate, assisted, phased operation, subsequent to this upgrade: see the xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_].
+| Migrating them is a separate, assisted, phased operation, subsequent to this upgrade: see the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
 | The existing groups continue to work as self-managed instances.
 
 | Autoscaling does not return on its own if the upgrade aborts
@@ -763,7 +763,7 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | Modifying the `KeosCluster` with `kubectl apply`
 | At any time, also outside the window
 | Do not do it: `cluster-operator` detects the annotation that `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
-| xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_]
+| xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_]
 
 | The scale-down of cluster-autoscaler on managed EKS groups
 | After the window, when retiring nodes from a managed group
