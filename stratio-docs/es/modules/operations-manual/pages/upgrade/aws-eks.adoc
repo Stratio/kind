@@ -162,7 +162,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager --since=1h | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 *Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.
@@ -383,6 +383,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 * Primer comando: la versión de `--cluster-operator` y `True`, por ejemplo `0.7.5 True`.
 * Segundo comando: `true`.
 
+[[ecr_pull_through_objeto_keos]]
 === Objeto `keos` de _Stratio KEOS_
 
 Pon el mismo valor en el objeto `keos` de _Stratio KEOS_; _Stratio KEOS_ se detiene si no coincide con su `keos.yaml`:
@@ -419,6 +420,8 @@ python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_throug
 IMPORTANT: La ruta es relativa al directorio de trabajo *dentro del contenedor* (`/upgrade`, donde está montado `-v $PWD/backup:/upgrade/backup`), nunca la ruta del *host*. Para listar las copias disponibles y copiar el nombre exacto, ejecuta `ls backup/ecr_pull_through/` dentro del propio contenedor antes de ejecutar `--restore`.
 
 El _flag_ revierte, en este orden, los CRD, el `ConfigMap` de valores de _cluster-operator_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, la versión del _chart_ en el `HelmRelease` y, por último, `ecr_pull_through_cache_enabled` a su valor anterior. Durante el proceso, espera a que el `HelmRelease` esté en estado `Ready` y el `KeosCluster` en estado `Provisioned`, igual que en una actualización normal.
+
+`--restore` también devuelve `keos.yaml` a su contenido anterior. El objeto `keos` de _Stratio KEOS_ no lo restaura: si lo cambiaste, deja `ecr_pull_through_cache_enabled` con el mismo valor que `keos.yaml`, con el mismo `kubectl edit` del apartado <<ecr_pull_through_objeto_keos, objeto `keos` de _Stratio KEOS_>>.
 
 == _Dry-run_ de `upgrade-provisioner.py`
 
@@ -471,7 +474,6 @@ Sigue el estado real del _control-plane_ directamente en AWS:
 ----
 watch -n30 aws eks describe-cluster --name <nombre-cluster> --query 'cluster.{status:status,version:version}' --output table
 ----
-----PLACEHOLDER----
 
 *Salida esperada:* `UPDATING` mientras sube y una versión que avanza de _minor_ en _minor_ (1.33, 1.34, 1.35). Al terminar, `ACTIVE` y `1.35`.
 
@@ -488,7 +490,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl logs -n capa-system deploy/capa-controller-manager | grep -i error
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
 NOTE: Durante el cambio de `k8s_version`, en los _logs_ de `capa-controller-manager` puede aparecer de forma transitoria `InvalidParameterException: Addon version specified is not supported` al actualizar los _addons_ de EKS (por ejemplo, `coredns` o `kube-proxy`). Solo es un problema si aparece después de terminar la actualización.
