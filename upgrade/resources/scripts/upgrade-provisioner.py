@@ -635,14 +635,17 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
         existing_helmrepo = False
 
     if existing_helmrepo:
-        # Same type create sets (oci:// -> oci, else default); an ECR repository authenticates through the
-        # HelmRepository provider, as create does without auth_required, so a previous secretRef is dropped.
+        # Same type create sets (oci:// -> oci, else default). Moving to another host on ECR/ACR/GAR drops the old
+        # secretRef: those authenticate through the HelmRepository provider, as create sets them up without auth_required.
         patch_helmRepository = [
             {"op": "replace", "path": "/spec/url", "value": helm_repository},
             {"op": "add", "path": "/spec/type", "value": "oci" if helm_repository.startswith("oci://") else "default"},
         ]
-        current_spec, _ = run_command(f"{kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
-        if ".dkr.ecr." in helm_repository and "secretRef" in json.loads(current_spec or "{}"):
+        current_out, _ = run_command(f"{kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
+        current_spec = json.loads(current_out or "{}")
+        host_changed = urlparse(current_spec.get("url", "")).netloc != urlparse(helm_repository).netloc
+        cloud_registry = any(m in helm_repository for m in (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev"))
+        if "secretRef" in current_spec and host_changed and cloud_registry:
             patch_helmRepository.append({"op": "remove", "path": "/spec/secretRef"})
         patch_json = json.dumps(patch_helmRepository)
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"

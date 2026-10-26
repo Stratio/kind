@@ -201,15 +201,23 @@ def get_helmrepository_keos_spec():
     return json.loads(out) if out.strip() else {}
 
 
+CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+
+
+def drops_stale_secret_ref(old_url, new_url, current_spec):
+    '''True when the repository moves to another host that is ECR/ACR/GAR: those authenticate through the HelmRepository
+    provider, as create sets them up without auth_required, and the old secretRef holds the previous host's credentials.'''
+    host_changed = urlparse(old_url or "").netloc != urlparse(new_url).netloc
+    return "secretRef" in current_spec and host_changed and any(m in new_url for m in CLOUD_REGISTRY_MARKERS)
+
+
 def helmrepository_keos_patch(url, current_spec):
-    '''JSON patch for HelmRepository keos: the url plus the type create sets for it (oci:// -> oci, else default).
-    An ECR repository authenticates through the HelmRepository provider, as create does without auth_required, so a
-    secretRef left from the previous repository is dropped.'''
+    '''JSON patch for HelmRepository keos: the url plus the type create sets for it (oci:// -> oci, else default).'''
     ops = [
         {"op": "replace", "path": "/spec/url", "value": url},
         {"op": "add", "path": "/spec/type", "value": "oci" if url.startswith("oci://") else "default"},
     ]
-    if ".dkr.ecr." in url and "secretRef" in current_spec:
+    if drops_stale_secret_ref(current_spec.get("url"), url, current_spec):
         ops.append({"op": "remove", "path": "/spec/secretRef"})
     return json.dumps(ops)
 
