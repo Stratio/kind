@@ -619,13 +619,15 @@ def validate_helm_repository(helm_repository):
 CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
 
 
-def helm_credentials_for_other_cloud_host(credentials_url, repo_url):
-    '''True when the secrets-file Helm credentials belong to another host and repo_url is on ECR/ACR/GAR: create sets
-    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.'''
-    if not credentials_url:
+def helm_credentials_for_other_cloud_host(credentials_url, repo_url, keos_repo_type=""):
+    '''True when repo_url is on ECR/ACR/GAR and the secrets-file Helm credentials belong to another host: create sets
+    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.
+    Without a credentials url, a KeosCluster repository type other than ecr/acr/gar (e.g. generic) means the same.'''
+    if not any(m in repo_url for m in CLOUD_REGISTRY_MARKERS):
         return False
-    host_changed = urlparse(credentials_url).netloc != urlparse(repo_url).netloc
-    return host_changed and any(m in repo_url for m in CLOUD_REGISTRY_MARKERS)
+    if credentials_url:
+        return urlparse(credentials_url).netloc != urlparse(repo_url).netloc
+    return keos_repo_type not in ("ecr", "acr", "gar")
 
 
 def update_helm_repository(cluster_name, helm_repository, dry_run):
@@ -1573,7 +1575,8 @@ def upgrade_chart(chart_name, chart_data):
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
-                    if helm_credentials_for_other_cloud_host(vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url):
+                    if helm_credentials_for_other_cloud_host(vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url,
+                                                             keos_cluster["spec"]["helm_repository"].get("type", "")):
                         print(f"[INFO] Helm repository credentials in the secrets file are for another host: {repo_url} authenticates through the HelmRepository provider")
                     else:
                         repo_auth_required= True
