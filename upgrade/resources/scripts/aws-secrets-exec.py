@@ -39,7 +39,7 @@ def secrets_aws_env(secrets_file, vault_password):
         aws_creds = vault_secrets_data["secrets"]["aws"]["credentials"]
         access_key, secret_key, region = aws_creds["access_key"], aws_creds["secret_key"], aws_creds["region"]
     except Exception as e:
-        print(f"[ERROR] Could not read the AWS credentials from {secrets_file}: {type(e).__name__}")
+        print(f"[ERROR] Could not read the AWS credentials from {secrets_file}: {type(e).__name__}", file=sys.stderr)
         sys.exit(1)
 
     env = {k: v for k, v in os.environ.items() if k not in AWS_CREDENTIAL_ENV_VARS}
@@ -61,10 +61,11 @@ def main():
     identity = subprocess.run(["aws", "sts", "get-caller-identity", "--query", "Arn", "--output", "text"],
                               env=env, capture_output=True, text=True)
     if identity.returncode != 0:
-        print("[ERROR] AWS rejected the credentials of the secrets file")
-        print(identity.stderr.strip())
+        print("[ERROR] AWS rejected the credentials of the secrets file", file=sys.stderr)
+        print(identity.stderr.strip(), file=sys.stderr)
         sys.exit(1)
-    print(f"[INFO] Running with the AWS identity of the secrets file: {identity.stdout.strip()}", flush=True)
+    # stderr: stdout carries only the command's output, so it can be piped (e.g. -o json | jq).
+    print(f"[INFO] Running with the AWS identity of the secrets file: {identity.stdout.strip()}", file=sys.stderr, flush=True)
 
     sys.exit(subprocess.run(args.command, env=env).returncode)
 
