@@ -228,7 +228,8 @@ KEOS_YAML = "keos.yaml"
 def enable_pull_through_in_keos_yaml(backup_dir):
     '''Set docker_registry.ecr_pull_through_cache_enabled in the mounted keos.yaml (as create writes it, keosinstaller.go).
     The keos CR in keos-ops is not touched: keos-installer requires both to match, the runbook covers the CR.'''
-    if not os.path.exists(KEOS_YAML):
+    # isfile: docker creates a directory when a bind-mounted file is missing on the host.
+    if not os.path.isfile(KEOS_YAML):
         print(f"[WARN] {KEOS_YAML} not mounted in /upgrade: set docker_registry.ecr_pull_through_cache_enabled: true in it by hand")
         return
     with open(KEOS_YAML) as f:
@@ -387,7 +388,7 @@ def restore(backup_dir):
     print("OK")
 
     keos_yaml_backup = os.path.join(backup_dir, KEOS_YAML)
-    if os.path.exists(keos_yaml_backup) and os.path.exists(KEOS_YAML):
+    if os.path.isfile(keos_yaml_backup) and os.path.isfile(KEOS_YAML):
         print(f"[INFO] Restoring {KEOS_YAML}", end=" ", flush=True)
         with open(keos_yaml_backup) as src, open(KEOS_YAML, "w") as dst:
             dst.write(src.read())
