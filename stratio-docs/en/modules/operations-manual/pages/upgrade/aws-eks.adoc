@@ -100,8 +100,11 @@ docker run \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v $PWD/backup:/upgrade/backup \
+  -v $PWD/keos.yaml:/upgrade/keos.yaml \
   <registry>/cloud-provisioner-upgrade:0.9.X
 ----
+
+NOTE: Monta el `keos.yaml` que usa _Stratio KEOS_ (el de su directorio de trabajo). Si activas la caché _pull-through_, `ecr_pull_through.py` pone en él `docker_registry.ecr_pull_through_cache_enabled: true`. Comprueba antes que el fichero existe: si no existe, Docker crea un directorio con ese nombre y el _script_ termina indicando que no pudo actualizar `keos.yaml`.
 
 NOTE: Ninguno de los dos _scripts_ genera un fichero de registro propio con marca de tiempo; toda su salida va a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero del volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
 
@@ -120,6 +123,16 @@ Antes de la salida del comando, `aws-secrets-exec.py` muestra la identidad de AW
 == Comprobaciones previas
 
 Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], comprueba en EKS:
+
+* Máquinas en ejecución:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
+----
++
+*Salida esperada:* todas con `PHASE = Running`.
 
 * _MachineDeployments_:
 +
@@ -326,7 +339,11 @@ Cuando pregunte por el repositorio de Helm, pulsa ENTER para mantener el actual 
 *Salida esperada al terminar:*
 
 * `[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster`
+* `[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in keos.yaml OK`
+* `[ACTION REQUIRED] Set the same value in the keos CR (kubectl edit keos keos -n keos-ops) before the next keos-installer run`
 * `[OK] cluster-operator upgrade and ECR pull-through flag enabled.`
+
+Si el _script_ no puede actualizar `keos.yaml` (por ejemplo, porque no está montado), muestra `[ERROR] keos.yaml not updated: <motivo>` y termina con `[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).` En ese caso, pon `docker_registry.ecr_pull_through_cache_enabled: true` en `keos.yaml` a mano.
 
 Ejemplo de salida (resumida):
 
@@ -454,6 +471,8 @@ Además de la xref:operations-manual:upgrade.adoc#_final_verification[verificaci
 +
 [source,bash]
 ----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
 python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl get machinedeployments -A
 python3 aws-secrets-exec.py -p <vault-password> -- \

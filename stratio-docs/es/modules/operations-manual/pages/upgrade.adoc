@@ -79,15 +79,6 @@ kubectl get nodes
 +
 *Salida esperada:* todos los nodos con `STATUS = Ready`.
 
-** Máquinas en ejecución:
-+
-[source,bash]
-----
-kubectl get machines -A
-----
-+
-*Salida esperada:* todas con `PHASE = Running`.
-
 ** _Pods_ de _Cluster API_ y de _cluster-operator_:
 +
 [source,bash]
@@ -399,7 +390,6 @@ kubectl get hr -A -o json \
 [source,bash]
 ----
 kubectl get keoscluster -A -o custom-columns=NAME:.metadata.name,K8S_VERSION:.spec.k8s_version,READY:.status.ready
-kubectl get machines -A
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 kubectl logs -n capi-system deploy/capi-controller-manager | grep -i error
 kubectl logs -n kube-system deploy/keoscluster-controller-manager | grep -i error
