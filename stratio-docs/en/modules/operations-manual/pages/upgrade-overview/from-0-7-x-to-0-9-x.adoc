@@ -58,6 +58,7 @@ The table answers, with one row per decision, what you need to size the window:
 |===
 
 .Message to communicate
+
 [caption=]
 ====
 The platform raises the cluster's Kubernetes version. It does not stop: nodes are gradually replaced with the new version, and applications are rescheduled across them. Services that have a single replica will be unresponsive for a few minutes when it is their turn to change nodes, so it is advisable to check beforehand that everything important has more than one replica. The window depends on the number of nodes in the cluster. After this intervention, a second one will be necessary: _Stratio KEOS_, so the environment is left in its final version.

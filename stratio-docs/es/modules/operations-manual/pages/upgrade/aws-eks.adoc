@@ -346,8 +346,6 @@ Cuando pregunte por el repositorio de Helm, pulsa Intro para mantener el actual 
 
 Si el _script_ no puede actualizar _keos.yaml_ (por ejemplo, porque no está montado), muestra "[ERROR] keos.yaml not updated: <motivo>" y termina con "[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).". En ese caso, establece `docker_registry.ecr_pull_through_cache_enabled: true` en _keos.yaml_ manualmente.
 
-Si el _script_ no puede actualizar `keos.yaml` (por ejemplo, porque no está montado), muestra `[ERROR] keos.yaml not updated: <motivo>` y termina con `[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).` En ese caso, pon `docker_registry.ecr_pull_through_cache_enabled: true` en `keos.yaml` a mano.
-
 Ejemplo de salida (resumida):
 
 [source,text]

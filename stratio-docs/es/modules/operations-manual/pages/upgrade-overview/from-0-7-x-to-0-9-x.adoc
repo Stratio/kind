@@ -58,6 +58,7 @@ La tabla responde, con una fila por decisión, a lo que necesitas para dimension
 |===
 
 .Mensaje para transmitir
+
 [caption=]
 ====
 La plataforma sube la versión de Kubernetes del _cluster_. No se detiene: los nodos se van sustituyendo por otros con la nueva versión y las aplicaciones se reprograman entre ellos. Los servicios que tengan una sola réplica quedarán sin respuesta durante unos minutos cuando les toque cambiar de nodo, así que conviene comprobar de antemano que todo lo importante tenga más de una réplica. La ventana se mide por el número de nodos del _cluster_. Después de esta intervención hará falta una segunda, la de _Stratio KEOS_, para que el entorno quede en su versión final.

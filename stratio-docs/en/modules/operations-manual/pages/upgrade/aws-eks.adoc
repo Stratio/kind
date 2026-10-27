@@ -134,16 +134,6 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 +
 *Expected output:* all with `PHASE = Running`.
 
-* Running machines:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl get machines -A
-----
-+
-*Expected output:* all with `PHASE = Running`.
-
 * _MachineDeployments_:
 +
 [source,bash]
@@ -434,6 +424,8 @@ python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_throug
 IMPORTANT: The path is relative to the working directory *inside the container* (`/upgrade`, where `-v $PWD/backup:/upgrade/backup` is mounted), never the host path. To list the available copies and copy the exact name, run `ls backup/ecr_pull_through/` inside the container itself before running `--restore`.
 
 The option reverts, in this order, the CRDs, the _cluster-operator_ values _ConfigMap_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, the chart version in the _HelmRelease_, and, finally, `ecr_pull_through_cache_enabled` to its previous value. During the process, it waits for the _HelmRelease_ to reach the `Ready` state and the `KeosCluster` to reach the `Provisioned` state, as in a normal upgrade.
+
+`--restore` también devuelve `keos.yaml` a su contenido anterior. El objeto `keos` de _Stratio KEOS_ no lo restaura: si lo cambiaste, deja `ecr_pull_through_cache_enabled` con el mismo valor que `keos.yaml`, con el mismo `kubectl edit` del apartado <<ecr_pull_through_objeto_keos, objeto `keos` de _Stratio KEOS_>>.
 
 == Dry-run of `upgrade-provisioner.py`
 
