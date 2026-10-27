@@ -473,7 +473,7 @@ IMPORTANT: On Azure VMs, the _control-plane_ etcd is managed by kubeadm and its 
 * *What happens to the volumes.* The provider disks survive the replacement of the nodes: they are detached from the retired node and attached to the new one. What lives on a node's local disk, by contrast, is lost.
 * *Can the data be left in an intermediate state?* The cluster, yes; the data, no. If the process is interrupted, it can be left with the new charts and the old providers, or with the _control-plane_ in the target version and some node groups still in the previous version. Both are supported states and are resolved by completing the upgrade.
 * *What to do if something fails midway.* Correct the cause and relaunch, with an important caveat recorded in <<rollback, Rollback>>: if the version change was already applied to the descriptor but not propagated, a relaunch skips that step.
-* *How to check that everything is fine after the migration.* The `KeosCluster` returns to `ready` and to the `Provisioned` phase, the nodes report the target version (on EKS, those in `MachineDeployment` groups stay on 1.32), and the applications with volumes start again. On Azure VMs, in addition, the _control-plane_ etcd responds, forms quorum, and its registered members match the _control-plane_ nodes. It is recorded in <<checks, Post-upgrade checks>>.
+* *How to check that everything is fine after the migration.* The `KeosCluster` returns to `ready` and to the `Provisioned` phase, the nodes report the target version (on EKS, those in `MachineDeployment` groups stay on 1.32), and the applications with volumes start again. On Azure VMs, in addition, the _control-plane_ etcd responds, forms a quorum, and its registered members match the _control-plane_ nodes. It is recorded in <<checks, Post-upgrade checks>>.
 
 [#outage]
 
@@ -606,7 +606,7 @@ No installation verification page exists, so this table serves as the closure cr
 
 | 2
 | The nodes
-| All report the target version, except on EKS those in `MachineDeployment` groups, which stay on 1.32 until they are migrated to `MachinePool`. None remain out of `Ready`, and the number of nodes in each group is the configured one.
+| All report the target version, except those in `MachineDeployment` groups on EKS, which stay on 1.32 until they migrate to `MachinePool`. None are out of `Ready`, and each group has the configured number of nodes.
 | Yes
 
 | 3
