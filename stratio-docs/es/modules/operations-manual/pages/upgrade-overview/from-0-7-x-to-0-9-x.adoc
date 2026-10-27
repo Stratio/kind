@@ -103,7 +103,7 @@ La actualización consiste en una única ejecución de `upgrade-provisioner.py`,
 
 | 3
 | Kubernetes
-| El _control-plane_ y todos los grupos de nodos _worker_, de la versión 1.32 a la 1.35.
+| El _control-plane_ y los grupos de nodos _worker_, de la versión 1.32 a la 1.35. En EKS, los grupos `MachineDeployment` se quedan en la 1.32 hasta que se migran a `MachinePool`.
 | El etcd del _control-plane_, solo en las VMs de Azure. En EKS y en GKE es del proveedor.
 | Va al final porque lo ejecutan los componentes de los dos bloques anteriores: `cluster-operator` traduce el cambio de `k8s_version` y Cluster API reemplaza las máquinas.
 |===
@@ -473,7 +473,7 @@ IMPORTANT: En Azure VMs, el etcd del _control-plane_ lo gestiona kubeadm y su ve
 * *Qué le ocurre a los volúmenes.* Los discos del proveedor sobreviven al reemplazo de los nodos: se desenganchan del nodo retirado y se enganchan al nuevo. Lo que viva en el disco local de un nodo, en cambio, se pierde con él.
 * *¿Puede quedar el dato en un estado intermedio?* El _cluster_ sí, no los datos. Si el proceso se interrumpe, puede quedar con los _charts_ nuevos y los proveedores antiguos, o con el _control-plane_ en la versión de destino y con parte de los grupos de nodos aún en la versión anterior. Ambos son estados admitidos y se resuelven al completar la actualización.
 * *Qué hacer si algo falla a mitad.* Corregir la causa y relanzar, con una salvedad importante recogida en <<rollback, _Rollback_>>: si el cambio de versión ya se aplicó al descriptor pero no se propagó, un relanzamiento se salta ese paso.
-* *Cómo comprobar que todo está bien tras la migración.* El `KeosCluster` vuelve a `ready` y a la fase `Provisioned`, todos los nodos informan de la versión de destino y las aplicaciones con volúmenes vuelven a arrancar. En Azure VMs, además, el etcd del _control-plane_ responde, forma quórum y sus miembros registrados coinciden con los nodos del _control-plane_. Está recogido en <<checks, Comprobaciones posteriores>>.
+* *Cómo comprobar que todo está bien tras la migración.* El `KeosCluster` vuelve a `ready` y a la fase `Provisioned`, los nodos informan de la versión de destino (en EKS, los de los grupos `MachineDeployment` siguen en la 1.32) y las aplicaciones con volúmenes vuelven a arrancar. En Azure VMs, además, el etcd del _control-plane_ responde, forma quórum y sus miembros registrados coinciden con los nodos del _control-plane_. Está recogido en <<checks, Comprobaciones posteriores>>.
 
 [#outage]
 
@@ -606,7 +606,7 @@ No hay una página de verificación de la instalación a la que remitir, por lo 
 
 | 2
 | Los nodos
-| Todos informan de la versión de destino y ninguno queda fuera de `Ready`. El número de nodos de cada grupo es el configurado.
+| Todos informan de la versión de destino, salvo en EKS los de los grupos `MachineDeployment`, que siguen en la 1.32 hasta que se migran a `MachinePool`. Ninguno queda fuera de `Ready` y el número de nodos de cada grupo es el configurado.
 | Sí
 
 | 3
