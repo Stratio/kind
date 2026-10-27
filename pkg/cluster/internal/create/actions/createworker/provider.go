@@ -778,10 +778,7 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 		clusterAutoscalerHelmReleaseParams.ChartRepoRef = "cluster-autoscaler"
 	}
 
-	// if Central ECR is enabled add suffix to the image
-	if privateParams.CentralECR {
-		privateParams.KeosRegUrl = commons.GetPrefixedRegistryURL("registry.k8s.io", privateParams.KeosRegUrl, privateParams.CentralECR)
-	}
+	// Each per-minor template adds the ECR pull-through prefix itself: the 1.35 Stratio build is outside it.
 	helmValuesCA, err := getManifest("common", "cluster-autoscaler-helm-values.tmpl", majorVersion, privateParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CA helm values")
