@@ -165,7 +165,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
 ----
 +
-*Salida esperada:* ningún error. Si aparece alguno, revísalo antes de continuar.
+NOTE: Si aparece algún error, revísalo antes de continuar.
 
 NOTE: Si el `KeosCluster` define `spec.networks.pods_cidr`, el _script_ comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ de EKS. Si no coincide, lo corrige. Con `--dry-run` no lo corrige.
 
@@ -495,10 +495,9 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 +
 NOTE: Durante el cambio de `k8s_version`, en los _logs_ de `capa-controller-manager` puede aparecer de forma transitoria `InvalidParameterException: Addon version specified is not supported` al actualizar los _addons_ de EKS (por ejemplo, `coredns` o `kube-proxy`). Solo es un problema si aparece después de terminar la actualización.
 +
-*Salida esperada:*
+*Salida esperada:* los grupos _MachineDeployment_ siguen en 1.32 en la columna `VERSION`: no cambian hasta que se migren a _MachinePool_, y no es un fallo de la actualización.
 +
-** Los grupos _MachineDeployment_ siguen en 1.32 en la columna `VERSION`: no cambian hasta que se migren a _MachinePool_, y no es un fallo de la actualización.
-** En los _logs_ de CAPA, ningún error salvo los transitorios de la nota.
+NOTE: Si en los _logs_ de CAPA aparece algún error distinto de los transitorios de la nota anterior, revísalo antes de continuar.
 
 * Imagen de _cluster-autoscaler_:
 +
