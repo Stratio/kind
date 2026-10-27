@@ -117,6 +117,8 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
+# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
@@ -1283,9 +1285,8 @@ def update_flux_image_tag_values(values_file):
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). This custom image lives
-    at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
-    official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
+    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). With a private registry the image
+    is "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
 
     try:
         with open(values_file, 'r') as file:
@@ -1293,8 +1294,10 @@ def update_cluster_autoscaler_image_tag_value(values_file):
 
         image = values.setdefault('image', {})
         image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        if 'repository' in image:
-            image['repository'] = image['repository'].replace('/k8s/autoscaling', '/autoscaling')
+        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+        if is_private_registry_enabled(cluster_config) and registry_url:
+            image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
