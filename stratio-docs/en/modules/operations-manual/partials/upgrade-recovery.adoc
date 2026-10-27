@@ -27,7 +27,7 @@ The recovery is run only if the script captures the error: if it is interrupted 
 
 After updating each chart, the script waits for its `HelmRelease` to be in the `Ready` state. The limit depends on the number of nodes in the cluster: the greater of 15 minutes or 5 minutes plus 2 minutes per node. If it runs out, it aborts with a message of the type "[ERROR] Error updating chart: HelmRelease <namespace>/<chart> not Ready: [...]".
 
-Meanwhile, Flux continues retrying the chart on its own. Look for why its pods do not start:
+Meanwhile, Flux continues retrying the chart on its own. Look for why its pods do not become ready:
 
 [source,bash]
 ----
@@ -38,7 +38,7 @@ kubectl get events -n <namespace> --field-selector reason=FailedScheduling
 
 Correct the cause. When the `HelmRelease` is in `Ready` state, run `upgrade-provisioner.py` again with the same command.
 
-If a different Helm repository was indicated, the `HelmReleases` of the charts that the script has not yet updated may be left in `SourceNotReady` with the "ChartPullError ... not found" message until it is run again. The script changes the Helm repository before updating the charts, and the new repository may not include the previous versions. Workloads keep their current version; on relaunch, the script updates them.
+If a different Helm repository was indicated, the `HelmReleases` of the charts that the script has not yet updated may be left in `SourceNotReady` with the "ChartPullError ... not found" message until it is run again. The script changes the Helm repository before updating the charts, and the new repository may not include the previous versions. Workloads keep their current version; on relaunch, the script updates those charts.
 
 ==== Failure of the health check of a chart (`unhealthy pod(s)`)
 

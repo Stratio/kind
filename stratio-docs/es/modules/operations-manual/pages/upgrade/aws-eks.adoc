@@ -341,7 +341,7 @@ Cuando pregunte por el repositorio de Helm, pulsa Intro para mantener el actual 
 
 * "[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster".
 * "[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in keos.yaml OK".
-* "[ACTION REQUIRED] Set the same value in the keos CR (kubectl edit keos keos -n keos-ops) before the next keos-installer run."
+* "[ACTION REQUIRED] Set spec.docker_registry.ecr_pull_through_cache_enabled: true with 'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run".
 * "[OK] cluster-operator upgrade and ECR pull-through flag enabled."
 
 Si el _script_ no puede actualizar _keos.yaml_ (por ejemplo, porque no está montado), muestra "[ERROR] keos.yaml not updated: <motivo>" y termina con "[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).". En ese caso, establece `docker_registry.ecr_pull_through_cache_enabled: true` en _keos.yaml_ manualmente.
@@ -386,6 +386,20 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 
 * Primer comando: la versión de `--cluster-operator` y `True`, por ejemplo `0.7.5 True`.
 * Segundo comando: `true`.
+
+[#ecr_pull_through_objeto_keos]
+
+=== Objeto `keos` de _Stratio KEOS_
+
+Pon el mismo valor en el objeto `keos` de _Stratio KEOS_; _Stratio KEOS_ se detiene si no coincide con su _keos.yaml_:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl edit keos.keos.stratio.com keos -n keos-ops
+----
+
+En el editor, añade `ecr_pull_through_cache_enabled: true` dentro de `spec.docker_registry` y guarda.
 
 [#ecr_pull_through_recuperacion]
 

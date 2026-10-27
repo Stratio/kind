@@ -105,15 +105,6 @@ kubectl get nodes
 +
 *Expected output:* all nodes with `STATUS = Ready`.
 
-** Running machines:
-+
-[source,bash]
-----
-kubectl get machines -A
-----
-+
-*Expected output:* all with `PHASE = Running`.
-
 ** Cluster API and _cluster-operator_ pods:
 +
 [source,bash]
@@ -376,7 +367,7 @@ clusterctl upgrade apply \
 +
 It is skipped if all the providers are already on their destination version. If cert-manager manages it with Helm, it removes the `clusterctl` label beforehand so it doesn't replace it. Afterward, it returns the CAPI and provider controllers to 2 replicas with `priorityClassName: system-node-critical`.
 +
-NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:<version>` and `--control-plane kubeadm:<version>` parameters. EKS and GKE manage their own _control-plane_ and do not need to update it, but Azure VMs use `KubeadmControlPlane`, the kubeadm _control-plane_ provider of CAPI, which must be updated separately.
+NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:<version>` and `--control-plane kubeadm:<version>` parameters. EKS and GKE manage their own _control-plane_ and do not need to update these providers, but Azure VMs use `KubeadmControlPlane`, the kubeadm _control-plane_ provider of CAPI, which must be updated separately.
 
 . *Kubernetes version upgrade*: each environment does it in a different way. See the "Before starting" section of the environment's procedure.
 
@@ -430,4 +421,4 @@ kubectl logs -n capi-system -l cluster.x-k8s.io/provider=cluster-api --tail=-1 -
 kubectl logs -n kube-system -l app.kubernetes.io/name=keoscluster-controller-manager --tail=-1 --since=1h | grep -P '\tERROR\t'
 ----
 +
-*Expected output:* `K8S_VERSION` is the target version and `READY` is `true`. Review the logs for errors before considering the upgrade finished. What changes in each environment are found in the "Post-upgrade checks" section of its procedure.
+*Expected output:* `K8S_VERSION` is the target version and `READY` is `true`. Review the logs for errors before considering the upgrade finished. Cluster API logs may show "Unauthorized" or "connection to the workload cluster is down" errors while the control plane changes version; they are only a problem if they keep appearing after the upgrade finishes. The "Post-upgrade checks" section of each environment's procedure lists the changes.

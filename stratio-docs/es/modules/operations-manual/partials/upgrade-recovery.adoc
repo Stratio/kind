@@ -27,7 +27,7 @@ La recuperación solo se ejecuta si el _script_ captura el error: si lo interrum
 
 Después de actualizar cada _chart_, el _script_ espera a que su `HelmRelease` esté en el estado `Ready`. El límite depende del número de nodos del _cluster_: es el mayor entre 15 minutos y 5 minutos más 2 minutos por nodo. Si se agota, aborta con un mensaje del tipo "[ERROR] Error updating chart: HelmRelease <namespace>/<chart> not Ready: [...]".
 
-Mientras tanto, Flux sigue reintentando el _chart_ por su cuenta. Busca por qué no arrancan sus _pods_:
+Mientras tanto, Flux sigue reintentando el _chart_ por su cuenta. Busca por qué sus _pods_ no llegan a estar listos:
 
 [source,bash]
 ----
@@ -38,7 +38,7 @@ kubectl get events -n <namespace> --field-selector reason=FailedScheduling
 
 Corrige la causa. Cuando el `HelmRelease` esté en estado `Ready`, vuelve a ejecutar `upgrade-provisioner.py` con el mismo comando.
 
-Si indicaste un repositorio de Helm distinto, los `HelmRelease` de los _charts_ que el _script_ aún no ha actualizado pueden quedar en `SourceNotReady` con el mensaje "ChartPullError ... not found" hasta que lo vuelvas a ejecutar. El _script_ cambia el repositorio de Helm antes de actualizar los _charts_, y el nuevo repositorio puede no incluir las versiones anteriores. Las cargas siguen con la versión que tenían; al relanzar, el _script_ las actualiza.
+Si indicaste un repositorio de Helm distinto, los `HelmRelease` de los _charts_ que el _script_ aún no ha actualizado pueden quedar en `SourceNotReady` con el mensaje "ChartPullError ... not found" hasta que lo vuelvas a ejecutar. El _script_ cambia el repositorio de Helm antes de actualizar los _charts_, y el nuevo repositorio puede no incluir las versiones anteriores. Las cargas siguen con la versión que tenían; al relanzar, el _script_ actualiza esos _charts_.
 
 ==== Fallo de la comprobación de salud de un _chart_ (`unhealthy pod(s)`)
 
