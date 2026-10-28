@@ -116,7 +116,8 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
+# The -01 suffix marks the Stratio build: the bare v1.35.2 on registry.k8s.io lacks the fix.
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-01"
 # Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
 
@@ -1285,8 +1286,8 @@ def update_flux_image_tag_values(values_file):
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). With a private registry the image
-    is "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
+    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). The image is always
+    "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
 
     try:
         with open(values_file, 'r') as file:
@@ -1295,7 +1296,7 @@ def update_cluster_autoscaler_image_tag_value(values_file):
         image = values.setdefault('image', {})
         image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
         registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
-        if is_private_registry_enabled(cluster_config) and registry_url:
+        if registry_url:
             image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
