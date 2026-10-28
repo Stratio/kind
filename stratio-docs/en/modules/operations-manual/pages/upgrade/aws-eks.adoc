@@ -1,0 +1,733 @@
+= Upgrade on EKS
+
+:sectnums:
+:sectnumlevels: 1
+
+This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.x with Kubernetes 1.35. Read the complete procedure before applying it, then follow the sections in order.
+
+== Before starting
+
+On EKS, the upgrade changes the following:
+
+* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated] table.
+* The version of the _control-plane_, from 1.32 to 1.35. The script changes `KeosCluster.spec.k8s_version` only once, and CAPA raises the EKS _control-plane_ minor by minor up to 1.35.
+* Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced. To raise their version, migrate them to _MachinePool_ after the upgrade (see the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>).
+
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow you to return to a previous version.
+
+On EKS, the upgrade image includes three scripts. They are run in this order:
+
+[%header,cols="2,4,2"]
+|===
+| Script | What it does | When to use it
+
+| `ecr_pull_through.py`
+| Updates _cluster-operator_ and enables `ecr_pull_through_cache_enabled` on an existing cluster. It does not change any image.
+| Only if the cache is enabled, before `upgrade-provisioner.py`.
+
+| `upgrade-provisioner.py`
+| Updates the components and the Kubernetes version from 0.7.x to 0.9.x.
+| Always.
+
+| `activate-capa-machinepool-features.py`
+| Checks, without changing anything, that _cluster-operator_, CAPA, and their feature gates allow using _MachinePool_. It does not modify CAPA: `upgrade-provisioner.py` enables the feature gates on reinstalling CAPA, and a manual change would be lost on the next upgrade.
+| Before migrating groups to _MachinePool_, after the upgrade.
+|===
+
+== Requirements
+
+In addition to the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], on EKS the following is needed:
+
+* That the AWS credentials in _secrets.yml_ (the access key and, if it exists, the `role_arn`) continue to be valid. The three scripts use them for all AWS calls.
+
+[NOTE]
+====
+On startup, the script checks access to the cluster and, if it fails, regenerates the kubeconfig with the credentials of `secrets.yml`.
+
+If the regeneration also fails, the script stops. Review that the AWS credentials in _secrets.yml_ are valid and have access to the cluster.
+====
+
+== Permissions
+
+Before starting, check the permissions of each identity:
+
+* *User who runs the upgrade scripts*: the identity of _secrets.yml_ (the access key or, if it exists, the `role_arn`). It needs the permissions of xref:attachment$stratio-eks-policy.json[`stratio-eks-policy.json`], the same as in the installation.
+* *User who runs `clusterawsadm`* to update the CloudFormation stack. It can be another user. It needs the temporary permissions of xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`]. Keep them until `upgrade-provisioner.py` finishes: the script uses them to check the role of the _MachinePools_.
+* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files: they are added to the stack in the sections on migration to ECR pull-through cache and _MachinePools_.
+
+IMPORTANT: All these permissions are blocking. Some are applied when needed, but have everything ready before you start: the two users' permissions and the independent IAM policy for the `eks-nodegroup` role. This way, you won't need to stop the upgrade midway to request them.
+
+== Upgrade container
+
+=== Preparation
+
+Change to the working directory where the container will run. It is usually the same workspace from which the cluster and _keos-installer_ were installed, since it likely already contains several of the required files (see the <<_required_structure, required structure>>); if not, use a specific directory for it.
+
+Create a local directory for backups:
+
+[source,bash]
+----
+mkdir -p $PWD/backup
+----
+
+=== Required structure
+
+Make sure the working directory includes the following elements. Only what is mounted from the host is needed; the main script, the Jinja2 templates, and the dependencies are already in the image and do not need to be here:
+
+* `secrets.yml`: credentials of the cluster.
+* `.kube/config`: kubeconfig file of the cluster.
+* `backup/`: directory for backups (can be empty at the start).
+
+=== Running the container
+
+This step is common to the three scripts in the image: `ecr_pull_through.py`, `upgrade-provisioner.py`, and `activate-capa-machinepool-features.py`.
+
+Download the image:
+
+[source,bash]
+----
+docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+----
+
+Start the container:
+
+[source,bash]
+----
+docker run \
+  --name cloud-provisioner-upgrade-0.9.X \
+  --net host \
+  -it \
+  -v $PWD/secrets.yml:/upgrade/secrets.yml \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v $PWD/backup:/upgrade/backup \
+  -v $PWD/keos.yaml:/upgrade/keos.yaml \
+  <registry>/cloud-provisioner-upgrade:0.9.X
+----
+
+NOTE: Mount the _keos.yaml_ that _Stratio KEOS_ uses (the one in its working directory). If the pull-through cache is enabled, `ecr_pull_through.py` sets `docker_registry.ecr_pull_through_cache_enabled: true` in it. Before starting the container, check that the file exists: if it does not exist, Docker creates a directory with that name and the script ends, indicating that it could not update _keos.yaml_.
+
+NOTE: None of the scripts generate their own timestamped log files; all output goes to the container console. To keep a complete log of the execution, redirect the output to a file on the mounted volume, for example, by adding `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` to the script command.
+
+[NOTE]
+====
+If access to the cluster fails, the scripts regenerate the kubeconfig mounted at `/upgrade/.kube/config`: the new context uses `aws eks get-token` and requires AWS credentials. For this reason, run the `kubectl` commands of this procedure inside the container, with the credentials of _secrets.yml_:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A
+----
+
+Before executing the command, `aws-secrets-exec.py` shows the AWS identity it uses (`[INFO] Running with the AWS identity of the secrets file: <ARN>`).
+====
+
+== Pre-checks
+
+In addition to the functional checks of the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], check on EKS:
+
+* Running machines:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
+----
++
+*Expected output:* all with `PHASE = Running`.
+
+* _MachineDeployments_:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machinedeployments -A
+----
++
+*Expected output:*
++
+** `READY = REPLICAS`
+** `UNAVAILABLE = 0`
+
+* Provider pods:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get pods -n capa-system
+----
++
+*Expected output:* all pods in `Running` state.
+
+* Provider logs:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: If any error appears, review it before continuing.
+
+NOTE: If the `KeosCluster` defines `spec.networks.pods_cidr`, the script checks that the `ENIConfig`s use the security group of the EKS cluster. If it does not match, it corrects it. With `--dry-run`, it does not correct it.
+
+[#actualizacion_stack_iam]
+
+== Update of the IAM stack
+
+From the container, update the CloudFormation stack to version 0.9. In this way, the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role is created, which the _MachinePools_ use, and the `nodes` role receives the ECR permissions:
+
+. If the cluster uses or is going to use the ECR pull-through cache, create the ECR policy for the _MachinePool_ nodes. The `eks-nodegroup` role only accepts policies managed by ARN:
++
+[source,bash]
+----
+cat > /upgrade/backup/ecr-pull-through-mp-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": ["ecr:BatchImportUpstreamImage", "ecr:CreateRepository"],
+      "Effect": "Allow",
+      "Resource": ["*"]
+    }
+  ]
+}
+EOF
+
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  aws iam create-policy --policy-name ecr-pull-through-cache-machinepool \
+  --policy-document file:///upgrade/backup/ecr-pull-through-mp-policy.json \
+  --query Policy.Arn --output text
+----
++
+Save the ARN that it returns. If the policy already exists (`EntityAlreadyExists`), its ARN is `arn:aws:iam::<account-id>:policy/ecr-pull-through-cache-machinepool`. Check it:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  aws iam get-policy \
+  --policy-arn arn:aws:iam::<account-id>:policy/ecr-pull-through-cache-machinepool \
+  --query Policy.Arn --output text
+----
+
+. Check the state of the stack:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  aws cloudformation describe-stacks \
+  --stack-name cluster-api-provider-aws-sigs-k8s-io \
+  --query 'Stacks[0].StackStatus' --output text
+----
++
+*Expected output:* `CREATE_COMPLETE` or `UPDATE_COMPLETE`. If it shows any other state, don't continue; first, correct the stack state, then check again.
+
+. Update the stack with this configuration. If the policy from step 1 is used, remove the `#` from the line of the ARN and insert its ARN next to `AmazonEBSCSIDriverPolicy`:
++
+[source,bash]
+----
+cat > /upgrade/backup/eks-iam.config << 'EOF'
+apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
+kind: AWSIAMConfiguration
+spec:
+  bootstrapUser:
+    enable: false
+  eks:
+    enable: true
+    iamRoleCreation: false
+    defaultControlPlaneRole:
+        disable: false
+    managedMachinePool:
+        disable: false
+        extraPolicyAttachments:
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+        # - <ARN of the policy from step 1>
+  controlPlane:
+    enableCSIPolicy: true
+  nodes:
+    extraPolicyAttachments:
+    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+    extraStatements:
+    - Action:
+        - "ecr:BatchImportUpstreamImage"
+        - "ecr:CreateRepository"
+      Effect: Allow
+      Resource:
+        - "*"
+EOF
+
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  clusterawsadm bootstrap iam create-cloudformation-stack \
+  --config /upgrade/backup/eks-iam.config
+----
++
+*Expected output:* a table with the resources of the stack (`Resource | Type | Status`), among them the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role.
++
+If the stack was already up to date, the command ends with this error, which changes nothing and can be ignored:
++
+[source,text]
+----
+Error: failed to update AWS CloudFormation stack: operation error CloudFormation: UpdateStack, https response error StatusCode: 400, RequestID: <id>, api error ValidationError: No updates are to be performed.
+----
+
+== Migration to ECR pull-through cache (optional)
+
+The `ecr_pull_through.py` script updates _cluster-operator_ to the indicated version and enables `ecr_pull_through_cache_enabled` in the `KeosCluster`. It doesn't change any other images; they move to the Amazon ECR cache when you run `upgrade-provisioner.py` with the field enabled.
+
+IMPORTANT: If the cache is going to be enabled, run this script before running `upgrade-provisioner.py`. This way, the same upgrade moves the images of the charts it updates to the cache (see xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated]) and, with a private registry, those of Cluster API. The _Stratio KEOS_ charts do not change. If you do this afterward, you'll need to run `upgrade-provisioner.py` again to move those charts.
+
+Before applying any change, the script automatically saves a copy of the previous state (the `keosclusters.installer.stratio.com` and `clusterconfigs.installer.stratio.com` CRDs, the _ConfigMap_ of _cluster-operator_ values, and a `state.json` with the previous version and URLs) in `backup/ecr_pull_through/<timestamp>/`. This copy is the one that the `--restore` option uses (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>) to undo the operation.
+
+=== Prerequisites
+
+* In `--cluster-operator`, the 0.7.x version of _cluster-operator_ from Universe 15.1 is specified.
+* The pull-through cache rules must already exist in the cloud account for the upstreams that _Stratio KEOS_ uses (`registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io`, `public.ecr.aws`). The script doesn't create them; it assumes they already exist.
+* The destination repositories must already have the _cluster-operator_ chart in the version of `--cluster-operator` and its image.
+
+=== Syntax
+
+[source,bash]
+----
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version>
+----
+
+[%header,cols="1,2,1,1"]
+|===
+| Option | Description | Default value | Mandatory
+
+| `-p`, `--vault-password`
+| Vault password to decrypt the secrets.
+|
+| Yes
+
+| `-s`, `--secrets`
+| Encrypted secrets file.
+| `secrets.yml`
+| No
+
+| `-k`, `--kubeconfig`
+| kubeconfig file to be used. Inside the container, it is ignored: the script uses the `KUBECONFIG=/upgrade/.kube/config` variable that the image defines.
+| `~/.kube/config`
+| No
+
+| `--cluster-operator`
+| Target version of _cluster-operator_.
+|
+| Yes
+
+| `--helm-registry`
+| Forces the Helm repository to be used, without asking interactively.
+| _(current repository of the `KeosCluster`)_
+| No
+
+| `--restore`
+| Restores a previous backup instead of updating (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>). Without a path, it restores the most recent one from `backup/ecr_pull_through/`. With `--restore`, `--cluster-operator` is no longer mandatory.
+| _(none: update mode)_
+| No
+|===
+
+On startup, if `--helm-registry` is not specified, the script shows the Helm repository configured in `KeosCluster.spec.helm_repository.url` and allows a new one to be specified. Press Enter to keep the current one. The repository indicated, with the option or in the prompt, is saved in `KeosCluster.spec.helm_repository.url` and in the `keos` `HelmRepository`.
+
+=== Running `ecr_pull_through.py`
+
+Inside the container, run the script. It has no `--dry-run` mode:
+
+[source,bash]
+----
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version> 2>&1 | tee /upgrade/backup/ecr-pull-through-$(date +%Y%m%d-%H%M%S).log
+----
+
+When it asks for the Helm repository, press Enter to keep the current one if you aren't changing the repository, or enter the URL of the destination repository.
+
+*Expected output on completion:*
+
+* "[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster".
+* "[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in keos.yaml OK".
+* "[ACTION REQUIRED] Set spec.docker_registry.ecr_pull_through_cache_enabled: true with 'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run".
+* "[OK] cluster-operator upgrade and ECR pull-through flag enabled."
+
+If the script cannot update _keos.yaml_ (for example, because it is not mounted), it shows "[ERROR] keos.yaml not updated: <reason>" and ends with "[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but keos.yaml was NOT updated (see the error above).". In that case, set `docker_registry.ecr_pull_through_cache_enabled: true` in _keos.yaml_ manually.
+
+Sample output (abbreviated):
+
+[source,text]
+----
+[INFO] Validating kubectl access to the cluster: FAILED (attempting kubeconfig refresh)
+[INFO] Attempting to refresh kubeconfig for cluster: <cluster-name>
+Added new context arn:aws:eks:<region>:<account-id>:cluster/<cluster-name> to /upgrade/.kube/config
+OK (kubeconfig refreshed)
+The current Helm registry is: oci://<registry>/<current-repository>. Press ENTER to use it or specify a different one:
+[INFO] Helm registry: oci://<registry>/<destination-repository>
+[INFO] Detecting current cluster-operator version from ConfigMap OK (<current-version>)
+[INFO] Backing up pre-upgrade state to backup/ecr_pull_through/<timestamp> OK
+[...]
+[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster
+
+[OK] cluster-operator upgrade and ECR pull-through flag enabled.
+----
+
+The `FAILED` on the first line is not an error: it indicates that the script regenerates the kubeconfig (see the note on <<_running_the_container, running the container>>).
+
+If it fails, the script shows the `--restore` command with the path to its backup (see the <<ecr_pull_through_recuperacion, recovery on failures of `ecr_pull_through.py`>>).
+
+=== Verification
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get helmrelease cluster-operator -n kube-system \
+  -o jsonpath='{.spec.chart.spec.version} {.status.conditions[?(@.type=="Ready")].status}{"\n"}'
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get keoscluster <cluster-name> -n cluster-<cluster-name> \
+  -o jsonpath='{.spec.docker_registries[0].ecr_pull_through_cache_enabled}{"\n"}'
+----
+
+*Expected output:*
+
+* First command: the version of `--cluster-operator` and `True`, for example, `0.7.5 True`.
+* Second command: `true`.
+
+[#ecr_pull_through_objeto_keos]
+
+=== `keos` object of _Stratio KEOS_
+
+Set the same value in the `keos` object of _Stratio KEOS_; _Stratio KEOS_ stops if it does not match its _keos.yaml_:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl edit keos.keos.stratio.com keos -n keos-ops
+----
+
+In the editor, add `ecr_pull_through_cache_enabled: true` inside `spec.docker_registry` and save.
+
+[#ecr_pull_through_recuperacion]
+
+=== Recovery on failures of `ecr_pull_through.py`
+
+If the failure is due to the image or the chart of the indicated version not yet being published in the destination repository, the simplest solution is to publish the missing artifact and run the script again: it is idempotent in the face of a previous incomplete attempt, so there is no need to restore anything.
+
+To undo an upgrade already applied (or partially applied), use `--restore` with the same credentials (`-p`, `-s`, `-k`):
+
+[source,bash]
+----
+python3 ecr_pull_through.py -p <vault-password> --restore
+----
+
+Without a path after `--restore`, it restores the most recent copy from `backup/ecr_pull_through/`.
+
+IMPORTANT: If the script was relaunched after a failure, the most recent copy no longer saves the original state: it was taken when _cluster-operator_ had already been changed. To return to the original state, restore the copy of the first attempt by indicating its path:
+
+[source,bash]
+----
+python3 ecr_pull_through.py -p <vault-password> --restore backup/ecr_pull_through/<timestamp>
+----
+
+IMPORTANT: The path is relative to the working directory *inside the container* (`/upgrade`, where `-v $PWD/backup:/upgrade/backup` is mounted), never the host path. To list the available copies and copy the exact name, run `ls backup/ecr_pull_through/` inside the container itself before running `--restore`.
+
+The option reverts, in this order, the CRDs, the _cluster-operator_ values _ConfigMap_, `KeosCluster.spec.helm_repository.url`, `HelmRepository.spec.url`, the chart version in the _HelmRelease_, and, finally, `ecr_pull_through_cache_enabled` to its previous value. During the process, it waits for the _HelmRelease_ to reach the `Ready` state and the `KeosCluster` to reach the `Provisioned` state, as in a normal upgrade.
+
+`--restore` también devuelve `keos.yaml` a su contenido anterior. El objeto `keos` de _Stratio KEOS_ no lo restaura: si lo cambiaste, deja `ecr_pull_through_cache_enabled` con el mismo valor que `keos.yaml`, con el mismo `kubectl edit` del apartado <<ecr_pull_through_objeto_keos, objeto `keos` de _Stratio KEOS_>>.
+
+== Dry-run of `upgrade-provisioner.py`
+
+Inside the container, run the script with the `--dry-run` option. It does not change anything in the cluster:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> --dry-run 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
+----
+
+In the dry run, the script asks for the Helm repository: press Enter to keep the current one, or enter the destination repository URL.
+
+*Expected output:*
+
+* At the start: "[INFO] Mode: DRY-RUN (no changes will be applied)".
+* At the end: "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: DRY-RUN (no changes were applied)".
+
+If any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the real upgrade.
+
+== Running `upgrade-provisioner.py`
+
+Inside the container, launch the upgrade:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
+----
+
+Respond to the prompts in this order:
+
+. "Press ENTER to continue upgrading the cluster or any other key to abort:" press Enter.
+. "The current Helm repository is: <url>. Do you want to indicate a new Helm repository? Press enter or specify new repository:" press Enter to keep the current repository if the repository is not changed, or enter the URL of the destination repository.
+. "Proceed with the k8s_version bump <current version> -> v1.35.0? [y/N]:" enter `y`. It is the point of no return.
+
+*Expected output on completion:* "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: REAL — changes were applied".
+
+== Tracking the upgrade
+
+While the script runs, follow the state of the cluster from the user's computer in another terminal, with their own kubeconfig and AWS credentials:
+
+include::partial$upgrade-monitoring.adoc[]
+
+=== Change of `k8s_version`
+
+When the _control-plane_ changes version, the script shows no progress.
+
+Follow the actual state of the _control-plane_ directly in AWS:
+
+[source,bash]
+----
+watch -n30 aws eks describe-cluster --name <cluster-name> --query 'cluster.{status:status,version:version}' --output table
+----
+
+*Expected output:* `UPDATING` while it goes up, and a version that advances minor by minor (1.33, 1.34, 1.35). On completion, `ACTIVE` and `1.35`.
+
+== Post-upgrade checks
+
+In addition to the common xref:operations-manual:upgrade.adoc#_verificación_final[final verification], check on EKS:
+
+* Node groups and provider logs:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machines -A
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get machinedeployments -A
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl logs -n capa-system -l control-plane=capa-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: During the `k8s_version` change, the `capa-controller-manager` logs may transiently show the message "InvalidParameterException: Addon version specified is not supported" when updating the EKS addons (for example, `coredns` or `kube-proxy`). It is only a problem if it appears after the upgrade finishes.
++
+*Expected output:* the _MachineDeployment_ groups remain on 1.32 in the `VERSION` column: they don't change until they are migrated to _MachinePool_, and this isn't an upgrade failure.
++
+NOTE: If the CAPA logs show any error other than the transient ones in the previous note, review it before continuing.
+
+* _cluster-autoscaler_ image:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+----
++
+*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.2`, the proprietary Stratio image with the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
+
+== Post-upgrade tasks
+
+After the upgrade, only one task remains: moving the _MachineDeployment_ groups to _MachinePool_.
+
+[#_clusters_eks_con_machinepools]
+
+=== Move to _MachinePools_
+
+NOTE: With this version, the worker groups without `node_image` are created as _MachinePool_. The _MachineDeployment_ groups of an upgraded cluster are not automatically migrated; follow the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>.
+
+==== Migration of _MachineDeployments_ to _MachinePools_
+
+Migrating an existing worker group from _MachineDeployment_ to _MachinePool_ has three parts: confirming the cluster meets the prerequisites, configuring the fixed IAM role required for _MachinePools_, and migrating each node group manually.
+
+===== Prerequisites
+
+The cluster needs:
+
+* _cluster-operator_ 0.7.0 or later and CAPA v2.9.3 or later (if not, first run `upgrade-provisioner.py`).
+* `KeosCluster.status.ready = true`.
+* The permissions of the <<_permissions, Permissions>> section: those of `stratio-eks-policy.json` of this version for the deployment user and, to create the role and the node policy, those of `stratio-aws-temp-policy.json`.
+
+To confirm the first two points at once, run this script (read-only; it does not update or create anything) in the same upgrade container where `upgrade-provisioner.py` was run:
+
+[source,bash]
+----
+python3 activate-capa-machinepool-features.py \
+  -p <vault-password> \
+  2>&1 | tee /upgrade/backup/activate-mp-$(date +%Y%m%d-%H%M%S).log
+----
+
+*Expected output on completion:* `PREPARATION COMPLETE` and `cluster-operator/CAPA versions and CAPA feature gates verified.`
+
+In addition to the versions and `KeosCluster.status.ready`, the script checks that the CAPA feature gates (`MachinePool=true` and `EKSAllowAddRoles=true`) are already enabled. It does not enable them itself: `upgrade-provisioner.py` does that on reinstalling CAPA through `clusterctl upgrade apply`. If the version check or the feature gates check fails, the script indicates that `upgrade-provisioner.py` must be run first. If the cluster has already gone through this upgrade, running it is only a quick confirmation, not an essential step.
+
+IMPORTANT: If `upgrade-provisioner.py` has just been run, do not assume that `KeosCluster.status.ready` is already `true` just because the script ended with `Upgrade process finished successfully`. Check the actual value (`python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A`, expecting `PHASE: Provisioned` and `READY: true`) before continuing.
+
+===== Configure the fixed IAM role for the _MachinePools_
+
+So that all _MachinePool_ nodes use the same IAM role and the same permissions, `upgrade-provisioner.py` sets `spec.control_plane.aws.mp_role_name` to `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` if that role exists and the field is empty. Check it:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get keoscluster <cluster-name> -n cluster-<cluster-name> \
+  -o jsonpath='{.spec.control_plane.aws.mp_role_name}{"\n"}'
+----
+
+*Expected output:* `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`.
+
+If it comes out empty, `upgrade-provisioner.py` could not set it; look for its `[WARN]` in the execution log. As an alternative solution, set it manually:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl patch keoscluster <cluster-name> -n cluster-<cluster-name> --type=merge \
+  -p '{"spec":{"control_plane":{"aws":{"mp_role_name":"eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"}}}}'
+----
+
+With the ECR pull-through cache, the _MachinePool_ nodes use the ECR policy added in the <<actualizacion_stack_iam, update of the IAM stack>>.
+
+===== Migrate a node group
+
+These steps migrate a group, with example commands. Adapt them to each group's configuration, then repeat for each group you migrate. The order is always: create the _MachinePool_ group, validate that it works, and then remove the _MachineDeployment_.
+
+[IMPORTANT]
+====
+The command in step 1 is only an example with the minimum fields. Do that step manually, starting from the entry where the _MachineDeployment_ group is replaced, so the new group keeps its configuration (`labels`, `taints`, and so on). The fields that a _MachinePool_ group accepts are found in xref:operations-manual:installation.adoc#_nodos_worker[Worker nodes]. Look at the current entry:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
+  -o jsonpath='{.spec.worker_nodes[<position>]}{"\n"}'
+----
+
+Copy its fields to the new group, with another name and without `node_image`. The change can also be made manually by editing the `KeosCluster` object:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> edit keoscluster <cluster-name>
+----
+
+====
+
+. Add the new _MachinePool_ group to the `KeosCluster` object. Omit `node_image` and specify `ami_type` optionally (by default, `BOTTLEROCKET_x86_64`):
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> \
+  --type=json \
+  -p '[{"op":"add","path":"/spec/worker_nodes/-","value":{"name":"<name>","size":"<size>","quantity":<n>,"az":"<az>","min_size":<min>,"max_size":<max>}}]'
+----
++
+NOTE: Always use `kubectl patch` on the `KeosCluster`, never `kubectl apply`.
++
+WARNING: `spec.worker_nodes[].name` (`<name>` in the command) accepts between 3 and 25 characters (`KeosCluster` webhook) and must be unique. *Do not add the `-mp` or `-md` suffix*: _cluster-operator_ automatically adds `-mp-<index>` (or `-md-<index>` on _MachineDeployment_) to the name given.
+
+. Wait for the new group to be ready:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> get machinepool | grep <name>-mp-
+----
++
+*Expected output:* all `<name>-mp-<index>` _MachinePools_ of the group with `PHASE` in `Running`.
+
+. Identify the actual nodes of the _MachineDeployment_ that will be replaced and drain them one by one, verifying the cluster state between each one:
++
+IMPORTANT: The `cluster.x-k8s.io/deployment-name` label is on the `Machine` object (CAPI), not on the Kubernetes `Node`, so `kubectl get nodes -l cluster.x-k8s.io/deployment-name=...` does not return anything by default. Obtain the actual `Node` name through the `Machine`:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> get machine -l cluster.x-k8s.io/deployment-name=<name>-md-<index> \
+  -o jsonpath='{.items[*].status.nodeRef.name}'
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --timeout=10m
+----
+
+. Check that the workloads work on the new nodes:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl get pods -A -o wide | grep -Ev "Running|Completed"
+----
++
+*Expected output:* only the header. The pods on the drained nodes are in the `Running` state in the _MachinePool_ group.
++
+[WARNING]
+====
+Don't delete the _MachineDeployment_ group if you detect any problems with the new group or its workloads. To go back, enable its nodes again:
+
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl uncordon <node>
+----
+
+====
+
+. Remove the _MachineDeployment_ group from `spec.worker_nodes`. Find its position in the list (starting at 0):
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
+  -o jsonpath='{range .spec.worker_nodes[*]}{.name}{"\n"}{end}' | grep -v '^\[INFO\]' | nl -v0
+----
++
+And delete it:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> --type=json \
+  -p '[{"op":"remove","path":"/spec/worker_nodes/<position>"}]'
+----
++
+_cluster-operator_ deletes its _MachineDeployments_ and templates and waits for the machines to disappear. Check it:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl -n cluster-<cluster-name> get machinedeployment | grep <name>-md-
+----
++
+*Expected output:* nothing.
+
+== Troubleshooting
+
+include::partial$upgrade-recovery.adoc[]
+
+=== Failure of `clusterctl upgrade apply` with the provider namespace without components
+
+`clusterctl upgrade apply` deletes the infrastructure provider components in their current version before installing the new ones, and preserves the namespace, the CRDs, and their inventory. If the command fails between the two steps, `capa-system` can be left without `Deployment`, without RBAC, without webhooks and, most importantly, without the credentials secret that the provider itself manages (`capa-manager-bootstrap-credentials`).
+
+The automatic recovery of the script (restoring the `KeosCluster` webhooks and restarting its controller) does not touch this secret or reinstall the provider: it is a different and deeper problem, outside the scope of that recovery.
+
+*Symptom on the next retry*: `upgrade-provisioner.py` fails again at the same step (`clusterctl upgrade apply`), this time with a scarcely descriptive shell syntax error ("Syntax error: \"(\" unexpected") instead of a clear message about the missing secret. This happens because the script builds the `AWS_B64ENCODED_CREDENTIALS` variable by reading that secret without checking whether the read succeeded; if the secret does not exist, the kubectl error message itself is inadvertently interpolated into the `clusterctl` command that is run next.
+
+*Manual recovery*:
+
+. Locate the secret in the copy of the CAPX secrets that the script saves on each real execution without `--disable-backup` (`Backing up CAPX secrets: OK`), in `backup/upgrade/<timestamp>/capx-secrets/capa-system/`. Use a copy from an execution where `clusterctl` failed (or an earlier one), because it was taken before `clusterctl` ran. The copies of subsequent retries no longer contain the secret:
++
+[source,bash]
+----
+find backup/upgrade/*/capx-secrets/capa-system -name "capa-manager-bootstrap-credentials.yaml"
+----
+
+. Restore the secret:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl apply -f backup/upgrade/<correct-timestamp>/capx-secrets/capa-system/capa-manager-bootstrap-credentials.yaml
+----
+
+. Run `upgrade-provisioner.py` again with the same command. With the secret restored, `clusterctl upgrade apply` runs correctly and reinstalls the complete provider (`Deployment`, RBAC, CRDs, and webhooks).
+
+[IMPORTANT]
+====
+If the `clusterctl` failure occurred inside the critical section, the retry may additionally encounter two side effects of that same interruption, independent of each other:
+
+* *`capi-controller-manager` with fewer than 2 available replicas*. It blocks the script's pre-check (`availableReplicas=1 (expected 2 for HA)`). Correct it before retrying:
++
+[source,bash]
+----
+python3 aws-secrets-exec.py -p <vault-password> -- \
+  kubectl scale deployment capi-controller-manager -n capi-system --replicas=2
+----
+
+* *`cluster-operator`'s `HelmRelease` with `spec.suspend: true`*. The critical section suspends it and reactivates it on completion. If the failure interrupted that cycle before reactivation, the script detects it and automatically reactivates it on the next retry, after updating the charts, without manual intervention. In the console, the "[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting" message will be seen.
+====

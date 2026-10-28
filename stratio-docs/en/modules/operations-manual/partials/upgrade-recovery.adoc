@@ -1,0 +1,55 @@
+[#upgrade_provisioner_recuperacion]
+
+=== Recovery on failures of `upgrade-provisioner.py`
+
+`upgrade-provisioner.py` has no option to revert the upgrade. If it fails inside the critical section, it recovers by itself.
+
+The critical section is the stretch in which:
+
+* The _cluster-operator_ `HelmRelease` is suspended.
+* `keoscluster-controller-manager` is stopped.
+* The `KeosCluster` webhooks are disabled.
+
+If a step of that stretch fails, the script does the following before aborting:
+
+. Shows "[ERROR] Critical section failed (...) — attempting controlled recovery".
+. Restores the `KeosCluster` webhooks, starts its controller, and resumes the `HelmRelease`.
+. Shows the result:
++
+** "[INFO] Recovery completed...": the webhooks and the controller are active again, but the upgrade has not been completed. Correct the cause and run the script again.
+** "[ERROR] Recovery ALSO failed...": manually restore the webhooks, the controller, and the `HelmRelease` before doing anything else.
+
+The automatic recovery does not cover the chart upgrade, which happens before the critical section. If it fails there, the temporary exclusion of the system namespaces in the Capsule webhooks remains applied. On relaunch, it applies it again and removes it after the charts complete; if it won't be relaunched, restore the Capsule webhook configuration from the copy in `backup/upgrade/<timestamp>/capsule/`. That copy only exists if `--disable-backup` was not used.
+
+The recovery is run only if the script captures the error: if it is interrupted with `Ctrl+C` or the process ends abruptly, it is not run. Nor does it cover all possible failures: a failure in `clusterctl upgrade apply` may require manual intervention.
+
+==== A chart does not reach `Ready` ("HelmRelease ... not Ready")
+
+After updating each chart, the script waits for its `HelmRelease` to be in the `Ready` state. The limit depends on the number of nodes in the cluster: the greater of 15 minutes or 5 minutes plus 2 minutes per node. If it runs out, it aborts with a message of the type "[ERROR] Error updating chart: HelmRelease <namespace>/<chart> not Ready: [...]".
+
+Meanwhile, Flux continues retrying the chart on its own. Look for why its pods do not become ready:
+
+[source,bash]
+----
+kubectl get helmrelease <chart> -n <namespace>
+kubectl get pods -n <namespace>
+kubectl get events -n <namespace> --field-selector reason=FailedScheduling
+----
+
+Correct the cause. When the `HelmRelease` is in `Ready` state, run `upgrade-provisioner.py` again with the same command.
+
+If a different Helm repository was indicated, the `HelmReleases` of the charts that the script has not yet updated may be left in `SourceNotReady` with the "ChartPullError ... not found" message until it is run again. The script changes the Helm repository before updating the charts, and the new repository may not include the previous versions. Workloads keep their current version; on relaunch, the script updates those charts.
+
+==== Failure of the health check of a chart (`unhealthy pod(s)`)
+
+`upgrade-provisioner.py` checks, after updating each chart, that its pods are actually in a good state (not only that Flux marks the `HelmRelease` as `Ready`). The check waits for the `HelmRelease` to be in `Ready` state and retries up to a maximum of 5 minutes. If, after that time, a pod is still not ready (for example, one of the previous versions that doesn't finish), the script aborts with a message like "[ERROR] Error updating chart: N unhealthy pod(s) for release <chart>".
+
+*Before assuming that the cluster was left in a bad state*, check the actual state of the affected chart:
+
+[source,bash]
+----
+kubectl get helmrelease <chart> -n <namespace>
+kubectl get pods -n <namespace>
+----
+
+If the `HelmRelease` already reflects the destination version and the pods are `Running`, the chart was applied correctly: the failure was only in the check of the script, not in the cluster. In that case, *run `upgrade-provisioner.py` again with the same command*. The script runs again completely, but it skips charts already at their destination version. The exceptions, which are always reapplied, are _cluster-autoscaler_, _tigera-operator_, and _flux2_, and all charts when ECR pull-through or a private registry is used.

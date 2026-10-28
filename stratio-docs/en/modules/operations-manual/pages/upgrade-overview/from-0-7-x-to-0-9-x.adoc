@@ -58,6 +58,7 @@ The table answers, with one row per decision, what you need to size the window:
 |===
 
 .Message to communicate
+
 [caption=]
 ====
 The platform raises the cluster's Kubernetes version. It does not stop: nodes are gradually replaced with the new version, and applications are rescheduled across them. Services that have a single replica will be unresponsive for a few minutes when it is their turn to change nodes, so it is advisable to check beforehand that everything important has more than one replica. The window depends on the number of nodes in the cluster. After this intervention, a second one will be necessary: _Stratio KEOS_, so the environment is left in its final version.
@@ -77,7 +78,7 @@ The upgrade is only supported in three environments, and any other combination o
 * *Azure VMs* on Microsoft Azure, with an unmanaged _control-plane_. Microsoft AKS is not supported.
 * *GKE* on Google Cloud Platform, with a managed _control-plane_.
 
-Migrating `MachineDeployment` node groups to `MachinePool` is outside the scope of this sheet; it is a separate, assisted operation exclusive to EKS and occurs after this upgrade. See the xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_].
+Migrating `MachineDeployment` node groups to `MachinePool` is outside the scope of this sheet; it is a separate, assisted operation exclusive to EKS and occurs after this upgrade. See the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
 
 [#components]
 
@@ -103,7 +104,7 @@ The upgrade runs a single execution of `upgrade-provisioner.py`, which processes
 
 | 3
 | Kubernetes
-| The _control-plane_ and all worker node groups, from version 1.32 to 1.35.
+| The _control-plane_ and the worker node groups, from version 1.32 to 1.35. On EKS, `MachineDeployment` groups stay on 1.32 until they are migrated to `MachinePool`.
 | The _control-plane_ etcd, only on Azure VMs. On EKS and on GKE, it belongs to the provider.
 | It goes at the end because it is executed by the components of the two previous blocks: `cluster-operator` translates the `k8s_version` change, and Cluster API replaces the machines.
 |===
@@ -473,7 +474,7 @@ IMPORTANT: On Azure VMs, the _control-plane_ etcd is managed by kubeadm and its 
 * *What happens to the volumes.* The provider disks survive the replacement of the nodes: they are detached from the retired node and attached to the new one. What lives on a node's local disk, by contrast, is lost.
 * *Can the data be left in an intermediate state?* The cluster, yes; the data, no. If the process is interrupted, it can be left with the new charts and the old providers, or with the _control-plane_ in the target version and some node groups still in the previous version. Both are supported states and are resolved by completing the upgrade.
 * *What to do if something fails midway.* Correct the cause and relaunch, with an important caveat recorded in <<rollback, Rollback>>: if the version change was already applied to the descriptor but not propagated, a relaunch skips that step.
-* *How to check that everything is fine after the migration.* The `KeosCluster` returns to `ready` and to the `Provisioned` phase, all nodes report the target version, and the applications with volumes start again. On Azure VMs, in addition, the _control-plane_ etcd responds, forms quorum, and its registered members match the _control-plane_ nodes. It is recorded in <<checks, Post-upgrade checks>>.
+* *How to check that everything is fine after the migration.* The `KeosCluster` returns to `ready` and to the `Provisioned` phase, the nodes report the target version (on EKS, those in `MachineDeployment` groups stay on 1.32), and the applications with volumes start again. On Azure VMs, in addition, the _control-plane_ etcd responds, forms a quorum, and its registered members match the _control-plane_ nodes. It is recorded in <<checks, Post-upgrade checks>>.
 
 [#outage]
 
@@ -580,7 +581,7 @@ None of these regressions block the upgrade, but they do affect specific functio
 
 | The node groups remain `MachineDeployment` on EKS
 | EKS-managed node groups are only created on new clusters; the upgrade does not convert existing groups.
-| Migrating them is a separate, assisted, phased operation, subsequent to this upgrade: see the xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_].
+| Migrating them is a separate, assisted, phased operation, subsequent to this upgrade: see the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
 | The existing groups continue to work as self-managed instances.
 
 | Autoscaling does not return on its own if the upgrade aborts
@@ -606,7 +607,7 @@ No installation verification page exists, so this table serves as the closure cr
 
 | 2
 | The nodes
-| All report the target version, and none remain out of `Ready`. The number of nodes in each group is the configured one.
+| All report the target version, except those in `MachineDeployment` groups on EKS, which stay on 1.32 until they migrate to `MachinePool`. None are out of `Ready`, and each group has the configured number of nodes.
 | Yes
 
 | 3
@@ -763,7 +764,7 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | Modifying the `KeosCluster` with `kubectl apply`
 | At any time, also outside the window
 | Do not do it: `cluster-operator` detects the annotation that `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
-| xref:operations-manual:upgrade.adoc#_eks_clusters_with_machinepools[EKS clusters with _MachinePools_]
+| xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_]
 
 | The scale-down of cluster-autoscaler on managed EKS groups
 | After the window, when retiring nodes from a managed group

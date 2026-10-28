@@ -1,0 +1,29 @@
+* Watch the pods that are not in a good state. It is a generic command, valid for any provider, and it doesn't depend on a list of component names that may become outdated.
++
+[source,bash]
+----
+watch -n5 'kubectl get pods -A | grep -Ev "Running|Completed"'
+----
++
+NOTE: It is normal to see the header and the pods in `Pending`, `ContainerCreating`, or `Terminating` while they are being replaced; watch those that stay in `CrashLoopBackOff`, `ImagePullBackOff`, or `Error`.
+
+* Follow the _HelmReleases_.
++
+[source,bash]
+----
+watch -n2 kubectl get helmreleases -A
+----
+
+* Follow the nodes. The `VERSION` column shows each node's kubelet version.
++
+[source,bash]
+----
+watch -n10 kubectl get nodes
+----
+
+* Follow the versions of the Cluster API providers (`VERSION` column).
++
+[source,bash]
+----
+watch -n2 kubectl get providers -A
+----
