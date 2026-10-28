@@ -216,9 +216,6 @@ FLUX_IMAGE_TAGS = {
     "sourceController": "v1.7.4",
 }
 
-# Releases whose values pin image tags apart from the chart version: suspended while values and version change.
-HELMRELEASE_SUSPEND_ON_UPDATE = {"flux", "tigera-operator", "cluster-autoscaler"}
-
 common_charts = {
     "cert-manager": {
         "version": "v1.21.2",
@@ -1499,6 +1496,12 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
             print(f"WARN ({e}) — continuing without CRD update")
 
 
+def helmrelease_exists(release_name, namespace):
+    '''Whether the HelmRelease exists (a release installed without Flux has none to suspend)'''
+
+    _, err = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o name", allow_errors=True)
+    return "NotFound" not in (err or "")
+
 def set_helmrelease_suspend(release_name, namespace, suspend):
     '''Suspend/resume a HelmRelease. After suspending, wait until helm-controller has observed it, so no reconcile started before is still in flight'''
 
@@ -1514,6 +1517,14 @@ def set_helmrelease_suspend(release_name, namespace, suspend):
             return
         time.sleep(2)
     print(f"(HelmRelease {namespace}/{release_name} suspend not observed after 120s: helm-controller not reconciling) ", end="", flush=True)
+
+def resume_leftover_helmrelease_suspend(release_name, namespace):
+    '''Resume a HelmRelease left suspended by a run killed between suspend and resume'''
+
+    output, _ = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.spec.suspend}}'", allow_errors=True)
+    if output.strip() == "true":
+        print(f"[WARN] HelmRelease {namespace}/{release_name} left suspended by an interrupted run: resuming")
+        set_helmrelease_suspend(release_name, namespace, False)
 
 def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
     '''Wait for a HelmRelease to report Ready=True, raising with the real status on failure'''
@@ -1632,6 +1643,7 @@ def upgrade_chart(chart_name, chart_data):
                 except Exception:
                     pass
 
+    suspended = False
     try:
         create_default_values(release_name, chart_namespace, default_values_file, provider)
         if release_name == "cluster-operator":
@@ -1651,7 +1663,9 @@ def upgrade_chart(chart_name, chart_data):
         if chart_name == "flux2":
             apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"],
                              values_files=[default_values_file, override_values_file])
-        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+        # Suspended while values and version change: a reconcile in between would run the old chart with the new values
+        suspended = helmrelease_exists(release_name, chart_namespace)
+        if suspended:
             set_helmrelease_suspend(release_name, chart_namespace, True)
 
         create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
@@ -1699,7 +1713,7 @@ def upgrade_chart(chart_name, chart_data):
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{kubectl} apply -f {repository_file} --server-side --force-conflicts")
         run_command(f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
-        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+        if suspended:
             set_helmrelease_suspend(release_name, chart_namespace, False)
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
@@ -1718,7 +1732,7 @@ def upgrade_chart(chart_name, chart_data):
 
     except Exception as e:
         cleanup_temp_files()
-        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+        if suspended:
             try:
                 set_helmrelease_suspend(release_name, chart_namespace, False)
             except Exception as resume_error:
@@ -1795,6 +1809,8 @@ def upgrade_charts(charts, chart_current_versions=None):
             chart_version = chart_data["version"]
             if chart_name not in never_skip and chart_current_versions.get(chart_name) == chart_version:
                 print(f"[INFO] Chart {chart_name} already at version {chart_version}: SKIP")
+                # A run killed between suspend and resume leaves spec.suspend=true; upgrade_chart() clears it for the rest
+                resume_leftover_helmrelease_suspend(chart_data.get("release_name", chart_name), chart_data["namespace"])
                 continue
             print(f"[INFO] Updating chart {chart_name} to version {chart_version}:", end =" ", flush=True)
             upgrade_chart(chart_name, chart_data)
