@@ -216,6 +216,9 @@ FLUX_IMAGE_TAGS = {
     "sourceController": "v1.7.4",
 }
 
+# Releases whose values pin image tags apart from the chart version: suspended while values and version change (PLT-5163).
+HELMRELEASE_SUSPEND_ON_UPDATE = {"flux", "tigera-operator", "cluster-autoscaler"}
+
 common_charts = {
     "cert-manager": {
         "version": "v1.21.2",
@@ -1421,7 +1424,7 @@ def filter_installed_charts(charts):
         print(f"[ERROR] Error getting charts installed {e}.")
         raise e
 
-def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False):
+def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username=None, repo_password=None, dry_run=False, values_files=None):
     '''Pull chart and apply CRDs — Helm upgrade never updates CRDs, must be done explicitly'''
 
     import tempfile
@@ -1471,6 +1474,16 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         run_command(f"tar xzf {tarball} -C {tmpdir} {chart_name}/crds/ 2>/dev/null || true")
 
         crd_files = glob.glob(f"{tmpdir}/{chart_name}/crds/*.yaml")
+        if not crd_files and values_files:
+            # flux2 ships its CRDs as templates (installCRDs + <controller>.create), not under crds/
+            values_args = " ".join(f"-f {v}" for v in values_files)
+            rendered, _ = run_command(f"{helm} template {chart_name} {tarball} {values_args}")
+            crds = [d for d in yaml.safe_load_all(rendered) if d and d.get("kind") == "CustomResourceDefinition"]
+            if crds:
+                crd_file = f"{tmpdir}/{chart_name}-crds.yaml"
+                with open(crd_file, "w") as f:
+                    yaml.safe_dump_all(crds, f)
+                crd_files = [crd_file]
         if not crd_files:
             print("SKIP (no CRDs in chart)")
             return
@@ -1485,6 +1498,22 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         except Exception as e:
             print(f"WARN ({e}) — continuing without CRD update")
 
+
+def set_helmrelease_suspend(release_name, namespace, suspend):
+    '''Suspend/resume a HelmRelease. After suspending, wait until helm-controller has observed it, so no reconcile started before is still in flight'''
+
+    patch = json.dumps({"spec": {"suspend": suspend}})
+    run_command(f"{kubectl} patch helmrelease {release_name} -n {namespace} --type merge --patch '{patch}'")
+    if not suspend or config["dry_run"]:
+        return
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        output, _ = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}}'", allow_errors=True)
+        generations = output.split()
+        if len(generations) == 2 and generations[0] == generations[1]:
+            return
+        time.sleep(2)
+    print(f"(HelmRelease {namespace}/{release_name} suspend not observed after 120s: helm-controller not reconciling) ", end="", flush=True)
 
 def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
     '''Wait for a HelmRelease to report Ready=True, raising with the real status on failure'''
@@ -1618,6 +1647,13 @@ def upgrade_chart(chart_name, chart_data):
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
+        # New CRDs first: the target controllers cannot start on the old ones (PLT-5163)
+        if chart_name == "flux2":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"],
+                             values_files=[default_values_file, override_values_file])
+        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+            set_helmrelease_suspend(release_name, chart_namespace, True)
+
         create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
         create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
@@ -1663,6 +1699,8 @@ def upgrade_chart(chart_name, chart_data):
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{kubectl} apply -f {repository_file} --server-side --force-conflicts")
         run_command(f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
+        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+            set_helmrelease_suspend(release_name, chart_namespace, False)
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
         if chart_name != "cluster-operator":
@@ -1680,6 +1718,11 @@ def upgrade_chart(chart_name, chart_data):
 
     except Exception as e:
         cleanup_temp_files()
+        if release_name in HELMRELEASE_SUSPEND_ON_UPDATE:
+            try:
+                set_helmrelease_suspend(release_name, chart_namespace, False)
+            except Exception as resume_error:
+                print(f"[WARN] Could not resume HelmRelease {chart_namespace}/{release_name}: {resume_error}")
         raise e
 
 def print_planned_changes(charts, provider):
@@ -1743,6 +1786,9 @@ def upgrade_charts(charts, chart_current_versions=None):
         # create_default_values() rewrites image paths for pull-through and moves them to the keos
         # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
+    # flux2 first: every other HelmRelease needs a working helm-controller (PLT-5163)
+    if "flux2" in charts:
+        charts = {"flux2": charts["flux2"], **{k: v for k, v in charts.items() if k != "flux2"}}
     try:
         print(f"[INFO] Updating charts versions:")
         for chart_name, chart_data in charts.items():
