@@ -10,7 +10,7 @@
 #   - GKE                                                    #
 ##############################################################
 
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 import argparse
 import os
@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 sys.stdout.reconfigure(line_buffering=True)
 
 # NOTE: plain semver since 0.9.0, no legacy "0.17.0-0.X" prefix.
-CLOUD_PROVISIONER = "0.9.8"
+CLOUD_PROVISIONER = "0.9.9"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
@@ -115,8 +115,89 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 
 # AWS only: official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
-# fixes it but isn't backported to any release yet — known, accepted risk pinning DEPENDENCIES' version.
+# fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2"
+# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
+
+# EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
+EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+
+# EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
+CLUSTER_AUTOSCALER_EKS_RBAC = """---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterapi-cluster-autoscaler
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: cluster-<CLUSTER_NAME>
+rules:
+  - apiGroups:
+    - infrastructure.cluster.x-k8s.io
+    resources:
+    - awsmanagedmachinepools
+    - awsmachinetemplates
+    verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterapi-cluster-autoscaler
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: cluster-<CLUSTER_NAME>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+subjects:
+- kind: ServiceAccount
+  name: cluster-autoscaler-clusterapi-cluster-autoscaler
+  namespace: kube-system"""
+
+# Image hosts create cluster replaces with the keos registry in private mode (templates/*/<minor>/*-helm-values.tmpl).
+PUBLIC_IMAGE_REGISTRIES = {"quay.io", "docker.io", "registry.k8s.io", "ghcr.io", "public.ecr.aws", "mcr.microsoft.com"}
+# A previous keos registry in another account/region/project (ECR, ACR, GAR, GCR).
+PRIVATE_IMAGE_REGISTRY_PATTERNS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+GCR_IMAGE_REGISTRIES = {"gcr.io", "eu.gcr.io", "us.gcr.io", "asia.gcr.io"}
+# Registries owned by the cloud provider (EKS add-on images), never moved.
+PROVIDER_OWNED_IMAGE_REGISTRIES = ("602401143452.dkr.ecr.",)
+
+# AWS only: same manifest as create cluster (pkg/cluster/internal/create/actions/createworker/files/aws/aws-node_rbac.yaml).
+AWS_NODE_ANNOTATE_POD_IP_RBAC = """---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: aws-node
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-node-annotate-pod-ip
+subjects:
+- kind: ServiceAccount
+  name: aws-node
+  namespace: kube-system"""
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
@@ -125,6 +206,14 @@ CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
     "1.32": "v1.34.2",
     "1.34": "v1.34.2",
     "1.35": "v1.35.9",
+}
+
+# flux2 chart 2.17.2 controller tags, as create cluster sets them (templates/common/<minor>/flux2-helm-values.tmpl).
+FLUX_IMAGE_TAGS = {
+    "cli": "v2.7.5",
+    "helmController": "v1.4.5",
+    "kustomizeController": "v1.7.3",
+    "sourceController": "v1.7.4",
 }
 
 common_charts = {
@@ -425,64 +514,79 @@ def restore_capsule(dry_run):
     else:
         print("DRY-RUN")
 
-def patch_clusterrole_aws_node(dry_run):
-    '''Patch aws-node ClusterRole'''
+def ensure_cluster_autoscaler_eks_rbac(cluster_name, dry_run):
+    '''Ensure the cluster-autoscaler Role that create cluster applies on EKS (templates/common/autoscaler_rbac.tmpl), with awsmanagedmachinepools'''
 
-    aws_node_clusterrole_name = "aws-node"
-    print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
-    if not dry_run:
-        command = f"{kubectl} get clusterrole -o json {aws_node_clusterrole_name} | jq -r '.rules'"
-        cluster_role_rules_output = execute_command(command, False, False)
+    print("[INFO] Ensuring cluster-autoscaler Role and RoleBinding for AWSManagedMachinePools:", end=" ", flush=True)
+    command = kubectl + " apply -f - <<'EOF'\n" + CLUSTER_AUTOSCALER_EKS_RBAC.replace("<CLUSTER_NAME>", cluster_name) + "\nEOF"
+    execute_command(command, dry_run)
 
-        try:
-            cluster_role_rules = json.loads(cluster_role_rules_output)
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse ClusterRole rules as JSON: {e}")
-            sys.exit(1)
+def ensure_mp_role_name(cluster_name, dry_run):
+    '''Set KeosCluster spec.control_plane.aws.mp_role_name to the clusterawsadm EKS nodegroup role when unset; cluster-operator uses it as roleName of every AWSManagedMachinePool'''
 
-        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rules) if 'pods' in rule.get('resources', [])), None)
-        if rule_pods_index is not None:
-            verbs = cluster_role_rules[rule_pods_index].get('verbs', [])
-            if 'patch' not in verbs:
-                patch = [
-                    {
-                        "op": "add",
-                        "path": f"/rules/{rule_pods_index}/verbs/-",
-                        "value": "patch"
-                    }
-                ]
-                patch_command = f"{kubectl} patch clusterrole {aws_node_clusterrole_name} --type=json -p='{json.dumps(patch)}'"
-                execute_command(patch_command, False, True)
-            else:
-                print("SKIP")
-        else:
-            print(f"[ERROR] Pods resource not found in the ClusterRole {aws_node_clusterrole_name}")
-            sys.exit(1)
-    else:
+    print("[INFO] Ensuring KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
+    current, _ = run_command(f"{kubectl} -n cluster-{cluster_name} get keoscluster {cluster_name} -o jsonpath='{{.spec.control_plane.aws.mp_role_name}}'", allow_errors=True)
+    if current.strip():
+        print(f"SKIP (already set: {current.strip()})")
+        return
+    manual_patch = (f"kubectl -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p "
+                    f"'{{\"spec\":{{\"control_plane\":{{\"aws\":{{\"mp_role_name\":\"{EKS_NODEGROUP_ROLE}\"}}}}}}}}'")
+    role, err = run_command(f"aws iam get-role --role-name {EKS_NODEGROUP_ROLE} --query Role.RoleName --output text", allow_errors=True)
+    if role.strip() != EKS_NODEGROUP_ROLE:
+        print("WARN")
+        print(f"[WARN] IAM role {EKS_NODEGROUP_ROLE} not found or not readable: {err.strip()}")
+        print(f"[WARN] To give MachinePools a fixed role, create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: {manual_patch}")
+        return
+    if dry_run:
         print("DRY-RUN")
+        return
+    print("role found")
+    # The KeosCluster webhook rejects updates until the cluster is ready (e.g. right after a k8s_version bump)
+    try:
+        wait_for_keoscluster_settled(cluster_name)
+    except Exception as e:
+        print("TIMEOUT")
+        print(f"[WARN] {e}: mp_role_name not set. Once the KeosCluster is ready, run: {manual_patch}")
+        return
+    print("[INFO] Setting KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
+    patch = json.dumps({"spec": {"control_plane": {"aws": {"mp_role_name": EKS_NODEGROUP_ROLE}}}})
+    out, err = run_command(f"{kubectl} -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{patch}'", allow_errors=True)
+    if "patched" not in out:
+        print("WARN")
+        print(f"[WARN] Could not set mp_role_name: {err.strip()}")
+        print(f"[WARN] Run it by hand: {manual_patch}")
+        return
+    print("OK")
+
+def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
+    '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
+
+    print("[INFO] Ensuring aws-node-annotate-pod-ip ClusterRole and ClusterRoleBinding:", end=" ", flush=True)
+    command = kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
+    execute_command(command, dry_run)
 
 def scale_cluster_autoscaler(replicas, dry_run):
-    '''Scale cluster-autoscaler deployment'''
+    '''Scale cluster-autoscaler deployment and return the replicas it had (None if not deployed)'''
 
     command = kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --ignore-not-found -o=jsonpath='{.spec.replicas}'"
     output = execute_command(command, False, False)
 
     if output.strip() == "":
         print("[INFO] Cluster autoscaler not deployed: SKIP")
-        return
+        return None
 
     current_replicas = int(output)
 
     if current_replicas == replicas:
         print("[INFO] Cluster autoscaler already at desired replicas: SKIP")
-        return
+        return current_replicas
 
     scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
     print(f"[INFO] {scaling_type} cluster autoscaler replicas:", end=" ", flush=True)
 
     if dry_run:
         print("DRY-RUN")
-        return
+        return current_replicas
 
     # Scale
     command = kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
@@ -493,6 +597,7 @@ def scale_cluster_autoscaler(replicas, dry_run):
     execute_command(command, False, False)
 
     print("OK")
+    return current_replicas
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
     '''Wait for the KeosCluster to be ready'''
@@ -513,6 +618,20 @@ def validate_helm_repository(helm_repository):
     except ValueError:
         raise ValueError(f"The Helm repository '{helm_repository}' is invalid.")
 
+CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+
+
+def helm_credentials_for_other_cloud_host(credentials_url, repo_url, keos_repo_type=""):
+    '''True when repo_url is on ECR/ACR/GAR and the secrets-file Helm credentials belong to another host: create sets
+    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.
+    Without a credentials url, a KeosCluster repository type other than ecr/acr/gar (e.g. generic) means the same.'''
+    if not any(m in repo_url for m in CLOUD_REGISTRY_MARKERS):
+        return False
+    if credentials_url:
+        return urlparse(credentials_url).netloc != urlparse(repo_url).netloc
+    return keos_repo_type not in ("ecr", "acr", "gar")
+
+
 def update_helm_repository(cluster_name, helm_repository, dry_run):
     '''Update the Helm repository'''
 
@@ -527,15 +646,24 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
     command = f"{kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
     execute_command(command, dry_run, False)
 
-    patch_helmRepository = [
-        {"op": "replace", "path": "/spec/url", "value": helm_repository},
-    ]
-    patch_json = json.dumps(patch_helmRepository)
     existing_helmrepo, err = run_command(f"{kubectl} get helmrepository -n kube-system keos --ignore-not-found", allow_errors=True)
     if "doesn't have a resource type \"helmrepository\"" in err:
         existing_helmrepo = False
 
     if existing_helmrepo:
+        # Same type create sets (oci:// -> oci, else default). Moving to another host on ECR/ACR/GAR drops the old
+        # secretRef: those authenticate through the HelmRepository provider, as create sets them up without auth_required.
+        patch_helmRepository = [
+            {"op": "replace", "path": "/spec/url", "value": helm_repository},
+            {"op": "add", "path": "/spec/type", "value": "oci" if helm_repository.startswith("oci://") else "default"},
+        ]
+        current_out, _ = run_command(f"{kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
+        current_spec = json.loads(current_out or "{}")
+        host_changed = urlparse(current_spec.get("url", "")).netloc != urlparse(helm_repository).netloc
+        cloud_registry = any(m in helm_repository for m in CLOUD_REGISTRY_MARKERS)
+        if "secretRef" in current_spec and host_changed and cloud_registry:
+            patch_helmRepository.append({"op": "remove", "path": "/spec/secretRef"})
+        patch_json = json.dumps(patch_helmRepository)
         command = f"{kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
         execute_command(command, dry_run, False)
 
@@ -1061,6 +1189,36 @@ def render_values_template(values_file, keos_cluster, cluster_config):
     except Exception as e:
         raise e
 
+def rewrite_values_image_registry(values, registry_url, chart_name):
+    '''Move the image references of a chart's values to the keos registry, as create cluster renders them in private mode'''
+
+    registry_url = registry_url.rstrip("/")
+    registry_path_segments = len([s for s in registry_url.split("/")[1:] if s])
+    line_re = re.compile(r'^(\s*-?\s*(?:image|repository|registry|imageRepository|baseRepo):\s*["\']?)([^"\'\s#]+)(["\']?\s*)$')
+    changes = []
+    lines = values.split("\n")
+    for i, line in enumerate(lines):
+        match = line_re.match(line)
+        if not match:
+            continue
+        ref = match.group(2)
+        if ref == registry_url or ref.startswith(registry_url + "/"):
+            continue
+        host, _, rest = ref.partition("/")
+        is_public = host in PUBLIC_IMAGE_REGISTRIES
+        is_private = host in GCR_IMAGE_REGISTRIES or any(p in host for p in PRIVATE_IMAGE_REGISTRY_PATTERNS)
+        if not (is_public or is_private) or any(host.startswith(p) for p in PROVIDER_OWNED_IMAGE_REGISTRIES):
+            continue
+        if is_private:
+            # An old keos registry carries the same number of path segments (GAR project/repo, ACR prefix) as the current one.
+            rest = "/".join(rest.split("/")[registry_path_segments:]) if rest else rest
+        new_ref = registry_url + ("/" + rest if rest else "")
+        lines[i] = match.group(1) + new_ref + match.group(3)
+        changes.append(f"{ref} -> {new_ref}")
+    if changes:
+        print(f"\n[INFO] Moving the {chart_name} images to the keos registry: " + ", ".join(changes), end=" ", flush=True)
+    return "\n".join(lines)
+
 def create_default_values(chart_name, namespace, values_file, provider):
     '''Create defaults values file'''
 
@@ -1073,6 +1231,8 @@ def create_default_values(chart_name, namespace, values_file, provider):
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", keos_cluster, cluster_config)
         else:
             values, err = run_command(f"{helm} get values {chart_name} -n {namespace} --output yaml")
+        if is_private_registry_enabled(cluster_config):
+            values = rewrite_values_image_registry(values, get_keos_registry_url(keos_cluster), chart_name)
         if is_ecr_pull_through_enabled(keos_cluster):
             registry_url = get_keos_registry_url(keos_cluster)
             pull_through_substitutions = [
@@ -1103,10 +1263,30 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def update_flux_image_tag_values(values_file):
+    '''Set the flux2 controller image tags of the target chart, as create cluster does, dropping stale pinned tags of disabled controllers'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for component, tag in FLUX_IMAGE_TAGS.items():
+            if not isinstance(values.get(component), dict):
+                values[component] = {}
+            values[component]['tag'] = tag
+        for component in ("notificationController", "imageAutomationController", "imageReflectionController"):
+            if isinstance(values.get(component), dict):
+                values[component].pop('tag', None)
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). This custom image lives
-    at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
-    official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
+    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). With a private registry the image
+    is "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
 
     try:
         with open(values_file, 'r') as file:
@@ -1114,8 +1294,10 @@ def update_cluster_autoscaler_image_tag_value(values_file):
 
         image = values.setdefault('image', {})
         image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        if 'repository' in image:
-            image['repository'] = image['repository'].replace('/k8s/autoscaling', '/autoscaling')
+        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+        if is_private_registry_enabled(cluster_config) and registry_url:
+            image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -1204,13 +1386,12 @@ def update_tigera_operator_image_tag_value(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def create_empty_values_file(values_file):
-    ''' Create an empty values file'''
+def create_override_values_file(configmap_name, namespace, values_file):
+    '''Write the current values of the override ConfigMap (empty if it does not exist), so the user's overrides survive the chart upgrade'''
 
-    try:
-        open(values_file, 'w').close()
-    except Exception as e:
-        raise e
+    values, _ = run_command(f"{kubectl} -n {namespace} get configmap {configmap_name} --ignore-not-found -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    with open(values_file, 'w') as file:
+        file.write(values)
 
 def create_configmap_from_values(configmap_name, namespace, values_file):
     '''Create a ConfigMap from values'''
@@ -1397,9 +1578,13 @@ def upgrade_chart(chart_name, chart_data):
         if "auth_required" in keos_cluster["spec"]["helm_repository"]:
             if keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in vault_secrets_data["secrets"]["helm_repository"] and "pass" in vault_secrets_data["secrets"]["helm_repository"]:
-                    repo_auth_required= True
-                    repo_username = vault_secrets_data["secrets"]["helm_repository"]["user"]
-                    repo_password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
+                    if helm_credentials_for_other_cloud_host(vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url,
+                                                             keos_cluster["spec"]["helm_repository"].get("type", "")):
+                        print(f"[INFO] Helm repository credentials in the secrets file are for another host: {repo_url} authenticates through the HelmRepository provider")
+                    else:
+                        repo_auth_required= True
+                        repo_username = vault_secrets_data["secrets"]["helm_repository"]["user"]
+                        repo_password = vault_secrets_data["secrets"]["helm_repository"]["pass"]
                 else:
                     print("[ERROR] Helm repository credentials not found in secrets file")
                     sys.exit(1)
@@ -1407,11 +1592,11 @@ def upgrade_chart(chart_name, chart_data):
             repo_schema = "oci"
 
     default_values_file = f"/tmp/{release_name}_default_values.yaml"
-    empty_values_file = f"/tmp/{release_name}_empty_values.yaml"
+    override_values_file = f"/tmp/{release_name}_override_values.yaml"
 
     # Cleanup function for temp files
     def cleanup_temp_files():
-        for temp_file in [default_values_file, empty_values_file]:
+        for temp_file in [default_values_file, override_values_file]:
             if os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
@@ -1424,16 +1609,17 @@ def upgrade_chart(chart_name, chart_data):
             update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
-        # elif release_name == "cluster-autoscaler" and provider == "aws":
-        #     # PLT-4665: pin fix9693 desactivado temporalmente — usando versión DEPENDENCIES (9.59.0/v1.35.0)
-        #     update_cluster_autoscaler_image_tag_value(default_values_file)
+        elif release_name == "flux":
+            update_flux_image_tag_values(default_values_file)
+        elif release_name == "cluster-autoscaler" and provider == "aws":
+            update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
 
-        create_empty_values_file(empty_values_file)
+        create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
         create_configmap_from_values(f"00-{release_name}-helm-chart-default-values", chart_namespace, default_values_file)
-        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
+        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
         helm_repo_data = {
             'repository_name': repo_name,
@@ -1550,12 +1736,12 @@ def upgrade_charts(charts, chart_current_versions=None):
     reconciliation is idempotent — verified live, re-running an unchanged chart creates no new revision).'''
 
     chart_current_versions = chart_current_versions or {}
-    # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
+    # cluster-autoscaler/tigera-operator/flux2 carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
-    never_skip = {"cluster-autoscaler", "tigera-operator"}
-    if is_ecr_pull_through_enabled(keos_cluster):
-        # create_default_values() rewrites image paths for pull-through — an already-matching
-        # chart would otherwise SKIP and keep its pre-pull-through path forever.
+    never_skip = {"cluster-autoscaler", "tigera-operator", "flux2"}
+    if is_ecr_pull_through_enabled(keos_cluster) or is_private_registry_enabled(cluster_config):
+        # create_default_values() rewrites image paths for pull-through and moves them to the keos
+        # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
     try:
         print(f"[INFO] Updating charts versions:")
@@ -1940,6 +2126,36 @@ def patch_clusterctl_images(registry_url):
 
     print("OK")
 
+def release_cert_manager_from_clusterctl(dry_run):
+    '''Remove the clusterctl ownership label/annotation from cert-manager objects when the cert-manager HelmRelease manages it'''
+
+    # clusterctl upgrade replaces cert-manager whenever it finds objects labelled core=cert-manager in these namespaces,
+    # judging the version by its own annotation, not the running one (cluster-api v1.10.10 cert_manager.go:60,246-296,336-391).
+    label = "clusterctl.cluster.x-k8s.io/core"
+    annotation = "certmanager.clusterctl.cluster.x-k8s.io/version"
+    print("[INFO] Releasing the Helm-managed cert-manager from clusterctl:", end=" ", flush=True)
+    helmrelease, _ = run_command(f"{kubectl} -n cert-manager get helmrelease cert-manager --ignore-not-found -o name", allow_errors=True)
+    if not helmrelease.strip():
+        print("SKIP (no cert-manager HelmRelease)")
+        return
+    objs = []
+    for ns in ["cert-manager", "kube-system"]:
+        out, _ = run_command(f"{kubectl} -n {ns} get all,sa,role,rolebinding,secret,configmap -l {label}=cert-manager -o name", allow_errors=True)
+        objs += [(ns, o) for o in out.split()]
+    out, _ = run_command(f"{kubectl} get clusterrole,clusterrolebinding,crd,mutatingwebhookconfiguration,validatingwebhookconfiguration -l {label}=cert-manager -o name", allow_errors=True)
+    objs += [(None, o) for o in out.split()]
+    if not objs:
+        print("SKIP (no clusterctl-labelled objects)")
+        return
+    if dry_run:
+        print(f"DRY-RUN ({len(objs)} objects)")
+        return
+    for ns, obj in objs:
+        ns_flag = f"-n {ns} " if ns else ""
+        execute_command(f"{kubectl} {ns_flag}label {obj} {label}-", False, False)
+        execute_command(f"{kubectl} {ns_flag}annotate {obj} {annotation}-", False, False)
+    print(f"OK ({len(objs)} objects)")
+
 def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     '''Upgrade CAPI core/infra providers via clusterctl. clusterctl always scales down and
     recreates each provider's Deployment even if already at target version (upgrader.go
@@ -1962,6 +2178,8 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     ):
         print("[INFO] Upgrading Cluster API providers: already at target versions: SKIP")
         return
+
+    release_cert_manager_from_clusterctl(config["dry_run"])
 
     print("[INFO] Upgrading Cluster API providers:", end=" ", flush=True)
 
@@ -3119,7 +3337,12 @@ if __name__ == '__main__':
         config["helm_repository_override"] = helm_repository
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
-    scale_cluster_autoscaler(0, config["dry_run"])
+    # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
+    cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
+
+    if provider == "aws":
+        ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
+        ensure_cluster_autoscaler_eks_rbac(cluster_name, config["dry_run"])
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)
@@ -3232,6 +3455,10 @@ if __name__ == '__main__':
 
     upgrade_charts(charts_to_upgrade, chart_current_versions)
     print("[INFO] All charts updated successfully")
+
+    # The cluster-autoscaler chart upgrade brings it back to its replicaCount: keep it at 0 until the end
+    print("[INFO] Scaling cluster-autoscaler back to 0 after the charts update")
+    scale_cluster_autoscaler(0, config["dry_run"])
 
     # Restore capsule
     if not config["disable_prepare_capsule"]:
@@ -3391,7 +3618,10 @@ if __name__ == '__main__':
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
 
     print("[INFO] Restoring cluster-autoscaler replicas")
-    scale_cluster_autoscaler(2, config["dry_run"])
+    scale_cluster_autoscaler(cluster_autoscaler_replicas, config["dry_run"])
+
+    if provider == "aws":
+        ensure_mp_role_name(cluster_name, config["dry_run"])
 
     end_time = time.time()
     elapsed_time = end_time - start_time

@@ -195,6 +195,66 @@ def strip_server_side_fields(obj):
         obj["metadata"].pop(field, None)
 
 
+def get_helmrepository_keos_spec():
+    '''Live spec of the Flux HelmRepository keos ({} if it does not exist).'''
+    out, _ = run_command(f"{kubectl} get helmrepository keos -n kube-system -o jsonpath='{{.spec}}'", allow_errors=True)
+    return json.loads(out) if out.strip() else {}
+
+
+CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+
+
+def drops_stale_secret_ref(old_url, new_url, current_spec):
+    '''True when the repository moves to another host that is ECR/ACR/GAR: those authenticate through the HelmRepository
+    provider, as create sets them up without auth_required, and the old secretRef holds the previous host's credentials.'''
+    host_changed = urlparse(old_url or "").netloc != urlparse(new_url).netloc
+    return "secretRef" in current_spec and host_changed and any(m in new_url for m in CLOUD_REGISTRY_MARKERS)
+
+
+def helmrepository_keos_patch(url, current_spec):
+    '''JSON patch for HelmRepository keos: the url plus the type create sets for it (oci:// -> oci, else default).'''
+    ops = [
+        {"op": "replace", "path": "/spec/url", "value": url},
+        {"op": "add", "path": "/spec/type", "value": "oci" if url.startswith("oci://") else "default"},
+    ]
+    if drops_stale_secret_ref(current_spec.get("url"), url, current_spec):
+        ops.append({"op": "remove", "path": "/spec/secretRef"})
+    return json.dumps(ops)
+
+
+KEOS_YAML = "keos.yaml"
+
+
+def enable_pull_through_in_keos_yaml(backup_dir):
+    '''Set docker_registry.ecr_pull_through_cache_enabled in /upgrade/keos.yaml (as create writes it, keosinstaller.go).
+    Returns False, with the reason printed, when it could not be done. The keos CR in keos-ops is not touched.'''
+    print(f"[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in {KEOS_YAML}", end=" ", flush=True)
+    try:
+        # isfile: docker creates a directory when a bind-mounted file is missing on the host.
+        if not os.path.isfile(KEOS_YAML):
+            raise Exception(f"{os.path.abspath(KEOS_YAML)} is not a file (mount it with -v $PWD/keos.yaml:/upgrade/keos.yaml)")
+        with open(KEOS_YAML) as f:
+            keos_yaml = yaml.safe_load(f) or {}
+        if keos_yaml.get("docker_registry", {}).get("ecr_pull_through_cache_enabled") is True:
+            print("SKIP (already true)")
+            return True
+        with open(os.path.join(backup_dir, KEOS_YAML), "w") as f:
+            yaml.safe_dump(keos_yaml, f, default_flow_style=False, sort_keys=False)
+        keos_yaml.setdefault("docker_registry", {})["ecr_pull_through_cache_enabled"] = True
+        # Rewritten in place: a bind-mounted single file must keep its inode.
+        with open(KEOS_YAML, "w") as f:
+            yaml.safe_dump(keos_yaml, f, default_flow_style=False, sort_keys=False)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {KEOS_YAML} not updated: {e}")
+        print(f"[ACTION REQUIRED] Set docker_registry.ecr_pull_through_cache_enabled: true in {KEOS_YAML} by hand")
+        return False
+    print("OK")
+    print("[ACTION REQUIRED] Set spec.docker_registry.ecr_pull_through_cache_enabled: true with "
+          "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
+    return True
+
+
 def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current, cm_json):
     '''Snapshot everything this script is about to mutate, for manual recovery only (not an automatic rollback).'''
     backup_dir = os.path.join("backup", "ecr_pull_through", datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
@@ -214,7 +274,7 @@ def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current,
     with open(os.path.join(backup_dir, "configmap-default-values.json"), "w") as f:
         f.write(json.dumps(cm_json, indent=2))
 
-    helmrepo_url_out, _ = run_command(f"{kubectl} get helmrepository keos -n kube-system -o jsonpath='{{.spec.url}}'", allow_errors=True)
+    helmrepo_spec = get_helmrepository_keos_spec()
     ecr_pull_through_out, _ = run_command(
         f"{kubectl} get keoscluster {kc_name} -n {kc_ns} "
         f"-o jsonpath='{{.spec.docker_registries[0].ecr_pull_through_cache_enabled}}'",
@@ -226,7 +286,9 @@ def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current,
         "keoscluster_namespace": kc_ns,
         "cluster_operator_version": old_version,
         "keoscluster_helm_repository_url": helm_repo_url_current,
-        "helmrepository_keos_url": helmrepo_url_out.strip(),
+        "helmrepository_keos_url": helmrepo_spec.get("url", ""),
+        "helmrepository_keos_type": helmrepo_spec.get("type", "default"),
+        "helmrepository_keos_secret_ref": helmrepo_spec.get("secretRef", {}).get("name", ""),
         "ecr_pull_through_cache_enabled_before": ecr_pull_through_out.strip() or "false",
     }
     with open(os.path.join(backup_dir, "state.json"), "w") as f:
@@ -294,9 +356,15 @@ def restore(backup_dir):
     print("OK")
 
     print(f"[INFO] Restoring HelmRepository keos url to {state['helmrepository_keos_url']}", end=" ", flush=True)
+    helmrepo_restore = {"url": state["helmrepository_keos_url"]}
+    # Backups taken before type/secretRef tracking only restore the url.
+    if "helmrepository_keos_type" in state:
+        helmrepo_restore["type"] = state["helmrepository_keos_type"]
+    if state.get("helmrepository_keos_secret_ref"):
+        helmrepo_restore["secretRef"] = {"name": state["helmrepository_keos_secret_ref"]}
     run_command(
         f"{kubectl} patch helmrepository keos -n kube-system --type=merge "
-        f"-p '{{\"spec\":{{\"url\":\"{state['helmrepository_keos_url']}\"}}}}'"
+        f"-p '{json.dumps({'spec': helmrepo_restore})}'"
     )
     print("OK")
 
@@ -325,6 +393,15 @@ def restore(backup_dir):
         f"\"value\":{state['ecr_pull_through_cache_enabled_before']}}}]'"
     )
     print("OK")
+
+    keos_yaml_backup = os.path.join(backup_dir, KEOS_YAML)
+    if os.path.isfile(keos_yaml_backup) and os.path.isfile(KEOS_YAML):
+        print(f"[INFO] Restoring {KEOS_YAML}", end=" ", flush=True)
+        with open(keos_yaml_backup) as src, open(KEOS_YAML, "w") as dst:
+            dst.write(src.read())
+        print("OK")
+        print("[ACTION REQUIRED] Restore spec.docker_registry.ecr_pull_through_cache_enabled as in keos.yaml with "
+              "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
 
     print(f"\n[OK] Restored cluster-operator {state['cluster_operator_version']} and prior registry configuration from {backup_dir}.")
 
@@ -424,10 +501,10 @@ def run(new_co_version, helm_registry_override=None):
         )
         print("OK")
 
-        print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
+        print("[INFO] Patching HelmRepository keos url and type", end=" ", flush=True)
         run_command(
             f"{kubectl} patch helmrepository keos -n kube-system "
-            f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
+            f"--type=json -p '{helmrepository_keos_patch(helm_repo_url, get_helmrepository_keos_spec())}'"
         )
         print("OK")
 
@@ -476,7 +553,10 @@ def run(new_co_version, helm_registry_override=None):
         else:
             print("[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster")
 
-        print("\n[OK] cluster-operator upgrade and ECR pull-through flag enabled.")
+        if enable_pull_through_in_keos_yaml(backup_dir):
+            print("\n[OK] cluster-operator upgrade and ECR pull-through flag enabled.")
+        else:
+            print(f"\n[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but {KEOS_YAML} was NOT updated (see the error above).")
 
     except Exception as e:
         print_manual_recovery_instructions(backup_dir, e)

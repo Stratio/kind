@@ -10,6 +10,6 @@ autoDiscovery:
 cloudProvider: clusterapi
 
 image:
-  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}/stratio{{ else }}registry.k8s.io/autoscaling{{ end }}/cluster-autoscaler
   tag: v1.35.2
 replicaCount: 2
