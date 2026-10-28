@@ -1518,11 +1518,16 @@ def set_helmrelease_suspend(release_name, namespace, suspend):
         time.sleep(2)
     print(f"(HelmRelease {namespace}/{release_name} suspend not observed after 120s: helm-controller not reconciling) ", end="", flush=True)
 
+def helmrelease_is_suspended(release_name, namespace):
+    '''Whether the HelmRelease has spec.suspend=true'''
+
+    output, _ = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.spec.suspend}}'", allow_errors=True)
+    return output.strip() == "true"
+
 def resume_leftover_helmrelease_suspend(release_name, namespace):
     '''Resume a HelmRelease left suspended by a run killed between suspend and resume'''
 
-    output, _ = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.spec.suspend}}'", allow_errors=True)
-    if output.strip() == "true":
+    if helmrelease_is_suspended(release_name, namespace):
         print(f"[WARN] HelmRelease {namespace}/{release_name} left suspended by an interrupted run: resuming")
         set_helmrelease_suspend(release_name, namespace, False)
 
@@ -1665,6 +1670,8 @@ def upgrade_chart(chart_name, chart_data):
                              values_files=[default_values_file, override_values_file])
         # Suspended while values and version change: a reconcile in between would run the old chart with the new values
         suspended = helmrelease_exists(release_name, chart_namespace)
+        # --dry-run cannot resume a suspend left by an interrupted run, and a suspended HelmRelease never gets Ready
+        dry_run_leftover_suspend = config["dry_run"] and suspended and helmrelease_is_suspended(release_name, chart_namespace)
         if suspended:
             set_helmrelease_suspend(release_name, chart_namespace, True)
 
@@ -1717,7 +1724,9 @@ def upgrade_chart(chart_name, chart_data):
             set_helmrelease_suspend(release_name, chart_namespace, False)
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
-        if chart_name != "cluster-operator":
+        if dry_run_leftover_suspend:
+            print(f"(HelmRelease {chart_namespace}/{release_name} left suspended by an interrupted run: the real run resumes it, Ready wait skipped) ", end="", flush=True)
+        elif chart_name != "cluster-operator":
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
 
