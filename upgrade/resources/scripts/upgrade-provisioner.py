@@ -216,7 +216,7 @@ FLUX_IMAGE_TAGS = {
     "sourceController": "v1.7.4",
 }
 
-# Releases whose values pin image tags apart from the chart version: suspended while values and version change (PLT-5163).
+# Releases whose values pin image tags apart from the chart version: suspended while values and version change.
 HELMRELEASE_SUSPEND_ON_UPDATE = {"flux", "tigera-operator", "cluster-autoscaler"}
 
 common_charts = {
@@ -1647,7 +1647,7 @@ def upgrade_chart(chart_name, chart_data):
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
-        # New CRDs first: the target controllers cannot start on the old ones (PLT-5163)
+        # New CRDs first: the target controllers cannot start on the old ones
         if chart_name == "flux2":
             apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"],
                              values_files=[default_values_file, override_values_file])
@@ -1786,7 +1786,7 @@ def upgrade_charts(charts, chart_current_versions=None):
         # create_default_values() rewrites image paths for pull-through and moves them to the keos
         # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
-    # flux2 first: every other HelmRelease needs a working helm-controller (PLT-5163)
+    # flux2 first: every other HelmRelease needs a working helm-controller
     if "flux2" in charts:
         charts = {"flux2": charts["flux2"], **{k: v for k, v in charts.items() if k != "flux2"}}
     try:
