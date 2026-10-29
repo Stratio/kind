@@ -113,7 +113,7 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# AWS only: official CA images hit "unknown machine for node" on scale-down for
+# Pinned on AWS and Azure (one image, as create cluster 1.35). Official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
 # The -01 suffix marks the Stratio build: the bare v1.35.2 on registry.k8s.io lacks the fix.
@@ -1286,7 +1286,7 @@ def update_flux_image_tag_values(values_file):
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). The image is always
+    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS and Azure, same image as create cluster 1.35). The image is always
     "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
 
     try:
@@ -1658,7 +1658,7 @@ def upgrade_chart(chart_name, chart_data):
             update_tigera_operator_image_tag_value(default_values_file)
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
-        elif release_name == "cluster-autoscaler" and provider == "aws":
+        elif release_name == "cluster-autoscaler" and provider in ("aws", "azure"):
             update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
