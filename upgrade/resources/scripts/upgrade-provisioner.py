@@ -2652,7 +2652,12 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
     print(f"[INFO] Waiting for the real worker nodes ({wn_name}) to reach {target_version} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
     best_progress = -1
     deadline = time.time() + stall_minutes * 60
+    last_orphan_check = 0
     while time.time() < deadline:
+        # The KCP can converge before an orphaned CP Node is confirmed; it then blocks this rollout.
+        if time.time() - last_orphan_check > CP_ORPHAN_CHECK_INTERVAL_SECONDS:
+            cleanup_orphaned_cp_resources(cluster_name, config["dry_run"])
+            last_orphan_check = time.time()
         progress = best_progress
         output, _ = run_command(
             f"{kubectl} get machinedeployment -n {cp_namespace} -o json",
@@ -3542,7 +3547,8 @@ if __name__ == '__main__':
         f"{kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.spec.suspend}}'",
         allow_errors=True
     )
-    if suspend_check.strip() == "true":
+    co_leftover_suspend = suspend_check.strip() == "true"
+    if co_leftover_suspend:
         print("[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting:", end=" ", flush=True)
         run_command(f"{kubectl} patch helmrelease cluster-operator -n kube-system --type merge --patch '{{\"spec\":{{\"suspend\":false}}}}'")
         print("OK")
@@ -3550,15 +3556,19 @@ if __name__ == '__main__':
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
     command = f"{kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("[WARN] HelmRelease not ready, checking status...")
-        status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[INFO] HelmRelease status: {status_output}")
-        raise e
+    if config["dry_run"] and co_leftover_suspend:
+        # --dry-run cannot resume the leftover suspend above, and a suspended HelmRelease never gets Ready
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("[WARN] HelmRelease not ready, checking status...")
+            status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[INFO] HelmRelease status: {status_output}")
+            raise e
     print("[INFO] Upgrading Cluster Operator components...")
 
     # Recovery (except block below) must cover every step from here on — a failure in

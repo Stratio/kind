@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
   Now the flux2 CRDs of the target chart (rendered from its templates with the cluster values) are applied before the values change, the `HelmRelease` of every chart the script upgrades (flux, cluster-operator, tigera-operator, cluster-autoscaler, cert-manager and the provider charts; never the keos ones) is suspended while its values and chart version change and resumed afterwards, and flux2 is upgraded before the other charts. cluster-operator and cloud-provider-azure also pin their image tag in the values, so they had the same gap.
   A cluster already blocked this way recovers by running the script again with `--skip-preflight-checks` (the pre-flight check stops at the crashing Flux pods)
 * [PLT-5163] `ecr_pull_through.py`: suspend the cluster-operator `HelmRelease` while the image tag, the Helm repository and the chart version change, also in `--restore`. A helm-controller reconcile in between (about 3.5 seconds) ran the old cluster-operator chart with the new image
+* [PLT-5163] `upgrade-provisioner.py` (Azure): the orphaned control-plane `Node`/etcd member check also runs while waiting for the worker nodes. When the control plane finished its rollout before an orphaned `Node` was confirmed (600 seconds), the `Node` stayed; Azure reused its IP for a new control-plane node, whose `calico-node` stopped with "is already using the IPv4 address", and the worker rollout hung on CAPI webhook timeouts.
 
 ## 0.9.8 (2026-10-16)
 
