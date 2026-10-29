@@ -57,6 +57,10 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 		return err
 	}
 
+	if err := validateEKSCreate(spec); err != nil {
+		return err
+	}
+
 	cfg, err := commons.AWSGetConfig(ctx, providerSecrets)
 	if err != nil {
 		return err
@@ -264,6 +268,25 @@ func validateAWSSecurity(spec commons.KeosSpec) error {
 	}
 	if !spec.Security.AWS.CreateIAM {
 		return errors.New("spec.security.aws.nodegroup_extra_policy_arn requires spec.security.aws.create_iam to be true")
+	}
+	return nil
+}
+
+// validateEKSCreate checks the EKS create rules: MachinePools only, the CA aws IAM from the stack and the clusterawsadm node role.
+func validateEKSCreate(spec commons.KeosSpec) error {
+	if !spec.ControlPlane.Managed {
+		return nil
+	}
+	for _, wn := range spec.WorkerNodes {
+		if wn.NodeImage != "" {
+			return errors.New("spec.worker_nodes." + wn.Name + ": Invalid value: \"node_image\": EKS clusters only support worker nodes without node_image (EKS managed node groups); use ami_type to choose the image")
+		}
+	}
+	if spec.DeployAutoscaler && !spec.Security.AWS.CreateIAM {
+		return errors.New("spec.deploy_autoscaler requires spec.security.aws.create_iam to be true in EKS clusters: the cluster-autoscaler policy is attached to the " + commons.EKSNodegroupRoleName + " role through the IAM stack")
+	}
+	if spec.ControlPlane.AWS.MPRoleName != "" && spec.ControlPlane.AWS.MPRoleName != commons.EKSNodegroupRoleName {
+		return errors.New("spec.control_plane.aws.mp_role_name: Invalid value: \"" + spec.ControlPlane.AWS.MPRoleName + "\": only " + commons.EKSNodegroupRoleName + " is supported (leave it empty to use it)")
 	}
 	return nil
 }

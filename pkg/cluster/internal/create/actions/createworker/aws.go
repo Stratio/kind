@@ -35,7 +35,7 @@ import (
 
 const (
 	// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
-	eksNodegroupRoleName = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+	eksNodegroupRoleName = commons.EKSNodegroupRoleName
 	// clusterAutoscalerPolicyName is the account-level policy attached to eksNodegroupRoleName for the CA aws.
 	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
