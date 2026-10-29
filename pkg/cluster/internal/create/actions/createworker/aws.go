@@ -33,6 +33,15 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
+const (
+	// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
+	eksNodegroupRoleName = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+	// clusterAutoscalerPolicyName is the account-level policy attached to eksNodegroupRoleName for the CA aws.
+	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
+	clusterAutoscalerPolicyDocument = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}`
+)
+
 //go:embed files/aws/internal-ingress-nginx.yaml
 var awsInternalIngress []byte
 
@@ -249,7 +258,28 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	return nil
 }
 
-func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string) error {
+// ensureClusterAutoscalerPolicy returns the ARN of the account-level cluster-autoscaler policy, creating it when missing.
+func ensureClusterAutoscalerPolicy(n nodes.Node, envVars []string) (string, error) {
+	account, err := commons.ExecuteCommand(n, "aws sts get-caller-identity --query Account --output text", 5, 3, envVars)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get the AWS account id")
+	}
+	policyARN := "arn:aws:iam::" + strings.TrimSpace(account) + ":policy/" + clusterAutoscalerPolicyName
+	if _, err := commons.ExecuteCommand(n, "aws iam get-policy --policy-arn "+policyARN, 5, 1, envVars); err == nil {
+		return policyARN, nil
+	}
+	policyPath := "/kind/cluster-autoscaler-policy.json"
+	if _, err := commons.ExecuteCommand(n, "echo '"+clusterAutoscalerPolicyDocument+"' > "+policyPath, 5, 3); err != nil {
+		return "", errors.Wrap(err, "failed to write the cluster-autoscaler IAM policy document")
+	}
+	c := "aws iam create-policy --policy-name " + clusterAutoscalerPolicyName + " --policy-document file://" + policyPath
+	if _, err := commons.ExecuteCommand(n, c, 5, 3, envVars); err != nil {
+		return "", errors.Wrap(err, "failed to create the cluster-autoscaler IAM policy")
+	}
+	return policyARN, nil
+}
+
+func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string, clusterAutoscaler bool) error {
 	var c string
 	var err error
 
@@ -257,6 +287,13 @@ func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPol
 	managedMachinePoolExtraPolicyAttachments := "        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 	if nodegroupExtraPolicyARN != "" {
 		managedMachinePoolExtraPolicyAttachments += "\n        - " + nodegroupExtraPolicyARN
+	}
+	if clusterAutoscaler {
+		clusterAutoscalerPolicyARN, err := ensureClusterAutoscalerPolicy(n, envVars)
+		if err != nil {
+			return err
+		}
+		managedMachinePoolExtraPolicyAttachments += "\n        - " + clusterAutoscalerPolicyARN
 	}
 
 	eksConfigData := `

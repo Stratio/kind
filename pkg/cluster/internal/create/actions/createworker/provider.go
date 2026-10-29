@@ -564,6 +564,9 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if keosCluster.Spec.ControlPlane.Managed {
 			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
 		}
+		if keosCluster.Spec.InfraProvider == "aws" && keosCluster.Spec.ControlPlane.Managed && keosCluster.Spec.ControlPlane.AWS.MPRoleName == "" {
+			keosCluster.Spec.ControlPlane.AWS.MPRoleName = eksNodegroupRoleName
+		}
 		keosCluster.Spec.Keos = commons.Keos{}
 
 		clusterConfigYAML, err := yaml.Marshal(clusterConfig)

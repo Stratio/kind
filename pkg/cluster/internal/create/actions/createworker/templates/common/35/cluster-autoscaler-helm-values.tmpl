@@ -1,15 +1,23 @@
+{{- $eks := and (eq $.KeosCluster.Spec.InfraProvider "aws") $.KeosCluster.Spec.ControlPlane.Managed }}
 autoDiscovery:
   clusterName: {{ $.KeosCluster.Metadata.Name }}
+{{- if not $eks }}
   labels:
   - namespace: cluster-{{ $.KeosCluster.Metadata.Name }}
   roles:
   - worker
+{{- end }}
   tags:
   - k8s.io/cluster-autoscaler/enabled
   - k8s.io/cluster-autoscaler/{{ $.KeosCluster.Metadata.Name }}
+{{- if $eks }}
+awsRegion: {{ $.KeosCluster.Spec.Region }}
+cloudProvider: aws
+{{- else }}
 cloudProvider: clusterapi
+{{- end }}
 
 image:
   repository: {{ $.KeosRegUrl }}/stratio/cluster-autoscaler
-  tag: v1.35.2-01
+  tag: v1.35.2-0.1
 replicaCount: 2
