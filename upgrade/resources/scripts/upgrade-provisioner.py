@@ -3665,17 +3665,21 @@ if __name__ == '__main__':
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if config["dry_run"] else "5m"
     command = kubectl + f" wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("FAILED")
-        print("[ERROR] HelmRelease failed to become ready, checking status...")
-        status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[DEBUG] HelmRelease details:\n{status_output}")
-        print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
-        raise e
+    if config["dry_run"] and co_leftover_suspend:
+        # --dry-run skipped the resume above, so the leftover suspend is still there
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("FAILED")
+            print("[ERROR] HelmRelease failed to become ready, checking status...")
+            status_cmd = f"{kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[DEBUG] HelmRelease details:\n{status_output}")
+            print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
+            raise e
 
     if k8s_version_bumped:
         # A k8s_version bump can take much longer than the generic 5m wait below —

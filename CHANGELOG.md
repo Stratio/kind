@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
   A cluster already blocked this way recovers by running the script again with `--skip-preflight-checks` (the pre-flight check stops at the crashing Flux pods)
 * [PLT-5163] `ecr_pull_through.py`: suspend the cluster-operator `HelmRelease` while the image tag, the Helm repository and the chart version change, also in `--restore`. A helm-controller reconcile in between (about 3.5 seconds) ran the old cluster-operator chart with the new image
 * [PLT-5163] `upgrade-provisioner.py` (Azure): the orphaned control-plane `Node`/etcd member check also runs while waiting for the worker nodes. When the control plane finished its rollout before an orphaned `Node` was confirmed (600 seconds), the `Node` stayed; Azure reused its IP for a new control-plane node, whose `calico-node` stopped with "is already using the IPv4 address", and the worker rollout hung on CAPI webhook timeouts.
+* [PLT-5163] `upgrade-provisioner.py --dry-run`: with the cluster-operator `HelmRelease` left suspended by an interrupted run, the dry-run also skips the cluster-operator Ready wait at the end; it failed there because the dry-run does not resume it
 
 ## 0.9.8 (2026-10-16)
 
