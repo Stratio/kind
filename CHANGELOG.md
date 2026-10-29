@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 * [PLT-5163] `ecr_pull_through.py`: suspend the cluster-operator `HelmRelease` while the image tag, the Helm repository and the chart version change, also in `--restore`. A helm-controller reconcile in between (about 3.5 seconds) ran the old cluster-operator chart with the new image
 * [PLT-5163] `upgrade-provisioner.py` (Azure): the orphaned control-plane `Node`/etcd member check also runs while waiting for the worker nodes. When the control plane finished its rollout before an orphaned `Node` was confirmed (600 seconds), the `Node` stayed; Azure reused its IP for a new control-plane node, whose `calico-node` stopped with "is already using the IPv4 address", and the worker rollout hung on CAPI webhook timeouts.
 * [PLT-5163] `upgrade-provisioner.py --dry-run`: with the cluster-operator `HelmRelease` left suspended by an interrupted run, the dry-run also skips the cluster-operator Ready wait at the end; it failed there because the dry-run does not resume it
+* [PLT-5163] `upgrade-provisioner.py` (Azure without a private registry): cluster-autoscaler moves to the upstream `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`, as `create cluster` 1.35; EKS, and Azure with a private registry, keep the Stratio build from `<keos_registry>/stratio/cluster-autoscaler`
 
 ## 0.9.8 (2026-10-16)
 

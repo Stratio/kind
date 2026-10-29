@@ -120,6 +120,10 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-01"
 # Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
+# Azure without a private registry: upstream image, as create cluster 1.35
+# (no MachinePools there, so the #9693 fix is not needed).
+CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
+CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.35.2"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
@@ -1285,19 +1289,24 @@ def update_flux_image_tag_values(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS and Azure, same image as create cluster 1.35). The image is always
-    "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
+def update_cluster_autoscaler_image_tag_value(values_file, provider):
+    '''Set the cluster-autoscaler image as create cluster 1.35 does. EKS, and Azure with a private registry: the MP
+    scale-down fix build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left
+    (also with ECR pull-through). Azure without a private registry: the upstream image.'''
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
-        if registry_url:
-            image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        if provider == "aws" or is_private_registry_enabled(cluster_config):
+            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
+            registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+            if registry_url:
+                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        else:
+            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
+            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
@@ -1659,7 +1668,7 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
         elif release_name == "cluster-autoscaler" and provider in ("aws", "azure"):
-            update_cluster_autoscaler_image_tag_value(default_values_file)
+            update_cluster_autoscaler_image_tag_value(default_values_file, provider)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
 
