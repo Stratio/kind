@@ -2957,26 +2957,56 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
     if not live_node_names:
         return  # every Machine is still provisioning — nothing can be judged orphaned yet
 
+    node_output, _ = run_command(
+        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        nodes = json.loads(node_output).get("items", [])
+    except (ValueError, TypeError):
+        return
+    if not nodes:
+        return
+
+    # A mixed 3.5/3.6 etcd can answer members with an empty name (az-5180-a2), so a member is also matched by its peer URL host
+    live_addresses = {
+        a["address"] for obj in machines + nodes for a in obj.get("status", {}).get("addresses") or []
+        if a.get("type") in ("InternalIP", "ExternalIP") and a.get("address")
+    }
+
     running_node = next(
         (m["status"]["nodeRef"]["name"] for m in machines
          if m.get("status", {}).get("phase") == "Running" and m.get("status", {}).get("nodeRef")),
         None
     )
     if running_node:
-        etcdctl = (
-            f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
-            "--endpoints=https://127.0.0.1:2379 "
+        etcdctl_tls = (
             "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
             "--cert=/etc/kubernetes/pki/etcd/server.crt "
             "--key=/etc/kubernetes/pki/etcd/server.key "
         )
+        etcdctl_exec = f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
+        etcdctl = etcdctl_exec + "--endpoints=https://127.0.0.1:2379 " + etcdctl_tls
         member_output, _ = run_command(etcdctl + "member list -w json", allow_errors=True)
         try:
             members = json.loads(member_output).get("members", [])
         except (ValueError, TypeError):
             members = []
         if members:
-            orphans = [m for m in members if m.get("name", "") not in live_node_names]
+            def member_is_healthy(member):
+                # A running member is not an orphan; one that never started (mid-join leak) has no client URL to answer
+                for url in member.get("clientURLs") or []:
+                    out, _ = run_command(etcdctl_exec + f"--endpoints={url} " + etcdctl_tls + "endpoint health --command-timeout=5s", allow_errors=True)
+                    if " is healthy:" in out:
+                        return True
+                return False
+            orphans = [
+                m for m in members
+                if m.get("name", "") not in live_node_names
+                and not {urlparse(u).hostname for u in m.get("peerURLs") or []} & live_addresses
+                and not member_is_healthy(m)
+            ]
+            # A healthy candidate drops out of the list, so its hold restarts if it turns unhealthy later
             confirmed = confirmed_orphans(orphans, lambda m: m["ID"], _orphan_member_first_seen)
             if orphans and not confirmed:
                 print(f"[INFO] {len(orphans)} etcd member(s) with no matching Node — holding until the confirmation window elapses")
@@ -2992,17 +3022,6 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
                         print(f"[WARN] Failed to remove orphaned etcd member {member_id}: {err.strip()}")
                     else:
                         print(f"[INFO] Removed orphaned etcd member {member_id}")
-
-    node_output, _ = run_command(
-        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
-        allow_errors=True
-    )
-    try:
-        nodes = json.loads(node_output).get("items", [])
-    except (ValueError, TypeError):
-        return
-    if not nodes:
-        return
 
     # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
     orphan_nodes = [
