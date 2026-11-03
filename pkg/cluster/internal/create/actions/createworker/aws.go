@@ -33,6 +33,9 @@ import (
 	"sigs.k8s.io/kind/pkg/exec"
 )
 
+// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
+const eksNodegroupRoleName = commons.EKSNodegroupRoleName
+
 //go:embed files/aws/internal-ingress-nginx.yaml
 var awsInternalIngress []byte
 
