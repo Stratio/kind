@@ -575,6 +575,15 @@ def ensure_mp_role_name(cluster_name, dry_run):
         return
     print("OK")
 
+def run_aws_iam(command):
+    '''Run an AWS CLI IAM command, retrying up to 3 times, 5 s apart, a failure other than AccessDenied, NoSuchEntity or EntityAlreadyExists'''
+
+    for attempt in range(3):
+        out, err = run_command(command, allow_errors=True)
+        if not err.strip() or any(code in err for code in ("AccessDenied", "NoSuchEntity", "EntityAlreadyExists")) or attempt == 2:
+            return out, err
+        time.sleep(5)
+
 def ensure_cluster_autoscaler_aws_iam(dry_run):
     '''Create the cluster-autoscaler aws policy when missing, as create cluster, and attach it to the MachinePool and MachineDeployment node roles: the CA aws pods run on either'''
 
@@ -587,7 +596,8 @@ def ensure_cluster_autoscaler_aws_iam(dry_run):
     policy_arn = f"arn:aws:iam::{account.strip()}:policy/{CLUSTER_AUTOSCALER_AWS_POLICY_NAME}"
     manual = (f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}' (if missing); "
               f"aws iam attach-role-policy --role-name <{EKS_NODEGROUP_ROLE}|{EKS_NODES_ROLE}> --policy-arn {policy_arn}")
-    out, err = run_command(f"aws iam get-policy --policy-arn {policy_arn} --query Policy.Arn --output text", allow_errors=True)
+    get_policy = f"aws iam get-policy --policy-arn {policy_arn} --query Policy.Arn --output text"
+    out, err = run_aws_iam(get_policy)
     actions = []
     if out.strip() != policy_arn:
         if "NoSuchEntity" not in err:
@@ -597,7 +607,7 @@ def ensure_cluster_autoscaler_aws_iam(dry_run):
             sys.exit(1)
         actions.append(("create-policy", f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}'"))
     for role in (EKS_NODEGROUP_ROLE, EKS_NODES_ROLE):
-        out, err = run_command(f"aws iam list-attached-role-policies --role-name {role} --query 'AttachedPolicies[].PolicyArn' --output text", allow_errors=True)
+        out, err = run_aws_iam(f"aws iam list-attached-role-policies --role-name {role} --query 'AttachedPolicies[].PolicyArn' --output text")
         if err.strip():
             if "NoSuchEntity" in err:
                 # MachinePools require this role (cluster-operator mp_role_name), so none can exist without it
@@ -616,7 +626,13 @@ def ensure_cluster_autoscaler_aws_iam(dry_run):
         print("DRY-RUN (" + ", ".join(name for name, _ in actions) + ")")
         return
     for name, command in actions:
-        _, err = run_command(command, allow_errors=True)
+        _, err = run_aws_iam(command)
+        if name == "create-policy" and "EntityAlreadyExists" in err:
+            # Created in the meantime by another run in the same account
+            out, err = run_aws_iam(get_policy)
+            if out.strip() == policy_arn:
+                continue
+            err = err.strip() or f"EntityAlreadyExists, but get-policy returned '{out.strip()}'"
         if err.strip():
             print("FAILED")
             print(f"[ERROR] IAM {name} failed: {err.strip()}")
