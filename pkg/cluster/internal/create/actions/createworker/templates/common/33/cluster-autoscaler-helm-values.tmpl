@@ -17,7 +17,7 @@ cloudProvider: aws
 cloudProvider: clusterapi
 {{- end }}
 
-# Upstream CA of the cluster's minor (the Stratio 1.35 build only matters for clusterapi MachinePools)
+# Upstream CA of the same minor as the cluster (the Stratio 1.35 build only matters for clusterapi MachinePools)
 image:
   repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ if $.CentralECR }}/k8s{{ end }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
   tag: v1.33.6

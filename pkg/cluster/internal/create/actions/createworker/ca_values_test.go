@@ -1,6 +1,7 @@
 package createworker
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -45,6 +46,9 @@ func TestClusterAutoscalerValuesPerMinor(t *testing.T) {
 			out, err := getManifest("common", "cluster-autoscaler-helm-values.tmpl", tt.minor, tt.params)
 			if err != nil {
 				t.Fatalf("render: %v", err)
+			}
+			if strings.Contains(out, "'") {
+				t.Fatalf("rendered values contain a single quote, which breaks the echo '...' that writes them to the node:\n%s", out)
 			}
 			var v struct {
 				CloudProvider string `yaml:"cloudProvider"`
