@@ -283,7 +283,7 @@ func validateEKSCreate(spec commons.KeosSpec) error {
 		}
 	}
 	if spec.DeployAutoscaler && !spec.Security.AWS.CreateIAM {
-		return errors.New("spec.deploy_autoscaler requires spec.security.aws.create_iam to be true in EKS clusters: the cluster-autoscaler policy is attached to the " + commons.EKSNodegroupRoleName + " role through the IAM stack")
+		return errors.New("spec.deploy_autoscaler requires spec.security.aws.create_iam to be true in EKS clusters: the cluster-autoscaler policy is attached to the " + commons.EKSNodegroupRoleName + " and nodes.cluster-api-provider-aws.sigs.k8s.io roles through the IAM stack")
 	}
 	if spec.ControlPlane.AWS.MPRoleName != "" && spec.ControlPlane.AWS.MPRoleName != commons.EKSNodegroupRoleName {
 		return errors.New("spec.control_plane.aws.mp_role_name: Invalid value: \"" + spec.ControlPlane.AWS.MPRoleName + "\": only " + commons.EKSNodegroupRoleName + " is supported (leave it empty to use it)")

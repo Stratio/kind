@@ -36,7 +36,7 @@ import (
 const (
 	// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
 	eksNodegroupRoleName = commons.EKSNodegroupRoleName
-	// clusterAutoscalerPolicyName is the account-level policy attached to eksNodegroupRoleName for the CA aws.
+	// clusterAutoscalerPolicyName is the account-level policy the IAM stack attaches to the eks-nodegroup and nodes roles for the CA aws.
 	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
 	clusterAutoscalerPolicyDocument = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}`
@@ -279,50 +279,20 @@ func ensureClusterAutoscalerPolicy(n nodes.Node, envVars []string) (string, erro
 	return policyARN, nil
 }
 
-func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string, clusterAutoscaler bool) error {
+// createCloudFormationStack creates or updates the account-level clusterawsadm stack. On EKS it always carries the CA policy,
+// also without deploy_autoscaler: one stack serves every cluster of the account and an update drops what its config lacks.
+func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string, eks bool) error {
 	var c string
 	var err error
 
-	// managedMachinePool only accepts managed policy ARNs (no inline extraStatements like "nodes" below); the ARN must already exist, this only attaches it.
-	managedMachinePoolExtraPolicyAttachments := "        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-	if nodegroupExtraPolicyARN != "" {
-		managedMachinePoolExtraPolicyAttachments += "\n        - " + nodegroupExtraPolicyARN
-	}
-	if clusterAutoscaler {
-		clusterAutoscalerPolicyARN, err := ensureClusterAutoscalerPolicy(n, envVars)
+	clusterAutoscalerPolicyARN := ""
+	if eks {
+		clusterAutoscalerPolicyARN, err = ensureClusterAutoscalerPolicy(n, envVars)
 		if err != nil {
 			return err
 		}
-		managedMachinePoolExtraPolicyAttachments += "\n        - " + clusterAutoscalerPolicyARN
 	}
-
-	eksConfigData := `
-apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
-kind: AWSIAMConfiguration
-spec:
-  bootstrapUser:
-    enable: false
-  eks:
-    enable: true
-    iamRoleCreation: false
-    defaultControlPlaneRole:
-        disable: false
-    managedMachinePool:
-        disable: false
-        extraPolicyAttachments:
-` + managedMachinePoolExtraPolicyAttachments + `
-  controlPlane:
-    enableCSIPolicy: true
-  nodes:
-    extraPolicyAttachments:
-    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
-    extraStatements:
-    - Action:
-        - "ecr:BatchImportUpstreamImage"
-        - "ecr:CreateRepository"
-      Effect: Allow
-      Resource:
-        - "*"`
+	eksConfigData := eksIAMConfig(nodegroupExtraPolicyARN, clusterAutoscalerPolicyARN)
 
 	// Create the eks.config file in the container
 	eksConfigPath := "/kind/eks.config"
@@ -341,6 +311,48 @@ spec:
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
 	return nil
+}
+
+// eksIAMConfig renders the clusterawsadm AWSIAMConfiguration; a non-empty CA policy ARN goes to both node roles (MachinePool and MachineDeployment nodes).
+func eksIAMConfig(nodegroupExtraPolicyARN string, clusterAutoscalerPolicyARN string) string {
+	// managedMachinePool only accepts managed policy ARNs (no inline extraStatements like "nodes" below); the ARN must already exist, this only attaches it.
+	managedMachinePoolExtraPolicyAttachments := "        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+	nodesExtraPolicyAttachments := "    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+	if nodegroupExtraPolicyARN != "" {
+		managedMachinePoolExtraPolicyAttachments += "\n        - " + nodegroupExtraPolicyARN
+	}
+	if clusterAutoscalerPolicyARN != "" {
+		managedMachinePoolExtraPolicyAttachments += "\n        - " + clusterAutoscalerPolicyARN
+		nodesExtraPolicyAttachments += "\n    - " + clusterAutoscalerPolicyARN
+	}
+
+	return `
+apiVersion: bootstrap.aws.infrastructure.cluster.x-k8s.io/v1beta1
+kind: AWSIAMConfiguration
+spec:
+  bootstrapUser:
+    enable: false
+  eks:
+    enable: true
+    iamRoleCreation: false
+    defaultControlPlaneRole:
+        disable: false
+    managedMachinePool:
+        disable: false
+        extraPolicyAttachments:
+` + managedMachinePoolExtraPolicyAttachments + `
+  controlPlane:
+    enableCSIPolicy: true
+  nodes:
+    extraPolicyAttachments:
+` + nodesExtraPolicyAttachments + `
+    extraStatements:
+    - Action:
+        - "ecr:BatchImportUpstreamImage"
+        - "ecr:CreateRepository"
+      Effect: Allow
+      Resource:
+        - "*"`
 }
 
 func (b *AWSBuilder) internalNginx(p ProviderParams, networks commons.Networks) (bool, error) {
