@@ -118,6 +118,18 @@ CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
 CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
 CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.36.1"
 
+# Azure only: azurefile-csi-driver 1.35.11 images, as create cluster pins them (templates/azure/<minor>/azurefile-csi-driver-helm-values.tmpl);
+# release-1.35 publishes chart 1.35.11 twice with different defaults, so the tags cannot be left to the chart.
+AZUREFILE_CSI_DRIVER_IMAGES = {
+    ("image", "azurefile"): ("/oss/v2/kubernetes-csi/azurefile-csi", "v1.35.11"),
+    ("image", "csiProvisioner"): ("/oss/v2/kubernetes-csi/csi-provisioner", "v6.4.0"),
+    ("image", "csiResizer"): ("/oss/v2/kubernetes-csi/csi-resizer", "v2.3.0"),
+    ("image", "livenessProbe"): ("/oss/v2/kubernetes-csi/livenessprobe", "v2.20.0"),
+    ("image", "nodeDriverRegistrar"): ("/oss/v2/kubernetes-csi/csi-node-driver-registrar", "v2.18.0"),
+    ("snapshot", "image", "csiSnapshotter"): ("/oss/v2/kubernetes-csi/csi-snapshotter", "v8.7.0"),
+    ("snapshot", "image", "csiSnapshotController"): ("/oss/v2/kubernetes-csi/snapshot-controller", "v8.7.0"),
+}
+
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
 # Mirrors templates/azure/<minor>/cloud-provider-azure-helm-values.tmpl instead.
@@ -171,9 +183,9 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "1.35.7",
+        "version": "1.35.11",
         "namespace": "kube-system",
-        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
+        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/release-1.35/charts"
     },
     "cloud-provider-azure": {
         "version": "1.36.0",

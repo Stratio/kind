@@ -8,7 +8,7 @@ import yaml
 import time
 from urllib.parse import urlparse
 from upgrade_lib.commons.shell import run_command
-from upgrade_lib.versions import CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR, CP_ORPHAN_CHECK_GRACE_SECONDS, CP_ORPHAN_CHECK_INTERVAL_SECONDS, CP_ORPHAN_CONFIRM_SECONDS
+from upgrade_lib.versions import AZUREFILE_CSI_DRIVER_IMAGES, CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR, CP_ORPHAN_CHECK_GRACE_SECONDS, CP_ORPHAN_CHECK_INTERVAL_SECONDS, CP_ORPHAN_CONFIRM_SECONDS
 from upgrade_lib import state as S
 
 def update_cloud_provider_azure_image_tag_value(values_file):
@@ -32,6 +32,28 @@ def update_cloud_provider_azure_image_tag_value(values_file):
                 repo = repo.replace("/oss/kubernetes", "/oss/v2/kubernetes")
             section["imageRepository"] = repo
             section["imageTag"] = ccm_tag
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def update_azurefile_csi_driver_image_tag_value(values_file):
+    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for path, (repository, tag) in AZUREFILE_CSI_DRIVER_IMAGES.items():
+            section = values
+            for key in path:
+                if not isinstance(section.get(key), dict):
+                    section[key] = {}
+                section = section[key]
+            section["repository"] = repository
+            section["tag"] = tag
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
