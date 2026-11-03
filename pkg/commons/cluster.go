@@ -42,6 +42,9 @@ const (
 	DefaultGhcrPrefix      = "/ghcr"
 	DefaultK8sPrefix       = "/k8s"
 	DefaultQuayPrefix      = "/quay"
+
+	// EKSNodegroupRoleName is the clusterawsadm node-group role, the only mp_role_name accepted on EKS.
+	EKSNodegroupRoleName = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
 )
 
 type Resource struct {
