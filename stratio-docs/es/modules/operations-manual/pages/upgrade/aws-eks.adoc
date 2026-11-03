@@ -457,7 +457,7 @@ python3 upgrade-provisioner.py -p <vault-password> 2>&1 | tee /upgrade/backup/up
 Responde a los _prompts_ en este orden:
 
 . "Press ENTER to continue upgrading the cluster or any other key to abort:" pulsa Intro.
-. "The current Helm repository is: <url>. Do you want to indicate a new Helm repository? Press enter or specify new repository:" pulsa Intro para mantener el repositorio actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+. "The current helm repository is: <url>. Do you want to indicate a new helm repository? Press enter or specify new repository:" pulsa Intro para mantener el repositorio actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
 . "Proceed with the k8s_version bump <versión actual> -> v1.35.0? [y/N]:" escribe `y`. Es el punto de no retorno.
 
 *Salida esperada al terminar:* "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: REAL — changes were applied".
@@ -511,7 +511,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Salida esperada:* `<registro>/autoscaling/cluster-autoscaler:v1.35.2`, la imagen propia de Stratio con la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
+*Salida esperada:* `<registro>/stratio/cluster-autoscaler:v1.35.2-01`, la imagen propia de Stratio con la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
 
 == Tareas posteriores
 

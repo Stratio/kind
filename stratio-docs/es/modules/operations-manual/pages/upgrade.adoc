@@ -5,6 +5,8 @@
 El _script_ `upgrade-provisioner.py` actualiza un _cluster_ creado con _Stratio Cloud Provisioner_ 0.7.x y Kubernetes 1.32 a la versión 0.9.x con Kubernetes 1.35. Cada entorno tiene su propio procedimiento paso a paso:
 
 * xref:operations-manual:upgrade/aws-eks.adoc[EKS] en AWS (gestionado).
+* xref:operations-manual:upgrade/azure-vms.adoc[Azure VMs] (no gestionado).
+* xref:operations-manual:upgrade/gcp-gke.adoc[GKE] en GCP (gestionado).
 
 Esta página reúne lo que es común a los tres entornos:
 
@@ -266,12 +268,12 @@ Opciones principales:
 | No
 
 | `--skip-preflight-checks`
-| Omite las comprobaciones de salud del _cluster_ previas a la actualización (consulta la <<comprobación_automática, comprobación automática>>). *No recomendado*: un _cluster_ no saludable puede empeorar tras la actualización (por ejemplo, un nodo a medio drenar o un _controller_ de CAPI atascado en 1 réplica).
+| Continúa con la actualización aunque las comprobaciones de salud del _cluster_ previas a la actualización encuentren problemas; las comprobaciones se ejecutan igualmente y muestran lo que encuentran (consulta la <<comprobación_automática, comprobación automática>>). *No recomendado*: un _cluster_ no saludable puede empeorar tras la actualización (por ejemplo, un nodo a medio drenar o un _controller_ de CAPI atascado en 1 réplica).
 | `False`
 | No
 
 | `--k8s-version`
-| Versión _minor_ de Kubernetes objetivo para el _bump_ (por ejemplo, `1.35`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`; el _script_ desactiva temporalmente los _webhooks_ de `KeosCluster`, por lo que no se aplica el límite de +1 _minor_ por _patch_. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio. El valor de esta opción sigue siendo el _minor_ final, por lo que su uso no cambia.
+| Versión _minor_ de Kubernetes objetivo para el _bump_ (por ejemplo, `1.35`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`; el _script_ desactiva temporalmente los _webhooks_ de `KeosCluster`, por lo que no se aplica el límite de +1 _minor_ por _patch_. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (consulta el xref:operations-manual:upgrade/azure-vms.adoc#_cambio_de_versión_de_kubernetes_en_azure_vms[_bump_ de `k8s_version` en Azure VMs] y el xref:operations-manual:upgrade/gcp-gke.adoc#_cambio_de_versión_de_kubernetes_en_gke[_bump_ de `k8s_version` en GKE]). El valor de esta opción sigue siendo el _minor_ final, por lo que su uso no cambia.
 | `1.35`
 | No
 
@@ -341,7 +343,7 @@ NOTE: Al actualizar su _chart_, _cluster-autoscaler_ vuelve a 2 réplicas hasta 
 
 . *Actualización de _charts_*
 ** Actualiza los _charts_ comunes (cert-manager, cluster-autoscaler, cluster-operator, flux2 y tigera-operator) y los del proveedor: aws-load-balancer-controller en EKS, si está instalado, y azuredisk-csi-driver, azurefile-csi-driver y cloud-provider-azure en Azure VMs (consulta <<_qué_se_actualiza, qué se actualiza>>). Si alguno de estos _charts_ no está en el _cluster_, el _script_ lo omite; por ejemplo, aws-load-balancer-controller, que es opcional en EKS, o _cluster-autoscaler_ si el _cluster_ se creó sin él.
-** En EKS, fija en _cluster-autoscaler_ la imagen propia de Stratio `v1.35.2`, desde `<registro>/autoscaling/cluster-autoscaler`.
+** En EKS y Azure, fija en _cluster-autoscaler_ la imagen propia de Stratio `v1.35.2-01`, desde `<registro>/stratio/cluster-autoscaler`.
 ** Conserva los valores de _override_ (`ConfigMap` `02-<release>-helm-chart-override-values`) de cada _chart_.
 ** Al terminar los _charts_, deshace la exclusión de los _webhooks_ de Capsule.
 ** Vuelve a escalar _cluster-autoscaler_ a 0, si está desplegado.

@@ -128,7 +128,7 @@ Target versions of 0.9.x:
 | Supported from 0.5.x. It reconciles the `KeosCluster` and propagates the version change.
 
 | cert-manager
-| v1.21.1
+| v1.21.2
 |
 
 | flux2
@@ -141,7 +141,7 @@ Target versions of 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| With the image pinned to v1.35.0 due to a scale-down issue: see <<known-issues, Known warnings and incidents>>.
+| On EKS and Azure, with the proprietary Stratio image `v1.35.2-01`, from `<registry>/stratio/cluster-autoscaler`.
 
 | aws-load-balancer-controller
 | 3.4.0

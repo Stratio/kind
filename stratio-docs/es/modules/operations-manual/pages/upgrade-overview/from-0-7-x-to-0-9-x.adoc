@@ -128,7 +128,7 @@ Versiones de destino de la 0.9.x:
 | Se admite desde la 0.5.x. Es quien reconcilia el `KeosCluster` y propaga el cambio de versión.
 
 | cert-manager
-| v1.21.1
+| v1.21.2
 |
 
 | flux2
@@ -141,7 +141,7 @@ Versiones de destino de la 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| Con la imagen fijada en v1.35.0 debido a una incidencia de _scale-down_: consulta <<known-issues, Avisos e incidencias conocidas>>.
+| En EKS y Azure, con la imagen propia de Stratio `v1.35.2-01`, desde `<registro>/stratio/cluster-autoscaler`.
 
 | aws-load-balancer-controller
 | 3.4.0
