@@ -39,7 +39,7 @@ CLOUD_PROVISIONER = "0.9.9"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.5"
+CLUSTER_OPERATOR = "0.7.6"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
@@ -127,6 +127,18 @@ CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.35.2"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+# EKS only: the clusterawsadm role of MachineDeployment nodes (iamInstanceProfile of every AWSMachineTemplate).
+EKS_NODES_ROLE = "nodes.cluster-api-provider-aws.sigs.k8s.io"
+
+# EKS only: second cluster-autoscaler, cloudProvider aws, for MachinePools; the clusterapi one keeps the MachineDeployments.
+CLUSTER_AUTOSCALER_AWS_RELEASE = "cluster-autoscaler-aws"
+# Same name and document as create cluster (createworker/aws.go clusterAutoscalerPolicyName/clusterAutoscalerPolicyDocument).
+CLUSTER_AUTOSCALER_AWS_POLICY_NAME = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}'
+# create cluster file createworker/files/aws/allow-egress-imds_gnetpol.yaml; the CA aws reads its node role credentials from IMDS.
+IMDS_ALLOW_GNP = "allow-traffic-to-aws-imds"
+IMDS_DENY_GNP = "deny-all-traffic-to-aws-imds"
+IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR = "app.kubernetes.io/name == 'aws-cluster-autoscaler'"
 
 # EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
 CLUSTER_AUTOSCALER_EKS_RBAC = """---
@@ -233,7 +245,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.7.5",
+        "version": CLUSTER_OPERATOR,
         "namespace": "kube-system",
         "repo": ""
     },
@@ -563,6 +575,111 @@ def ensure_mp_role_name(cluster_name, dry_run):
         return
     print("OK")
 
+def ensure_cluster_autoscaler_aws_iam(dry_run):
+    '''Create the cluster-autoscaler aws policy when missing, as create cluster, and attach it to the MachinePool and MachineDeployment node roles: the CA aws pods run on either'''
+
+    print(f"[INFO] Ensuring IAM policy {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} on the node roles:", end=" ", flush=True)
+    account, err = run_command("aws sts get-caller-identity --query Account --output text", allow_errors=True)
+    if not account.strip():
+        print("FAILED")
+        print(f"[ERROR] Could not get the AWS account id: {err.strip()}")
+        sys.exit(1)
+    policy_arn = f"arn:aws:iam::{account.strip()}:policy/{CLUSTER_AUTOSCALER_AWS_POLICY_NAME}"
+    manual = (f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}' (if missing); "
+              f"aws iam attach-role-policy --role-name <{EKS_NODEGROUP_ROLE}|{EKS_NODES_ROLE}> --policy-arn {policy_arn}")
+    out, err = run_command(f"aws iam get-policy --policy-arn {policy_arn} --query Policy.Arn --output text", allow_errors=True)
+    actions = []
+    if out.strip() != policy_arn:
+        if "NoSuchEntity" not in err:
+            print("FAILED")
+            print(f"[ERROR] Could not read the IAM policy {policy_arn}: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+        actions.append(("create-policy", f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}'"))
+    for role in (EKS_NODEGROUP_ROLE, EKS_NODES_ROLE):
+        out, err = run_command(f"aws iam list-attached-role-policies --role-name {role} --query 'AttachedPolicies[].PolicyArn' --output text", allow_errors=True)
+        if err.strip():
+            if "NoSuchEntity" in err:
+                # MachinePools require this role (cluster-operator mp_role_name), so none can exist without it
+                print(f"\n[WARN] IAM role {role} not found: create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: {manual}", end=" ", flush=True)
+                continue
+            print("FAILED")
+            print(f"[ERROR] Could not list the policies of the IAM role {role}: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+        if policy_arn not in out.split():
+            actions.append((f"attach to {role}", f"aws iam attach-role-policy --role-name {role} --policy-arn {policy_arn}"))
+    if not actions:
+        print("SKIP (already attached)")
+        return
+    if dry_run:
+        print("DRY-RUN (" + ", ".join(name for name, _ in actions) + ")")
+        return
+    for name, command in actions:
+        _, err = run_command(command, allow_errors=True)
+        if err.strip():
+            print("FAILED")
+            print(f"[ERROR] IAM {name} failed: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+    print("OK (" + ", ".join(name for name, _ in actions) + ")")
+
+def ensure_imds_allow_cluster_autoscaler_aws(dry_run):
+    '''Add the cluster-autoscaler aws pods to the IMDS allow GlobalNetworkPolicy, as create cluster'''
+
+    print(f"[INFO] Allowing IMDS egress to the cluster-autoscaler aws pods (GlobalNetworkPolicy {IMDS_ALLOW_GNP}):", end=" ", flush=True)
+    gnp = "globalnetworkpolicies.crd.projectcalico.org"
+    selector, err = run_command(f"{kubectl} get {gnp} {IMDS_ALLOW_GNP} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
+    if "NotFound" in err:
+        _, deny_err = run_command(f"{kubectl} get {gnp} {IMDS_DENY_GNP} -o name", allow_errors=True)
+        if "NotFound" in deny_err:
+            print(f"SKIP (no {IMDS_DENY_GNP}: IMDS egress is not restricted)")
+            return
+        print("FAILED")
+        print(f"[ERROR] {IMDS_DENY_GNP} exists but {IMDS_ALLOW_GNP} does not: the cluster-autoscaler aws could not reach IMDS")
+        sys.exit(1)
+    if err.strip() or not selector.strip():
+        print("FAILED")
+        print(f"[ERROR] Could not read {IMDS_ALLOW_GNP}: {err.strip()}")
+        sys.exit(1)
+    if IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR in selector:
+        print("SKIP (already allowed)")
+        return
+    patch_file = "/tmp/imds-allow-cluster-autoscaler-aws-patch.json"
+    with open(patch_file, "w") as f:
+        json.dump({"spec": {"selector": f"{selector.strip()} || {IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR}"}}, f)
+    if dry_run:
+        print("DRY-RUN")
+        return
+    run_command(f"{kubectl} patch {gnp} {IMDS_ALLOW_GNP} --type=merge --patch-file {patch_file}")
+    print("OK")
+
+def write_cluster_autoscaler_aws_values(values_file):
+    '''Values of the cluster-autoscaler aws release: MachinePool ASGs found by the create cluster CA tags, own lease next to the clusterapi CA'''
+
+    name = keos_cluster["metadata"]["name"]
+    values = {
+        "cloudProvider": "aws",
+        "awsRegion": keos_cluster["spec"]["region"],
+        "autoDiscovery": {
+            "clusterName": name,
+            "tags": ["k8s.io/cluster-autoscaler/enabled", f"k8s.io/cluster-autoscaler/{name}"],
+        },
+        "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
+        "replicaCount": 2,
+        # The chart grants get/update only on the lease "cluster-autoscaler", already taken by the clusterapi CA
+        "extraArgs": {"leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE},
+        "rbac": {"additionalRules": [{
+            "apiGroups": ["coordination.k8s.io"],
+            "resources": ["leases"],
+            "resourceNames": [CLUSTER_AUTOSCALER_AWS_RELEASE],
+            "verbs": ["get", "update"],
+        }]},
+    }
+    with open(values_file, 'w') as file:
+        yaml.safe_dump(values, file, default_flow_style=False)
+    update_cluster_autoscaler_image_tag_value(values_file, "aws")
+
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
 
@@ -570,35 +687,35 @@ def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     command = kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
     execute_command(command, dry_run)
 
-def scale_cluster_autoscaler(replicas, dry_run):
+def scale_cluster_autoscaler(replicas, dry_run, deployment="cluster-autoscaler-clusterapi-cluster-autoscaler"):
     '''Scale cluster-autoscaler deployment and return the replicas it had (None if not deployed)'''
 
-    command = kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --ignore-not-found -o=jsonpath='{.spec.replicas}'"
+    command = kubectl + f" get deploy {deployment} -n kube-system --ignore-not-found -o=jsonpath='{{.spec.replicas}}'"
     output = execute_command(command, False, False)
 
     if output.strip() == "":
-        print("[INFO] Cluster autoscaler not deployed: SKIP")
+        print(f"[INFO] Cluster autoscaler {deployment} not deployed: SKIP")
         return None
 
     current_replicas = int(output)
 
     if current_replicas == replicas:
-        print("[INFO] Cluster autoscaler already at desired replicas: SKIP")
+        print(f"[INFO] Cluster autoscaler {deployment} already at desired replicas: SKIP")
         return current_replicas
 
     scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
-    print(f"[INFO] {scaling_type} cluster autoscaler replicas:", end=" ", flush=True)
+    print(f"[INFO] {scaling_type} cluster autoscaler {deployment} replicas:", end=" ", flush=True)
 
     if dry_run:
         print("DRY-RUN")
         return current_replicas
 
     # Scale
-    command = kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
+    command = kubectl + f" scale deploy {deployment} -n kube-system --replicas={replicas}"
     execute_command(command, False, False)
 
     # Wait until ready
-    command = kubectl + " wait deployment cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --for=condition=Available --timeout=5m"
+    command = kubectl + f" wait deployment {deployment} -n kube-system --for=condition=Available --timeout=5m"
     execute_command(command, False, False)
 
     print("OK")
@@ -1616,10 +1733,12 @@ def upgrade_chart(chart_name, chart_data):
     chart_version = chart_data["version"]
     chart_namespace = chart_data["namespace"]
 
-    release_name = chart_name
+    release_name = chart_data.get("release_name", chart_name)
     if chart_name == "flux2":
         release_name = "flux"
-    repo_name = release_name
+    # A second release of a chart (cluster-autoscaler-aws) reuses the HelmRepository of the first one
+    chart = chart_data.get("chart", chart_name)
+    repo_name = chart if chart != chart_name else release_name
     repo_schema = "default"
     repo_username = ""
     repo_password = ""
@@ -1660,7 +1779,10 @@ def upgrade_chart(chart_name, chart_data):
 
     suspended = False
     try:
-        create_default_values(release_name, chart_namespace, default_values_file, provider)
+        if release_name == CLUSTER_AUTOSCALER_AWS_RELEASE:
+            write_cluster_autoscaler_aws_values(default_values_file)
+        else:
+            create_default_values(release_name, chart_namespace, default_values_file, provider)
         if release_name == "cluster-operator":
             update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
         elif release_name == "tigera-operator":
@@ -1702,7 +1824,7 @@ def upgrade_chart(chart_name, chart_data):
 
         helm_release_data = {
             'ReleaseName': release_name,
-            'ChartName': chart_name,
+            'ChartName': chart,
             'ChartNamespace': chart_namespace,
             'ChartVersion': chart_version,
             'ChartRepoRef': repo_name,
@@ -1736,6 +1858,8 @@ def upgrade_chart(chart_name, chart_data):
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
         if dry_run_leftover_suspend:
             print(f"(HelmRelease {chart_namespace}/{release_name} left suspended by an interrupted run: the real run resumes it, Ready wait skipped) ", end="", flush=True)
+        elif config["dry_run"] and not suspended:
+            print(f"(HelmRelease {chart_namespace}/{release_name} does not exist yet: the real run creates it, Ready wait skipped) ", end="", flush=True)
         elif chart_name != "cluster-operator":
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
@@ -3409,6 +3533,13 @@ if __name__ == '__main__':
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
+    # EKS with cluster-autoscaler: a second one with cloudProvider aws scales the MachinePools (installed at the end).
+    # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
+    eks_cluster_autoscaler_aws = provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
+    if eks_cluster_autoscaler_aws:
+        ensure_cluster_autoscaler_aws_iam(config["dry_run"])
+        ensure_imds_allow_cluster_autoscaler_aws(config["dry_run"])
+
     # Setting clusterctl env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
 
@@ -3425,6 +3556,8 @@ if __name__ == '__main__':
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
     cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
+    # None on the first run; a relaunch finds it installed
+    cluster_autoscaler_aws_replicas = scale_cluster_autoscaler(0, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE) if eks_cluster_autoscaler_aws else None
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
@@ -3717,6 +3850,14 @@ if __name__ == '__main__':
 
     if provider == "aws":
         ensure_mp_role_name(cluster_name, config["dry_run"])
+
+    # Last, with the cluster at its target version: the CA aws image is built for Kubernetes 1.35
+    if eks_cluster_autoscaler_aws:
+        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools):", end=" ", flush=True)
+        upgrade_chart(CLUSTER_AUTOSCALER_AWS_RELEASE, dict(common_charts["cluster-autoscaler"], chart="cluster-autoscaler", release_name=CLUSTER_AUTOSCALER_AWS_RELEASE))
+        if cluster_autoscaler_aws_replicas is not None:
+            # helm keeps the replicas scaled to 0 at start when the chart and values are unchanged
+            scale_cluster_autoscaler(cluster_autoscaler_aws_replicas or 2, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
