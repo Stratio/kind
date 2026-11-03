@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_enabled, is_private_registry_enabled
 from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
+from upgrade_lib.providers.aws import update_cluster_autoscaler_aws_values
 from upgrade_lib.providers.azure import update_azurefile_csi_driver_image_tag_value, update_cloud_provider_azure_image_tag_value
 from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
@@ -511,6 +512,8 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "flux":
             update_flux_values(default_values_file)
         elif release_name == "cluster-autoscaler" and S.provider in ("aws", "azure"):
+            if S.provider == "aws":
+                update_cluster_autoscaler_aws_values(default_values_file)
             update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and S.provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)

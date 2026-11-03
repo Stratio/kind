@@ -130,6 +130,22 @@ AZUREFILE_CSI_DRIVER_IMAGES = {
     ("snapshot", "image", "csiSnapshotController"): ("/oss/v2/kubernetes-csi/snapshot-controller", "v8.7.0"),
 }
 
+# EKS only (MachinePools only on 0.10): one cluster-autoscaler, release "cluster-autoscaler" with cloudProvider aws, as create cluster.
+# Deployment of that release with cloudProvider clusterapi and with aws (both seen live on 0.9 clusters)
+CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT = "cluster-autoscaler-clusterapi-cluster-autoscaler"
+CLUSTER_AUTOSCALER_AWS_DEPLOYMENT = "cluster-autoscaler-aws-cluster-autoscaler"
+# Second release the 0.9 upgrade-provisioner.py installs for MachinePools on clusters from 0.7.5 (fullnameOverride = release name)
+CLUSTER_AUTOSCALER_AWS_09_RELEASE = "cluster-autoscaler-aws"
+# The clusterawsadm role of every EKS MachinePool (CAPA DefaultEKSNodegroupRole), the only mp_role_name cluster-operator accepts
+EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+# Same name and document as create cluster (createworker/aws.go clusterAutoscalerPolicyName/clusterAutoscalerPolicyDocument)
+CLUSTER_AUTOSCALER_AWS_POLICY_NAME = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}'
+# create cluster file createworker/files/aws/allow-egress-imds_gnetpol.yaml; the CA aws reads its node role credentials from IMDS
+IMDS_ALLOW_GNP = "allow-traffic-to-aws-imds"
+IMDS_DENY_GNP = "deny-all-traffic-to-aws-imds"
+IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR = "app.kubernetes.io/name == 'aws-cluster-autoscaler'"
+
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
 # Mirrors templates/azure/<minor>/cloud-provider-azure-helm-values.tmpl instead.

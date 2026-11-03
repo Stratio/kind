@@ -16,7 +16,7 @@ from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repositor
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.aws import configure_aws_credentials, wait_for_eks_worker_convergence
+from upgrade_lib.providers.aws import configure_aws_credentials, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
 from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
@@ -295,6 +295,13 @@ def run():
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
+    # EKS with cluster-autoscaler: it ends as one release with cloudProvider aws (MachinePools only on 0.10).
+    # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
+    eks_cluster_autoscaler = S.provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
+    if eks_cluster_autoscaler:
+        ensure_cluster_autoscaler_aws_iam(S.config["dry_run"])
+        ensure_imds_allow_cluster_autoscaler_aws(S.config["dry_run"])
+
     # Setting clusterctl env vars
     S.env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
 
@@ -420,8 +427,15 @@ def run():
 
     chart_current_versions, provider_current_versions = print_planned_changes(charts_to_upgrade, S.provider)
 
+    if eks_cluster_autoscaler:
+        remove_cluster_autoscaler_aws_09_release(S.config["dry_run"])
+
     upgrade_charts(charts_to_upgrade, chart_current_versions)
     print("[INFO] All charts updated successfully")
+
+    if eks_cluster_autoscaler:
+        # A clusterapi release switched to aws gets a new Deployment with the chart's replicas: hold it until the end
+        scale_cluster_autoscaler(0, S.config["dry_run"])
 
     # Restore capsule
     if not S.config["disable_prepare_capsule"]:
