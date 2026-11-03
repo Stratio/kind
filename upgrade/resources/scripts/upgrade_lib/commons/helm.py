@@ -13,7 +13,7 @@ from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_e
 from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.azure import update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -174,18 +174,24 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the Stratio #9693 build used on every provider that deploys it. This custom image lives
-    at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
-    official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
+    '''Set the cluster-autoscaler image as create cluster 1.36/1.37 does. EKS, and Azure with a private registry: the
+    Stratio all-providers #9693 build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values()
+    left (also with ECR pull-through). Azure without a private registry: the upstream image.'''
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        if 'repository' in image:
-            image['repository'] = image['repository'].replace('/k8s/autoscaling', '/autoscaling')
+        if S.provider == "aws" or is_private_registry_enabled(S.cluster_config):
+            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
+            registry_url = get_keos_registry_url(S.keos_cluster).rstrip("/")
+            if registry_url:
+                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        else:
+            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
+            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
+        print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)

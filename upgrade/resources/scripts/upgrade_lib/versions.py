@@ -108,10 +108,15 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# Stratio CA build with kubernetes/autoscaler#9693, the DEPENDENCIES tag on every provider that deploys CA (EKS, Azure VMs).
-# The fix is for EKS MachinePools: official images hit "unknown machine for node" on scale-down for
-# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups); #9693 is not in any upstream release yet.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.36.1"
+# Stratio CA build with every cloud provider (aws for EKS, clusterapi for Azure) and kubernetes/autoscaler#9693, as create cluster
+# 1.36/1.37 sets it: EKS, and Azure with a private registry. Official images hit "unknown machine for node" on scale-down for
+# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups); #9693 is not in any upstream 1.36 release yet.
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.36.1-0.1"
+# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
+# Azure without a private registry: upstream image, as create cluster (no MachinePools there, so the #9693 fix is not needed).
+CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
+CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.36.1"
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
