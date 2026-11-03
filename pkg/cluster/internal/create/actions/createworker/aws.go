@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
@@ -36,7 +37,9 @@ import (
 const (
 	// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
 	eksNodegroupRoleName = commons.EKSNodegroupRoleName
-	// clusterAutoscalerPolicyName is the account-level policy the IAM stack attaches to the eks-nodegroup and nodes roles for the CA aws.
+	// eksNodesRoleName is the clusterawsadm role of MachineDeployment nodes; CA aws pods can also run there.
+	eksNodesRoleName = "nodes.cluster-api-provider-aws.sigs.k8s.io"
+	// clusterAutoscalerPolicyName is the account-level policy attached to the eks-nodegroup and nodes roles, outside the IAM stack, for the CA aws.
 	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
 	clusterAutoscalerPolicyDocument = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}`
@@ -258,6 +261,35 @@ func installLBController(n nodes.Node, k string, privateParams PrivateParams, p 
 	return nil
 }
 
+// runAWSIAM runs an AWS CLI command and reports its output and success, retrying up to 3 times a failure other than AccessDenied or the given codes.
+func runAWSIAM(n nodes.Node, envVars []string, c string, codes ...string) (string, bool, error) {
+	var out string
+	for attempt := 1; attempt <= 3; attempt++ {
+		// "2>&1; echo rc=$?" keeps the CLI message and exit code: ExecuteCommand only puts the output in the error when it contains "Error:" and retries only kubectl/helm/clusterctl.
+		raw, err := commons.ExecuteCommand(n, c+" 2>&1; echo rc=$?", 5, 1, envVars)
+		if err != nil {
+			return "", false, err
+		}
+		raw = strings.TrimSpace(raw)
+		out = strings.TrimSpace(raw[:strings.LastIndex(raw, "rc=")])
+		if strings.HasSuffix(raw, "rc=0") {
+			return out, true, nil
+		}
+		if strings.Contains(out, "AccessDenied") {
+			return out, false, nil
+		}
+		for _, code := range codes {
+			if strings.Contains(out, code) {
+				return out, false, nil
+			}
+		}
+		if attempt < 3 {
+			time.Sleep(5 * time.Second)
+		}
+	}
+	return out, false, nil
+}
+
 // ensureClusterAutoscalerPolicy returns the ARN of the account-level cluster-autoscaler policy, creating it when missing.
 func ensureClusterAutoscalerPolicy(n nodes.Node, envVars []string) (string, error) {
 	account, err := commons.ExecuteCommand(n, "aws sts get-caller-identity --query Account --output text", 5, 3, envVars)
@@ -265,22 +297,75 @@ func ensureClusterAutoscalerPolicy(n nodes.Node, envVars []string) (string, erro
 		return "", errors.Wrap(err, "failed to get the AWS account id")
 	}
 	policyARN := "arn:aws:iam::" + strings.TrimSpace(account) + ":policy/" + clusterAutoscalerPolicyName
-	if _, err := commons.ExecuteCommand(n, "aws iam get-policy --policy-arn "+policyARN, 5, 1, envVars); err == nil {
+	getPolicy := "aws iam get-policy --policy-arn " + policyARN + " --query Policy.Arn --output text"
+	out, ok, err := runAWSIAM(n, envVars, getPolicy, "NoSuchEntity")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read the cluster-autoscaler IAM policy")
+	}
+	if ok {
 		return policyARN, nil
+	}
+	if !strings.Contains(out, "NoSuchEntity") {
+		return "", errors.New("failed to read the cluster-autoscaler IAM policy " + policyARN + ": " + out)
 	}
 	policyPath := "/kind/cluster-autoscaler-policy.json"
 	if _, err := commons.ExecuteCommand(n, "echo '"+clusterAutoscalerPolicyDocument+"' > "+policyPath, 5, 3); err != nil {
 		return "", errors.Wrap(err, "failed to write the cluster-autoscaler IAM policy document")
 	}
-	c := "aws iam create-policy --policy-name " + clusterAutoscalerPolicyName + " --policy-document file://" + policyPath
-	if _, err := commons.ExecuteCommand(n, c, 5, 3, envVars); err != nil {
+	c := "aws iam create-policy --policy-name " + clusterAutoscalerPolicyName + " --policy-document file://" + policyPath + " --query Policy.Arn --output text"
+	out, ok, err = runAWSIAM(n, envVars, c, "EntityAlreadyExists")
+	if err != nil {
 		return "", errors.Wrap(err, "failed to create the cluster-autoscaler IAM policy")
+	}
+	if ok {
+		return policyARN, nil
+	}
+	if !strings.Contains(out, "EntityAlreadyExists") {
+		return "", errors.New("failed to create the cluster-autoscaler IAM policy: " + out)
+	}
+	// Created in the meantime by another create in the same account
+	out, ok, err = runAWSIAM(n, envVars, getPolicy)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read the cluster-autoscaler IAM policy after EntityAlreadyExists")
+	}
+	if !ok {
+		return "", errors.New("failed to read the cluster-autoscaler IAM policy " + policyARN + " after EntityAlreadyExists: " + out)
 	}
 	return policyARN, nil
 }
 
-// createCloudFormationStack creates or updates the account-level clusterawsadm stack. On EKS it always carries the CA policy,
-// also without deploy_autoscaler: one stack serves every cluster of the account and an update drops what its config lacks.
+// attachClusterAutoscalerPolicy attaches the CA policy to both node roles outside the IAM stack, which keeps it on updates with another config.
+func attachClusterAutoscalerPolicy(n nodes.Node, envVars []string, policyARN string) error {
+	for _, role := range []string{eksNodegroupRoleName, eksNodesRoleName} {
+		out, ok, err := runAWSIAM(n, envVars, "aws iam list-attached-role-policies --role-name "+role+" --query 'AttachedPolicies[].PolicyArn' --output text")
+		if err != nil {
+			return errors.Wrap(err, "failed to list the policies of the IAM role "+role)
+		}
+		if !ok {
+			return errors.New("failed to list the policies of the IAM role " + role + ": " + out)
+		}
+		attached := false
+		for _, arn := range strings.Fields(out) {
+			if arn == policyARN {
+				attached = true
+			}
+		}
+		if attached {
+			continue
+		}
+		out, ok, err = runAWSIAM(n, envVars, "aws iam attach-role-policy --role-name "+role+" --policy-arn "+policyARN)
+		if err != nil {
+			return errors.Wrap(err, "failed to attach the cluster-autoscaler IAM policy to the role "+role)
+		}
+		if !ok {
+			return errors.New("failed to attach the cluster-autoscaler IAM policy to the role " + role + ": " + out)
+		}
+	}
+	return nil
+}
+
+// createCloudFormationStack creates or updates the account-level clusterawsadm stack. On EKS it then attaches the CA policy to the node roles,
+// also without deploy_autoscaler, outside the stack: one stack serves every cluster of the account and an update detaches what its previous template had.
 func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPolicyARN string, eks bool) error {
 	var c string
 	var err error
@@ -292,7 +377,7 @@ func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPol
 			return err
 		}
 	}
-	eksConfigData := eksIAMConfig(nodegroupExtraPolicyARN, clusterAutoscalerPolicyARN)
+	eksConfigData := eksIAMConfig(nodegroupExtraPolicyARN)
 
 	// Create the eks.config file in the container
 	eksConfigPath := "/kind/eks.config"
@@ -310,20 +395,19 @@ func createCloudFormationStack(n nodes.Node, envVars []string, nodegroupExtraPol
 	if err != nil && !strings.Contains(err.Error(), "No updates are to be performed") {
 		return errors.Wrap(err, "failed to run clusterawsadm")
 	}
+	// After the stack: an update from a template that still listed the policy detaches it
+	if eks {
+		return attachClusterAutoscalerPolicy(n, envVars, clusterAutoscalerPolicyARN)
+	}
 	return nil
 }
 
-// eksIAMConfig renders the clusterawsadm AWSIAMConfiguration; a non-empty CA policy ARN goes to both node roles (MachinePool and MachineDeployment nodes).
-func eksIAMConfig(nodegroupExtraPolicyARN string, clusterAutoscalerPolicyARN string) string {
+// eksIAMConfig renders the clusterawsadm AWSIAMConfiguration; the CA policy is never in it (see createCloudFormationStack).
+func eksIAMConfig(nodegroupExtraPolicyARN string) string {
 	// managedMachinePool only accepts managed policy ARNs (no inline extraStatements like "nodes" below); the ARN must already exist, this only attaches it.
 	managedMachinePoolExtraPolicyAttachments := "        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-	nodesExtraPolicyAttachments := "    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 	if nodegroupExtraPolicyARN != "" {
 		managedMachinePoolExtraPolicyAttachments += "\n        - " + nodegroupExtraPolicyARN
-	}
-	if clusterAutoscalerPolicyARN != "" {
-		managedMachinePoolExtraPolicyAttachments += "\n        - " + clusterAutoscalerPolicyARN
-		nodesExtraPolicyAttachments += "\n    - " + clusterAutoscalerPolicyARN
 	}
 
 	return `
@@ -345,7 +429,7 @@ spec:
     enableCSIPolicy: true
   nodes:
     extraPolicyAttachments:
-` + nodesExtraPolicyAttachments + `
+    - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
     extraStatements:
     - Action:
         - "ecr:BatchImportUpstreamImage"

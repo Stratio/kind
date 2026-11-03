@@ -2,6 +2,7 @@ package createworker
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -10,27 +11,29 @@ import (
 func TestEKSIAMConfig(t *testing.T) {
 	const ebs = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 	const extra = "arn:aws:iam::123456789012:policy/extra"
-	const ca = "arn:aws:iam::123456789012:policy/" + clusterAutoscalerPolicyName
 
 	tests := []struct {
 		name        string
 		extraARN    string
-		caARN       string
 		wantNodegrp []string
 		wantNodes   []string
 	}{
-		{name: "no extra, no CA policy", wantNodegrp: []string{ebs}, wantNodes: []string{ebs}},
-		{name: "CA policy on both roles", caARN: ca, wantNodegrp: []string{ebs, ca}, wantNodes: []string{ebs, ca}},
+		{name: "no extra ARN", wantNodegrp: []string{ebs}, wantNodes: []string{ebs}},
 		{name: "extra ARN only on nodegroup", extraARN: extra, wantNodegrp: []string{ebs, extra}, wantNodes: []string{ebs}},
-		{name: "extra ARN and CA policy", extraARN: extra, caARN: ca, wantNodegrp: []string{ebs, extra, ca}, wantNodes: []string{ebs, ca}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			config := eksIAMConfig(tt.extraARN)
+			// The CA policy is attached outside the stack: a template that lists it detaches it on the next update without it
+			if strings.Contains(config, clusterAutoscalerPolicyName) {
+				t.Errorf("config lists the cluster-autoscaler policy:\n%s", config)
+			}
 			var cfg struct {
 				Kind string `yaml:"kind"`
 				Spec struct {
 					EKS struct {
 						ManagedMachinePool struct {
+							Disable                bool     `yaml:"disable"`
 							ExtraPolicyAttachments []string `yaml:"extraPolicyAttachments"`
 						} `yaml:"managedMachinePool"`
 					} `yaml:"eks"`
@@ -40,11 +43,14 @@ func TestEKSIAMConfig(t *testing.T) {
 					} `yaml:"nodes"`
 				} `yaml:"spec"`
 			}
-			if err := yaml.Unmarshal([]byte(eksIAMConfig(tt.extraARN, tt.caARN)), &cfg); err != nil {
+			if err := yaml.Unmarshal([]byte(config), &cfg); err != nil {
 				t.Fatalf("config is not valid YAML: %v", err)
 			}
 			if cfg.Kind != "AWSIAMConfiguration" {
 				t.Errorf("kind = %q", cfg.Kind)
+			}
+			if cfg.Spec.EKS.ManagedMachinePool.Disable {
+				t.Errorf("managedMachinePool.disable = true: the stack would drop the eks-nodegroup role")
 			}
 			if got := cfg.Spec.EKS.ManagedMachinePool.ExtraPolicyAttachments; !reflect.DeepEqual(got, tt.wantNodegrp) {
 				t.Errorf("managedMachinePool.extraPolicyAttachments = %v, want %v", got, tt.wantNodegrp)
