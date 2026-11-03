@@ -226,6 +226,18 @@ CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
 }
 
 # flux2 chart 2.17.2 controller tags, as create cluster sets them (templates/common/<minor>/flux2-helm-values.tmpl).
+# Azure only: azurefile-csi-driver 1.35.11 images, as create cluster pins them (templates/azure/35/azurefile-csi-driver-helm-values.tmpl);
+# release-1.35 publishes chart 1.35.11 twice with different defaults, so the tags cannot be left to the chart.
+AZUREFILE_CSI_DRIVER_IMAGES = {
+    ("image", "azurefile"): ("/oss/v2/kubernetes-csi/azurefile-csi", "v1.35.11"),
+    ("image", "csiProvisioner"): ("/oss/v2/kubernetes-csi/csi-provisioner", "v6.4.0"),
+    ("image", "csiResizer"): ("/oss/v2/kubernetes-csi/csi-resizer", "v2.3.0"),
+    ("image", "livenessProbe"): ("/oss/v2/kubernetes-csi/livenessprobe", "v2.20.0"),
+    ("image", "nodeDriverRegistrar"): ("/oss/v2/kubernetes-csi/csi-node-driver-registrar", "v2.18.0"),
+    ("snapshot", "image", "csiSnapshotter"): ("/oss/v2/kubernetes-csi/csi-snapshotter", "v8.7.0"),
+    ("snapshot", "image", "csiSnapshotController"): ("/oss/v2/kubernetes-csi/snapshot-controller", "v8.7.0"),
+}
+
 FLUX_IMAGE_TAGS = {
     "cli": "v2.7.5",
     "helmController": "v1.4.5",
@@ -277,9 +289,9 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "1.35.7",
+        "version": "1.35.11",
         "namespace": "kube-system",
-        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
+        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/release-1.35/charts"
     },
     "cloud-provider-azure": {
         "version": "1.35.3",
@@ -1476,6 +1488,28 @@ def update_cloud_provider_azure_image_tag_value(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def update_azurefile_csi_driver_image_tag_value(values_file):
+    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for path, (repository, tag) in AZUREFILE_CSI_DRIVER_IMAGES.items():
+            section = values
+            for key in path:
+                if not isinstance(section.get(key), dict):
+                    section[key] = {}
+                section = section[key]
+            section["repository"] = repository
+            section["tag"] = tag
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 def update_tigera_operator_image_tag_value(values_file):
     '''Update tigera-operator calicoctl/controller image tags. Currently match the chart's
     own defaults exactly (verified live via `helm pull`) — kept as explicit pins so a future
@@ -1809,6 +1843,8 @@ def upgrade_chart(chart_name, chart_data):
             update_cluster_autoscaler_image_tag_value(default_values_file, provider)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
+        elif release_name == "azurefile-csi-driver" and provider == "azure":
+            update_azurefile_csi_driver_image_tag_value(default_values_file)
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
