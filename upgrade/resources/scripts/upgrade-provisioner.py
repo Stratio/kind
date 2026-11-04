@@ -132,6 +132,8 @@ EKS_NODES_ROLE = "nodes.cluster-api-provider-aws.sigs.k8s.io"
 
 # EKS only: second cluster-autoscaler, cloudProvider aws, for MachinePools; the clusterapi one keeps the MachineDeployments.
 CLUSTER_AUTOSCALER_AWS_RELEASE = "cluster-autoscaler-aws"
+# Its own status ConfigMap: the default cluster-autoscaler-status belongs to the clusterapi CA.
+CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP = "cluster-autoscaler-aws-status"
 # Same name and document as create cluster (createworker/aws.go clusterAutoscalerPolicyName/clusterAutoscalerPolicyDocument).
 CLUSTER_AUTOSCALER_AWS_POLICY_NAME = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}'
@@ -695,13 +697,21 @@ def write_cluster_autoscaler_aws_values(values_file):
         },
         "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
         "replicaCount": 2,
-        # The chart grants get/update only on the lease "cluster-autoscaler", already taken by the clusterapi CA
-        "extraArgs": {"leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE},
+        # The chart grants get/update only on the lease "cluster-autoscaler" and the ConfigMap "cluster-autoscaler-status", both used by the clusterapi CA
+        "extraArgs": {
+            "leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE,
+            "status-config-map-name": CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP,
+        },
         "rbac": {"additionalRules": [{
             "apiGroups": ["coordination.k8s.io"],
             "resources": ["leases"],
             "resourceNames": [CLUSTER_AUTOSCALER_AWS_RELEASE],
             "verbs": ["get", "update"],
+        }, {
+            "apiGroups": [""],
+            "resources": ["configmaps"],
+            "resourceNames": [CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP],
+            "verbs": ["delete", "get", "update"],
         }]},
     }
     with open(values_file, 'w') as file:
