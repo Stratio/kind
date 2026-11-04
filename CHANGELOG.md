@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5234] `upgrade-provisioner.py` (GKE): target Kubernetes 1.37, as on EKS and Azure. GKE was capped at 1.36 because 1.37 was only in the RAPID channel; it is now in REGULAR and EXTENDED too, and `--k8s-version 1.37` was rejected
 * [PLT-5130] `upgrade-provisioner.py` (GKE): activate the service account from the loose fields `keos-installer` writes to `secrets.yml` (`client_email`, `private_key`, `private_key_id`, ...). It was only activated when `secrets.gcp.credentials` carried a `service_account_key`, so with the usual `secrets.yml` gcloud kept the VM default account, the script still printed `Configuring GCP gcloud credentials OK` and, on a VM without the `cloud-platform` scope, the kubeconfig refresh failed with `403 insufficient authentication scopes`. It now fails when `secrets.yml` has no usable service account, or when the active account is not the one in `secrets.yml`
 * [PLT-5023] `DEPENDENCIES` and `docs/images/commons/imagenes-kind.txt` pin the `cloud-provisioner` image to the next milestone, 0.10.0-m.7 (they were left on 0.10.0-m.2)
 * `upgrade-provisioner.py` (GKE): `--node-convergence-timeout` now applies to the node pool wait. A second, older copy of that wait (90 minutes in total, without restarting on progress) overrode it, so on GKE the flag had no effect and a node pool rollout still advancing aborted after 90 minutes. Also drop an identical duplicate of the `KeosCluster` settle wait
