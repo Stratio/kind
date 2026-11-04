@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+* [PLT-5234] `upgrade-provisioner.py` (GKE): target Kubernetes 1.37, as on EKS and Azure. GKE was capped at 1.36 because 1.37 was only in the RAPID channel; it is now in REGULAR and EXTENDED too, and `--k8s-version 1.37` was rejected
 <<<<<<< HEAD
 * [PLT-5023] `DEPENDENCIES` and `docs/images/commons/imagenes-kind.txt` pin the `cloud-provisioner` image to the next milestone, 0.10.0-m.6 (they were left on 0.10.0-m.2)
 * [PLT-4980] Enable Dependabot version updates for the Go modules of `master` (daily, minor and patch in one group, 7-day cooldown, no automatic merge); see `docs/dependabot/README.md`
