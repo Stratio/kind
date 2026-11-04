@@ -564,6 +564,9 @@ func (p *Provider) deployClusterOperator(n nodes.Node, privateParams PrivatePara
 		if keosCluster.Spec.ControlPlane.Managed {
 			keosCluster.Spec.ControlPlane.HighlyAvailable = nil
 		}
+		if keosCluster.Spec.InfraProvider == "aws" && keosCluster.Spec.ControlPlane.Managed && keosCluster.Spec.ControlPlane.AWS.MPRoleName == "" {
+			keosCluster.Spec.ControlPlane.AWS.MPRoleName = eksNodegroupRoleName
+		}
 		keosCluster.Spec.Keos = commons.Keos{}
 
 		clusterConfigYAML, err := yaml.Marshal(clusterConfig)
@@ -793,17 +796,21 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 		return err
 	}
 	if !moveManagement {
+		// The clusterapi CA reads the CAPI objects through this Role; on EKS the CA is aws and its chart creates its own RBAC.
+		clusterAPICA := !(privateParams.KeosCluster.Spec.InfraProvider == "aws" && privateParams.KeosCluster.Spec.ControlPlane.Managed)
 		autoscalerRBACPath := "/kind/autoscaler_rbac.yaml"
 
-		autoscalerRBAC, err := getManifest("common", "autoscaler_rbac.tmpl", "", privateParams.KeosCluster)
-		if err != nil {
-			return errors.Wrap(err, "failed to get CA RBAC file")
-		}
+		if clusterAPICA {
+			autoscalerRBAC, err := getManifest("common", "autoscaler_rbac.tmpl", "", privateParams.KeosCluster)
+			if err != nil {
+				return errors.Wrap(err, "failed to get CA RBAC file")
+			}
 
-		c = "echo '" + autoscalerRBAC + "' > " + autoscalerRBACPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to create CA RBAC file")
+			c = "echo '" + autoscalerRBAC + "' > " + autoscalerRBACPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to create CA RBAC file")
+			}
 		}
 
 		// Create namespace for CAPI clusters (it must exists) in worker cluster
@@ -813,10 +820,12 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 			return errors.Wrap(err, "failed to create manifests Namespace")
 		}
 
-		c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + autoscalerRBACPath
-		_, err = commons.ExecuteCommand(n, c, 5, 3)
-		if err != nil {
-			return errors.Wrap(err, "failed to apply CA RBAC")
+		if clusterAPICA {
+			c = "kubectl --kubeconfig " + kubeconfigPath + " apply -f " + autoscalerRBACPath
+			_, err = commons.ExecuteCommand(n, c, 5, 3)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply CA RBAC")
+			}
 		}
 	}
 	return nil
