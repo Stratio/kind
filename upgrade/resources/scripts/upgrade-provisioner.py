@@ -1498,6 +1498,57 @@ def update_cloud_provider_azure_image_tag_value(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, dry_run):
+    '''Azure, at the end of the run: set the CCM/cloud-node-manager tag of the minor the cluster is at now.
+    The chart phase pinned the minor the cluster had then, and skips the chart on a relaunch.'''
+
+    namespace = "kube-system"
+    configmap = "00-cloud-provider-azure-helm-chart-default-values"
+    components = ("cloudControllerManager", "cloudNodeManager")
+    k8s_version, _ = run_command(f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.spec.k8s_version}}'")
+    minor = ".".join(k8s_version.strip().lstrip("v").split(".")[:2])
+    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(minor)
+    print(f"[INFO] Setting cloud-provider-azure CCM/cloud-node-manager to the tag of k8s {minor}:", end=" ", flush=True)
+    if not ccm_tag:
+        print(f"SKIP (no known-good tag for k8s {minor})")
+        return
+    values_yaml, _ = run_command(f"{kubectl} get configmap {configmap} -n {namespace} -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    if not values_yaml:
+        print(f"SKIP (ConfigMap {namespace}/{configmap} not found)")
+        return
+    values = yaml.safe_load(values_yaml) or {}
+    current = {c: (values.get(c) or {}).get("imageTag") for c in components}
+    if all(tag == ccm_tag for tag in current.values()):
+        print(f"OK (already {ccm_tag})")
+        return
+    if dry_run:
+        print(f"DRY-RUN ({current} -> {ccm_tag})")
+        return
+
+    for c in components:
+        values.setdefault(c, {})["imageTag"] = ccm_tag
+    values_file = "/tmp/cloud-provider-azure_ccm_values.yaml"
+    with open(values_file, "w") as f:
+        yaml.safe_dump(values, f, default_flow_style=False)
+    create_configmap_from_values(configmap, namespace, values_file)
+    os.remove(values_file)
+
+    # The HelmRelease reads this ConfigMap through valuesFrom: request a reconcile and wait until Flux handled it
+    token = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    run_command(f"{kubectl} annotate helmrelease cloud-provider-azure -n {namespace} reconcile.fluxcd.io/requestedAt={token} --overwrite")
+    deadline = time.time() + 600
+    while True:
+        handled, _ = run_command(f"{kubectl} get helmrelease cloud-provider-azure -n {namespace} -o jsonpath='{{.status.lastHandledReconcileAt}}'", allow_errors=True)
+        if handled and handled.strip() == token:
+            break
+        if time.time() > deadline:
+            raise Exception(f"HelmRelease {namespace}/cloud-provider-azure did not handle the reconcile requested at {token} in 10m")
+        time.sleep(10)
+    wait_for_helmrelease_ready("cloud-provider-azure", namespace)
+    run_command(f"{kubectl} -n {namespace} rollout status deploy cloud-controller-manager --timeout 10m")
+    run_command(f"{kubectl} -n {namespace} rollout status ds cloud-node-manager --timeout 10m")
+    print(f"OK ({current} -> {ccm_tag})")
+
 def update_azurefile_csi_driver_image_tag_value(values_file):
     '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
 
@@ -3957,6 +4008,9 @@ if __name__ == '__main__':
 
     if provider == "aws":
         ensure_mp_role_name(cluster_name, config["dry_run"])
+
+    if provider == "azure":
+        pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, config["dry_run"])
 
     # Last, with the cluster at its target version: the CA aws image is built for Kubernetes 1.35
     if eks_cluster_autoscaler_aws:
