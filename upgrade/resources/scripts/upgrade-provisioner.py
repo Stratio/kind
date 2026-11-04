@@ -3467,43 +3467,69 @@ if __name__ == '__main__':
         command = kubectl + " get ns >/dev/null 2>&1"
         return subprocess.call(command, shell=True) == 0
 
-    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error
-    if not test_kubectl():
-        print("FAILED (attempting kubeconfig refresh)", flush=True)
+    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error.
+    # EKS: a static token (e.g. the create cluster kubeconfig) is refreshed too, since it can expire during the run.
+    kubectl_ok = test_kubectl()
+    static_token = False
+    if provider == "aws" and kubectl_ok:
+        view = subprocess.run(f"kubectl --kubeconfig {kubeconfig} config view --minify --raw -o json",
+                              shell=True, capture_output=True, text=True)
+        users = json.loads(view.stdout).get("users") if view.returncode == 0 and view.stdout.strip() else None
+        user = (users[0].get("user") or {}) if users else {}
+        static_token = "token" in user and "exec" not in user
+    if not kubectl_ok or static_token:
+        print("OK (static token, refreshing kubeconfig)" if kubectl_ok else "FAILED (attempting kubeconfig refresh)", flush=True)
 
         if provider == "aws":
             region = vault_secrets_data['secrets']['aws']['credentials']['region']
+            # kubectl already works: if the refresh cannot replace the kubeconfig, put it back and go on
+            kubeconfig_backup = open(kubeconfig).read() if kubectl_ok else None
+            refresh_error = None
 
             # Try to get cluster name from context or use provided name
             if cluster_name_guess:
                 cluster_name_for_refresh = cluster_name_guess
+            elif kubectl_ok:
+                refresh_error = "cluster name not detected from context"
             else:
                 print("[ERROR] Cannot refresh kubeconfig: cluster name not detected from context")
                 print("[HINT] Ensure your kubeconfig has a valid context set")
                 sys.exit(1)
 
-            refresh_cmd = (
-                f"aws eks update-kubeconfig "
-                f"--name {cluster_name_for_refresh} "
-                f"--region {region} "
-                f"--kubeconfig {kubeconfig}"
-            )
+            if not refresh_error:
+                refresh_cmd = (
+                    f"aws eks update-kubeconfig "
+                    f"--name {cluster_name_for_refresh} "
+                    f"--region {region} "
+                    f"--kubeconfig {kubeconfig}"
+                )
 
-            print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
-            status = subprocess.call(refresh_cmd, shell=True)
+                print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
+                status = subprocess.call(refresh_cmd, shell=True)
 
-            if status != 0:
-                print("[ERROR] Failed to refresh kubeconfig")
-                sys.exit(1)
+                if status != 0:
+                    if not kubectl_ok:
+                        print("[ERROR] Failed to refresh kubeconfig")
+                        sys.exit(1)
+                    refresh_error = "aws eks update-kubeconfig failed"
+                else:
+                    # Rebuild kubectl with refreshed kubeconfig
+                    kubectl = "kubectl --kubeconfig " + kubeconfig
 
-            # Rebuild kubectl with refreshed kubeconfig
-            kubectl = "kubectl --kubeconfig " + kubeconfig
+                    if test_kubectl():
+                        print("OK (kubeconfig refreshed)")
+                    elif not kubectl_ok:
+                        print("[ERROR] kubectl still failing after kubeconfig refresh")
+                        sys.exit(1)
+                    else:
+                        refresh_error = "kubectl fails with the refreshed kubeconfig"
 
-            if not test_kubectl():
-                print("[ERROR] kubectl still failing after kubeconfig refresh")
-                sys.exit(1)
-
-            print("OK (kubeconfig refreshed)")
+            if refresh_error:
+                with open(kubeconfig, "w") as f:
+                    f.write(kubeconfig_backup)
+                print(f"[WARN] Kubeconfig refresh not applied ({refresh_error}): going on with the current kubeconfig. "
+                      f"If it carries a static token, the token can expire during the run (Unauthorized); refresh it and relaunch: "
+                      f"aws eks update-kubeconfig --name {cluster_name_guess or '<cluster>'} --region {region} --kubeconfig {kubeconfig}")
 
         elif provider == "azure":
             print("[ERROR] kubectl access failed")
@@ -3563,7 +3589,7 @@ if __name__ == '__main__':
             print("[ERROR] kubectl access failed and auto-refresh not supported for this provider")
             sys.exit(1)
     else:
-        print("OK")
+        print("OK (no static token, kubeconfig kept)" if provider == "aws" else "OK")
 
     # Activate CAPG service account and refresh GKE kubeconfig after kubectl validation
     if provider == "gcp":
