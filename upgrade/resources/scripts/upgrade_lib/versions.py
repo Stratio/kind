@@ -21,7 +21,7 @@ CLOUD_PROVISIONER = "0.10.0"
 
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # EKS is patched to ".0" (ignored by EKS), GKE resolves a real patch, Azure uses AZURE_K8S_VERSION_BY_MINOR.
-# Target minor per cloud (PLT-4916, PLT-5234): 1.37 on every provider. On GKE, resolve_gke_version() needs the
+# Target minor per cloud: 1.37 on every provider. On GKE, resolve_gke_version() needs the
 # minor in the cluster's channel (or validMasterVersions): 1.37 is in RAPID, REGULAR and EXTENDED.
 K8S_VERSION_BY_PROVIDER = {"aws": "1.37", "azure": "1.37", "gcp": "1.37"}
 
