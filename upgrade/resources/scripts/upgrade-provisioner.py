@@ -3059,12 +3059,12 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
                     else:
                         print(f"[INFO] Removed orphaned etcd member {member_id}")
 
-    # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
+    # Only Ready=Unknown (kubelet gone) is an orphan: Ready=False or no Ready condition is a CP still joining.
     orphan_nodes = [
         n for n in nodes
         if n["metadata"]["name"] not in live_node_names
-        and not any(c.get("type") == "Ready" and c.get("status") == "True"
-                    for c in n.get("status", {}).get("conditions", []))
+        and any(c.get("type") == "Ready" and c.get("status") == "Unknown"
+                for c in n.get("status", {}).get("conditions", []))
     ]
     confirmed_nodes = confirmed_orphans(orphan_nodes, lambda n: n["metadata"]["name"], _orphan_node_first_seen)
     if orphan_nodes and not confirmed_nodes:
