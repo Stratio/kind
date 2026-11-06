@@ -611,7 +611,11 @@ def upgrade_chart(chart_name, chart_data):
 
         create_configmap_from_values(default_values_configmap, chart_namespace, default_values_file)
         values_written = True
-        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
+        # The user's overrides (image, tolerations, resources...) are kept: the 02- ConfigMap is only created when missing
+        override_configmap = f"02-{release_name}-helm-chart-override-values"
+        override_exists, _ = run_command(f"{S.kubectl} get configmap {override_configmap} -n {chart_namespace} --ignore-not-found -o name")
+        if not override_exists.strip():
+            create_configmap_from_values(override_configmap, chart_namespace, empty_values_file)
 
         helm_repo_data = {
             'repository_name': repo_name,
