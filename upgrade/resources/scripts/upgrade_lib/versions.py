@@ -140,6 +140,38 @@ CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
 # Registries owned by the cloud provider (EKS add-on images), never moved.
 PROVIDER_OWNED_IMAGE_REGISTRIES = ("602401143452.dkr.ecr.",)
 
+# create cluster applies the same RBAC (createworker/files/aws/aws-node_rbac.yaml): the vpc-cni addon re-apply drops patch on pods from aws-node.
+AWS_NODE_ANNOTATE_POD_IP_RBAC = """---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: aws-node
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: aws-node
+  name: aws-node-annotate-pod-ip
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-node-annotate-pod-ip
+subjects:
+- kind: ServiceAccount
+  name: aws-node
+  namespace: kube-system"""
+
 # EKS only (MachinePools only on 0.10): one cluster-autoscaler, release "cluster-autoscaler" with cloudProvider aws, as create cluster.
 # Deployment of that release with cloudProvider clusterapi and with aws (both seen live on 0.9 clusters)
 CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT = "cluster-autoscaler-clusterapi-cluster-autoscaler"

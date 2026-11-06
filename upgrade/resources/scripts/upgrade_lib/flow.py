@@ -17,7 +17,7 @@ from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repositor
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.aws import configure_aws_credentials, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
+from upgrade_lib.providers.aws import configure_aws_credentials, ensure_aws_node_annotate_pod_ip_rbac, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
 from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
@@ -344,6 +344,9 @@ def run():
 
     # Scale down cluster-autoscaler to avoid issues during the upgrade process; a relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
     cluster_autoscaler_replicas = scale_cluster_autoscaler(0, S.config["dry_run"]) or 2
+
+    if S.provider == "aws":
+        ensure_aws_node_annotate_pod_ip_rbac(S.config["dry_run"])
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)

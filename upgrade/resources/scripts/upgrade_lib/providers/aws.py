@@ -8,44 +8,15 @@ import subprocess
 import time
 import yaml
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.versions import CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT, CLUSTER_AUTOSCALER_AWS_POLICY_NAME, EKS_NODEGROUP_ROLE, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, IMDS_ALLOW_GNP, IMDS_DENY_GNP
+from upgrade_lib.versions import AWS_NODE_ANNOTATE_POD_IP_RBAC, CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT, CLUSTER_AUTOSCALER_AWS_POLICY_NAME, EKS_NODEGROUP_ROLE, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, IMDS_ALLOW_GNP, IMDS_DENY_GNP
 from upgrade_lib import state as S
 
-def patch_clusterrole_aws_node(dry_run):
-    '''Patch aws-node ClusterRole'''
+def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
+    '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
 
-    aws_node_clusterrole_name = "aws-node"
-    print("[INFO] Modifying aws-node ClusterRole:", end =" ", flush=True)
-    if not dry_run:
-        command = f"{S.kubectl} get clusterrole -o json {aws_node_clusterrole_name} | jq -r '.rules'"
-        cluster_role_rules_output = execute_command(command, False, False)
-
-        try:
-            cluster_role_rules = json.loads(cluster_role_rules_output)
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse ClusterRole rules as JSON: {e}")
-            sys.exit(1)
-
-        rule_pods_index = next((i for i, rule in enumerate(cluster_role_rules) if 'pods' in rule.get('resources', [])), None)
-        if rule_pods_index is not None:
-            verbs = cluster_role_rules[rule_pods_index].get('verbs', [])
-            if 'patch' not in verbs:
-                patch = [
-                    {
-                        "op": "add",
-                        "path": f"/rules/{rule_pods_index}/verbs/-",
-                        "value": "patch"
-                    }
-                ]
-                patch_command = f"{S.kubectl} patch clusterrole {aws_node_clusterrole_name} --type=json -p='{json.dumps(patch)}'"
-                execute_command(patch_command, False, True)
-            else:
-                print("SKIP")
-        else:
-            print(f"[ERROR] Pods resource not found in the ClusterRole {aws_node_clusterrole_name}")
-            sys.exit(1)
-    else:
-        print("DRY-RUN")
+    print("[INFO] Ensuring aws-node-annotate-pod-ip ClusterRole and ClusterRoleBinding:", end=" ", flush=True)
+    command = S.kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
+    execute_command(command, dry_run)
 
 def configure_aws_credentials(vault_secrets_data):
     print("[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
