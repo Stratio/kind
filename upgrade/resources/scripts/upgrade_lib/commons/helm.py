@@ -15,7 +15,7 @@ from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.aws import update_cluster_autoscaler_aws_values
 from upgrade_lib.providers.azure import update_azurefile_csi_driver_image_tag_value, update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLOUD_REGISTRY_MARKERS, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -57,6 +57,16 @@ def validate_helm_repository(helm_repository):
     except ValueError:
         raise ValueError(f"The Helm repository '{helm_repository}' is invalid.")
 
+def helm_credentials_for_other_cloud_host(credentials_url, repo_url, keos_repo_type=""):
+    '''True when repo_url is on ECR/ACR/GAR and the secrets-file Helm credentials belong to another host: create sets
+    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.
+    Without a credentials url, a KeosCluster repository type other than ecr/acr/gar (e.g. generic) means the same.'''
+    if not any(m in repo_url for m in CLOUD_REGISTRY_MARKERS):
+        return False
+    if credentials_url:
+        return urlparse(credentials_url).netloc != urlparse(repo_url).netloc
+    return keos_repo_type not in ("ecr", "acr", "gar")
+
 def update_helm_repository(cluster_name, helm_repository, dry_run):
     '''Update the Helm repository'''
 
@@ -71,15 +81,24 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
     command = f"{S.kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
     execute_command(command, dry_run, False)
 
-    patch_helmRepository = [
-        {"op": "replace", "path": "/spec/url", "value": helm_repository},
-    ]
-    patch_json = json.dumps(patch_helmRepository)
     existing_helmrepo, err = run_command(f"{S.kubectl} get helmrepository -n kube-system keos --ignore-not-found", allow_errors=True)
     if "doesn't have a resource type \"helmrepository\"" in err:
         existing_helmrepo = False
 
     if existing_helmrepo:
+        # Same type create sets (oci:// -> oci, else default). Moving to another host on ECR/ACR/GAR drops the old
+        # secretRef: those authenticate through the HelmRepository provider, as create sets them up without auth_required.
+        patch_helmRepository = [
+            {"op": "replace", "path": "/spec/url", "value": helm_repository},
+            {"op": "add", "path": "/spec/type", "value": "oci" if helm_repository.startswith("oci://") else "default"},
+        ]
+        current_out, _ = run_command(f"{S.kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
+        current_spec = json.loads(current_out or "{}")
+        host_changed = urlparse(current_spec.get("url", "")).netloc != urlparse(helm_repository).netloc
+        cloud_registry = any(m in helm_repository for m in CLOUD_REGISTRY_MARKERS)
+        if "secretRef" in current_spec and host_changed and cloud_registry:
+            patch_helmRepository.append({"op": "remove", "path": "/spec/secretRef"})
+        patch_json = json.dumps(patch_helmRepository)
         command = f"{S.kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
         execute_command(command, dry_run, False)
 
@@ -579,9 +598,13 @@ def upgrade_chart(chart_name, chart_data):
         if "auth_required" in S.keos_cluster["spec"]["helm_repository"]:
             if S.keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in S.vault_secrets_data["secrets"]["helm_repository"] and "pass" in S.vault_secrets_data["secrets"]["helm_repository"]:
-                    repo_auth_required= True
-                    repo_username = S.vault_secrets_data["secrets"]["helm_repository"]["user"]
-                    repo_password = S.vault_secrets_data["secrets"]["helm_repository"]["pass"]
+                    if helm_credentials_for_other_cloud_host(S.vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url,
+                                                             S.keos_cluster["spec"]["helm_repository"].get("type", "")):
+                        print(f"[INFO] Helm repository credentials in the secrets file are for another host: {repo_url} authenticates through the HelmRepository provider", end=" ", flush=True)
+                    else:
+                        repo_auth_required= True
+                        repo_username = S.vault_secrets_data["secrets"]["helm_repository"]["user"]
+                        repo_password = S.vault_secrets_data["secrets"]["helm_repository"]["pass"]
                 else:
                     print("[ERROR] Helm repository credentials not found in secrets file")
                     sys.exit(1)

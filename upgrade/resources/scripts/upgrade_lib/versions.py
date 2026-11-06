@@ -135,6 +135,8 @@ PUBLIC_IMAGE_REGISTRIES = {"quay.io", "docker.io", "registry.k8s.io", "ghcr.io",
 # A previous keos registry in another account/region/project (ECR, ACR, GAR, GCR).
 PRIVATE_IMAGE_REGISTRY_PATTERNS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
 GCR_IMAGE_REGISTRIES = {"gcr.io", "eu.gcr.io", "us.gcr.io", "asia.gcr.io"}
+# Helm repositories on ECR/ACR/GAR authenticate through the HelmRepository provider, not a secretRef (create without auth_required).
+CLOUD_REGISTRY_MARKERS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
 # Registries owned by the cloud provider (EKS add-on images), never moved.
 PROVIDER_OWNED_IMAGE_REGISTRIES = ("602401143452.dkr.ecr.",)
 
