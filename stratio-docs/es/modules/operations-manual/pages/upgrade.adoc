@@ -326,6 +326,7 @@ Esta sección resume, en orden, las fases por las que pasa el _script_ una vez q
 ** Configura las credenciales del proveedor _cloud_ y comprueba el acceso al _cluster_. En EKS y GKE regenera el _kubeconfig_ si no da acceso.
 ** Ejecuta la comprobación automática de salud (consulta la <<comprobación_automática, comprobación automática>>).
 ** Pide la confirmación inicial y el repositorio de Helm (consulta los <<_prompts_interactivos, _prompts_ interactivos>>).
+** En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ si no existe, la asocia a los _roles_ `eks-nodegroup` y `nodes` y permite a sus _pods_ el acceso a IMDS. Si AWS rechaza alguna de esas llamadas, el _script_ se detiene en este paso.
 
 . *Preactualización*
 ** Escala _cluster-autoscaler_ a 0 para evitar el escalado automático durante la actualización, si está desplegado. En GKE no lo está.
@@ -343,7 +344,7 @@ NOTE: Al actualizar su _chart_, _cluster-autoscaler_ vuelve a 2 réplicas hasta 
 
 . *Actualización de _charts_*
 ** Actualiza los _charts_ comunes (cert-manager, cluster-autoscaler, cluster-operator, flux2 y tigera-operator) y los del proveedor: aws-load-balancer-controller en EKS, si está instalado, y azuredisk-csi-driver, azurefile-csi-driver y cloud-provider-azure en Azure VMs (consulta <<_qué_se_actualiza, qué se actualiza>>). Si alguno de estos _charts_ no está en el _cluster_, el _script_ lo omite; por ejemplo, aws-load-balancer-controller, que es opcional en EKS, o _cluster-autoscaler_ si el _cluster_ se creó sin él.
-** En EKS y Azure, fija en _cluster-autoscaler_ la imagen propia de Stratio `v1.35.2-01`, desde `<registro>/stratio/cluster-autoscaler`.
+** En EKS, y en Azure con registro privado, fija en _cluster-autoscaler_ la imagen propia de Stratio `v1.35.2-0.1`, desde `<registro>/stratio/cluster-autoscaler`. En Azure sin registro privado, fija la imagen de _upstream_ `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
 ** Conserva los valores de _override_ (`ConfigMap` `02-<release>-helm-chart-override-values`) de cada _chart_.
 ** Al terminar los _charts_, deshace la exclusión de los _webhooks_ de Capsule.
 ** Vuelve a escalar _cluster-autoscaler_ a 0, si está desplegado.
@@ -378,6 +379,8 @@ NOTE: En las VM de Azure, el comando incluye además los parámetros `--bootstra
 ** Comprueba que el _control-plane_ está en la nueva versión de Kubernetes y que _cluster-operator_ está listo. En EKS, los nodos de trabajo no cambian: los grupos _MachineDeployment_ se mantienen en la versión 1.32.
 ** Devuelve _cluster-autoscaler_ a las réplicas que tenía al empezar, o a 2 si estaba en 0, si está desplegado.
 ** En EKS, si `spec.control_plane.aws.mp_role_name` está vacío y existe el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, espera a que el `KeosCluster` esté listo y fija ese _role_ en el campo. Si no puede, muestra un `[WARN]` con el comando para arreglarlo manualmente y termina igualmente.
+** En Azure VMs, fija en cloud-provider-azure (`cloud-controller-manager` y `cloud-node-manager`) la imagen de la versión de Kubernetes que tiene el _cluster_ al terminar, por ejemplo `v1.35.9` en 1.35, y espera a que se despliegue.
+** En EKS con _cluster-autoscaler_, instala al final una segunda instancia, `cluster-autoscaler-aws`, con el proveedor `aws` y 2 réplicas. Esta instancia escala los _MachinePool_; la existente sigue escalando los grupos _MachineDeployment_.
 
 == Verificación final
 

@@ -227,6 +227,8 @@ Durante el cambio de versión, el _script_ muestra una línea por paso: "Steppin
 
 Mientras se sustituyen las réplicas del _control-plane_, pueden aparecer líneas "[INFO] 1 control-plane Node(s) with no matching Machine — holding until the confirmation window elapses" y "[INFO] 1 etcd member(s) with no matching Node — holding until the confirmation window elapses". Mientras la espera termine en `OK`, no hace falta hacer nada.
 
+Si ese estado dura 10 minutos, el _script_ borra el nodo o el miembro de etcd y lo indica con "[INFO] Deleted orphaned Node <nodo>" o "[INFO] Removed orphaned etcd member <miembro>". Solo borra un nodo de _control-plane_ sin `Machine` y con la condición `Ready` en `Unknown`, y un miembro de etcd que no responde y no corresponde a ningún nodo. No borra nada si quedarían menos de dos nodos de _control-plane_ o de tres miembros de etcd.
+
 El _script_ espera a los grupos de trabajo uno detrás de otro, en el orden de `spec.worker_nodes` del `KeosCluster`. Los `MachineDeployment` cambian de versión de uno en uno, también dentro de un mismo grupo: mientras uno se actualiza, los demás pueden seguir en la versión anterior hasta que les llega el turno.
 
 Sigue el _control-plane_ y los nodos:
@@ -272,6 +274,25 @@ kubectl get validatingwebhookconfiguration capsule-validating-webhook-configurat
 ----
 +
 *Salida esperada:* `nodes.capsule.clastix.io`.
+
+* Imagen de _cluster-autoscaler_, si el _cluster_ lo tiene:
++
+[source,bash]
+----
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+----
++
+*Salida esperada:* con registro privado, `<registro>/stratio/cluster-autoscaler:v1.35.2-0.1`; sin registro privado, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
+
+* Imagen de cloud-provider-azure:
++
+[source,bash]
+----
+kubectl -n kube-system get deploy cloud-controller-manager -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+kubectl -n kube-system get ds cloud-node-manager -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+----
++
+*Salida esperada:* las dos imágenes con el _tag_ `v1.35.9`.
 
 * _Logs_ del proveedor:
 +

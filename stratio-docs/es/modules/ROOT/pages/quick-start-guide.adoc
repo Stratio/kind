@@ -7,7 +7,7 @@
 * Usuario con los privilegios necesarios en AWS:
 ** Crear el usuario para la instalación.
 ** Crear la política según xref:attachment$stratio-eks-policy.json[_stratio-eks-policy.json_].
-** Crear la política según xref:attachment$stratio-aws-temp-policy.json[_stratio-temp-policy.json_] (sólo para el aprovisionamiento).
+** Crear la política según xref:attachment$stratio-aws-temp-policy.json[_stratio-aws-temp-policy.json_].
 ** Adjuntar políticas al usuario.
 ** Crear una clave de acceso.
 * Zonas DNS privadas y públicas creadas en AWS (opcional).
@@ -120,8 +120,6 @@ aws eks update-kubeconfig --region <region> --name <cluster_id> --kubeconfig ./<
 
 kubectl --kubeconfig ./<cluster_id>.kubeconfig get nodes
 ----
-
-Aquí, se podrán eliminar los permisos de _clusterawsadm.json_.
 
 A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando _keos-installer_*.
 
