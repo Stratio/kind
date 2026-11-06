@@ -102,6 +102,45 @@ docker exec -it <cluster>-control-plane bash      # aliases inside: k, kw, capi-
 
 It only deletes the local bootstrap containers and removes its context from the kubeconfig — it does not touch the cloud cluster (`internal/delete/delete.go`: `ListNodes` → `kubeconfig.Remove` → `DeleteNodes`).
 
+## SSH access: changing your IP and removing old ones
+
+EKS and Azure VMs accept SSH only from one `/32` per address you work from; nothing expires them, so old home/office/VPN IPs pile up. Keep only the ones you use. `grant`/`revoke` manage a whole person (Linux user + rules): to change only an IP, use the commands below. GKE VMs have no per-IP rules (IAP only, last block).
+
+Your current public IP:
+
+```bash
+curl -s https://checkip.amazonaws.com
+```
+
+**EKS — `eks-vm-janr`** (security group `eks-vm-janr-sg`, one rule per IP, description `user:<name>`):
+
+```bash
+P="--profile cloud-provisioner --region eu-west-1"
+SG=$(aws ec2 describe-security-groups $P --filters Name=group-name,Values=eks-vm-janr-sg --query 'SecurityGroups[0].GroupId' --output text)
+# list: rule id, IP, port, owner
+aws ec2 describe-security-group-rules $P --filters Name=group-id,Values=$SG --query 'SecurityGroupRules[?IsEgress==`false`].[SecurityGroupRuleId,CidrIpv4,FromPort,Description]' --output text | cat
+# add an IP
+aws ec2 authorize-security-group-ingress $P --group-id $SG --ip-permissions 'IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=<ip>/32,Description=user:<name>}]'
+# remove old IPs by rule id (from the list above)
+aws ec2 revoke-security-group-ingress $P --group-id $SG --security-group-rule-ids <sgr-id> [<sgr-id> ...]
+```
+
+**Azure — `azure-vm-janr` and `azure-vm-janr-2`** (one NSG each, `azure-vm-janr-nsg` / `azure-vm-janr-2-nsg`; one rule `user-<name>` per person holding all their IPs):
+
+```bash
+NSG=azure-vm-janr-nsg      # or azure-vm-janr-2-nsg
+# list: rule, single IP, IP list, port
+az network nsg rule list -g bastion-vm-janr --nsg-name $NSG --query "[].[name,sourceAddressPrefix,join(',',sourceAddressPrefixes),destinationPortRange]" -o tsv
+# set the full list of IPs to keep (replaces the current ones)
+az network nsg rule update -g bastion-vm-janr --nsg-name $NSG -n user-<name> --source-address-prefixes <ip1>/32 [<ip2>/32 ...]
+```
+
+**GKE — network `hsbc-demo`** (every VM there: `gke-vm-janr-10`, `gke-vm-janr-11`, …): since 2026-11-06 the firewall rule `hsbc-demo-allow-ssh` accepts SSH only from the IAP range `35.235.240.0/20` (it was `0.0.0.0/0`), and `hsbc-demo-allow-rdp` is disabled. Always connect with `--tunnel-through-iap`; SSH straight to the public IP no longer works. The VMs keep their public IP only for outbound traffic: `hsbc-demo` has no Cloud NAT. Check the rules:
+
+```bash
+gcloud compute firewall-rules list --project=clusterapi-369611 --filter='network~hsbc-demo$' --format='table(name,sourceRanges.list(),allowed[].map().firewall_rule().list(),disabled)'
+```
+
 ## GKE — `gke-vm-janr-10` (existing)
 
 Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, external IP, network tag `bastion`. Tools: Docker 27, helm 3.16, jq, yq, gcloud.
@@ -146,7 +185,7 @@ $S start                                         # prints the new public IP
 $S ssh                                           # prints the ssh command for ubuntu
 ```
 
-Your public IP: `curl -s https://checkip.amazonaws.com`. If it changes (VPN, home vs office), `revoke` + `grant` yourself again or add a second `/32`.
+Your public IP: `curl -s https://checkip.amazonaws.com`. If it changes (VPN, home vs office), add the new `/32` and remove the old one ([SSH access](#ssh-access-changing-your-ip-and-removing-old-ones)); `revoke` would also delete your Linux user and home.
 
 Termination is manual on purpose (`aws ec2 terminate-instances --instance-ids <id>`), after checking nobody has a bootstrap running in `/deployments`.
 
