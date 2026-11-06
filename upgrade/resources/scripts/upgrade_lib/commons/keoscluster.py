@@ -10,9 +10,9 @@ from upgrade_lib.commons.backup import capsule_nodes_webhook
 from upgrade_lib.commons.k8s import is_private_helm_repo_enabled, is_private_registry_enabled, update_annotation_label
 from upgrade_lib.commons.network import cp_global_network_policy
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.azure import wait_for_capi_kcp_version
+from upgrade_lib.providers.azure import cleanup_orphaned_cp_resources, wait_for_capi_kcp_version
 from upgrade_lib.providers.gcp import resolve_gke_version, wait_for_gke_node_pool_convergence
-from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPI, CAPZ, STEP_SETTLE_SECONDS
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPI, CAPZ, CP_ORPHAN_CHECK_INTERVAL_SECONDS, STEP_SETTLE_SECONDS
 from upgrade_lib import state as S
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
@@ -488,7 +488,12 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
     print(f"[INFO] Waiting for the real worker nodes ({wn_name}) to reach {target_version} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
     best_progress = -1
     deadline = time.time() + stall_minutes * 60
+    last_orphan_check = 0
     while time.time() < deadline:
+        # Azure: the KCP can converge before an orphaned CP Node is confirmed; Azure then reuses its IP and this rollout hangs
+        if S.provider == "azure" and time.time() - last_orphan_check > CP_ORPHAN_CHECK_INTERVAL_SECONDS:
+            cleanup_orphaned_cp_resources(cluster_name, S.config["dry_run"])
+            last_orphan_check = time.time()
         progress = best_progress
         output, _ = run_command(
             # v1beta2 explicitly: upgrade-providers.py already moved the core, and its status has no updated/unavailableReplicas
