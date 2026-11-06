@@ -257,23 +257,48 @@ def configure_azure_credentials(vault_secrets_data):
         print(f"[ERROR] Azure CLI login failed: {e}")
         sys.exit(1)
 
-def repin_cloud_provider_azure_after_bump(target_minor, timeout_minutes=15):
-    '''Azure only: the chart upgrade pins the CCM/cloud-node-manager to the PRE-bump minor (charts
-    run before bump_k8s_version()) and nothing moved it afterwards (live 2026-10-01: k8s v1.36.5
-    with CCM v1.35.9). Re-pin the default values to target_minor and wait for the pods to roll.'''
+def repin_cloud_provider_azure_after_bump(cluster_name, timeout_minutes=15):
+    '''Azure only, at the end of every run (charts pin the PRE-bump minor and are skipped on a relaunch; live 2026-10-01:
+    k8s v1.36.5 with CCM v1.35.9): re-pin the CCM/cloud-node-manager to the minor the kube-apiserver runs and wait
+    for the pods to roll; nothing when both already carry that tag.'''
 
-    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(target_minor)
+    components = ("cloudControllerManager", "cloudNodeManager")
+    print("[INFO] Re-pinning cloud-provider-azure CCM/cloud-node-manager to the kube-apiserver minor:", end=" ", flush=True)
+    version_output, _ = run_command(f"{S.kubectl} version -o json", allow_errors=True)
+    spec_version, _ = run_command(
+        f"{S.kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.spec.k8s_version}}'", allow_errors=True)
+    try:
+        server = json.loads(version_output)["serverVersion"]
+        live_minor = f"{server['major']}.{''.join(ch for ch in server['minor'] if ch.isdigit())}"
+    except (ValueError, TypeError, KeyError):
+        print("SKIP")
+        print("[WARN] Could not read the kube-apiserver version — CCM left as is")
+        return
+    spec_minor = ".".join((spec_version or "").strip().lstrip("v").split(".")[:2])
+    # The CCM may be one minor older than the kube-apiserver, never newer: wait until the bump has reached the apiserver
+    if live_minor != spec_minor:
+        print("SKIP")
+        print(f"[WARN] kube-apiserver runs k8s {live_minor} but KeosCluster spec.k8s_version is '{(spec_version or '').strip()}' — CCM left as is")
+        return
+    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(live_minor)
     if not ccm_tag:
-        print(f"[WARN] No known-good cloud-provider-azure CCM tag for k8s {target_minor} — CCM left on the pre-bump minor")
+        print("SKIP")
+        print(f"[WARN] No known-good cloud-provider-azure CCM tag for k8s {live_minor} — CCM left as is")
         return
     configmap = "00-cloud-provider-azure-helm-chart-default-values"
-    print(f"[INFO] Re-pinning cloud-provider-azure CCM/cloud-node-manager to {ccm_tag} for k8s {target_minor}:", end=" ", flush=True)
-    if S.config["dry_run"]:
-        print("DRY-RUN")
+    values_yaml, _ = run_command(f"{S.kubectl} get configmap {configmap} -n kube-system -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    if not values_yaml:
+        print(f"SKIP (ConfigMap kube-system/{configmap} not found)")
         return
-    values_yaml, _ = run_command(f"{S.kubectl} get configmap {configmap} -n kube-system -o jsonpath='{{.data.values\\.yaml}}'")
     values = yaml.safe_load(values_yaml) or {}
-    for component in ("cloudControllerManager", "cloudNodeManager"):
+    current = {c: (values.get(c) or {}).get("imageTag") for c in components}
+    if all(tag == ccm_tag for tag in current.values()):
+        print(f"OK (already {ccm_tag} for k8s {live_minor})")
+        return
+    if S.config["dry_run"]:
+        print(f"DRY-RUN ({current} -> {ccm_tag} for k8s {live_minor})")
+        return
+    for component in components:
         values.setdefault(component, {})["imageTag"] = ccm_tag
     values_file = "/tmp/cloud-provider-azure_repin_values.yaml"
     with open(values_file, 'w') as file:

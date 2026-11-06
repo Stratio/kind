@@ -607,8 +607,6 @@ def run():
         wait_for_k8s_version_bump(cluster_name, S.provider, S.config["k8s_version"])
         if S.provider == "aws":
             wait_for_eks_worker_convergence(cluster_name, S.config["k8s_version"])
-        if S.provider == "azure":
-            repin_cloud_provider_azure_after_bump(S.config["k8s_version"])
     else:
         print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
 
@@ -617,6 +615,10 @@ def run():
             + cluster_name + " -n cluster-" + cluster_name + " --timeout 5m"
         )
         execute_command(command, False)
+
+    # Every run, also a relaunch that skips the chart: the CCM ends on the tag of the minor the kube-apiserver runs
+    if S.provider == "azure":
+        repin_cloud_provider_azure_after_bump(cluster_name)
 
     command = S.kubectl + " wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
     try:
