@@ -813,6 +813,10 @@ def upgrade_charts(charts, chart_current_versions=None):
     reconciliation is idempotent — verified live, re-running an unchanged chart creates no new revision).'''
 
     chart_current_versions = chart_current_versions or {}
+    # flux2 first: every other HelmRelease needs a working helm-controller. Its CRDs are not pre-applied: the chart's
+    # pre-upgrade `flux migrate` hook (crds.migration) must run before stored v1beta2/v2beta2 versions disappear.
+    if "flux2" in charts:
+        charts = {"flux2": charts["flux2"], **{k: v for k, v in charts.items() if k != "flux2"}}
     # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
     never_skip = {"cluster-autoscaler", "tigera-operator"}
