@@ -7,6 +7,7 @@ import json
 import subprocess
 import time
 import yaml
+from upgrade_lib.commons.keoscluster import wait_for_keoscluster_settled
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.versions import AWS_NODE_ANNOTATE_POD_IP_RBAC, CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT, CLUSTER_AUTOSCALER_AWS_POLICY_NAME, EKS_NODEGROUP_ROLE, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, IMDS_ALLOW_GNP, IMDS_DENY_GNP
 from upgrade_lib import state as S
@@ -17,6 +18,43 @@ def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     print("[INFO] Ensuring aws-node-annotate-pod-ip ClusterRole and ClusterRoleBinding:", end=" ", flush=True)
     command = S.kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
     execute_command(command, dry_run)
+
+def ensure_mp_role_name(cluster_name, dry_run):
+    '''Set KeosCluster spec.control_plane.aws.mp_role_name to the clusterawsadm EKS nodegroup role when unset; cluster-operator uses it as roleName of every AWSManagedMachinePool'''
+
+    print("[INFO] Ensuring KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
+    current, _ = run_command(f"{S.kubectl} -n cluster-{cluster_name} get keoscluster {cluster_name} -o jsonpath='{{.spec.control_plane.aws.mp_role_name}}'", allow_errors=True)
+    if current.strip():
+        print(f"SKIP (already set: {current.strip()})")
+        return
+    manual_patch = (f"kubectl -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p "
+                    f"'{{\"spec\":{{\"control_plane\":{{\"aws\":{{\"mp_role_name\":\"{EKS_NODEGROUP_ROLE}\"}}}}}}}}'")
+    role, err = run_command(f"aws iam get-role --role-name {EKS_NODEGROUP_ROLE} --query Role.RoleName --output text", allow_errors=True)
+    if role.strip() != EKS_NODEGROUP_ROLE:
+        print("WARN")
+        print(f"[WARN] IAM role {EKS_NODEGROUP_ROLE} not found or not readable: {err.strip()}")
+        print(f"[WARN] To give MachinePools a fixed role, create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: {manual_patch}")
+        return
+    if dry_run:
+        print("DRY-RUN")
+        return
+    print("role found")
+    # The KeosCluster webhook rejects updates until the cluster is ready (e.g. right after a k8s_version bump)
+    try:
+        wait_for_keoscluster_settled(cluster_name)
+    except Exception as e:
+        print("TIMEOUT")
+        print(f"[WARN] {e}: mp_role_name not set. Once the KeosCluster is ready, run: {manual_patch}")
+        return
+    print("[INFO] Setting KeosCluster spec.control_plane.aws.mp_role_name:", end=" ", flush=True)
+    patch = json.dumps({"spec": {"control_plane": {"aws": {"mp_role_name": EKS_NODEGROUP_ROLE}}}})
+    out, err = run_command(f"{S.kubectl} -n cluster-{cluster_name} patch keoscluster {cluster_name} --type=merge -p '{patch}'", allow_errors=True)
+    if "patched" not in out:
+        print("WARN")
+        print(f"[WARN] Could not set mp_role_name: {err.strip()}")
+        print(f"[WARN] Run it by hand: {manual_patch}")
+        return
+    print("OK")
 
 def configure_aws_credentials(vault_secrets_data):
     print("[INFO] Configuring AWS CLI credentials", end=" ", flush=True)
