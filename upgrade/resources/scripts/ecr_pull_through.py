@@ -242,6 +242,39 @@ def helmrepository_keos_patch(url, current_spec):
     return json.dumps(ops)
 
 
+KEOS_YAML = "keos.yaml"
+
+
+def enable_pull_through_in_keos_yaml(backup_dir):
+    '''Set docker_registry.ecr_pull_through_cache_enabled in /upgrade/keos.yaml (as create writes it, keosinstaller.go).
+    Returns False, with the reason printed, when it could not be done. The keos CR in keos-ops is not touched.'''
+    print(f"[INFO] Setting docker_registry.ecr_pull_through_cache_enabled: true in {KEOS_YAML}", end=" ", flush=True)
+    try:
+        # isfile: docker creates a directory when a bind-mounted file is missing on the host.
+        if not os.path.isfile(KEOS_YAML):
+            raise Exception(f"{os.path.abspath(KEOS_YAML)} is not a file (mount it with -v $PWD/keos.yaml:/upgrade/keos.yaml)")
+        with open(KEOS_YAML) as f:
+            keos_yaml = yaml.safe_load(f) or {}
+        if keos_yaml.get("docker_registry", {}).get("ecr_pull_through_cache_enabled") is True:
+            print("SKIP (already true)")
+            return True
+        with open(os.path.join(backup_dir, KEOS_YAML), "w") as f:
+            yaml.safe_dump(keos_yaml, f, default_flow_style=False, sort_keys=False)
+        keos_yaml.setdefault("docker_registry", {})["ecr_pull_through_cache_enabled"] = True
+        # Rewritten in place: a bind-mounted single file must keep its inode.
+        with open(KEOS_YAML, "w") as f:
+            yaml.safe_dump(keos_yaml, f, default_flow_style=False, sort_keys=False)
+    except Exception as e:
+        print("FAILED")
+        print(f"[ERROR] {KEOS_YAML} not updated: {e}")
+        print(f"[ACTION REQUIRED] Set docker_registry.ecr_pull_through_cache_enabled: true in {KEOS_YAML} by hand")
+        return False
+    print("OK")
+    print("[ACTION REQUIRED] Set spec.docker_registry.ecr_pull_through_cache_enabled: true with "
+          "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
+    return True
+
+
 def backup_pre_upgrade_state(kc_name, kc_ns, old_version, helm_repo_url_current, cm_json):
     '''Snapshot everything this script is about to mutate, for manual recovery only (not an automatic rollback).'''
     backup_dir = os.path.join("backup", "ecr_pull_through", datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
@@ -389,6 +422,15 @@ def restore(backup_dir):
         f"\"value\":{state['ecr_pull_through_cache_enabled_before']}}}]'"
     )
     print("OK")
+
+    keos_yaml_backup = os.path.join(backup_dir, KEOS_YAML)
+    if os.path.isfile(keos_yaml_backup) and os.path.isfile(KEOS_YAML):
+        print(f"[INFO] Restoring {KEOS_YAML}", end=" ", flush=True)
+        with open(keos_yaml_backup) as src, open(KEOS_YAML, "w") as dst:
+            dst.write(src.read())
+        print("OK")
+        print("[ACTION REQUIRED] Restore spec.docker_registry.ecr_pull_through_cache_enabled as in keos.yaml with "
+              "'kubectl edit keos.keos.stratio.com keos -n keos-ops' before the next keos-installer run")
 
     print(f"\n[OK] Restored cluster-operator {state['cluster_operator_version']} and prior registry configuration from {backup_dir}.")
 
@@ -549,7 +591,10 @@ def run(new_co_version, helm_registry_override=None):
         else:
             print("[INFO] Verified ecr_pull_through_cache_enabled=true in KeosCluster")
 
-        print("\n[OK] cluster-operator upgrade and ECR pull-through flag enabled.")
+        if enable_pull_through_in_keos_yaml(backup_dir):
+            print("\n[OK] cluster-operator upgrade and ECR pull-through flag enabled.")
+        else:
+            print(f"\n[WARN] cluster-operator upgrade and ECR pull-through flag enabled, but {KEOS_YAML} was NOT updated (see the error above).")
 
     except Exception as e:
         print_manual_recovery_instructions(backup_dir, e)
