@@ -478,7 +478,8 @@ def run():
         f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.spec.suspend}}'",
         allow_errors=True
     )
-    if suspend_check.strip() == "true":
+    co_leftover_suspend = suspend_check.strip() == "true"
+    if co_leftover_suspend:
         print("[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting:", end=" ", flush=True)
         run_command(f"{S.kubectl} patch helmrelease cluster-operator -n kube-system --type merge --patch '{{\"spec\":{{\"suspend\":false}}}}'")
         print("OK")
@@ -486,15 +487,19 @@ def run():
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if S.config["dry_run"] else "5m"
     command = f"{S.kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("[WARN] HelmRelease not ready, checking status...")
-        status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[INFO] HelmRelease status: {status_output}")
-        raise e
+    if S.config["dry_run"] and co_leftover_suspend:
+        # --dry-run cannot resume the leftover suspend above, and a suspended HelmRelease never gets Ready
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("[WARN] HelmRelease not ready, checking status...")
+            status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[INFO] HelmRelease status: {status_output}")
+            raise e
     print("[INFO] Upgrading Cluster Operator components...")
 
     # Recovery (except block below) must cover every step from here on — a failure in
@@ -591,17 +596,21 @@ def run():
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if S.config["dry_run"] else "5m"
     command = S.kubectl + f" wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("FAILED")
-        print("[ERROR] HelmRelease failed to become ready, checking status...")
-        status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[DEBUG] HelmRelease details:\n{status_output}")
-        print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
-        raise e
+    if S.config["dry_run"] and co_leftover_suspend:
+        # --dry-run skipped the resume above, so the leftover suspend is still there
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("FAILED")
+            print("[ERROR] HelmRelease failed to become ready, checking status...")
+            status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[DEBUG] HelmRelease details:\n{status_output}")
+            print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
+            raise e
 
     if k8s_version_bumped:
         # A k8s_version bump can take much longer than the generic 5m wait below —
