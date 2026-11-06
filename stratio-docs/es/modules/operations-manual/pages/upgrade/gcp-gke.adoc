@@ -1,0 +1,305 @@
+= Actualización en GKE
+:sectnums:
+:sectnumlevels: 1
+
+
+Este procedimiento actualiza un _cluster_ de GKE creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.x, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
+
+== Antes de empezar
+
+En GKE, la actualización cambia lo siguiente:
+
+* Los componentes de la columna GKE de la tabla xref:operations-manual:upgrade.adoc#_qué_se_actualiza[qué se actualiza].
+* La versión de Kubernetes del _control-plane_ y de todos los _node pools_, de _minor_ en _minor_: 1.33, 1.34 y 1.35. En cada paso, el _script_ espera a que el _control-plane_, los _node pools_ y sus nodos alcancen la versión antes de pasar al siguiente (consulta el <<_cambio_de_versión_de_kubernetes_en_gke, cambio de versión de Kubernetes en GKE>>).
+
+IMPORTANT: El cambio de versión de Kubernetes es el punto de no retorno. El _script_ pide confirmación antes de aplicarlo (consulta los xref:operations-manual:upgrade.adoc#_prompts_interactivos[_prompts_ interactivos]) y no permite volver a una versión anterior.
+
+En GKE solo se usa el _script_ `upgrade-provisioner.py` de la imagen de actualización.
+
+[#_cambio_de_versión_de_kubernetes_en_gke]
+=== Cambio de versión de Kubernetes en GKE
+
+GKE no actualiza el _control-plane_ más de un _minor_ a la vez, así que el _script_ aplica un cambio por cada _minor_ (1.32 → 1.33 → 1.34 → 1.35) y espera a que cada uno termine antes de aplicar el siguiente.
+
+En cada paso, el _script_:
+
+. Elige la versión de destino. GKE no acepta una versión `X.Y.0` genérica, así que el _script_ usa el _patch_ más alto de ese _minor_ entre las versiones válidas del _release channel_ del _cluster_ o, si el _cluster_ no tiene canal, entre las versiones válidas del _control-plane_.
+. Cambia la versión de Kubernetes en el `KeosCluster`.
+. Espera a que el _control-plane_ esté en `RUNNING` con la nueva versión, consultando la API de GKE. El límite es `--control-plane-timeout` (90 minutos por defecto).
+. Espera a que todos los _node pools_ estén en `RUNNING` con la nueva versión y a que el `kubeletVersion` de todos los nodos sea esa versión. El límite es `--node-convergence-timeout` (90 minutos por defecto): solo aborta si ningún _node pool_ ni nodo avanza durante ese tiempo.
+. Espera a que el `KeosCluster` vuelva a `ready: true` y `phase: Provisioned`, con un límite de 30 minutos.
+
+Por eso, al terminar, `k8s_version` en el `KeosCluster` queda con el _patch_ que eligió el _script_ (por ejemplo, `v1.35.8`), no con `v1.35.0`.
+
+== Requisitos
+
+Además de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], en GKE necesitas:
+
+* Que la cuenta de servicio de _secrets.yml_ siga siendo válida. El _script_ la activa en `gcloud` al arrancar y comprueba que es la cuenta activa.
+* Que cada _minor_ intermedio (1.33 y 1.34) y el de destino (1.35) estén disponibles en el _release channel_ del _cluster_. Si falta alguno, el _script_ se detiene al llegar a ese paso, con el error `No valid GKE version found for minor <minor>`. Compruébalo antes de empezar:
++
+[source,bash]
+----
+gcloud container clusters describe <nombre-cluster> --region <región> --format='value(releaseChannel.channel)'
+gcloud container get-server-config --region <región> --format='yaml(channels)'
+----
++
+*Salida esperada:* en la lista `validVersions` del canal del _cluster_, al menos una versión de 1.33, de 1.34 y de 1.35.
+
+NOTE: Al arrancar, el _script_ reescribe el _kubeconfig_ montado: lo regenera con `gcloud container clusters get-credentials`, con la cuenta de servicio de Cluster API del _cluster_ (`capg-manager-bootstrap-credentials`). Por eso, no montes el fichero en modo de solo lectura (`:ro`). Después de la ejecución, para usar ese _kubeconfig_ desde tu equipo, necesitas `gcloud` y `gke-gcloud-auth-plugin` instalados y autenticados. Si quieres conservar el original, cópialo antes de lanzar el contenedor.
+
+NOTE: El contenedor utiliza la red de la máquina anfitriona (`--net host`). En un _cluster_ de GKE con _endpoint_ privado, lánzalo desde una máquina que pueda acceder a ese _endpoint_, por ejemplo, desde dentro de la VPC del _cluster_. Esa máquina también necesita acceso a las APIs de Google, porque el _script_ llama a `gcloud`.
+
+== Permisos
+
+Antes de empezar, comprueba los permisos de las cuentas de servicio que usa el _script_:
+
+* *Cuenta de servicio de `secrets.yml`*: la misma que en la instalación. Necesita los permisos de xref:attachment$stratio-gcp-permissions.list[`stratio-gcp-permissions.list`] y de xref:attachment$stratio-gke-permissions.list[`stratio-gke-permissions.list`].
+* *Cuenta de servicio de Cluster API del _cluster_* (secreto `capg-manager-bootstrap-credentials` del _namespace_ `capg-system`): el _script_ cambia a ella al principio y la usa para el resto de llamadas a `gcloud`.
+
+== Contenedor de actualización
+
+=== Preparación
+
+Sitúate en el directorio de trabajo desde el que ejecutarás el contenedor. Normalmente es el mismo _workspace_ desde el que se instalaron el _cluster_ y _keos-installer_, ya que probablemente ya contenga varios de los ficheros necesarios (consulta la <<_estructura_necesaria, estructura necesaria>>); si no, usa un directorio específico para ello.
+
+Crea un directorio local para copias de seguridad:
+
+[source,bash]
+----
+mkdir -p $PWD/backup
+----
+
+=== Estructura necesaria
+
+Asegúrate de que el directorio de trabajo incluya los siguientes elementos. Solo hace falta lo que se monta desde el _host_; el _script_ principal, las plantillas Jinja2 y las dependencias ya están en la imagen y no hace falta tenerlos aquí:
+
+* `secrets.yml`: credenciales del _cluster_.
+* `.kube/config`: fichero _kubeconfig_ del _cluster_.
+* `backup/`: directorio para copias de seguridad (puede estar vacío al inicio).
+
+=== Ejecución del contenedor
+
+Descarga la imagen:
+
+[source,bash]
+----
+docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+----
+
+Arranca el contenedor:
+
+[source,bash]
+----
+docker run \
+  --name cloud-provisioner-upgrade-0.9.X \
+  --net host \
+  -it \
+  -v $PWD/secrets.yml:/upgrade/secrets.yml \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v $PWD/backup:/upgrade/backup \
+  <registry>/cloud-provisioner-upgrade:0.9.X
+----
+
+NOTE: El _script_ no genera un fichero de registro propio con marca de tiempo; toda su salida se envía a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero en el volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
+
+Ejecuta los comandos `kubectl` de este procedimiento dentro del contenedor, que usa el _kubeconfig_ montado.
+
+== Comprobaciones previas
+
+Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], comprueba en GKE:
+
+* _MachinePools_:
++
+[source,bash]
+----
+kubectl get machinepools -A
+----
++
+*Salida esperada:* todos con `PHASE = Running`.
++
+En GKE, `kubectl get machinedeployments -A` siempre sale vacío: todos los grupos de trabajo son _MachinePool_.
+
+* _Pods_ del proveedor:
++
+[source,bash]
+----
+kubectl get pods -n capg-system
+----
++
+*Salida esperada:* todos los _pods_ en estado `Running`.
+
+* _Logs_ del proveedor:
++
+[source,bash]
+----
+kubectl logs -n capg-system -l control-plane=capg-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: Si aparece algún error, revísalo antes de continuar.
+
+NOTE: La comprobación de _pods_ del _script_ incluye los _addons_ gestionados por Google, como `event-exporter-gke` o `konnectivity-agent`. Si alguno está en `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull`, `CreateContainerConfigError` o en la fase `Failed`, el _script_ se detiene aunque no forme parte de _Stratio KEOS_. Antes de usar `--skip-preflight-checks`, con el que el _script_ continúa aunque encuentre problemas en cualquiera de las comprobaciones, identifica de quién es el _pod_: si su imagen viene de `gke-release`, es un componente de Google.
+
+== _Dry-run_ de `upgrade-provisioner.py`
+
+Dentro del contenedor, ejecuta el _script_ con la opción `--dry-run`. No cambia nada en el _cluster_:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> --dry-run 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
+----
+
+En el _dry-run_, el _script_ solo pregunta por el repositorio de Helm: pulsa Intro para mantener el actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+
+*Salida esperada:*
+
+* Al principio: "[INFO] Mode: DRY-RUN (no changes will be applied)".
+* "[INFO] Planned k8s_version bump: <versión actual> -> v1.35.<patch>", con el _patch_ que usará el _script_, y "[INFO] Bumping k8s_version: DRY-RUN".
+* Al final: "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: DRY-RUN (no changes were applied)".
+
+Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real.
+
+NOTE: Aunque no cambia nada en el _cluster_, el _dry-run_ también activa las cuentas de servicio en `gcloud` y reescribe el _kubeconfig_ montado.
+
+== Ejecución de `upgrade-provisioner.py`
+
+Dentro del contenedor, lanza la actualización:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
+----
+
+Responde a los _prompts_ en este orden:
+
+. "Press ENTER to continue upgrading the cluster or any other key to abort:" pulsa Intro.
+. "The current helm repository is: <url>. Do you want to indicate a new helm repository? Press enter or specify new repository:" pulsa Intro para mantener el repositorio actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+. "Proceed with the k8s_version bump <versión actual> -> v1.35.<patch>? [y/N]:" escribe `y`. Es el punto de no retorno.
+
+*Salida esperada al terminar:* "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: REAL — changes were applied".
+
+== Seguimiento de la actualización
+
+Mientras se ejecuta el _script_, sigue el estado del _cluster_ desde tu equipo, en otra terminal, con tu propio _kubeconfig_ y tus credenciales de Google Cloud:
+
+include::partial$upgrade-monitoring.adoc[]
+
+=== Cambio de `k8s_version`
+
+Durante el cambio de versión, el _script_ muestra una línea por paso: "Stepping control plane to v1.3X.<patch>", "Waiting for the real GKE control plane to reach 1.3X", "Waiting for every GKE node pool and node to reach 1.3X" y "Waiting for the KeosCluster to settle before the next step".
+
+Sigue por separado el _control-plane_ y los _node pools_; el _control-plane_ llega a cada versión antes que los nodos:
+
+[source,bash]
+----
+watch -n30 'gcloud container clusters describe <nombre-cluster> --region <región> --format="value(status,currentMasterVersion)"; gcloud container node-pools list --cluster <nombre-cluster> --region <región> --format="table(name,version,status)"'
+----
+
+La señal de que los nodos han terminado es el `kubeletVersion` de cada nodo, no el campo `version` del _node pool_:
+
+[source,bash]
+----
+watch -n30 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
+----
+
+NOTE: Durante la actualización, la lista de operaciones de GKE (`gcloud container operations list`) muestra operaciones `UPGRADE_NODES` de pocos segundos en todos los _node pools_, una y otra vez. Son cambios de etiquetas que CAPG intenta aplicar, no reemplazos de nodos, y no impiden el cambio de versión. Desaparecen cuando añades la etiqueta de GKE en las <<_etiqueta_de_gke_en_cada_grupo_de_trabajo, tareas posteriores>>.
+
+== Comprobaciones posteriores
+
+Además de la xref:operations-manual:upgrade.adoc#_verificación_final[verificación final] común, comprueba en GKE:
+
+* Versión del `KeosCluster`, de los _node pools_ y de los nodos:
++
+[source,bash]
+----
+kubectl -n cluster-<nombre-cluster> get keoscluster <nombre-cluster> -o jsonpath='{.spec.k8s_version}{"\n"}'
+kubectl get machinepools -A
+kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
+----
++
+*Salida esperada:*
++
+** `k8s_version` con el _patch_ que eligió el _script_, por ejemplo `v1.35.8`, no `v1.35.0`.
+** Todos los _MachinePools_ con `PHASE = Running`.
+** Todos los nodos con `kubeletVersion` de 1.35.
+
+* _Logs_ del proveedor:
++
+[source,bash]
+----
+kubectl logs -n capg-system -l control-plane=capg-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: Si aparece algún error, revísalo antes de continuar.
+
+== Tareas posteriores
+
+Después de la actualización solo queda una tarea: declarar la etiqueta de GKE en cada grupo de trabajo.
+
+[#_etiqueta_de_gke_en_cada_grupo_de_trabajo]
+=== Etiqueta de GKE en cada grupo de trabajo
+
+GKE añade la etiqueta `goog-gke-node-pool-provisioning-model` a cada _node pool_. Si el grupo de trabajo no la declara, CAPG intenta quitarla una y otra vez. El `KeosCluster` de 0.7.x no admite el campo `additional_labels`, así que este paso se hace al terminar la actualización.
+
+. Consulta el valor de la etiqueta en cada _node pool_:
++
+[source,bash]
+----
+gcloud container node-pools list --cluster <nombre-cluster> --region <región> \
+  --format='table(name,config.resourceLabels.goog-gke-node-pool-provisioning-model)'
+----
++
+*Salida esperada:* el valor de cada _node pool_. Los _node pools_ que crea _Stratio Cloud Provisioner_ tienen `on-demand`.
+
+. Comprueba las etiquetas de cada grupo. La posición de cada grupo en la salida, empezando en 0, es la que usan los comandos siguientes:
++
+[source,bash]
+----
+kubectl -n cluster-<nombre-cluster> get keoscluster <nombre-cluster> \
+  -o jsonpath='{range .spec.worker_nodes[*]}{.name}{"\t"}{.additional_labels}{"\n"}{end}'
+----
+
+. Añade la etiqueta, con el valor de su _node pool_ (`<valor>`), a todos los grupos que no la tengan en un solo comando, con una operación por grupo. Por ejemplo, para un grupo sin `additional_labels` (posición 0) y otro que ya tiene etiquetas (posición 1):
++
+[source,bash]
+----
+kubectl -n cluster-<nombre-cluster> patch keoscluster <nombre-cluster> --type=json -p '[
+  {"op":"add","path":"/spec/worker_nodes/0/additional_labels","value":{"goog-gke-node-pool-provisioning-model":"<valor>"}},
+  {"op":"add","path":"/spec/worker_nodes/1/additional_labels/goog-gke-node-pool-provisioning-model","value":"<valor>"}
+]'
+----
++
+WARNING: No apliques un comando por grupo, uno detrás de otro: algún grupo puede quedarse sin la etiqueta.
+
+. Comprueba el resultado:
++
+[source,bash]
+----
+kubectl -n cluster-<nombre-cluster> get keoscluster <nombre-cluster> \
+  -o jsonpath='{range .spec.worker_nodes[*]}{.name}{"\t"}{.additional_labels}{"\n"}{end}'
+----
++
+*Salida esperada:* en cada grupo, `"goog-gke-node-pool-provisioning-model"` con el valor de su _node pool_, junto con las etiquetas que ya tuviera.
+
+NOTE: El _node pool_ ya tiene esta etiqueta, así que el cambio no reemplaza nodos.
+
+== Resolución de problemas
+
+include::partial$upgrade-recovery.adoc[]
+
+=== Fallo durante el cambio de versión
+
+Si el _script_ se detiene durante el cambio de versión, el `KeosCluster` se queda en el _minor_ que había alcanzado; el _script_ no lo devuelve a la versión anterior. Al relanzar con el mismo comando, continúa desde ese _minor_:
+
+* Si el `KeosCluster` ya está en 1.35, el _script_ solo espera a que los _node pools_ terminen.
+* Si está en un _minor_ intermedio, aplica los pasos que faltan.
+
+Hasta que relances, el `HelmRelease` de _cluster-operator_ queda suspendido y el `KeosCluster` sin sus _webhooks_. El relanzamiento los restaura.
+
+Antes de relanzar, comprueba que el _control-plane_ y todos los _node pools_ están en `RUNNING` y en el mismo _minor_ que el `k8s_version` del `KeosCluster`. Si algún _node pool_ sigue en el _minor_ anterior, espera a que termine: al relanzar, el _script_ pasa al siguiente _minor_ sin esperar a los _node pools_.
+
+[source,bash]
+----
+gcloud container clusters describe <nombre-cluster> --region <región> --format="value(status,currentMasterVersion)"
+gcloud container node-pools list --cluster <nombre-cluster> --region <región> --format="table(name,version,status)"
+----

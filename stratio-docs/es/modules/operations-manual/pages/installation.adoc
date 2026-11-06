@@ -6,10 +6,10 @@
 
 * Roles y políticas
 +
-Para el aprovisionamiento automatizado en EKS, hay que ejecutar acciones en varios servicios, como EC2, ECR, EKS y Elastic Load Balancing (ELB), entre otros. Aunque el uso de estas acciones puede variar según el tipo de instalación, el proveedor verifica que el usuario indicado cuente con los permisos requeridos para garantizar su correcto funcionamiento.
+Para el aprovisionamiento automatizado en EKS, hay que ejecutar acciones en varios servicios, como EC2, ECR, EKS y Elastic Load Balancing (ELB), entre otros. Aunque el uso de estas acciones puede variar según el tipo de instalación, el proveedor verifica que el usuario indicado cuente con los permisos requeridos para garantizar su correcto funcionamiento. Mantén los permisos de los dos ficheros de forma permanente.
 +
-** xref:attachment$stratio-eks-policy.json[Descargar permisos permanentes para EKS]
-** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos temporales para EKS]
+** xref:attachment$stratio-eks-policy.json[Descargar permisos para EKS]
+** xref:attachment$stratio-aws-temp-policy.json[Descargar permisos de IAM y CloudFormation para EKS]
 +
 Para el despliegue de EKS, se deberá crear manualmente el rol "AWSServiceRoleForAmazonEKS" y asociarle la política "AmazonEKSServiceRolePolicy" (creada por defecto en AWS).
 +
@@ -19,11 +19,7 @@ NOTE: Si el _cluster_ incluye grupos de tipo _MachinePool_ (_nodegroups_ gestion
 
 * Sistemas operativos certificados
 +
-Para garantizar la compatibilidad entre los nodos _worker_ y el _control-plane_ gestionado por EKS, hay que usar imágenes del sistema operativo correctamente configuradas. Se recomienda generar estas imágenes con https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], la herramienta oficial del proyecto Kubernetes para crear imágenes optimizadas para los proveedores de nube. Puedes consultar la https://image-builder.sigs.k8s.io/[documentación oficial] para más detalles sobre cómo construir imágenes personalizadas.
-
-NOTE: Como alternativa, también son válidas las imágenes públicas proporcionadas por AWS con el formato `amazon-eks-node-<k8s-version>-v<fecha>`, que cumplen los requisitos para desplegar _Stratio KEOS_ en EKS.
-
-El sistema operativo recomendado actualmente para este proveedor es Ubuntu 22.04.
+En EKS, los nodos _worker_ usan las AMI que gestiona EKS para el tipo indicado en _ami++_++type_: `BOTTLEROCKET_x86_64` (por defecto) o `BOTTLEROCKET_x86_64_NVIDIA`. No necesitas construir imágenes propias.
 
 * AWS CloudFormation
 +
@@ -417,6 +413,31 @@ Hay que indicar los repositorios de Docker que se utilizarán durante la instala
 
 NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-0_: debes configurarlo durante la creación del _cluster_. Activarlo en un _cluster_ existente no afecta a los _workloads_ ya desplegados.
 
+==== Imagen de _cluster-autoscaler_
+
+Con `deploy_autoscaler: true`, _Stratio Cloud Provisioner_ instala _cluster-autoscaler_ en EKS y en Azure no gestionado. En EKS, _cluster-autoscaler_ usa el proveedor `aws` y requiere `spec.security.aws.create_iam: true`. Con ese valor, _Stratio Cloud Provisioner_ asocia la política IAM de _cluster-autoscaler_ a los _roles_ de los nodos.
+
+La imagen depende de la versión de Kubernetes del _cluster_ y del registro:
+
+[cols="1,3,3"]
+|===
+^|Kubernetes ^|Sin registro privado ^|Con registro privado
+
+| 1.32
+| `registry.k8s.io/autoscaling/cluster-autoscaler:v1.32.7`
+| `<registro>/autoscaling/cluster-autoscaler:v1.32.7`
+
+| 1.34
+| `registry.k8s.io/autoscaling/cluster-autoscaler:v1.34.5`
+| `<registro>/autoscaling/cluster-autoscaler:v1.34.5`
+
+| 1.35
+| EKS: `<registro>/stratio/cluster-autoscaler:v1.35.2-0.1`. Azure: `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
+| `<registro>/stratio/cluster-autoscaler:v1.35.2-0.1`
+|===
+
+`<registro>` es el repositorio marcado con _keos++_++registry_. Las imágenes de esa ruta deben estar en él antes de crear el _cluster_. Con ECR _pull-through cache_, en 1.32 y 1.34 la ruta es `<registro>/k8s/autoscaling/cluster-autoscaler`.
+
 ==== Prerrequisitos para `ecr_pull_through_cache_enabled`
 
 Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, verifica que la cuenta AWS cumple los siguientes requisitos:
@@ -441,6 +462,10 @@ spec:
     iamRoleCreation: false
     defaultControlPlaneRole:
         disable: false
+    managedMachinePool:
+        disable: false
+        extraPolicyAttachments:
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
   controlPlane:
     enableCSIPolicy: true
   nodes:
@@ -459,6 +484,15 @@ clusterawsadm bootstrap iam create-cloudformation-stack \
   --config /tmp/eks.config \
   --region <region>
 ----
+
+Si el _stack_ ya estaba al día, el comando termina con este error, muestra su ayuda (`Usage:`) y devuelve el código 1. No cambia nada y puedes ignorarlo:
+
+[source,text]
+----
+Error: failed to update AWS CloudFormation stack: operation error CloudFormation: UpdateStack, https response error StatusCode: 400, RequestID: <id>, api error ValidationError: No updates are to be performed.
+----
+
+NOTE: La política de _cluster-autoscaler_ (`cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io`) no forma parte del _stack_. La asocian a los _roles_ `eks-nodegroup` y `nodes` _Stratio Cloud Provisioner_, al crear el _cluster_, y `upgrade-provisioner.py`, al actualizarlo. Las actualizaciones del _stack_ no la quitan. No la añadas a esta configuración: si el _stack_ la incluye, la siguiente actualización sin ella la quita de los _roles_.
 
 === Uso de `role_arn` en el descriptor de credenciales
 
@@ -541,7 +575,7 @@ En este apartado se detallan las particularidades del _control-plane_ de Kuberne
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el nombre de un rol IAM preexistente para los grupos de nodos gestionados (_MachinePool_) (_mp++_++role++_++name_). Es opcional: si no se especifica y la cuenta de AWS ya está preparada para EKS (ver más abajo), se utiliza automáticamente un rol por defecto.
+|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ ("api", "audit", "authenticator", "controllerManager" o "scheduler"). Incluye también el rol IAM de los grupos de nodos gestionados (_MachinePool_) (_mp++_++role++_++name_). Es opcional y solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, el valor que _Stratio Cloud Provisioner_ fija si lo dejas vacío.
 a|
 
 [source,yaml]
@@ -552,14 +586,12 @@ logging:
 
 [[mp_role_name_ownership]]
 
-IMPORTANT: Si no se especifica `mp_role_name`, CAPA busca automáticamente el rol por defecto `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. Este rol lo crea el comando `clusterawsadm bootstrap iam create-cloudformation-stack`, ejecutado sobre la cuenta AWS de dos formas posibles:
+IMPORTANT: `mp_role_name` solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. Si lo dejas vacío, _Stratio Cloud Provisioner_ fija ese valor; con cualquier otro, la validación del descriptor falla. Este rol lo crea el comando `clusterawsadm bootstrap iam create-cloudformation-stack`, ejecutado sobre la cuenta AWS de dos formas posibles:
 
 * *Automáticamente por _Stratio Cloud Provisioner_* cuando `security.aws.create_iam: true` — invoca ese mismo comando como parte de la instalación.
 * *Manualmente por el usuario*, como preparación previa de la cuenta de AWS para EKS/CAPA (prerrequisito habitual en cuentas ya usadas con versiones anteriores), con `security.aws.create_iam: false`.
 
-En ambos casos, el resultado es el mismo _stack_ de CloudFormation con el mismo nombre de rol, así que no hace falta volver a ejecutarlo ni indicar `mp_role_name` si la cuenta ya pasó por ese _bootstrap_ alguna vez.
-
-`mp_role_name` solo es necesario si se quiere usar un rol IAM propio, con un nombre distinto al del rol por defecto — en ese caso, es responsabilidad del usuario crearlo antes de la instalación con, como mínimo, estas políticas (las que EKS exige a cualquier nodo _worker_, con independencia de _Stratio Cloud Provisioner_): `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`. Indicar aquí un rol inexistente provoca que la creación de cualquier `MachinePool` falle en el primer intento.
+En ambos casos, el resultado es el mismo _stack_ de CloudFormation con el mismo nombre de rol, así que no hace falta volver a ejecutarlo si la cuenta ya pasó por ese _bootstrap_ alguna vez.
 
 [[nodegroup_extra_policy_arn]]
 
@@ -637,7 +669,7 @@ Las imágenes utilizadas deberán estar admitidas por EKS. Consulta la https://d
 |Sí
 
 |_node++_++image_
-|Imagen de instancia personalizada para los nodos _worker_. Si se especifica en un _cluster_ EKS gestionado, el grupo de nodos se crea como _MachineDeployment_ (nodo EC2 autogestionado). Es mutuamente excluyente con _ami++_++type_.
+|Imagen de instancia personalizada para los nodos _worker_. No se admite en EKS: para elegir la imagen de un grupo de EKS, usa _ami++_++type_.
 |ami-0de933c15c9b49fb5
 |Sí
 
@@ -701,7 +733,7 @@ root_volume:
 
 NOTE: Se ha implementado la opción de establecer un _min++_++size_ en cero, lo que permite que el autoescalado incremente o disminuya el número de nodos hasta llegar a cero según sea necesario. Esta funcionalidad proporciona un ahorro significativo de costes en comparación con versiones anteriores, ya que permite la definición de un grupo de _workers_ sin instanciar ningún recurso en el proveedor _cloud_ que no sea necesario.
 
-NOTE: En los _clusters_ EKS con _control-plane_ gestionado, el tipo de grupo de nodos depende del campo _node++_++image_. Si está presente, se crea un _MachineDeployment_ (EC2 autogestionado). Si no está presente, se crea un _MachinePool_ (un grupo gestionado por EKS). Un _cluster_ puede combinar ambos tipos. Para escalar un _MachinePool_ a cero réplicas, _max++_++size_ debe ser mayor o igual que el número de zonas de disponibilidad del _cluster_.
+NOTE: En EKS, _Stratio Cloud Provisioner_ crea todos los grupos de nodos como _MachinePool_ (grupos gestionados por EKS) y rechaza los grupos con _node++_++image_. Los _clusters_ actualizados desde la 0.7.x conservan sus grupos _MachineDeployment_. Para escalar un _MachinePool_ a cero réplicas, _max++_++size_ debe ser mayor o igual que el número de zonas de disponibilidad del _cluster_.
 
 === _Stratio KEOS_
 
@@ -736,9 +768,8 @@ En este ejemplo se aprecian las siguientes particularidades:
 * Uso de VPC y _subnets_ personalizadas (creadas previamente). Este apartado es opcional.
 * Definición de una _StorageClass_ por defecto. Este apartado es opcional.
 * Se habilitan los _logs_ del _API Server_ en EKS.
-* Uso de grupos de nodos gestionados por EKS (_MachinePool_): los grupos sin _node++_++image_ se crean como _MachinePools_ con una AMI gestionada por EKS.
-* Rol IAM fijo para los grupos de nodos gestionados (_mp++_++role++_++name_): con `create++_++iam: true`, _Stratio Cloud Provisioner_ ya crea el rol `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` como parte de su propio _stack_ de CloudFormation; se indica aquí el nombre completo para que `MachinePool` lo use en lugar de crear un rol dinámico por _nodegroup_.
-* Coexistencia de grupos gestionados (_MachinePool_) y grupos con AMI personalizada (_MachineDeployment_): el grupo con _node++_++image_ se crea como _MachineDeployment_ (EC2 autogestionado).
+* Uso de grupos de nodos gestionados por EKS (_MachinePool_) con una AMI gestionada por EKS.
+* Rol IAM de los grupos de nodos gestionados (_mp++_++role++_++name_): el único valor admitido, `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. Si lo omites, _Stratio Cloud Provisioner_ fija este mismo valor.
 * Grupos de nodos _worker_ con varias casuísticas:
 ** Diferentes tipos de instancia.
 ** Con _ami++_++type_ explícito ("BOTTLEROCKET++_++x86++_++64") y con AMI por defecto.
@@ -746,7 +777,7 @@ En este ejemplo se aprecian las siguientes particularidades:
 ** Con etiquetas de Kubernetes.
 ** Con rangos de autoescalado.
 ** En una zona fija.
-** Con personalizaciones en el disco (aplican solo al grupo _MachineDeployment_ con AMI personalizada; ver la nota tras el ejemplo).
+** Con personalizaciones en el disco (ver la nota tras el ejemplo).
 ** Con instancias tipo _spot_.
 ** Casos de distribución en AZs: balanceados y desbalanceados.
 
@@ -833,17 +864,9 @@ spec:
       max_size: 6
       size: t3.medium
       az: eu-west-1c
-    - name: eks-prod-custom-ami
-      quantity: 2
-      max_size: 6
-      min_size: 2
-      size: m6i.large
-      node_image: "ami-0a1234567890abcde"
-      labels:
-        workload: custom
 ----
 
-NOTE: El grupo `eks-prod-xlarge` es un grupo _MachinePool_ (sin `node++_++image`). En _MachinePool_, `root++_++volume.type` y `root++_++volume.encrypted` no tienen efecto: EKS gestiona el volumen raíz del _nodegroup_ sin exponer esas opciones, salvo que se use una plantilla de lanzamiento (_Launch Template_) de AWS, la cual no está admitida actualmente. Estos campos solo se aplican a grupos _MachineDeployment_ con AMI personalizada, como `eks-prod-custom-ami` en este mismo ejemplo.
+NOTE: En _MachinePool_, `root++_++volume.type` y `root++_++volume.encrypted` no tienen efecto: EKS gestiona el volumen raíz del _nodegroup_ sin exponer esas opciones, salvo que se use una plantilla de lanzamiento (_Launch Template_) de AWS, la cual no está admitida actualmente.
 
 ==== Limitaciones conocidas — _MachinePool_ (EKS)
 
@@ -853,7 +876,7 @@ NOTE: El grupo `eks-prod-xlarge` es un grupo _MachinePool_ (sin `node++_++image`
 | Nota
 
 | AMI personalizada (`ami_id`) no admitida en _MachinePool_
-| Usa `ami_type` o cambia a _MachineDeployment_ (`node_image`) si necesitas una AMI específica.
+| Usa `ami_type` para elegir el tipo de AMI.
 
 | Volumen CRI separado (`cri_volume`) no admitido en _MachinePool_
 |
@@ -1163,58 +1186,6 @@ The cluster has been installed successfully. Please refer to the documents below
 Una vez finalizado el proceso, tendrás los ficheros necesarios (_keos.yaml_ y _secrets.yml_) para instalar _Stratio KEOS_.
 
 NOTE: Dado que el fichero descriptor de la instalación (_keos.yaml_) se regenera en cada ejecución, se realiza una _backup_ del anterior en el directorio local con la fecha correspondiente (p.ej., _keos.yaml.2023-07-05@11:19:17~_).
-
-[[_actualización_de_cluster_autoscaler]]
-
-=== Actualización de _cluster-autoscaler_ tras la instalación
-
-Aplica a EKS con grupos _MachinePool_ y `deploy_autoscaler: true` (en GKE, _Stratio Cloud Provisioner_ no despliega _cluster-autoscaler_).
-
-IMPORTANT: Una vez creado el _cluster_, hay que sustituir la imagen de _cluster-autoscaler_ desplegada por defecto por la imagen propia de Stratio `v1.35.2`. Esta imagen incluye la corrección del escalado a la baja de nodos de _MachinePool_ (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]), que aún no está incluida en ninguna versión oficial de _cluster-autoscaler_.
-
-La imagen está publicada en `stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2`. Replícala en el registro Docker del _cluster_ (el marcado con `keos_registry: true` en el descriptor) antes de aplicar el cambio:
-
-[source,bash]
-----
-docker pull stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2
-docker tag stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler:v1.35.2 <registro>/autoscaling/cluster-autoscaler:v1.35.2
-docker push <registro>/autoscaling/cluster-autoscaler:v1.35.2
-----
-
-NOTE: Si el registro utiliza ECR _pull-through cache_ (`ecr_pull_through_cache_enabled`), la imagen no se sirve a través de la caché: el `repository` debe apuntar a `<registro>/autoscaling/cluster-autoscaler`, no a `<registro>/k8s/autoscaling/cluster-autoscaler`.
-
-. Añade la imagen a los valores de _override_ del _chart_:
-+
-[source,bash]
-----
-kubectl -n kube-system edit configmap 02-cluster-autoscaler-helm-chart-override-values
-----
-+
-El _ConfigMap_ guarda los valores del _chart_ como texto en la clave `values.yaml` del bloque `data`, y solo se aplica lo que esté en esa clave. Tras la instalación, `values.yaml` está vacío; si ya contiene otros valores, añade el bloque `image` junto a ellos sin borrarlos. El bloque `data` debe quedar así:
-+
-[source,yaml]
-----
-data:
-  values.yaml: |
-    image:
-      repository: <registro>/autoscaling/cluster-autoscaler
-      tag: v1.35.2
-----
-
-. Fuerza la reconciliación del _HelmRelease_:
-+
-[source,bash]
-----
-kubectl -n kube-system annotate helmrelease cluster-autoscaler \
-  reconcile.fluxcd.io/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --overwrite
-----
-
-. Verifica que los _pods_ usan la nueva imagen:
-+
-[source,bash]
-----
-kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
-----
 
 === Balanceador de carga
 
