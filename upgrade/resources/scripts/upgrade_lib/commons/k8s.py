@@ -8,18 +8,19 @@ from upgrade_lib.versions import CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTO
 from upgrade_lib import state as S
 
 def scale_cluster_autoscaler(replicas, dry_run):
-    '''Scale every cluster-autoscaler deployment present: clusterapi, the EKS aws one, and the second aws release of the 0.9 upgrade'''
+    '''Scale every cluster-autoscaler deployment present (clusterapi, the EKS aws one, the second aws release of the 0.9 upgrade)
+    and return the highest replicas they had (None if none is deployed)'''
 
-    deployed = False
+    found = []
     for deployment in (CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT, CLUSTER_AUTOSCALER_AWS_DEPLOYMENT, CLUSTER_AUTOSCALER_AWS_09_RELEASE):
         command = S.kubectl + f" get deploy {deployment} -n kube-system --ignore-not-found -o=jsonpath='{{.spec.replicas}}'"
         output = execute_command(command, False, False)
 
         if output.strip() == "":
             continue
-        deployed = True
 
         current_replicas = int(output)
+        found.append(current_replicas)
 
         if current_replicas == replicas:
             print(f"[INFO] Cluster autoscaler {deployment} already at desired replicas: SKIP")
@@ -42,8 +43,10 @@ def scale_cluster_autoscaler(replicas, dry_run):
 
         print("OK")
 
-    if not deployed:
+    if not found:
         print("[INFO] Cluster autoscaler not deployed: SKIP")
+        return None
+    return max(found)
 
 def get_keos_cluster_cluster_config():
     '''Get the KeosCluster and ClusterConfig objects'''

@@ -342,8 +342,8 @@ def run():
         update_helm_repository(cluster_name, helm_repository, S.config["dry_run"])
         S.config["helm_repository_override"] = helm_repository
 
-    # Scale down cluster-autoscaler to avoid issues during the upgrade process
-    scale_cluster_autoscaler(0, S.config["dry_run"])
+    # Scale down cluster-autoscaler to avoid issues during the upgrade process; a relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
+    cluster_autoscaler_replicas = scale_cluster_autoscaler(0, S.config["dry_run"]) or 2
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)
@@ -460,9 +460,9 @@ def run():
     upgrade_charts(charts_to_upgrade, chart_current_versions)
     print("[INFO] All charts updated successfully")
 
-    if eks_cluster_autoscaler:
-        # A clusterapi release switched to aws gets a new Deployment with the chart's replicas: hold it until the end
-        scale_cluster_autoscaler(0, S.config["dry_run"])
+    # The cluster-autoscaler chart upgrade brings it back to its replicaCount (and a clusterapi release switched to aws gets a new Deployment): keep it at 0 until the end
+    print("[INFO] Scaling cluster-autoscaler back to 0 after the charts update")
+    scale_cluster_autoscaler(0, S.config["dry_run"])
 
     # Restore capsule
     if not S.config["disable_prepare_capsule"]:
@@ -628,7 +628,7 @@ def run():
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
 
     print("[INFO] Restoring cluster-autoscaler replicas")
-    scale_cluster_autoscaler(2, S.config["dry_run"])
+    scale_cluster_autoscaler(cluster_autoscaler_replicas, S.config["dry_run"])
 
     end_time = time.time()
     elapsed_time = end_time - start_time
