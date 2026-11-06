@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+import re
 import shlex
 import yaml
 import time
@@ -14,7 +15,7 @@ from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.aws import update_cluster_autoscaler_aws_values
 from upgrade_lib.providers.azure import update_azurefile_csi_driver_image_tag_value, update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -132,6 +133,36 @@ def render_values_template(values_file, keos_cluster, cluster_config):
     except Exception as e:
         raise e
 
+def rewrite_values_image_registry(values, registry_url, chart_name):
+    '''Move the image references of a chart's values to the keos registry, as create cluster renders them in private mode'''
+
+    registry_url = registry_url.rstrip("/")
+    registry_path_segments = len([s for s in registry_url.split("/")[1:] if s])
+    line_re = re.compile(r'^(\s*-?\s*(?:image|repository|registry|imageRepository|baseRepo):\s*["\']?)([^"\'\s#]+)(["\']?\s*)$')
+    changes = []
+    lines = values.split("\n")
+    for i, line in enumerate(lines):
+        match = line_re.match(line)
+        if not match:
+            continue
+        ref = match.group(2)
+        if ref == registry_url or ref.startswith(registry_url + "/"):
+            continue
+        host, _, rest = ref.partition("/")
+        is_public = host in PUBLIC_IMAGE_REGISTRIES
+        is_private = host in GCR_IMAGE_REGISTRIES or any(p in host for p in PRIVATE_IMAGE_REGISTRY_PATTERNS)
+        if not (is_public or is_private) or any(host.startswith(p) for p in PROVIDER_OWNED_IMAGE_REGISTRIES):
+            continue
+        if is_private:
+            # An old keos registry carries the same number of path segments (GAR project/repo, ACR prefix) as the current one.
+            rest = "/".join(rest.split("/")[registry_path_segments:]) if rest else rest
+        new_ref = registry_url + ("/" + rest if rest else "")
+        lines[i] = match.group(1) + new_ref + match.group(3)
+        changes.append(f"{ref} -> {new_ref}")
+    if changes:
+        print(f"\n[INFO] Moving the {chart_name} images to the keos registry: " + ", ".join(changes), end=" ", flush=True)
+    return "\n".join(lines)
+
 def create_default_values(chart_name, namespace, values_file, provider):
     '''Create defaults values file'''
 
@@ -144,6 +175,8 @@ def create_default_values(chart_name, namespace, values_file, provider):
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", S.keos_cluster, S.cluster_config)
         else:
             values, err = run_command(f"{S.helm} get values {chart_name} -n {namespace} --output yaml")
+        if is_private_registry_enabled(S.cluster_config):
+            values = rewrite_values_image_registry(values, get_keos_registry_url(S.keos_cluster), chart_name)
         if is_ecr_pull_through_enabled(S.keos_cluster):
             registry_url = get_keos_registry_url(S.keos_cluster)
             pull_through_substitutions = [
@@ -760,9 +793,9 @@ def upgrade_charts(charts, chart_current_versions=None):
     # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
     never_skip = {"cluster-autoscaler", "tigera-operator"}
-    if is_ecr_pull_through_enabled(S.keos_cluster):
-        # create_default_values() rewrites image paths for pull-through — an already-matching
-        # chart would otherwise SKIP and keep its pre-pull-through path forever.
+    if is_ecr_pull_through_enabled(S.keos_cluster) or is_private_registry_enabled(S.cluster_config):
+        # create_default_values() rewrites image paths for pull-through and moves them to the keos
+        # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
     try:
         print(f"[INFO] Updating charts versions:")

@@ -130,6 +130,14 @@ AZUREFILE_CSI_DRIVER_IMAGES = {
     ("snapshot", "image", "csiSnapshotController"): ("/oss/v2/kubernetes-csi/snapshot-controller", "v8.7.0"),
 }
 
+# Image hosts create cluster replaces with the keos registry in private mode (templates/*/<minor>/*-helm-values.tmpl).
+PUBLIC_IMAGE_REGISTRIES = {"quay.io", "docker.io", "registry.k8s.io", "ghcr.io", "public.ecr.aws", "mcr.microsoft.com"}
+# A previous keos registry in another account/region/project (ECR, ACR, GAR, GCR).
+PRIVATE_IMAGE_REGISTRY_PATTERNS = (".dkr.ecr.", ".azurecr.io", "-docker.pkg.dev")
+GCR_IMAGE_REGISTRIES = {"gcr.io", "eu.gcr.io", "us.gcr.io", "asia.gcr.io"}
+# Registries owned by the cloud provider (EKS add-on images), never moved.
+PROVIDER_OWNED_IMAGE_REGISTRIES = ("602401143452.dkr.ecr.",)
+
 # EKS only (MachinePools only on 0.10): one cluster-autoscaler, release "cluster-autoscaler" with cloudProvider aws, as create cluster.
 # Deployment of that release with cloudProvider clusterapi and with aws (both seen live on 0.9 clusters)
 CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT = "cluster-autoscaler-clusterapi-cluster-autoscaler"
