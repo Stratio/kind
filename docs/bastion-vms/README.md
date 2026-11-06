@@ -8,9 +8,9 @@ Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the
 
 | Provider | VM | Has to be in the cluster network? | Access |
 |---|---|---|---|
-| GKE | `gke-vm-janr-10` (GCP `clusterapi-369611`, `europe-west4-a`) | **Yes** — GKE requires a bastion in the same network (`stratio-docs/.../installation.adoc`, "Bastion") | `gcloud compute ssh --tunnel-through-iap` |
+| GKE | `gke-vm-janr-11` (GCP `clusterapi-369611`, `europe-west4-a`; default for every GKE test since 2026-11-06) | **Yes** — GKE requires a bastion in the same network (`stratio-docs/.../installation.adoc`, "Bastion") | `gcloud compute ssh --tunnel-through-iap` |
 | EKS | `eks-vm-janr` (AWS `eu-west-1`) | No — public VM in the default VPC | SSH, one Linux user + one `/32` SG rule per person |
-| Azure | `azure-vm-janr` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
+| Azure | `azure-vm-janr`, `azure-vm-janr-2` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
 
 ## Policy: stop, do not recreate
 
@@ -86,7 +86,7 @@ Never run `create` from `/root`: the workload `./.kube/config` and the bootstrap
 |---|---|
 | Azure | `bash docs/bastion-vms/scripts/azure-vm.sh kubeconfig <cluster>` → `~/.kube/<cluster>.kubeconfig` (`0600`); then `kubectl --kubeconfig ~/.kube/<cluster>.kubeconfig get nodes`. It runs `sudo cat` over ssh because `scp` as `azureuser` cannot read the root `0600` file. It holds cluster-admin credentials: keep it `0600` |
 | EKS | `aws eks update-kubeconfig` from the laptop (see [Deploying an EKS cluster from the VM](#deploying-an-eks-cluster-from-the-vm)) — no copy needed |
-| GKE | GKE requires the bastion in the same network: run `kubectl` on `gke-vm-janr-10` with the kubeconfig in the cluster folder |
+| GKE | GKE requires the bastion in the same network: run `kubectl` on `gke-vm-janr-11` with the kubeconfig in the cluster folder |
 
 **`--retain`** (`create.go:130`, `:168`, `:195`): without it the bootstrap container is deleted both on failure and at the end of a successful create ("Cleaning up temporary cluster"); with it, it is kept in both cases. To work on a retained bootstrap:
 
@@ -141,7 +141,18 @@ az network nsg rule update -g bastion-vm-janr --nsg-name $NSG -n user-<name> --s
 gcloud compute firewall-rules list --project=clusterapi-369611 --filter='network~hsbc-demo$' --format='table(name,sourceRanges.list(),allowed[].map().firewall_rule().list(),disabled)'
 ```
 
-## GKE — `gke-vm-janr-10` (existing)
+## GKE — `gke-vm-janr-11` (default) and `gke-vm-janr-10`
+
+**Use `gke-vm-janr-11` for every GKE test** (2026-11-06). It is a copy of `gke-vm-janr-10` with the default scopes, without `cloud-platform` (checked 2026-11-06: `n2-standard-8`, 200 GB), so it behaves like a customer bastion: a script that fails to activate the `secrets.yml` service account fails here too. `gke-vm-janr-10` keeps `cloud-platform` and stays as an alternative only. The description below was verified on `-10`.
+
+`gke-vm-janr-11` has **no public IP** since 2026-11-06: SSH through IAP works, Docker Hub and Ubuntu apt do not (GAR works). Add an external IP before a create and remove it after:
+
+```bash
+gcloud compute instances add-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0
+gcloud compute instances delete-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0 --access-config-name="external-nat"
+```
+
+### `gke-vm-janr-10`
 
 Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, external IP, network tag `bastion`. Tools: Docker 27, helm 3.16, jq, yq, gcloud.
 
@@ -155,8 +166,8 @@ printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 51
 
 ```bash
 O=(--project=clusterapi-369611 --zone=europe-west4-a --tunnel-through-iap)
-gcloud compute ssh gke-vm-janr-10 "${O[@]}"
-gcloud compute scp "${O[@]}" Skind/bin/cloud-provisioner gke-vm-janr-10:/deployments/binaries/cloud-provisioner-<version>
+gcloud compute ssh gke-vm-janr-11 "${O[@]}"
+gcloud compute scp "${O[@]}" Skind/bin/cloud-provisioner gke-vm-janr-11:/deployments/binaries/cloud-provisioner-<version>
 ```
 
 ## EKS — `eks-vm-janr`
@@ -167,7 +178,7 @@ Managed with [`docs/bastion-vms/scripts/eks-vm.sh`](scripts/eks-vm.sh) (AWS prof
 |---|---|
 | Type | `m6a.xlarge` (4 vCPU / 16 GiB, 0.1926 $/h) — cheapest non-burstable 16 GiB type sized for up to 4 parallel bootstraps (~2.5 GB peak each); `--type` to change |
 | OS | Ubuntu 24.04 (latest Canonical AMI from SSM `/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id`), cgroup v2 |
-| Disks | Root 32 GB gp3 (OS + docker images/volumes; 18 GB used with 4 parallel bootstraps), deleted with the instance; data 16 GB gp3 for `/deployments` (~0.75 GB asdf + binaries/descriptors), persistent (see below) |
+| Disks | Root 50 GB gp3, default `--disk 50` since 2026-11-06 (was 32; `eks-vm-janr` runs 50; OS + docker images/volumes; 18 GB used with 4 parallel bootstraps), deleted with the instance; data 16 GB gp3 for `/deployments` (~0.75 GB asdf + binaries/descriptors), persistent (see below) |
 | Network | Default VPC, default subnet in `eu-west-1a`, public IP (changes on every stop/start) |
 | Security group | `eks-vm-janr-sg` — only inbound rule type is SSH from a `/32`, description `user:<name>` |
 | IAM instance profile | `bastion-vm-ssm` — `AmazonSSMManagedInstanceCore` only (no S3/EC2 rights on the VM). SSM is a fallback path for the owner, not the access method for colleagues |
@@ -361,15 +372,15 @@ bash $S autostop install 18:00    # always installed with azure-deallocate
 ```
 
 ```bash
-# GKE — gke-vm-janr-10 (shared, no wrapper script)
+# GKE — gke-vm-janr-11 (shared, no wrapper script)
 O=(--project=clusterapi-369611 --zone=europe-west4-a --tunnel-through-iap)
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo vm-autostop status'
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo vm-autostop enable 19:30'
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo vm-autostop disable'
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo vm-autostop enable'
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo vm-autostop skip-today'
-gcloud compute scp "${O[@]}" docs/bastion-vms/scripts/vm-autostop.sh gke-vm-janr-10:/tmp/
-gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo bash /tmp/vm-autostop.sh install 18:00'
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo vm-autostop status'
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo vm-autostop enable 19:30'
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo vm-autostop disable'
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo vm-autostop enable'
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo vm-autostop skip-today'
+gcloud compute scp "${O[@]}" docs/bastion-vms/scripts/vm-autostop.sh gke-vm-janr-11:/tmp/
+gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo bash /tmp/vm-autostop.sh install 18:00'
 ```
 
 
@@ -379,9 +390,11 @@ gcloud compute ssh gke-vm-janr-10 "${O[@]}" --command 'sudo bash /tmp/vm-autosto
 
 **Billing after a guest shutdown** (official docs, read 2026-10-01): AWS — an EBS-backed instance **stops** ([EC2 docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingInstanceInitiatedShutdownBehavior.html)); GCP — the instance stops and "you keep incurring charges for any resources that remain attached" (disk, IP) ([GCE docs](https://docs.cloud.google.com/compute/docs/instances/stop-start-instance)); **Azure — it ends in *Stopped (allocated)*, which is still billed** ([Azure docs](https://learn.microsoft.com/en-us/azure/virtual-machines/states-billing)): the Azure VM needs a *deallocate* through the API instead of a guest poweroff.
 
-Starting the VMs in the morning stays manual (`eks-vm.sh start`, `azure-vm.sh start`, `gcloud compute instances start gke-vm-janr-10 --project=clusterapi-369611 --zone=europe-west4-a`).
+Starting the VMs in the morning stays manual (`eks-vm.sh start`, `azure-vm.sh start`, `gcloud compute instances start gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a`).
 
-## Azure — `azure-vm-janr`
+## Azure — `azure-vm-janr` and `azure-vm-janr-2`
+
+Two VMs with the same settings (checked 2026-11-06 with `az vm show` / `az disk list`): `Standard_D4as_v5`, root 32 GB StandardSSD in RG `bastion-vm-janr`, data 16 GB StandardSSD (`<vm>-data`) in RG `bastion-vm-janr-data`, one NSG each. Use `--name azure-vm-janr-2` to act on the second one.
 
 Managed with [`docs/bastion-vms/scripts/azure-vm.sh`](scripts/azure-vm.sh) — same actions and options as `eks-vm.sh` (`create --my-ip`, `status`, `start`, `stop`, `ssh`, `grant`, `revoke`, `autostop …`, `tools …`, `upload`) plus `kubeconfig <cluster>`. Uses the `az` session of the laptop (subscription `EOS`). Giving a colleague access works as on EKS (`grant`/`revoke`, NSG rule `user-<name>` instead of an SG rule).
 
