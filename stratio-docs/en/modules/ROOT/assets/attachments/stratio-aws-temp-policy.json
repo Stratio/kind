@@ -35,6 +35,7 @@
                 "iam:PutRolePolicy",
                 "iam:RemoveRoleFromInstanceProfile",
                 "iam:RemoveUserFromGroup",
+                "iam:UpdateAssumeRolePolicy",
                 "cloudformation:CreateChangeSet",
                 "cloudformation:createStack",
                 "cloudformation:CreateStack",

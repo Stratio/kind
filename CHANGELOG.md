@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5180] Docs for the EKS cluster-autoscaler with provider `aws` on 0.10:
+  installation (`create_iam` required with the autoscaler, `mp_role_name` only `eks-nodegroup`, MachinePools only on EKS, cluster-autoscaler image per Kubernetes minor, its IAM policy on `eks-nodegroup` outside the IAM stack);
+  upgrade page (EKS MachineDeployments must be migrated on 0.9.x first, IAM step and permissions, one cluster-autoscaler with provider `aws`, `keos.yaml` mount for `ecr_pull_through.py`, orphan control-plane Node/etcd member cleanup on Azure);
+  operations manual (MachinePool annotation, min/max edit rejections, cluster-autoscaler logs per provider);
+  `iam:UpdateAssumeRolePolicy` in the temporary AWS policy, `Microsoft.Compute/disks/delete` in the Azure workers role, offline cluster-autoscaler and azurefile-csi-driver 1.35.11 images
 * [PLT-5234] `upgrade-provisioner.py` (GKE): target Kubernetes 1.37, as on EKS and Azure. GKE was capped at 1.36 because 1.37 was only in the RAPID channel; it is now in REGULAR and EXTENDED too, and `--k8s-version 1.37` was rejected
 * [PLT-5130] `upgrade-provisioner.py` (GKE): activate the service account from the loose fields `keos-installer` writes to `secrets.yml` (`client_email`, `private_key`, `private_key_id`, ...). It was only activated when `secrets.gcp.credentials` carried a `service_account_key`, so with the usual `secrets.yml` gcloud kept the VM default account, the script still printed `Configuring GCP gcloud credentials OK` and, on a VM without the `cloud-platform` scope, the kubeconfig refresh failed with `403 insufficient authentication scopes`. It now fails when `secrets.yml` has no usable service account, or when the active account is not the one in `secrets.yml`
 * [PLT-5023] `DEPENDENCIES` and `docs/images/commons/imagenes-kind.txt` pin the `cloud-provisioner` image to the next milestone, 0.10.0-m.7 (they were left on 0.10.0-m.2)
