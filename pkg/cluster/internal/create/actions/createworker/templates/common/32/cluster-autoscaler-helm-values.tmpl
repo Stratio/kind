@@ -1,15 +1,24 @@
+{{- $eks := and (eq $.KeosCluster.Spec.InfraProvider "aws") $.KeosCluster.Spec.ControlPlane.Managed }}
 autoDiscovery:
   clusterName: {{ $.KeosCluster.Metadata.Name }}
+{{- if not $eks }}
   labels:
   - namespace: cluster-{{ $.KeosCluster.Metadata.Name }}
   roles:
   - worker
+{{- end }}
   tags:
   - k8s.io/cluster-autoscaler/enabled
   - k8s.io/cluster-autoscaler/{{ $.KeosCluster.Metadata.Name }}
+{{- if $eks }}
+awsRegion: {{ $.KeosCluster.Spec.Region }}
+cloudProvider: aws
+{{- else }}
 cloudProvider: clusterapi
+{{- end }}
 
+# Upstream CA of the same minor as the cluster (the Stratio 1.35 build only matters for clusterapi MachinePools)
 image:
   repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ if $.CentralECR }}/k8s{{ end }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
-  #tag: v1.34.1
+  tag: v1.32.7
 replicaCount: 2

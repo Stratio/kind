@@ -39,7 +39,7 @@ CLOUD_PROVISIONER = "0.9.9"
 # Must match a minor in keoscluster_webhook.go:61 k8sVersionSupported (bare "major.minor", no "v").
 # CR patch digit is always ".0" when patching — EKS/GKE ignore it, not an exact release pin.
 K8S_VERSION = "1.35"
-CLUSTER_OPERATOR = "0.7.5"
+CLUSTER_OPERATOR = "0.7.6"
 
 # Flux's own default (5m) is too short for a DaemonSet rollout (maxUnavailable=1) — a
 # fixed value doesn't scale with node count either (verified live 2026-08-25), so
@@ -113,16 +113,34 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# AWS only: official CA images hit "unknown machine for node" on scale-down for
+# Pinned on AWS, and on Azure with a private registry (one image, as create cluster 1.35). Official CA images hit "unknown machine for node" on scale-down for
 # AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
 # fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
-# The -01 suffix marks the Stratio build: the bare v1.35.2 on registry.k8s.io lacks the fix.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-01"
+# The -0.1 suffix marks the Stratio build with every cloud provider (aws for EKS, clusterapi for Azure); the bare v1.35.2 on registry.k8s.io lacks the fix.
+CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-0.1"
 # Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
 CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
+# Azure without a private registry: upstream image, as create cluster 1.35
+# (no MachinePools there, so the #9693 fix is not needed).
+CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
+CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.35.2"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+# EKS only: the clusterawsadm role of MachineDeployment nodes (iamInstanceProfile of every AWSMachineTemplate).
+EKS_NODES_ROLE = "nodes.cluster-api-provider-aws.sigs.k8s.io"
+
+# EKS only: second cluster-autoscaler, cloudProvider aws, for MachinePools; the clusterapi one keeps the MachineDeployments.
+CLUSTER_AUTOSCALER_AWS_RELEASE = "cluster-autoscaler-aws"
+# Its own status ConfigMap: the default cluster-autoscaler-status belongs to the clusterapi CA.
+CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP = "cluster-autoscaler-aws-status"
+# Same name and document as create cluster (createworker/aws.go clusterAutoscalerPolicyName/clusterAutoscalerPolicyDocument).
+CLUSTER_AUTOSCALER_AWS_POLICY_NAME = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}'
+# create cluster file createworker/files/aws/allow-egress-imds_gnetpol.yaml; the CA aws reads its node role credentials from IMDS.
+IMDS_ALLOW_GNP = "allow-traffic-to-aws-imds"
+IMDS_DENY_GNP = "deny-all-traffic-to-aws-imds"
+IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR = "app.kubernetes.io/name == 'aws-cluster-autoscaler'"
 
 # EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
 CLUSTER_AUTOSCALER_EKS_RBAC = """---
@@ -210,6 +228,18 @@ CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
 }
 
 # flux2 chart 2.17.2 controller tags, as create cluster sets them (templates/common/<minor>/flux2-helm-values.tmpl).
+# Azure only: azurefile-csi-driver 1.35.11 images, as create cluster pins them (templates/azure/35/azurefile-csi-driver-helm-values.tmpl);
+# release-1.35 publishes chart 1.35.11 twice with different defaults, so the tags cannot be left to the chart.
+AZUREFILE_CSI_DRIVER_IMAGES = {
+    ("image", "azurefile"): ("/oss/v2/kubernetes-csi/azurefile-csi", "v1.35.11"),
+    ("image", "csiProvisioner"): ("/oss/v2/kubernetes-csi/csi-provisioner", "v6.4.0"),
+    ("image", "csiResizer"): ("/oss/v2/kubernetes-csi/csi-resizer", "v2.3.0"),
+    ("image", "livenessProbe"): ("/oss/v2/kubernetes-csi/livenessprobe", "v2.20.0"),
+    ("image", "nodeDriverRegistrar"): ("/oss/v2/kubernetes-csi/csi-node-driver-registrar", "v2.18.0"),
+    ("snapshot", "image", "csiSnapshotter"): ("/oss/v2/kubernetes-csi/csi-snapshotter", "v8.7.0"),
+    ("snapshot", "image", "csiSnapshotController"): ("/oss/v2/kubernetes-csi/snapshot-controller", "v8.7.0"),
+}
+
 FLUX_IMAGE_TAGS = {
     "cli": "v2.7.5",
     "helmController": "v1.4.5",
@@ -229,7 +259,7 @@ common_charts = {
         "repo": "https://kubernetes.github.io/autoscaler"
     },
     "cluster-operator": {
-        "version": "0.7.5",
+        "version": CLUSTER_OPERATOR,
         "namespace": "kube-system",
         "repo": ""
     },
@@ -261,9 +291,9 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
     },
     "azurefile-csi-driver": {
-        "version": "1.35.7",
+        "version": "1.35.11",
         "namespace": "kube-system",
-        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/master/charts"
+        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/release-1.35/charts"
     },
     "cloud-provider-azure": {
         "version": "1.35.3",
@@ -559,6 +589,135 @@ def ensure_mp_role_name(cluster_name, dry_run):
         return
     print("OK")
 
+def run_aws_iam(command):
+    '''Run an AWS CLI IAM command, retrying up to 3 times, 5 s apart, a failure other than AccessDenied, NoSuchEntity or EntityAlreadyExists'''
+
+    for attempt in range(3):
+        out, err = run_command(command, allow_errors=True)
+        if not err.strip() or any(code in err for code in ("AccessDenied", "NoSuchEntity", "EntityAlreadyExists")) or attempt == 2:
+            return out, err
+        time.sleep(5)
+
+def ensure_cluster_autoscaler_aws_iam(dry_run):
+    '''Create the cluster-autoscaler aws policy when missing, as create cluster, and attach it to the MachinePool and MachineDeployment node roles: the CA aws pods run on either'''
+
+    print(f"[INFO] Ensuring IAM policy {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} on the node roles:", end=" ", flush=True)
+    account, err = run_command("aws sts get-caller-identity --query Account --output text", allow_errors=True)
+    if not account.strip():
+        print("FAILED")
+        print(f"[ERROR] Could not get the AWS account id: {err.strip()}")
+        sys.exit(1)
+    policy_arn = f"arn:aws:iam::{account.strip()}:policy/{CLUSTER_AUTOSCALER_AWS_POLICY_NAME}"
+    manual = (f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}' (if missing); "
+              f"aws iam attach-role-policy --role-name <{EKS_NODEGROUP_ROLE}|{EKS_NODES_ROLE}> --policy-arn {policy_arn}")
+    get_policy = f"aws iam get-policy --policy-arn {policy_arn} --query Policy.Arn --output text"
+    out, err = run_aws_iam(get_policy)
+    actions = []
+    if out.strip() != policy_arn:
+        if "NoSuchEntity" not in err:
+            print("FAILED")
+            print(f"[ERROR] Could not read the IAM policy {policy_arn}: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+        actions.append(("create-policy", f"aws iam create-policy --policy-name {CLUSTER_AUTOSCALER_AWS_POLICY_NAME} --policy-document '{CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT}'"))
+    for role in (EKS_NODEGROUP_ROLE, EKS_NODES_ROLE):
+        out, err = run_aws_iam(f"aws iam list-attached-role-policies --role-name {role} --query 'AttachedPolicies[].PolicyArn' --output text")
+        if err.strip():
+            if "NoSuchEntity" in err:
+                # MachinePools require this role (cluster-operator mp_role_name), so none can exist without it
+                print(f"\n[WARN] IAM role {role} not found: create it (clusterawsadm bootstrap iam create-cloudformation-stack) and run: {manual}", end=" ", flush=True)
+                continue
+            print("FAILED")
+            print(f"[ERROR] Could not list the policies of the IAM role {role}: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+        if policy_arn not in out.split():
+            actions.append((f"attach to {role}", f"aws iam attach-role-policy --role-name {role} --policy-arn {policy_arn}"))
+    if not actions:
+        print("SKIP (already attached)")
+        return
+    if dry_run:
+        print("DRY-RUN (" + ", ".join(name for name, _ in actions) + ")")
+        return
+    for name, command in actions:
+        _, err = run_aws_iam(command)
+        if name == "create-policy" and "EntityAlreadyExists" in err:
+            # Created in the meantime by another run in the same account
+            out, err = run_aws_iam(get_policy)
+            if out.strip() == policy_arn:
+                continue
+            err = err.strip() or f"EntityAlreadyExists, but get-policy returned '{out.strip()}'"
+        if err.strip():
+            print("FAILED")
+            print(f"[ERROR] IAM {name} failed: {err.strip()}")
+            print(f"[ERROR] Grant the permission or run it by hand, then relaunch: {manual}")
+            sys.exit(1)
+    print("OK (" + ", ".join(name for name, _ in actions) + ")")
+
+def ensure_imds_allow_cluster_autoscaler_aws(dry_run):
+    '''Add the cluster-autoscaler aws pods to the IMDS allow GlobalNetworkPolicy, as create cluster'''
+
+    print(f"[INFO] Allowing IMDS egress to the cluster-autoscaler aws pods (GlobalNetworkPolicy {IMDS_ALLOW_GNP}):", end=" ", flush=True)
+    gnp = "globalnetworkpolicies.crd.projectcalico.org"
+    selector, err = run_command(f"{kubectl} get {gnp} {IMDS_ALLOW_GNP} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
+    if "NotFound" in err:
+        _, deny_err = run_command(f"{kubectl} get {gnp} {IMDS_DENY_GNP} -o name", allow_errors=True)
+        if "NotFound" in deny_err:
+            print(f"SKIP (no {IMDS_DENY_GNP}: IMDS egress is not restricted)")
+            return
+        print("FAILED")
+        print(f"[ERROR] {IMDS_DENY_GNP} exists but {IMDS_ALLOW_GNP} does not: the cluster-autoscaler aws could not reach IMDS")
+        sys.exit(1)
+    if err.strip() or not selector.strip():
+        print("FAILED")
+        print(f"[ERROR] Could not read {IMDS_ALLOW_GNP}: {err.strip()}")
+        sys.exit(1)
+    if IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR in selector:
+        print("SKIP (already allowed)")
+        return
+    patch_file = "/tmp/imds-allow-cluster-autoscaler-aws-patch.json"
+    with open(patch_file, "w") as f:
+        json.dump({"spec": {"selector": f"{selector.strip()} || {IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR}"}}, f)
+    if dry_run:
+        print("DRY-RUN")
+        return
+    run_command(f"{kubectl} patch {gnp} {IMDS_ALLOW_GNP} --type=merge --patch-file {patch_file}")
+    print("OK")
+
+def write_cluster_autoscaler_aws_values(values_file):
+    '''Values of the cluster-autoscaler aws release: MachinePool ASGs found by the create cluster CA tags, own lease next to the clusterapi CA'''
+
+    name = keos_cluster["metadata"]["name"]
+    values = {
+        "cloudProvider": "aws",
+        "awsRegion": keos_cluster["spec"]["region"],
+        "autoDiscovery": {
+            "clusterName": name,
+            "tags": ["k8s.io/cluster-autoscaler/enabled", f"k8s.io/cluster-autoscaler/{name}"],
+        },
+        "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
+        "replicaCount": 2,
+        # The chart grants get/update only on the lease "cluster-autoscaler" and the ConfigMap "cluster-autoscaler-status", both used by the clusterapi CA
+        "extraArgs": {
+            "leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE,
+            "status-config-map-name": CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP,
+        },
+        "rbac": {"additionalRules": [{
+            "apiGroups": ["coordination.k8s.io"],
+            "resources": ["leases"],
+            "resourceNames": [CLUSTER_AUTOSCALER_AWS_RELEASE],
+            "verbs": ["get", "update"],
+        }, {
+            "apiGroups": [""],
+            "resources": ["configmaps"],
+            "resourceNames": [CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP],
+            "verbs": ["delete", "get", "update"],
+        }]},
+    }
+    with open(values_file, 'w') as file:
+        yaml.safe_dump(values, file, default_flow_style=False)
+    update_cluster_autoscaler_image_tag_value(values_file, "aws")
+
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
 
@@ -566,35 +725,35 @@ def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     command = kubectl + " apply -f - <<'EOF'\n" + AWS_NODE_ANNOTATE_POD_IP_RBAC + "\nEOF"
     execute_command(command, dry_run)
 
-def scale_cluster_autoscaler(replicas, dry_run):
+def scale_cluster_autoscaler(replicas, dry_run, deployment="cluster-autoscaler-clusterapi-cluster-autoscaler"):
     '''Scale cluster-autoscaler deployment and return the replicas it had (None if not deployed)'''
 
-    command = kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --ignore-not-found -o=jsonpath='{.spec.replicas}'"
+    command = kubectl + f" get deploy {deployment} -n kube-system --ignore-not-found -o=jsonpath='{{.spec.replicas}}'"
     output = execute_command(command, False, False)
 
     if output.strip() == "":
-        print("[INFO] Cluster autoscaler not deployed: SKIP")
+        print(f"[INFO] Cluster autoscaler {deployment} not deployed: SKIP")
         return None
 
     current_replicas = int(output)
 
     if current_replicas == replicas:
-        print("[INFO] Cluster autoscaler already at desired replicas: SKIP")
+        print(f"[INFO] Cluster autoscaler {deployment} already at desired replicas: SKIP")
         return current_replicas
 
     scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
-    print(f"[INFO] {scaling_type} cluster autoscaler replicas:", end=" ", flush=True)
+    print(f"[INFO] {scaling_type} cluster autoscaler {deployment} replicas:", end=" ", flush=True)
 
     if dry_run:
         print("DRY-RUN")
         return current_replicas
 
     # Scale
-    command = kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
+    command = kubectl + f" scale deploy {deployment} -n kube-system --replicas={replicas}"
     execute_command(command, False, False)
 
     # Wait until ready
-    command = kubectl + " wait deployment cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --for=condition=Available --timeout=5m"
+    command = kubectl + f" wait deployment {deployment} -n kube-system --for=condition=Available --timeout=5m"
     execute_command(command, False, False)
 
     print("OK")
@@ -1285,19 +1444,24 @@ def update_flux_image_tag_values(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the MP scale-down fix build (AWS only). The image is always
-    "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left (also with ECR pull-through).'''
+def update_cluster_autoscaler_image_tag_value(values_file, provider):
+    '''Set the cluster-autoscaler image as create cluster 1.35 does. EKS, and Azure with a private registry: the MP
+    scale-down fix build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left
+    (also with ECR pull-through). Azure without a private registry: the upstream image.'''
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
-        if registry_url:
-            image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        if provider == "aws" or is_private_registry_enabled(cluster_config):
+            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
+            registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+            if registry_url:
+                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        else:
+            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
+            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
@@ -1327,6 +1491,79 @@ def update_cloud_provider_azure_image_tag_value(values_file):
                 repo = repo.replace("/oss/kubernetes", "/oss/v2/kubernetes")
             section["imageRepository"] = repo
             section["imageTag"] = ccm_tag
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, dry_run):
+    '''Azure, at the end of the run: set the CCM/cloud-node-manager tag of the minor the cluster is at now.
+    The chart phase pinned the minor the cluster had then, and skips the chart on a relaunch.'''
+
+    namespace = "kube-system"
+    configmap = "00-cloud-provider-azure-helm-chart-default-values"
+    components = ("cloudControllerManager", "cloudNodeManager")
+    k8s_version, _ = run_command(f"{kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.spec.k8s_version}}'")
+    minor = ".".join(k8s_version.strip().lstrip("v").split(".")[:2])
+    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(minor)
+    print(f"[INFO] Setting cloud-provider-azure CCM/cloud-node-manager to the tag of k8s {minor}:", end=" ", flush=True)
+    if not ccm_tag:
+        print(f"SKIP (no known-good tag for k8s {minor})")
+        return
+    values_yaml, _ = run_command(f"{kubectl} get configmap {configmap} -n {namespace} -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    if not values_yaml:
+        print(f"SKIP (ConfigMap {namespace}/{configmap} not found)")
+        return
+    values = yaml.safe_load(values_yaml) or {}
+    current = {c: (values.get(c) or {}).get("imageTag") for c in components}
+    if all(tag == ccm_tag for tag in current.values()):
+        print(f"OK (already {ccm_tag})")
+        return
+    if dry_run:
+        print(f"DRY-RUN ({current} -> {ccm_tag})")
+        return
+
+    for c in components:
+        values.setdefault(c, {})["imageTag"] = ccm_tag
+    values_file = "/tmp/cloud-provider-azure_ccm_values.yaml"
+    with open(values_file, "w") as f:
+        yaml.safe_dump(values, f, default_flow_style=False)
+    create_configmap_from_values(configmap, namespace, values_file)
+    os.remove(values_file)
+
+    # The HelmRelease reads this ConfigMap through valuesFrom: request a reconcile and wait until Flux handled it
+    token = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    run_command(f"{kubectl} annotate helmrelease cloud-provider-azure -n {namespace} reconcile.fluxcd.io/requestedAt={token} --overwrite")
+    deadline = time.time() + 600
+    while True:
+        handled, _ = run_command(f"{kubectl} get helmrelease cloud-provider-azure -n {namespace} -o jsonpath='{{.status.lastHandledReconcileAt}}'", allow_errors=True)
+        if handled and handled.strip() == token:
+            break
+        if time.time() > deadline:
+            raise Exception(f"HelmRelease {namespace}/cloud-provider-azure did not handle the reconcile requested at {token} in 10m")
+        time.sleep(10)
+    wait_for_helmrelease_ready("cloud-provider-azure", namespace)
+    run_command(f"{kubectl} -n {namespace} rollout status deploy cloud-controller-manager --timeout 10m")
+    run_command(f"{kubectl} -n {namespace} rollout status ds cloud-node-manager --timeout 10m")
+    print(f"OK ({current} -> {ccm_tag})")
+
+def update_azurefile_csi_driver_image_tag_value(values_file):
+    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for path, (repository, tag) in AZUREFILE_CSI_DRIVER_IMAGES.items():
+            section = values
+            for key in path:
+                if not isinstance(section.get(key), dict):
+                    section[key] = {}
+                section = section[key]
+            section["repository"] = repository
+            section["tag"] = tag
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -1532,6 +1769,40 @@ def resume_leftover_helmrelease_suspend(release_name, namespace):
         print(f"[WARN] HelmRelease {namespace}/{release_name} left suspended by an interrupted run: resuming")
         set_helmrelease_suspend(release_name, namespace, False)
 
+def wait_for_helmrepository_ready(repo_name, namespace, timeout_seconds=300):
+    '''Wait until source-controller has reconciled the latest HelmRepository spec (e.g. a new URL) and it is Ready'''
+
+    if config["dry_run"]:
+        return
+    # An OCI HelmRepository has no index and reports no status: the HelmChart pulls the version itself
+    repo_type, _ = run_command(f"{kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.spec.type}}'", allow_errors=True)
+    if repo_type.strip() == "oci":
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 3 and fields[0] == fields[1] and fields[2] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRepository {namespace}/{repo_name} not Ready with its latest spec after {timeout_seconds}s (generation/observedGeneration/Ready: {output})")
+        time.sleep(3)
+
+def check_helmrelease_chart_version(release_name, namespace, chart_version, timeout_seconds=900):
+    '''Wait until the release Flux installed is the target chart version and Ready (a Ready read right after the resume can be the previous one)'''
+
+    if config["dry_run"]:
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.status.history[0].chartVersion}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 2 and fields[0] == chart_version and fields[1] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRelease {namespace}/{release_name} not Ready with chart {chart_version} after {timeout_seconds}s (installed chart, Ready: {output})")
+        time.sleep(5)
+
 def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
     '''Wait for a HelmRelease to report Ready=True, raising with the real status on failure'''
 
@@ -1607,10 +1878,12 @@ def upgrade_chart(chart_name, chart_data):
     chart_version = chart_data["version"]
     chart_namespace = chart_data["namespace"]
 
-    release_name = chart_name
+    release_name = chart_data.get("release_name", chart_name)
     if chart_name == "flux2":
         release_name = "flux"
-    repo_name = release_name
+    # A second release of a chart (cluster-autoscaler-aws) reuses the HelmRepository of the first one
+    chart = chart_data.get("chart", chart_name)
+    repo_name = chart if chart != chart_name else release_name
     repo_schema = "default"
     repo_username = ""
     repo_password = ""
@@ -1651,17 +1924,22 @@ def upgrade_chart(chart_name, chart_data):
 
     suspended = False
     try:
-        create_default_values(release_name, chart_namespace, default_values_file, provider)
+        if release_name == CLUSTER_AUTOSCALER_AWS_RELEASE:
+            write_cluster_autoscaler_aws_values(default_values_file)
+        else:
+            create_default_values(release_name, chart_namespace, default_values_file, provider)
         if release_name == "cluster-operator":
             update_cluster_operator_image_tag_value(default_values_file, cluster_operator_version)
         elif release_name == "tigera-operator":
             update_tigera_operator_image_tag_value(default_values_file)
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
-        elif release_name == "cluster-autoscaler" and provider == "aws":
-            update_cluster_autoscaler_image_tag_value(default_values_file)
+        elif release_name == "cluster-autoscaler" and provider in ("aws", "azure"):
+            update_cluster_autoscaler_image_tag_value(default_values_file, provider)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
+        elif release_name == "azurefile-csi-driver" and provider == "azure":
+            update_azurefile_csi_driver_image_tag_value(default_values_file)
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
@@ -1693,7 +1971,7 @@ def upgrade_chart(chart_name, chart_data):
 
         helm_release_data = {
             'ReleaseName': release_name,
-            'ChartName': chart_name,
+            'ChartName': chart,
             'ChartNamespace': chart_namespace,
             'ChartVersion': chart_version,
             'ChartRepoRef': repo_name,
@@ -1720,6 +1998,8 @@ def upgrade_chart(chart_name, chart_data):
 
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{kubectl} apply -f {repository_file} --server-side --force-conflicts")
+        # helm-controller uses a Ready HelmChart artifact without checking its version: the index must already list the target chart
+        wait_for_helmrepository_ready(repo_name, "kube-system")
         run_command(f"{kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
         if suspended:
             set_helmrelease_suspend(release_name, chart_namespace, False)
@@ -1727,8 +2007,11 @@ def upgrade_chart(chart_name, chart_data):
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
         if dry_run_leftover_suspend:
             print(f"(HelmRelease {chart_namespace}/{release_name} left suspended by an interrupted run: the real run resumes it, Ready wait skipped) ", end="", flush=True)
+        elif config["dry_run"] and not suspended:
+            print(f"(HelmRelease {chart_namespace}/{release_name} does not exist yet: the real run creates it, Ready wait skipped) ", end="", flush=True)
         elif chart_name != "cluster-operator":
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
+            check_helmrelease_chart_version(release_name, chart_namespace, chart_version)
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
 
         print("OK")
@@ -2808,26 +3091,56 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
     if not live_node_names:
         return  # every Machine is still provisioning — nothing can be judged orphaned yet
 
+    node_output, _ = run_command(
+        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        nodes = json.loads(node_output).get("items", [])
+    except (ValueError, TypeError):
+        return
+    if not nodes:
+        return
+
+    # A mixed 3.5/3.6 etcd can answer members with an empty name (az-5180-a2), so a member is also matched by its peer URL host
+    live_addresses = {
+        a["address"] for obj in machines + nodes for a in obj.get("status", {}).get("addresses") or []
+        if a.get("type") in ("InternalIP", "ExternalIP") and a.get("address")
+    }
+
     running_node = next(
         (m["status"]["nodeRef"]["name"] for m in machines
          if m.get("status", {}).get("phase") == "Running" and m.get("status", {}).get("nodeRef")),
         None
     )
     if running_node:
-        etcdctl = (
-            f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
-            "--endpoints=https://127.0.0.1:2379 "
+        etcdctl_tls = (
             "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
             "--cert=/etc/kubernetes/pki/etcd/server.crt "
             "--key=/etc/kubernetes/pki/etcd/server.key "
         )
+        etcdctl_exec = f"{kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
+        etcdctl = etcdctl_exec + "--endpoints=https://127.0.0.1:2379 " + etcdctl_tls
         member_output, _ = run_command(etcdctl + "member list -w json", allow_errors=True)
         try:
             members = json.loads(member_output).get("members", [])
         except (ValueError, TypeError):
             members = []
         if members:
-            orphans = [m for m in members if m.get("name", "") not in live_node_names]
+            def member_is_healthy(member):
+                # A running member is not an orphan; one that never started (mid-join leak) has no client URL to answer
+                for url in member.get("clientURLs") or []:
+                    out, _ = run_command(etcdctl_exec + f"--endpoints={url} " + etcdctl_tls + "endpoint health --command-timeout=5s", allow_errors=True)
+                    if " is healthy:" in out:
+                        return True
+                return False
+            orphans = [
+                m for m in members
+                if m.get("name", "") not in live_node_names
+                and not {urlparse(u).hostname for u in m.get("peerURLs") or []} & live_addresses
+                and not member_is_healthy(m)
+            ]
+            # A healthy candidate drops out of the list, so its hold restarts if it turns unhealthy later
             confirmed = confirmed_orphans(orphans, lambda m: m["ID"], _orphan_member_first_seen)
             if orphans and not confirmed:
                 print(f"[INFO] {len(orphans)} etcd member(s) with no matching Node — holding until the confirmation window elapses")
@@ -2844,23 +3157,12 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
                     else:
                         print(f"[INFO] Removed orphaned etcd member {member_id}")
 
-    node_output, _ = run_command(
-        f"{kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
-        allow_errors=True
-    )
-    try:
-        nodes = json.loads(node_output).get("items", [])
-    except (ValueError, TypeError):
-        return
-    if not nodes:
-        return
-
-    # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
+    # Only Ready=Unknown (kubelet gone) is an orphan: Ready=False or no Ready condition is a CP still joining.
     orphan_nodes = [
         n for n in nodes
         if n["metadata"]["name"] not in live_node_names
-        and not any(c.get("type") == "Ready" and c.get("status") == "True"
-                    for c in n.get("status", {}).get("conditions", []))
+        and any(c.get("type") == "Ready" and c.get("status") == "Unknown"
+                for c in n.get("status", {}).get("conditions", []))
     ]
     confirmed_nodes = confirmed_orphans(orphan_nodes, lambda n: n["metadata"]["name"], _orphan_node_first_seen)
     if orphan_nodes and not confirmed_nodes:
@@ -3263,43 +3565,69 @@ if __name__ == '__main__':
         command = kubectl + " get ns >/dev/null 2>&1"
         return subprocess.call(command, shell=True) == 0
 
-    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error
-    if not test_kubectl():
-        print("FAILED (attempting kubeconfig refresh)", flush=True)
+    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error.
+    # EKS: a static token (e.g. the create cluster kubeconfig) is refreshed too, since it can expire during the run.
+    kubectl_ok = test_kubectl()
+    static_token = False
+    if provider == "aws" and kubectl_ok:
+        view = subprocess.run(f"kubectl --kubeconfig {kubeconfig} config view --minify --raw -o json",
+                              shell=True, capture_output=True, text=True)
+        users = json.loads(view.stdout).get("users") if view.returncode == 0 and view.stdout.strip() else None
+        user = (users[0].get("user") or {}) if users else {}
+        static_token = "token" in user and "exec" not in user
+    if not kubectl_ok or static_token:
+        print("OK (static token, refreshing kubeconfig)" if kubectl_ok else "FAILED (attempting kubeconfig refresh)", flush=True)
 
         if provider == "aws":
             region = vault_secrets_data['secrets']['aws']['credentials']['region']
+            # kubectl already works: if the refresh cannot replace the kubeconfig, put it back and go on
+            kubeconfig_backup = open(kubeconfig).read() if kubectl_ok else None
+            refresh_error = None
 
             # Try to get cluster name from context or use provided name
             if cluster_name_guess:
                 cluster_name_for_refresh = cluster_name_guess
+            elif kubectl_ok:
+                refresh_error = "cluster name not detected from context"
             else:
                 print("[ERROR] Cannot refresh kubeconfig: cluster name not detected from context")
                 print("[HINT] Ensure your kubeconfig has a valid context set")
                 sys.exit(1)
 
-            refresh_cmd = (
-                f"aws eks update-kubeconfig "
-                f"--name {cluster_name_for_refresh} "
-                f"--region {region} "
-                f"--kubeconfig {kubeconfig}"
-            )
+            if not refresh_error:
+                refresh_cmd = (
+                    f"aws eks update-kubeconfig "
+                    f"--name {cluster_name_for_refresh} "
+                    f"--region {region} "
+                    f"--kubeconfig {kubeconfig}"
+                )
 
-            print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
-            status = subprocess.call(refresh_cmd, shell=True)
+                print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
+                status = subprocess.call(refresh_cmd, shell=True)
 
-            if status != 0:
-                print("[ERROR] Failed to refresh kubeconfig")
-                sys.exit(1)
+                if status != 0:
+                    if not kubectl_ok:
+                        print("[ERROR] Failed to refresh kubeconfig")
+                        sys.exit(1)
+                    refresh_error = "aws eks update-kubeconfig failed"
+                else:
+                    # Rebuild kubectl with refreshed kubeconfig
+                    kubectl = "kubectl --kubeconfig " + kubeconfig
 
-            # Rebuild kubectl with refreshed kubeconfig
-            kubectl = "kubectl --kubeconfig " + kubeconfig
+                    if test_kubectl():
+                        print("OK (kubeconfig refreshed)")
+                    elif not kubectl_ok:
+                        print("[ERROR] kubectl still failing after kubeconfig refresh")
+                        sys.exit(1)
+                    else:
+                        refresh_error = "kubectl fails with the refreshed kubeconfig"
 
-            if not test_kubectl():
-                print("[ERROR] kubectl still failing after kubeconfig refresh")
-                sys.exit(1)
-
-            print("OK (kubeconfig refreshed)")
+            if refresh_error:
+                with open(kubeconfig, "w") as f:
+                    f.write(kubeconfig_backup)
+                print(f"[WARN] Kubeconfig refresh not applied ({refresh_error}): going on with the current kubeconfig. "
+                      f"If it carries a static token, the token can expire during the run (Unauthorized); refresh it and relaunch: "
+                      f"aws eks update-kubeconfig --name {cluster_name_guess or '<cluster>'} --region {region} --kubeconfig {kubeconfig}")
 
         elif provider == "azure":
             print("[ERROR] kubectl access failed")
@@ -3359,7 +3687,7 @@ if __name__ == '__main__':
             print("[ERROR] kubectl access failed and auto-refresh not supported for this provider")
             sys.exit(1)
     else:
-        print("OK")
+        print("OK (no static token, kubeconfig kept)" if provider == "aws" else "OK")
 
     # Activate CAPG service account and refresh GKE kubeconfig after kubectl validation
     if provider == "gcp":
@@ -3400,6 +3728,13 @@ if __name__ == '__main__':
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
+    # EKS with cluster-autoscaler: a second one with cloudProvider aws scales the MachinePools (installed at the end).
+    # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
+    eks_cluster_autoscaler_aws = provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
+    if eks_cluster_autoscaler_aws:
+        ensure_cluster_autoscaler_aws_iam(config["dry_run"])
+        ensure_imds_allow_cluster_autoscaler_aws(config["dry_run"])
+
     # Setting clusterctl env vars
     env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
 
@@ -3416,6 +3751,8 @@ if __name__ == '__main__':
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
     cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
+    # None on the first run; a relaunch finds it installed
+    cluster_autoscaler_aws_replicas = scale_cluster_autoscaler(0, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE) if eks_cluster_autoscaler_aws else None
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
@@ -3708,6 +4045,17 @@ if __name__ == '__main__':
 
     if provider == "aws":
         ensure_mp_role_name(cluster_name, config["dry_run"])
+
+    if provider == "azure":
+        pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, config["dry_run"])
+
+    # Last, with the cluster at its target version: the CA aws image is built for Kubernetes 1.35
+    if eks_cluster_autoscaler_aws:
+        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools):", end=" ", flush=True)
+        upgrade_chart(CLUSTER_AUTOSCALER_AWS_RELEASE, dict(common_charts["cluster-autoscaler"], chart="cluster-autoscaler", release_name=CLUSTER_AUTOSCALER_AWS_RELEASE))
+        if cluster_autoscaler_aws_replicas is not None:
+            # helm keeps the replicas scaled to 0 at start when the chart and values are unchanged
+            scale_cluster_autoscaler(cluster_autoscaler_aws_replicas or 2, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
