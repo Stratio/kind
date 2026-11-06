@@ -375,6 +375,40 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         except Exception as e:
             print(f"WARN ({e}) — continuing without CRD update")
 
+def wait_for_helmrepository_ready(repo_name, namespace, timeout_seconds=300):
+    '''Wait until source-controller has reconciled the latest HelmRepository spec (e.g. a new URL) and it is Ready'''
+
+    if S.config["dry_run"]:
+        return
+    # An OCI HelmRepository has no index and reports no status: the HelmChart pulls the version itself
+    repo_type, _ = run_command(f"{S.kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.spec.type}}'", allow_errors=True)
+    if repo_type.strip() == "oci":
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{S.kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 3 and fields[0] == fields[1] and fields[2] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRepository {namespace}/{repo_name} not Ready with its latest spec after {timeout_seconds}s (generation/observedGeneration/Ready: {output})")
+        time.sleep(3)
+
+def check_helmrelease_chart_version(release_name, namespace, chart_version, timeout_seconds=900):
+    '''Wait until the release Flux installed is the target chart version and Ready (a Ready read right after the apply can be the previous one)'''
+
+    if S.config["dry_run"]:
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{S.kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.status.history[0].chartVersion}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 2 and fields[0] == chart_version and fields[1] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRelease {namespace}/{release_name} not Ready with chart {chart_version} after {timeout_seconds}s (installed chart, Ready: {output})")
+        time.sleep(5)
+
 def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
     '''Wait for a HelmRelease to report Ready=True, raising with the real status on failure'''
 
@@ -579,12 +613,15 @@ def upgrade_chart(chart_name, chart_data):
 
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{S.kubectl} apply -f {repository_file} --server-side --force-conflicts")
+        # helm-controller uses a Ready HelmChart artifact without checking its version: the index must already list the target chart
+        wait_for_helmrepository_ready(repo_name, "kube-system")
         run_command(f"{S.kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
         release_applied = True
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
         if chart_name != "cluster-operator":
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
+            check_helmrelease_chart_version(release_name, chart_namespace, chart_version)
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
 
         print("OK")
