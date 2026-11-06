@@ -178,6 +178,26 @@ def wait_helmrelease_ready(release, namespace, timeout=300):
     raise Exception(f"HelmRelease {release} not Ready after {timeout}s")
 
 
+def set_helmrelease_suspend(release, namespace, suspend):
+    '''Suspend/resume a HelmRelease. After suspending, wait until helm-controller has observed it, so no reconcile started before is still in flight'''
+    patch = json.dumps({"spec": {"suspend": suspend}})
+    run_command(f"{kubectl} patch helmrelease {release} -n {namespace} --type merge -p '{patch}'")
+    if not suspend:
+        return
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        out, _ = run_command(
+            f"{kubectl} get helmrelease {release} -n {namespace} "
+            f"-o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}}'",
+            allow_errors=True
+        )
+        generations = out.split()
+        if len(generations) == 2 and generations[0] == generations[1]:
+            return
+        time.sleep(2)
+    print(f"(HelmRelease {namespace}/{release} suspend not observed after 120s: helm-controller not reconciling) ", end="", flush=True)
+
+
 def wait_keoscluster_provisioned(timeout=300):
     print("[INFO] Waiting for KeosCluster Provisioned", end=" ", flush=True)
     run_command(
@@ -282,30 +302,39 @@ def restore(backup_dir):
             run_command(f"{kubectl} apply -f {crd_file}")
             print("OK")
 
-    print("[INFO] Restoring cluster-operator ConfigMap", end=" ", flush=True)
-    run_command(f"{kubectl} apply -f {os.path.join(backup_dir, 'configmap-default-values.json')}")
+    # Suspended while values and version change: a reconcile in between would run the new chart with the old tag
+    print("[INFO] Suspending HelmRelease cluster-operator", end=" ", flush=True)
+    set_helmrelease_suspend("cluster-operator", "kube-system", True)
     print("OK")
+    try:
+        print("[INFO] Restoring cluster-operator ConfigMap", end=" ", flush=True)
+        run_command(f"{kubectl} apply -f {os.path.join(backup_dir, 'configmap-default-values.json')}")
+        print("OK")
 
-    print(f"[INFO] Restoring KeosCluster.spec.helm_repository.url to {state['keoscluster_helm_repository_url']}", end=" ", flush=True)
-    run_command(
-        f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} --type=json "
-        f"-p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{state['keoscluster_helm_repository_url']}\"}}]'"
-    )
-    print("OK")
+        print(f"[INFO] Restoring KeosCluster.spec.helm_repository.url to {state['keoscluster_helm_repository_url']}", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} --type=json "
+            f"-p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{state['keoscluster_helm_repository_url']}\"}}]'"
+        )
+        print("OK")
 
-    print(f"[INFO] Restoring HelmRepository keos url to {state['helmrepository_keos_url']}", end=" ", flush=True)
-    run_command(
-        f"{kubectl} patch helmrepository keos -n kube-system --type=merge "
-        f"-p '{{\"spec\":{{\"url\":\"{state['helmrepository_keos_url']}\"}}}}'"
-    )
-    print("OK")
+        print(f"[INFO] Restoring HelmRepository keos url to {state['helmrepository_keos_url']}", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch helmrepository keos -n kube-system --type=merge "
+            f"-p '{{\"spec\":{{\"url\":\"{state['helmrepository_keos_url']}\"}}}}'"
+        )
+        print("OK")
 
-    print(f"[INFO] Restoring HelmRelease cluster-operator chart version to {state['cluster_operator_version']}", end=" ", flush=True)
-    run_command(
-        f"{kubectl} patch helmrelease cluster-operator -n kube-system --type=merge "
-        f"-p '{{\"spec\":{{\"chart\":{{\"spec\":{{\"version\":\"{state['cluster_operator_version']}\"}}}}}}}}'"
-    )
-    print("OK")
+        print(f"[INFO] Restoring HelmRelease cluster-operator chart version to {state['cluster_operator_version']}", end=" ", flush=True)
+        run_command(
+            f"{kubectl} patch helmrelease cluster-operator -n kube-system --type=merge "
+            f"-p '{{\"spec\":{{\"chart\":{{\"spec\":{{\"version\":\"{state['cluster_operator_version']}\"}}}}}}}}'"
+        )
+        print("OK")
+    finally:
+        print("[INFO] Resuming HelmRelease cluster-operator", end=" ", flush=True)
+        set_helmrelease_suspend("cluster-operator", "kube-system", False)
+        print("OK")
 
     print("[INFO] Forcing HelmRelease reconciliation", end=" ", flush=True)
     ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -410,33 +439,42 @@ def run(new_co_version, helm_registry_override=None):
         else:
             print("OK")
 
-        print("[INFO] Updating cluster-operator image tag in ConfigMap", end=" ", flush=True)
-        cm["data"]["values.yaml"] = cm["data"]["values.yaml"].replace(
-            f"tag: {old_version}", f"tag: {new_co_version}"
-        )
-        apply_configmap(cm)
+        # Suspended while values and version change: a reconcile in between would run the old chart with the new tag
+        print("[INFO] Suspending HelmRelease cluster-operator", end=" ", flush=True)
+        set_helmrelease_suspend("cluster-operator", "kube-system", True)
         print("OK")
+        try:
+            print("[INFO] Updating cluster-operator image tag in ConfigMap", end=" ", flush=True)
+            cm["data"]["values.yaml"] = cm["data"]["values.yaml"].replace(
+                f"tag: {old_version}", f"tag: {new_co_version}"
+            )
+            apply_configmap(cm)
+            print("OK")
 
-        print(f"[INFO] Patching KeosCluster helm_repository.url to {helm_repo_url}", end=" ", flush=True)
-        run_command(
-            f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} "
-            f"--type=json -p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{helm_repo_url}\"}}]'"
-        )
-        print("OK")
+            print(f"[INFO] Patching KeosCluster helm_repository.url to {helm_repo_url}", end=" ", flush=True)
+            run_command(
+                f"{kubectl} patch keoscluster {kc_name} -n {kc_ns} "
+                f"--type=json -p '[{{\"op\":\"replace\",\"path\":\"/spec/helm_repository/url\",\"value\":\"{helm_repo_url}\"}}]'"
+            )
+            print("OK")
 
-        print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
-        run_command(
-            f"{kubectl} patch helmrepository keos -n kube-system "
-            f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
-        )
-        print("OK")
+            print("[INFO] Patching HelmRepository keos url", end=" ", flush=True)
+            run_command(
+                f"{kubectl} patch helmrepository keos -n kube-system "
+                f"--type=merge -p '{{\"spec\":{{\"url\":\"{helm_repo_url}\"}}}}'"
+            )
+            print("OK")
 
-        print("[INFO] Patching HelmRelease cluster-operator chart version", end=" ", flush=True)
-        run_command(
-            f"{kubectl} patch helmrelease cluster-operator -n kube-system "
-            f"--type=merge -p '{{\"spec\":{{\"chart\":{{\"spec\":{{\"version\":\"{new_co_version}\"}}}}}}}}'"
-        )
-        print("OK")
+            print("[INFO] Patching HelmRelease cluster-operator chart version", end=" ", flush=True)
+            run_command(
+                f"{kubectl} patch helmrelease cluster-operator -n kube-system "
+                f"--type=merge -p '{{\"spec\":{{\"chart\":{{\"spec\":{{\"version\":\"{new_co_version}\"}}}}}}}}'"
+            )
+            print("OK")
+        finally:
+            print("[INFO] Resuming HelmRelease cluster-operator", end=" ", flush=True)
+            set_helmrelease_suspend("cluster-operator", "kube-system", False)
+            print("OK")
 
         print("[INFO] Forcing HelmRelease reconciliation", end=" ", flush=True)
         ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
