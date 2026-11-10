@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## 0.9.9 (upcoming)
 
 * [PLT-5180] cluster-autoscaler on Kubernetes 1.35 is the upstream image again, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`
-  (with a private registry `<keos_registry>/autoscaling/cluster-autoscaler`, under `k8s/` with ECR pull-through), on `create cluster` and
+  (with a private registry the mirrored copy `<keos_registry>/autoscaling/cluster-autoscaler`), on `create cluster` and
   in `upgrade-provisioner.py`: v1.35.3 carries the kubernetes/autoscaler#9693 scale-down fix for AWSManagedMachinePool, so the Stratio
   build `stratio/cluster-autoscaler:v1.35.2-0.1` is no longer used.
 * [PLT-5180] `upgrade-provisioner.py` (EKS): the second cluster-autoscaler instance (`cluster-autoscaler-aws`) is installed with

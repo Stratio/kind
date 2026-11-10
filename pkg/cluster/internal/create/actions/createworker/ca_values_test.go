@@ -39,7 +39,7 @@ func TestClusterAutoscalerValuesPerMinor(t *testing.T) {
 		{"32", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.32.7", "clusterapi"},
 		{"34", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/autoscaling/cluster-autoscaler", "v1.34.5", "clusterapi"},
 		{"35", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
-		{"35", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/k8s/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
+		{"35", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
 		{"35", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/autoscaling/cluster-autoscaler", "v1.35.3", "clusterapi"},
 		{"35", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.35.3", "clusterapi"},
 	}
