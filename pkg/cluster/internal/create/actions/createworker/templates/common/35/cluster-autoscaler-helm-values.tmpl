@@ -17,12 +17,8 @@ cloudProvider: aws
 cloudProvider: clusterapi
 {{- end }}
 
+# Upstream CA of the same minor as the cluster (v1.35.3 carries kubernetes/autoscaler#9693, the AWSManagedMachinePool scale-down fix)
 image:
-{{- if or $eks $.Private }}
-  repository: {{ $.KeosRegUrl }}/stratio/cluster-autoscaler
-  tag: v1.35.2-0.1
-{{- else }}
-  repository: registry.k8s.io/autoscaling/cluster-autoscaler
-  tag: v1.35.2
-{{- end }}
+  repository: {{ if $.Private }}{{ $.KeosRegUrl }}{{ if $.CentralECR }}/k8s{{ end }}{{ else }}registry.k8s.io{{ end }}/autoscaling/cluster-autoscaler
+  tag: v1.35.3
 replicaCount: 2

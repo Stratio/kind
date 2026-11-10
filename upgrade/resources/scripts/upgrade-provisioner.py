@@ -113,17 +113,11 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# Pinned on AWS, and on Azure with a private registry (one image, as create cluster 1.35). Official CA images hit "unknown machine for node" on scale-down for
-# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
-# fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
-# The -0.1 suffix marks the Stratio build with every cloud provider (aws for EKS, clusterapi for Azure); the bare v1.35.2 on registry.k8s.io lacks the fix.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-0.1"
-# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
-# Azure without a private registry: upstream image, as create cluster 1.35
-# (no MachinePools there, so the #9693 fix is not needed).
-CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
-CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.35.2"
+# Upstream cluster-autoscaler of the target minor, as create cluster 1.35 (v1.35.3 carries kubernetes/autoscaler#9693,
+# the AWSManagedMachinePool scale-down fix). Private registry: "<keos_registry>/autoscaling/cluster-autoscaler" (under k8s/ with ECR pull-through).
+CLUSTER_AUTOSCALER_VERSION = "v1.35.3"
+CLUSTER_AUTOSCALER_REPOSITORY = "autoscaling/cluster-autoscaler"
+CLUSTER_AUTOSCALER_UPSTREAM_REGISTRY = "registry.k8s.io"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
@@ -696,7 +690,8 @@ def write_cluster_autoscaler_aws_values(values_file):
             "tags": ["k8s.io/cluster-autoscaler/enabled", f"k8s.io/cluster-autoscaler/{name}"],
         },
         "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
-        "replicaCount": 2,
+        # Installed but not running: the two instances cannot coexist (known issue), MachinePools are not used on upgraded clusters yet
+        "replicaCount": 0,
         # The chart grants get/update only on the lease "cluster-autoscaler" and the ConfigMap "cluster-autoscaler-status", both used by the clusterapi CA
         "extraArgs": {
             "leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE,
@@ -716,7 +711,7 @@ def write_cluster_autoscaler_aws_values(values_file):
     }
     with open(values_file, 'w') as file:
         yaml.safe_dump(values, file, default_flow_style=False)
-    update_cluster_autoscaler_image_tag_value(values_file, "aws")
+    update_cluster_autoscaler_image_tag_value(values_file)
 
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
@@ -1444,24 +1439,23 @@ def update_flux_image_tag_values(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def update_cluster_autoscaler_image_tag_value(values_file, provider):
-    '''Set the cluster-autoscaler image as create cluster 1.35 does. EKS, and Azure with a private registry: the MP
-    scale-down fix build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left
-    (also with ECR pull-through). Azure without a private registry: the upstream image.'''
+def update_cluster_autoscaler_image_tag_value(values_file):
+    '''Set the cluster-autoscaler image as create cluster 1.35 does: the upstream image of the target minor, from the
+    keos registry with a private registry (under k8s/ with ECR pull-through), from registry.k8s.io otherwise,
+    whatever create_default_values() left.'''
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        if provider == "aws" or is_private_registry_enabled(cluster_config):
-            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-            registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
-            if registry_url:
-                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        image['tag'] = CLUSTER_AUTOSCALER_VERSION
+        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+        if is_private_registry_enabled(cluster_config) and registry_url:
+            prefix = "k8s/" if is_ecr_pull_through_enabled(keos_cluster) else ""
+            image['repository'] = f"{registry_url}/{prefix}{CLUSTER_AUTOSCALER_REPOSITORY}"
         else:
-            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
-            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
+            image['repository'] = f"{CLUSTER_AUTOSCALER_UPSTREAM_REGISTRY}/{CLUSTER_AUTOSCALER_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
@@ -1935,7 +1929,7 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
         elif release_name == "cluster-autoscaler" and provider in ("aws", "azure"):
-            update_cluster_autoscaler_image_tag_value(default_values_file, provider)
+            update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
         elif release_name == "azurefile-csi-driver" and provider == "azure":
@@ -3728,7 +3722,7 @@ if __name__ == '__main__':
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
-    # EKS with cluster-autoscaler: a second one with cloudProvider aws scales the MachinePools (installed at the end).
+    # EKS with cluster-autoscaler: a second one with cloudProvider aws for the MachinePools (installed at the end with 0 replicas).
     # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
     eks_cluster_autoscaler_aws = provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
     if eks_cluster_autoscaler_aws:
@@ -3751,8 +3745,6 @@ if __name__ == '__main__':
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
     cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
-    # None on the first run; a relaunch finds it installed
-    cluster_autoscaler_aws_replicas = scale_cluster_autoscaler(0, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE) if eks_cluster_autoscaler_aws else None
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
@@ -4049,13 +4041,11 @@ if __name__ == '__main__':
     if provider == "azure":
         pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, config["dry_run"])
 
-    # Last, with the cluster at its target version: the CA aws image is built for Kubernetes 1.35
+    # Last, with the cluster at its target version: the CA aws image is the one of Kubernetes 1.35.
+    # Installed with 0 replicas: it must not run next to the clusterapi instance (known issue) until MachinePools are used.
     if eks_cluster_autoscaler_aws:
-        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools):", end=" ", flush=True)
+        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools, 0 replicas):", end=" ", flush=True)
         upgrade_chart(CLUSTER_AUTOSCALER_AWS_RELEASE, dict(common_charts["cluster-autoscaler"], chart="cluster-autoscaler", release_name=CLUSTER_AUTOSCALER_AWS_RELEASE))
-        if cluster_autoscaler_aws_replicas is not None:
-            # helm keeps the replicas scaled to 0 at start when the chart and values are unchanged
-            scale_cluster_autoscaler(cluster_autoscaler_aws_replicas or 2, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
