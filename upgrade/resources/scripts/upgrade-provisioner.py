@@ -1936,10 +1936,14 @@ def upgrade_chart(chart_name, chart_data):
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
-        # New CRDs first: the target controllers cannot start on the old ones
+        # New CRDs first: the target controllers cannot start on the old ones. Also before the values ConfigMaps and the
+        # HelmRelease are touched: if the chart cannot be pulled, the cluster must stay as it was (a failure after the
+        # ConfigMaps are written resumes the HelmRelease and Flux rolls the old chart with the new values)
         if chart_name == "flux2":
             apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"],
                              values_files=[default_values_file, override_values_file])
+        elif chart_name == "cluster-operator":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
         # Suspended while values and version change: a reconcile in between would run the old chart with the new values
         suspended = helmrelease_exists(release_name, chart_namespace)
         # --dry-run cannot resume a suspend left by an interrupted run, and a suspended HelmRelease never gets Ready
@@ -1973,9 +1977,6 @@ def upgrade_chart(chart_name, chart_data):
             'HelmReleaseRetries': 3,
             'HelmReleaseTimeout': compute_helm_release_timeout()
         }
-
-        if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)

@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
   (with a private registry the mirrored copy `<keos_registry>/autoscaling/cluster-autoscaler`), on `create cluster` and
   in `upgrade-provisioner.py`: v1.35.3 carries the kubernetes/autoscaler#9693 scale-down fix for AWSManagedMachinePool, so the Stratio
   build `stratio/cluster-autoscaler:v1.35.2-0.1` is no longer used.
+* [PLT-5180] `upgrade-provisioner.py`: the cluster-operator chart is pulled (to apply its CRDs) before the values ConfigMaps and the
+  HelmRelease are touched. When the chart version was missing from the Helm repository, the values had already been written with
+  the new image tag and the failure resumed the HelmRelease, so Flux rolled out a cluster-operator pod with an image that does not exist.
 * [PLT-5180] `upgrade-provisioner.py` (EKS): the second cluster-autoscaler instance (`cluster-autoscaler-aws`) is installed with
   `replicaCount: 0`. The two instances cannot run together while the cluster has MachineDeployments (see the known issues page),
   so it stays installed but not running until MachinePools are used.
