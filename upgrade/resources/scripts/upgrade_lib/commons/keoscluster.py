@@ -453,6 +453,10 @@ def restore_keoscluster_webhooks():
     ]
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup:", end =" ", flush=True)
+        if S.config["dry_run"]:
+            # The create below is skipped in dry-run, so the existence check would fail on a cluster whose webhooks were removed by an interrupted run.
+            print(f"\n[DRY-RUN] would restore the webhooks from {backup_file}")
+            return
         _, err = run_command(f"{S.kubectl} create -f {backup_file}", allow_errors=True)
         if err and "AlreadyExists" not in err:
             raise Exception(f"Failed to restore webhooks from backup: {err}")

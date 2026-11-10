@@ -271,6 +271,24 @@ def update_flux_values(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def ensure_flux_migrate_serviceaccount(namespace):
+    '''The flux2 chart's pre-upgrade migrate Job runs as ServiceAccount kustomize-controller, created only with kustomizeController.create=true
+    (2.18.4 templates/pre-upgrade-migrate-resources.yaml). Create it when missing; the chart's CRD ClusterRoleBinding already names it. True if created here.'''
+
+    existing, _ = run_command(f"{S.kubectl} -n {namespace} get serviceaccount kustomize-controller --ignore-not-found -o name")
+    if existing.strip():
+        return False
+    print(f"(ServiceAccount {namespace}/kustomize-controller missing, created for the flux migrate hook) ", end="", flush=True)
+    run_command(f"{S.kubectl} -n {namespace} create serviceaccount kustomize-controller")
+    return True
+
+def remove_flux_migrate_serviceaccount(namespace):
+    '''Remove the ServiceAccount made by ensure_flux_migrate_serviceaccount unless a kustomize-controller Deployment now uses it.'''
+
+    deployed, _ = run_command(f"{S.kubectl} -n {namespace} get deployment kustomize-controller --ignore-not-found -o name")
+    if not deployed.strip():
+        run_command(f"{S.kubectl} -n {namespace} delete serviceaccount kustomize-controller --ignore-not-found")
+
 def update_tigera_operator_image_tag_value(values_file):
     '''Update tigera-operator calicoctl/controller image tags. Currently match the chart's
     own defaults exactly (verified live via `helm pull`) — kept as explicit pins so a future
@@ -620,6 +638,7 @@ def upgrade_chart(chart_name, chart_data):
     release_applied = False
     suspended = False
     dry_run_leftover_suspend = False
+    flux_migrate_sa_created = False
 
     # Cleanup function for temp files
     def cleanup_temp_files():
@@ -719,6 +738,8 @@ def upgrade_chart(chart_name, chart_data):
         run_command(f"{S.kubectl} apply -f {repository_file} --server-side --force-conflicts")
         # helm-controller uses a Ready HelmChart artifact without checking its version: the index must already list the target chart
         wait_for_helmrepository_ready(repo_name, "kube-system")
+        if release_name == "flux":
+            flux_migrate_sa_created = ensure_flux_migrate_serviceaccount(chart_namespace)
         run_command(f"{S.kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
         release_applied = True
         if suspended:
@@ -732,6 +753,8 @@ def upgrade_chart(chart_name, chart_data):
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
             check_helmrelease_chart_version(release_name, chart_namespace, chart_version)
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
+            if flux_migrate_sa_created:
+                remove_flux_migrate_serviceaccount(chart_namespace)
 
         print("OK")
 
