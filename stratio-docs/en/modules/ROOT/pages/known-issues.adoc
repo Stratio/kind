@@ -19,4 +19,4 @@ Este problema tiene estas consecuencias:
 
 El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ a la vez. Un _cluster_ creado con la versión 0.9 no está afectado: solo tiene _MachinePools_ y un único _cluster-autoscaler_.
 
-Mientras no haya una solución, las dos instancias de _cluster-autoscaler_ no pueden convivir: no crees _MachinePools_ en un _cluster_ actualizado a 0.9. Ten en cuenta que _cluster-operator_ 0.7.6 crea como _MachinePool_ cualquier grupo de _workers_ nuevo que no indique `node_image`.
+Las dos instancias de _cluster-autoscaler_ no pueden convivir: un _cluster_ actualizado a 0.9 que conserva sus _MachineDeployments_ no está preparado para tener _MachinePools_ a la vez. Ten en cuenta que un grupo de _workers_ nuevo sin `node_image` se crea como _MachinePool_.
