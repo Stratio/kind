@@ -132,6 +132,8 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   --kubeconfig /upgrade/.kube/config
 ----
 
+NOTE: Si el _cluster_ se creó con `role_arn`, el usuario de la clave de acceso de _secrets.yml_ no tiene acceso al _cluster_ y los comandos `kubectl` siguen fallando con el mismo error. En ese caso, lanza estas comprobaciones con una identidad que tenga acceso al _cluster_.
+
 Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], comprueba en EKS:
 
 * Máquinas en ejecución:
