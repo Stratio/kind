@@ -1,0 +1,20 @@
+= Problemas conocidos
+
+[[eks-doble-escalado-machinedeployments-machinepools]]
+
+== Doble escalado de nodos en EKS con _MachineDeployments_ y _MachinePools_ en el mismo _cluster_
+
+En EKS, los grupos _MachineDeployment_ no tienen imágenes de nodo para las versiones nuevas de Kubernetes, así que hay que migrarlos a _MachinePools_. La actualización a _Stratio Cloud Provisioner_ 0.9 no cambia esos grupos: sus nodos se quedan en la versión 1.32 hasta que los migras.
+
+Mientras dura la migración, el _cluster_ tiene grupos de los dos tipos, y cada tipo lo escala un _cluster-autoscaler_ distinto. Por eso la actualización instala una segunda instancia, `cluster-autoscaler-aws`, que escala los _MachinePools_. La instancia que ya existía sigue escalando los _MachineDeployments_.
+
+Cada instancia gestiona solo sus grupos de nodos, pero las dos reaccionan a los mismos _pods_ pendientes.
+
+El problema aparece cuando el _cluster_ tiene grupos de nodos de los dos tipos. Un _pod_ pendiente que no fija dónde ejecutarse cabe en un nodo de cualquiera de ellos. Los dos _cluster-autoscaler_ añaden nodos para ese mismo _pod_, y el _cluster_ crece más de lo necesario.
+
+Este problema tiene estas consecuencias:
+
+* El _cluster_ arranca más nodos de los que la carga necesita. _Cluster-autoscaler_ los retira después, cuando quedan vacíos, pero mientras tanto generan coste.
+* Los nodos de más consumen direcciones IP de las subredes. Si una subred se queda sin direcciones libres, los _pods_ nuevos se quedan en estado `ContainerCreating`. El error que muestran es `failed to assign an IP address to container`.
+
+El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ a la vez. Un _cluster_ creado con la versión 0.9 no está afectado: solo tiene _MachinePools_ y un único _cluster-autoscaler_.
