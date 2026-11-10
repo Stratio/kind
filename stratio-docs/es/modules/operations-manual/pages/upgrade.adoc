@@ -12,13 +12,16 @@ Esta página reúne lo que es común a los tres entornos:
 
 * Los componentes que se actualizan y sus versiones.
 * Los requisitos comunes.
-* Las opciones del _script_.
+* El uso de la opción `--private`.
+* Las opciones y los _prompts_ del _script_.
+* Las fases del proceso de actualización.
+* La verificación final.
 
 Para ejecutar la actualización, sigue el procedimiento de tu entorno.
 
 IMPORTANT: Antes de empezar, lee completamente esta página y la del procedimiento de tu entorno. Algunos pasos no tienen vuelta atrás, y varias decisiones se toman antes de lanzar el _script_. Si tienes alguna duda, abre una incidencia con el equipo de Platform antes de continuar.
 
-IMPORTANT: Solo se admiten _clusters_ en la versión 1.32. Si tu _cluster_ está en una versión anterior, realiza primero el procedimiento de actualización hasta alcanzar la versión admitida.
+IMPORTANT: Solo se admiten _clusters_ en la versión 1.32 de Kubernetes. Si tu _cluster_ está en una versión anterior, realiza primero el procedimiento de actualización hasta alcanzar la versión admitida.
 
 El _script_ y todas sus dependencias vienen en la imagen de Docker `cloud-provisioner-upgrade:0.9.X`, así que no necesitas instalarlas en tu máquina:
 
@@ -80,7 +83,7 @@ Estos requisitos son los mismos en los tres entornos. Cada procedimiento añade 
 +
 IMPORTANT: El repositorio que hay que verificar *no es necesariamente el que el _cluster_ tiene configurado hoy*. El _script_ pregunta de forma interactiva si quieres indicar uno nuevo (consulta los <<_prompts_interactivos, _prompts_ interactivos>>); si respondes con uno distinto, ese pasa a ser el repositorio que se utiliza durante toda la actualización, incluido el _chart_ de _cluster-operator_. Verifica el _chart_ en el repositorio que realmente vayas a usar en esta ejecución.
 +
-Cuando llega el turno del _chart_ de _cluster-operator_, el _script_ lo descarga (`helm pull`) desde ese repositorio para aplicar sus CRD (si el _chart_ las incluye). Si el _chart_ no incluye CRD, el _script_ continúa sin problema; lo que detiene la actualización en este paso es que la descarga falle (_chart_ o versión no encontrados en el repositorio, o credenciales del repositorio no válidas).
+Cuando llega el turno del _chart_ de _cluster-operator_, el _script_ lo descarga (`helm pull`) desde ese repositorio para aplicar sus CRD (si el _chart_ las incluye). Si el _chart_ no incluye CRD, el _script_ continúa sin problema; lo que detiene la actualización en este paso es que la descarga falle (_chart_ o versión no encontrados en el repositorio, o credenciales del repositorio no válidas). El _script_ descarga igual el _chart_ de flux2: desde ese repositorio en modo privado y, si no, desde su repositorio público.
 
 * Funcionales:
 +
@@ -325,8 +328,9 @@ Esta sección resume, en orden, las fases por las que pasa el _script_ una vez q
 ** Comprueba la versión de `clusterctl` y que existan los secretos y el _kubeconfig_, y descifra los secretos.
 ** Configura las credenciales del proveedor _cloud_ y comprueba el acceso al _cluster_. En EKS y GKE regenera el _kubeconfig_ si no da acceso.
 ** Ejecuta la comprobación automática de salud (consulta la <<comprobación_automática, comprobación automática>>).
-** Pide la confirmación inicial y el repositorio de Helm (consulta los <<_prompts_interactivos, _prompts_ interactivos>>).
+** Pide la confirmación inicial (consulta los <<_prompts_interactivos, _prompts_ interactivos>>).
 ** En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ si no existe, la asocia a los _roles_ `eks-nodegroup` y `nodes` y permite a sus _pods_ el acceso a IMDS. Si AWS rechaza alguna de esas llamadas, el _script_ se detiene en este paso.
+** Pide el repositorio de Helm.
 
 . *Preactualización*
 ** Escala _cluster-autoscaler_ a 0 para evitar el escalado automático durante la actualización, si está desplegado. En GKE no lo está.
@@ -346,8 +350,8 @@ NOTE: Al actualizar su _chart_, _cluster-autoscaler_ vuelve a 2 réplicas hasta 
 ** Actualiza los _charts_ comunes (cert-manager, cluster-autoscaler, cluster-operator, flux2 y tigera-operator) y los del proveedor: aws-load-balancer-controller en EKS, si está instalado, y azuredisk-csi-driver, azurefile-csi-driver y cloud-provider-azure en Azure VMs (consulta <<_qué_se_actualiza, qué se actualiza>>). Si alguno de estos _charts_ no está en el _cluster_, el _script_ lo omite; por ejemplo, aws-load-balancer-controller, que es opcional en EKS, o _cluster-autoscaler_ si el _cluster_ se creó sin él.
 ** En EKS, y en Azure con registro privado, fija en _cluster-autoscaler_ la imagen propia de Stratio `v1.35.2-0.1`, desde `<registro>/stratio/cluster-autoscaler`. En Azure sin registro privado, fija la imagen de _upstream_ `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
 ** Conserva los valores de _override_ (`ConfigMap` `02-<release>-helm-chart-override-values`) de cada _chart_.
-** Al terminar los _charts_, deshace la exclusión de los _webhooks_ de Capsule.
-** Vuelve a escalar _cluster-autoscaler_ a 0, si está desplegado.
+** Al terminar los _charts_, vuelve a escalar _cluster-autoscaler_ a 0, si está desplegado.
+** Deshace la exclusión de los _webhooks_ de Capsule.
 
 . *Preparación de _cluster-operator_*
 ** Si el `HelmRelease` de _cluster-operator_ quedó suspendido en una ejecución anterior, lo reanuda. Después, espera hasta 5 minutos a que esté listo.
@@ -368,9 +372,9 @@ clusterctl upgrade apply \
   --wait-providers
 ----
 +
-Se omite si todos los proveedores ya están en su versión de destino. Antes, si cert-manager lo gestiona con Helm, le quita la etiqueta de `clusterctl` para que no lo reemplace. Después, devuelve los _controllers_ de CAPI y del proveedor a 2 réplicas con `priorityClassName: system-node-critical`.
+Se omite si todos los proveedores ya están en su versión de destino. Antes, si cert-manager está gestionado con Helm, le quita la etiqueta de `clusterctl` para que `clusterctl` no lo reemplace. Después, devuelve los _controllers_ de CAPI y del proveedor a 2 réplicas con `priorityClassName: system-node-critical`.
 +
-NOTE: En las VM de Azure, el comando incluye además los parámetros `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos proveedores, pero las VMs de Azure usan `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
+NOTE: En Azure VMs, el comando incluye además los parámetros `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos proveedores, pero Azure VMs usa `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
 
 . *Actualización de la versión de Kubernetes*: cada entorno la realiza de forma distinta. Consulta el apartado "Antes de empezar" del procedimiento de tu entorno.
 
