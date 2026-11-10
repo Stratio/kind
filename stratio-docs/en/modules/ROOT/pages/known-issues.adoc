@@ -18,3 +18,5 @@ Este problema tiene estas consecuencias:
 * Los nodos de más consumen direcciones IP de las subredes. Si una subred se queda sin direcciones libres, los _pods_ nuevos se quedan en estado `ContainerCreating`. El error que muestran es `failed to assign an IP address to container`.
 
 El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ a la vez. Un _cluster_ creado con la versión 0.9 no está afectado: solo tiene _MachinePools_ y un único _cluster-autoscaler_.
+
+Mientras no haya una solución, las dos instancias de _cluster-autoscaler_ no pueden convivir: no crees _MachinePools_ en un _cluster_ actualizado a 0.9. Ten en cuenta que _cluster-operator_ 0.7.6 crea como _MachinePool_ cualquier grupo de _workers_ nuevo que no indique `node_image`.
