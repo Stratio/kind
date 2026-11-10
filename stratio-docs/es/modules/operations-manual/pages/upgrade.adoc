@@ -8,16 +8,9 @@ El _script_ `upgrade-provisioner.py` automatiza la actualización de _clusters_ 
 * *Azure VMs* (no gestionado)
 * *GKE* en GCP (gestionado)
 
-Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.9.X` a la proporcionada por `cloud-provisioner 0.10.X`: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
+Permite actualizar la versión del _cluster_ de Kubernetes de la instalada con `cloud-provisioner 0.9.X` a la proporcionada por `cloud-provisioner 0.10.X`: 1.37 en EKS, en Azure VMs y en GKE.
 
 IMPORTANT: Solo se admiten _clusters_ en la versión `1.35` cuyos proveedores de Cluster API ya estén migrados a `v1beta2` con <<upgrade_providers, `upgrade-providers.py`>>. El _script_ lo comprueba al arrancar, antes de cambiar nada. Exige el núcleo de Cluster API en v1.13.0 o posterior y cada proveedor exactamente en su versión de destino. Si no es así, se detiene.
-
-NOTE: En GKE, el destino es 1.36 porque Google solo ofrece 1.37 en el _release channel_ `RAPID`, que _Stratio Cloud Provisioner_ no admite. Compruébalo con:
-
-[source,bash]
-----
-gcloud container get-server-config --zone=<zona> --format=json | jq -c '[.channels[]|{c:.channel, v137:[.validVersions[]|select(startswith("1.37"))]}]'
-----
 
 Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Docker `cloud-provisioner-upgrade:0.10.X`, que incluye el _script_ de actualización y todas las dependencias necesarias (Python 3, AWS CLI v2, Azure CLI, Google Cloud SDK, `kubectl`, `helm` y `clusterctl`, entre otras). La ruta completa de descarga depende de dónde esté publicada: en el registro privado ECR/ACR/GAR o en el Nexus de Stratio para trabajo interno. Ver <<_ejecución_del_contenedor_de_actualización, ejecución del contenedor de actualización>>.
 
@@ -38,7 +31,7 @@ Para garantizar un entorno de ejecución reproducible, se ha creado la imagen Do
 *** _azurefile-csi-driver_: `1.35.11`
 *** _cloud-provider-azure_: `1.36.0`
 
-* *Versión de Kubernetes*: 1.37 en EKS y en Azure VMs, y 1.36 en GKE.
+* *Versión de Kubernetes*: 1.37 en EKS, en Azure VMs y en GKE.
 
 Este _script_ no actualiza Cluster API ni sus proveedores: eso lo hace antes `upgrade-providers.py`, que los deja en las versiones de la xref:operations-manual:upgrade-overview/from-0-9-x-to-0-10-x.adoc#components[ficha de la ruta].
 
@@ -678,7 +671,7 @@ Opciones principales:
 
 | `--k8s-version`
 | Versión _minor_ de Kubernetes objetivo para el _bump_ (p. ej. `1.37`). En AWS se aplica como un único _patch_ a `KeosCluster.spec.k8s_version`. Sortea el límite de +1 _minor_ por _patch_ del _webhook_ de `KeosCluster`, porque el _script_ desactiva esos _webhooks_ durante la sección crítica. En Azure VMs y en GKE, el _script_ emite un _patch_ por cada _minor_ intermedio (ver <<_bump_de_k8s_version_en_azure_vms, _bump_ de `k8s_version` en Azure VMs>> y <<_bump_de_k8s_version_en_gke, _bump_ de `k8s_version` en GKE>>). El valor de este _flag_ sigue siendo el _minor_ final, por lo que su uso no cambia.
-| 1.37 en EKS y en Azure VMs, y 1.36 en GKE
+| 1.37
 | No
 
 | `--node-image-map`
@@ -819,7 +812,7 @@ Si el _script_ se interrumpe a mitad de un _bump_ (por ejemplo, si se para el co
 ** Espera a que el _deployment_ `keoscluster-controller-manager` esté en estado `Available`.
 ** En EKS, espera a que todos los _nodegroups_ y todos los nodos lleguen al _minor_ de destino. Obtiene los _nodegroups_ de los `AWSManagedMachinePool` del _cluster_, así que no necesita el permiso `eks:ListNodegroups`.
 ** En Azure VMs, cambia la imagen de `cloudControllerManager`/`cloudNodeManager` por la del _minor_ de destino.
-** Restaura las réplicas de _cluster-autoscaler_ a 2.
+** Restaura las réplicas de _cluster-autoscaler_ a las que tenía antes de la actualización.
 
 [[_bump_de_k8s_version_en_gke]]
 
