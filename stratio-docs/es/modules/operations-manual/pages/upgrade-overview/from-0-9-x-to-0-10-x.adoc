@@ -4,7 +4,7 @@ Esta ficha resume el impacto de actualizar _Stratio Cloud Provisioner_ de 0.9.x 
 
 Cada sección responde a una pregunta y enlaza con la página que detalla el procedimiento. Cuando llegues a la ventana de intervención, sigue el xref:operations-manual:upgrade.adoc[procedimiento de actualización] paso a paso.
 
-IMPORTANT: Esta ruta tiene *dos ejecuciones de _script_*. Primero, `upgrade-providers.py` migra Cluster API, sus proveedores y _cluster-operator_ a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` de la 0.10.x actualiza el resto de componentes y la versión de Kubernetes. La versión de destino es 1.37 en EKS y en Azure VMs, y 1.36 en GKE. Las secciones siguientes describen el primer paso, y el segundo tiene su propia sección en <<step2, Segundo paso>>.
+IMPORTANT: Esta ruta tiene *dos ejecuciones de _script_*. Primero, `upgrade-providers.py` migra Cluster API, sus proveedores y _cluster-operator_ a la API `v1beta2` sin cambiar la versión de Kubernetes. Después, `upgrade-provisioner.py` de la 0.10.x actualiza el resto de componentes y la versión de Kubernetes. La versión de destino es 1.37 en EKS, en Azure VMs y en GKE. Las secciones siguientes describen el primer paso, y el segundo tiene su propia sección en <<step2, Segundo paso>>.
 
 [#summary]
 
@@ -233,7 +233,7 @@ El segundo paso actualiza los _charts_ del _cluster_ y la versión de Kubernetes
 | Pregunta | Respuesta | Detalle
 
 | ¿A qué versión de Kubernetes llega?
-| *1.37 en EKS y en Azure VMs, y 1.36 en GKE.* En GKE, Google solo ofrece 1.37 en el _release channel_ `RAPID`, que _Stratio Cloud Provisioner_ no admite.
+| *1.37 en EKS, en Azure VMs y en GKE.*
 | <<step2-providers, Diferencias por proveedor>>
 
 | ¿Cuánta parada hay en el peor caso?

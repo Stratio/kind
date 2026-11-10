@@ -94,7 +94,10 @@ kubectl get nodes
 kubectl get machines -A
 ----
 +
-*Expected output:* all with `PHASE = Running`.
+*Expected output:*
++
+*** All with `PHASE = Running`.
+*** En EKS, con todos los grupos de trabajo _MachinePool_, la lista sale vacía (`No resources found`).
 
 ** _MachineDeployments_:
 +
