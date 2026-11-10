@@ -118,7 +118,6 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 # never behind the k8s/ ECR pull-through prefix.
 CLUSTER_AUTOSCALER_VERSION = "v1.35.3"
 CLUSTER_AUTOSCALER_REPOSITORY = "autoscaling/cluster-autoscaler"
-CLUSTER_AUTOSCALER_UPSTREAM_REGISTRY = "registry.k8s.io"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
@@ -1455,7 +1454,7 @@ def update_cluster_autoscaler_image_tag_value(values_file):
         if is_private_registry_enabled(cluster_config) and registry_url:
             image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_REPOSITORY}"
         else:
-            image['repository'] = f"{CLUSTER_AUTOSCALER_UPSTREAM_REGISTRY}/{CLUSTER_AUTOSCALER_REPOSITORY}"
+            image['repository'] = f"registry.k8s.io/{CLUSTER_AUTOSCALER_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
