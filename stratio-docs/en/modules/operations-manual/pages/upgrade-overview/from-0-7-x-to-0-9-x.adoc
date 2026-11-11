@@ -78,8 +78,6 @@ The upgrade is only supported in three environments, and any other combination o
 * *Azure VMs* on Microsoft Azure, with an unmanaged _control-plane_. Microsoft AKS is not supported.
 * *GKE* on Google Cloud Platform, with a managed _control-plane_.
 
-Migrating `MachineDeployment` node groups to `MachinePool` is outside the scope of this sheet; it is a separate, assisted operation exclusive to EKS and occurs after this upgrade. See the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
-
 [#components]
 
 === Components and upgrade order
@@ -104,7 +102,7 @@ The upgrade runs a single execution of `upgrade-provisioner.py`, which processes
 
 | 3
 | Kubernetes
-| The _control-plane_ and the worker node groups, from version 1.32 to 1.35. On EKS, `MachineDeployment` groups stay on 1.32 until they are migrated to `MachinePool`.
+| The _control-plane_ and the worker node groups, from version 1.32 to 1.35. On EKS, `MachineDeployment` groups stay on 1.32.
 | The _control-plane_ etcd, only on Azure VMs. On EKS and on GKE, it belongs to the provider.
 | It goes at the end because it is executed by the components of the two previous blocks: `cluster-operator` translates the `k8s_version` change, and Cluster API replaces the machines.
 |===
@@ -141,7 +139,7 @@ Target versions of 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| On EKS, and on Azure with a private registry, with the proprietary Stratio image `v1.35.2-0.1`, from `<registry>/stratio/cluster-autoscaler`. On Azure without a private registry, with the upstream image `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`. On EKS, a second instance, `cluster-autoscaler-aws`, also scales the _MachinePools_.
+| On EKS and on Azure, with the upstream image `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` without a private registry and `<registry>/autoscaling/cluster-autoscaler` with a private registry. On EKS, a second instance, `cluster-autoscaler-aws`, is also installed, with 0 replicas.
 
 | aws-load-balancer-controller
 | 3.4.0
@@ -230,10 +228,6 @@ Upgrade the platform in this order: first _Stratio Cloud Provisioner_ in its own
 | The _control-plane_ and the worker nodes on different Kubernetes versions
 | Yes
 | Up to 3 minor versions of difference and never with the workers ahead, according to the _Version Skew Policy_. This is a transient state during the upgrade: the _control-plane_ goes up first, and the node groups follow, one by one.
-
-| `MachineDeployment` and `MachinePool` groups on the same cluster
-| Yes, on EKS
-| A descriptor can combine both group types. What there is not is automatic migration from one to the other: see <<regressions, Regressions to expect>>.
 
 | Charts already upgraded with Cluster API still on their previous version
 | Yes, transiently
@@ -366,7 +360,7 @@ The following steps constitute the sequence of a single execution of `upgrade-pr
 
 | 8
 | Closure
-| The `cluster-operator` webhooks are reactivated, its controller is started, and its reconciliation is resumed. The critical section ends. Autoscaling returns to the replicas it had at the start, or to 2 if it was at 0. On EKS, `mp_role_name` is set if empty and, with _cluster-autoscaler_, the second instance, `cluster-autoscaler-aws`, is installed. On Azure VMs, cloud-provider-azure moves to the image of the final Kubernetes version.
+| The `cluster-operator` webhooks are reactivated, its controller is started, and its reconciliation is resumed. The critical section ends. Autoscaling returns to the replicas it had at the start, or to 2 if it was at 0. On EKS, `mp_role_name` is set if empty and, with _cluster-autoscaler_, the second instance, `cluster-autoscaler-aws`, is installed with 0 replicas. On Azure VMs, cloud-provider-azure moves to the image of the final Kubernetes version.
 | Pending
 | None
 | No
@@ -579,11 +573,6 @@ None of these regressions block the upgrade, but they do affect specific functio
 | Enable them explicitly in the cluster descriptor if you need them.
 | They are not deployed, even if the Calico chart brings them.
 
-| The node groups remain `MachineDeployment` on EKS
-| EKS-managed node groups are only created on new clusters; the upgrade does not convert existing groups.
-| Migrating them is a separate, assisted, phased operation, subsequent to this upgrade: see the xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_].
-| The existing groups continue to work as self-managed instances.
-
 | Autoscaling does not return on its own if the upgrade aborts
 | The script turns it off at the start and restores it in the closure step, which is not executed if the script aborts before.
 | Return it to its replicas by hand and check that the deployment is available again.
@@ -607,7 +596,7 @@ No installation verification page exists, so this table serves as the closure cr
 
 | 2
 | The nodes
-| All report the target version, except those in `MachineDeployment` groups on EKS, which stay on 1.32 until they migrate to `MachinePool`. None are out of `Ready`, and each group has the configured number of nodes.
+| All report the target version, except those in `MachineDeployment` groups on EKS, which stay on 1.32. None are out of `Ready`, and each group has the configured number of nodes.
 | Yes
 
 | 3
@@ -674,10 +663,6 @@ These tasks remain pending after the window:
 | Save the backup directory
 | Keep it outside the upgrade container, which is ephemeral.
 | Nothing immediate, but the copy of the infrastructure objects prior to the intervention is lost.
-
-| Migrate the node groups to managed groups on EKS
-| Follow the assisted migration procedure subsequent to this upgrade.
-| The existing groups remain self-managed instances.
 
 | Upgrade the data modules
 | Each one according to its own sheet, after _Stratio KEOS_.
@@ -764,12 +749,7 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | Modifying the `KeosCluster` with `kubectl apply`
 | At any time, also outside the window
 | Do not do it: `cluster-operator` detects the annotation that `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
-| xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[EKS clusters with _MachinePools_]
-
-| The scale-down of cluster-autoscaler on managed EKS groups
-| After the window, when retiring nodes from a managed group
-| Nothing: the cluster-autoscaler image is pinned precisely to avoid the problem. It is a known and accepted risk until the fix is published.
-| Issue `kubernetes/autoscaler#9693`
+| -
 
 | On Azure, the expired kubeconfig aborts the execution
 | In step 2

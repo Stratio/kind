@@ -11,8 +11,8 @@ On EKS, the upgrade changes the following:
 
 * The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated] table.
 * The version of the _control-plane_, from 1.32 to 1.35. The script changes `KeosCluster.spec.k8s_version` only once, and CAPA raises the EKS _control-plane_ minor by minor up to 1.35.
-* Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced. To raise their version, migrate them to _MachinePool_ after the upgrade (see the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>).
-* Con _cluster-autoscaler_, la política IAM de _cluster-autoscaler_ en los _roles_ `eks-nodegroup` y `nodes`, y una segunda instancia, `cluster-autoscaler-aws`, que escala los _MachinePool_. La instancia existente sigue escalando los grupos _MachineDeployment_.
+* Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced.
+* Con _cluster-autoscaler_, la política IAM de _cluster-autoscaler_ en los _roles_ `eks-nodegroup` y `nodes`, y una segunda instancia, `cluster-autoscaler-aws`, instalada con 0 réplicas. La instancia existente sigue escalando los grupos _MachineDeployment_.
 
 IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow you to return to a previous version.
 
@@ -23,7 +23,7 @@ On EKS, the upgrade image includes three scripts. They are run in this order:
 | Script | What it does | When to use it
 
 | `ecr_pull_through.py`
-| Updates _cluster-operator_ and enables `ecr_pull_through_cache_enabled` on an existing cluster. It does not change any image.
+| Updates _cluster-operator_ and enables `ecr_pull_through_cache_enabled` on an existing cluster. It does not change the images of the other components.
 | Only if the cache is enabled, before `upgrade-provisioner.py`.
 
 | `upgrade-provisioner.py`
@@ -32,7 +32,7 @@ On EKS, the upgrade image includes three scripts. They are run in this order:
 
 | `activate-capa-machinepool-features.py`
 | Checks, without changing anything, that _cluster-operator_, CAPA, and their feature gates allow using _MachinePool_. It does not modify CAPA: `upgrade-provisioner.py` enables the feature gates on reinstalling CAPA, and a manual change would be lost on the next upgrade.
-| Before migrating groups to _MachinePool_, after the upgrade.
+| Always, after `upgrade-provisioner.py`.
 |===
 
 == Requirements
@@ -54,7 +54,7 @@ Before starting, check the permissions of each identity:
 
 * *User who runs the upgrade scripts*: the identity of _secrets.yml_ (the access key or, if it exists, the `role_arn`). It needs the permissions of xref:attachment$stratio-eks-policy.json[`stratio-eks-policy.json`] and xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`], the same as in the installation.
 * *User who runs `clusterawsadm`* to update the CloudFormation stack: the user of the _secrets.yml_ access key, also if `role_arn` exists, because `aws-secrets-exec.py` does not assume the role. It needs the permissions of xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`].
-* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files: they are added to the stack in the sections on migration to ECR pull-through cache and _MachinePools_. `upgrade-provisioner.py` attaches the cluster-autoscaler policy, outside the stack.
+* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files: they are added to the stack in the <<actualizacion_stack_iam, IAM stack update>>. `upgrade-provisioner.py` attaches the cluster-autoscaler policy, outside the stack.
 
 IMPORTANT: All these permissions are blocking. Some are applied when needed, but have everything ready before you start: the permissions of these identities and the independent IAM policy for the `eks-nodegroup` role. This way, you won't need to stop the upgrade midway to request them.
 
@@ -78,6 +78,7 @@ Make sure the working directory includes the following elements. Only what is mo
 * `secrets.yml`: credentials of the cluster.
 * `.kube/config`: kubeconfig file of the cluster.
 * `backup/`: directory for backups (can be empty at the start).
+* `keos.yaml`: fichero _keos.yaml_ que usa _Stratio KEOS_.
 
 === Running the container
 
@@ -132,7 +133,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   --kubeconfig /upgrade/.kube/config
 ----
 
-NOTE: Si el _cluster_ se creó con `role_arn`, el usuario de la clave de acceso de _secrets.yml_ no tiene acceso al _cluster_ y los comandos `kubectl` siguen fallando con el mismo error. En ese caso, lanza estas comprobaciones con una identidad que tenga acceso al _cluster_.
+NOTE: Si el _cluster_ se creó con `role_arn`, el usuario de la clave de acceso de _secrets.yml_ no tiene acceso al _cluster_ y los comandos `kubectl` siguen fallando con el mismo error. En ese caso, lanza los comandos `kubectl` de este procedimiento con una identidad que tenga acceso al _cluster_.
 
 In addition to the functional checks of the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], check on EKS:
 
@@ -396,7 +397,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 
 *Expected output:*
 
-* First command: the version of `--cluster-operator` and `True`, for example, `0.7.5 True`.
+* First command: the version of `--cluster-operator` and `True`, for example, `0.7.6 True`.
 * Second command: `true`.
 
 [#ecr_pull_through_objeto_keos]
@@ -457,7 +458,7 @@ In the dry run, the script asks for the Helm repository: press Enter to keep the
 * At the start: "[INFO] Mode: DRY-RUN (no changes will be applied)".
 * At the end: "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: DRY-RUN (no changes were applied)".
 
-If any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the real upgrade.
+If any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the real upgrade. La excepción es "[WARN] ENIConfig <nombre> has a stale security group … — fixing": el _dry-run_ no lo corrige y lo corrige la ejecución real.
 
 == Running `upgrade-provisioner.py`
 
@@ -513,7 +514,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 +
 NOTE: During the `k8s_version` change, the `capa-controller-manager` logs may transiently show the message "InvalidParameterException: Addon version specified is not supported" when updating the EKS addons (for example, `coredns` or `kube-proxy`). It is only a problem if it appears after the upgrade finishes.
 +
-*Expected output:* the _MachineDeployment_ groups remain on 1.32 in the `VERSION` column: they don't change until they are migrated to _MachinePool_, and this isn't an upgrade failure.
+*Expected output:* the _MachineDeployment_ groups remain on 1.32 in the `VERSION` column: the upgrade doesn't change them, and this isn't a failure.
 +
 NOTE: If the CAPA logs show any error other than the transient ones in the previous note, review it before continuing.
 
@@ -525,182 +526,24 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Expected output:* `<registry>/stratio/cluster-autoscaler:v1.35.2-0.1` in the pods of both instances (`cluster-autoscaler` and `cluster-autoscaler-aws`), the proprietary Stratio image with the fix for the scale-down of _MachinePool_ nodes (https://github.com/kubernetes/autoscaler/pull/9693[kubernetes/autoscaler#9693]).
+*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.3` in the pods of the `cluster-autoscaler` instance (`<registry>/k8s/autoscaling/cluster-autoscaler:v1.35.3` with ECR pull-through cache; `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3` without a private registry). The `cluster-autoscaler-aws` instance has no pods: it is installed with 0 replicas.
 
-== Post-upgrade tasks
+== Comprobación de la preparación para _MachinePool_
 
-After the upgrade, only one task remains: moving the _MachineDeployment_ groups to _MachinePool_.
-
-[#_clusters_eks_con_machinepools]
-
-=== Move to _MachinePools_
-
-NOTE: With this version, the worker groups without `node_image` are created as _MachinePool_. The _MachineDeployment_ groups of an upgraded cluster are not automatically migrated; follow the <<_migration_of_machinedeployments_to_machinepools, migration of _MachineDeployments_ to _MachinePools_>>.
-
-==== Migration of _MachineDeployments_ to _MachinePools_
-
-Migrating an existing worker group from _MachineDeployment_ to _MachinePool_ has three parts: confirming the cluster meets the prerequisites, configuring the fixed IAM role required for _MachinePools_, and migrating each node group manually.
-
-===== Prerequisites
-
-The cluster needs:
-
-* _cluster-operator_ 0.7.0 or later and CAPA v2.9.3 or later (if not, first run `upgrade-provisioner.py`).
-* `KeosCluster.status.ready = true`.
-* The permissions of the <<_permissions, Permissions>> section: those of `stratio-eks-policy.json` and `stratio-aws-temp-policy.json` of this version for the deployment user.
-
-To confirm the first two points at once, run this script (read-only; it does not update or create anything) in the same upgrade container where `upgrade-provisioner.py` was run:
+Después de las comprobaciones posteriores, ejecuta este _script_ en el mismo contenedor. Es de solo lectura y comprueba que el _cluster_ queda listo para usar grupos _MachinePool_:
 
 [source,bash]
 ----
-python3 activate-capa-machinepool-features.py \
-  -p <vault-password> \
-  2>&1 | tee /upgrade/backup/activate-mp-$(date +%Y%m%d-%H%M%S).log
+python3 activate-capa-machinepool-features.py -p <vault-password> 2>&1 | tee /upgrade/backup/activate-mp-$(date +%Y%m%d-%H%M%S).log
 ----
 
-*Expected output on completion:* `PREPARATION COMPLETE` and `cluster-operator/CAPA versions and CAPA feature gates verified.`
+El _script_ comprueba que _cluster-operator_ está en la versión 0.7.0 o posterior, que CAPA está en la versión v2.9.3 o posterior, que `KeosCluster.status.ready` es `true` y que los _feature gates_ `MachinePool` y `EKSAllowAddRoles` de CAPA están activos.
 
-In addition to the versions and `KeosCluster.status.ready`, the script checks that the CAPA feature gates (`MachinePool=true` and `EKSAllowAddRoles=true`) are already enabled. It does not enable them itself: `upgrade-provisioner.py` does that on reinstalling CAPA through `clusterctl upgrade apply`. If the version check or the feature gates check fails, the script indicates that `upgrade-provisioner.py` must be run first. If the cluster has already gone through this upgrade, running it is only a quick confirmation, not an essential step.
+*Salida esperada al terminar:* "PREPARATION COMPLETE", "cluster-operator/CAPA versions and CAPA feature gates verified." y "RESULT: OK".
 
-IMPORTANT: If `upgrade-provisioner.py` has just been run, do not assume that `KeosCluster.status.ready` is already `true` just because the script ended with `Upgrade process finished successfully`. Check the actual value (`python3 aws-secrets-exec.py -p <vault-password> -- kubectl get keoscluster -A`, expecting `PHASE: Provisioned` and `READY: true`) before continuing.
+Si alguna comprobación falla, el _script_ termina con un `[ERROR]` sin mostrar "PREPARATION COMPLETE": revisa la ejecución de `upgrade-provisioner.py`.
 
-===== Configure the fixed IAM role for the _MachinePools_
-
-So that all _MachinePool_ nodes use the same IAM role and the same permissions, `upgrade-provisioner.py` sets `spec.control_plane.aws.mp_role_name` to `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` if that role exists and the field is empty. Check it:
-
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl get keoscluster <cluster-name> -n cluster-<cluster-name> \
-  -o jsonpath='{.spec.control_plane.aws.mp_role_name}{"\n"}'
-----
-
-*Expected output:* `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`.
-
-NOTE: _cluster-operator_ solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` en `mp_role_name`. Si el campo tiene otro _role_, rechaza cualquier cambio del `KeosCluster`.
-
-If it comes out empty, `upgrade-provisioner.py` could not set it; look for its `[WARN]` in the execution log. As an alternative solution, set it manually:
-
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl patch keoscluster <cluster-name> -n cluster-<cluster-name> --type=merge \
-  -p '{"spec":{"control_plane":{"aws":{"mp_role_name":"eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"}}}}'
-----
-
-With the ECR pull-through cache, the _MachinePool_ nodes use the ECR policy added in the <<actualizacion_stack_iam, update of the IAM stack>>.
-
-===== Migrate a node group
-
-These steps migrate a group, with example commands. Adapt them to each group's configuration, then repeat for each group you migrate. The order is always: create the _MachinePool_ group, validate that it works, and then remove the _MachineDeployment_.
-
-[IMPORTANT]
-====
-The command in step 1 is only an example with the minimum fields. Do that step manually, starting from the entry where the _MachineDeployment_ group is replaced, so the new group keeps its configuration (`labels`, `taints`, and so on). The fields that a _MachinePool_ group accepts are found in xref:operations-manual:installation.adoc#_nodos_worker[Worker nodes]. Look at the current entry:
-
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
-  -o jsonpath='{.spec.worker_nodes[<position>]}{"\n"}'
-----
-
-Copy its fields to the new group, with another name and without `node_image`. The change can also be made manually by editing the `KeosCluster` object:
-
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> edit keoscluster <cluster-name>
-----
-
-====
-
-. Add the new _MachinePool_ group to the `KeosCluster` object. Omit `node_image` and specify `ami_type` optionally (by default, `BOTTLEROCKET_x86_64`):
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> \
-  --type=json \
-  -p '[{"op":"add","path":"/spec/worker_nodes/-","value":{"name":"<name>","size":"<size>","quantity":<n>,"az":"<az>","min_size":<min>,"max_size":<max>}}]'
-----
-+
-NOTE: Always use `kubectl patch` on the `KeosCluster`, never `kubectl apply`.
-+
-WARNING: `spec.worker_nodes[].name` (`<name>` in the command) accepts between 3 and 25 characters (`KeosCluster` webhook) and must be unique. *Do not add the `-mp` or `-md` suffix*: _cluster-operator_ automatically adds `-mp-<index>` (or `-md-<index>` on _MachineDeployment_) to the name given.
-
-. Wait for the new group to be ready:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> get machinepool | grep <name>-mp-
-----
-+
-*Expected output:* all `<name>-mp-<index>` _MachinePools_ of the group with `PHASE` in `Running`.
-
-. Identify the actual nodes of the _MachineDeployment_ that will be replaced and drain them one by one, verifying the cluster state between each one:
-+
-IMPORTANT: The `cluster.x-k8s.io/deployment-name` label is on the `Machine` object (CAPI), not on the Kubernetes `Node`, so `kubectl get nodes -l cluster.x-k8s.io/deployment-name=...` does not return anything by default. Obtain the actual `Node` name through the `Machine`:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> get machine -l cluster.x-k8s.io/deployment-name=<name>-md-<index> \
-  -o jsonpath='{.items[*].status.nodeRef.name}'
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --timeout=10m
-----
-
-. Check that the workloads work on the new nodes:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl get pods -A -o wide | grep -Ev "Running|Completed"
-----
-+
-*Expected output:* only the header. The pods on the drained nodes are in the `Running` state in the _MachinePool_ group.
-+
-[WARNING]
-====
-Don't delete the _MachineDeployment_ group if you detect any problems with the new group or its workloads. To go back, enable its nodes again:
-
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl uncordon <node>
-----
-
-====
-
-. Remove the _MachineDeployment_ group from `spec.worker_nodes`. Find its position in the list (starting at 0):
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> get keoscluster <cluster-name> \
-  -o jsonpath='{range .spec.worker_nodes[*]}{.name}{"\n"}{end}' | grep -v '^\[INFO\]' | nl -v0
-----
-+
-And delete it:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> patch keoscluster <cluster-name> --type=json \
-  -p '[{"op":"remove","path":"/spec/worker_nodes/<position>"}]'
-----
-+
-_cluster-operator_ deletes its _MachineDeployments_ and templates and waits for the machines to disappear. Check it:
-+
-[source,bash]
-----
-python3 aws-secrets-exec.py -p <vault-password> -- \
-  kubectl -n cluster-<cluster-name> get machinedeployment | grep <name>-md-
-----
-+
-*Expected output:* nothing.
+IMPORTANT: Antes de crear un grupo _MachinePool_ en un _cluster_ actualizado, consulta el xref:ROOT:known-issues.adoc#eks-doble-escalado-machinedeployments-machinepools[problema conocido del doble escalado en EKS].
 
 == Troubleshooting
 

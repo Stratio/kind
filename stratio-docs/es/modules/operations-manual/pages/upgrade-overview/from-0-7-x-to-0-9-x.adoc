@@ -78,8 +78,6 @@ La actualización solo está admitida en tres entornos, y cualquier otra combina
 * *Azure VMs* en Microsoft Azure, con _control-plane_ no gestionado. Microsoft AKS no está admitido.
 * *GKE* en Google Cloud Platform, con _control-plane_ gestionado.
 
-Queda fuera de esta ficha la migración de grupos de nodos `MachineDeployment` a `MachinePool`, que es una operación distinta, asistida, exclusiva de EKS y posterior a esta actualización: consulta los xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
-
 [#components]
 
 === Componentes y orden de actualización
@@ -104,7 +102,7 @@ La actualización consiste en una única ejecución de `upgrade-provisioner.py`,
 
 | 3
 | Kubernetes
-| El _control-plane_ y los grupos de nodos _worker_, de la versión 1.32 a la 1.35. En EKS, los grupos `MachineDeployment` se quedan en la 1.32 hasta que se migran a `MachinePool`.
+| El _control-plane_ y los grupos de nodos _worker_, de la versión 1.32 a la 1.35. En EKS, los grupos `MachineDeployment` se quedan en la 1.32.
 | El etcd del _control-plane_, solo en las VMs de Azure. En EKS y en GKE es del proveedor.
 | Va al final porque lo ejecutan los componentes de los dos bloques anteriores: `cluster-operator` traduce el cambio de `k8s_version` y Cluster API reemplaza las máquinas.
 |===
@@ -141,7 +139,7 @@ Versiones de destino de la 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| En EKS, y en Azure con registro privado, con la imagen propia de Stratio `v1.35.2-0.1`, desde `<registro>/stratio/cluster-autoscaler`. En Azure sin registro privado, con la imagen de _upstream_ `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`. En EKS, además, una segunda instancia, `cluster-autoscaler-aws`, escala los _MachinePool_.
+| En EKS y en Azure, con la imagen de _upstream_ `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` sin registro privado y `<registro>/autoscaling/cluster-autoscaler` con registro privado. En EKS, además, se instala una segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas.
 
 | aws-load-balancer-controller
 | 3.4.0
@@ -230,10 +228,6 @@ Actualiza la plataforma en este orden: primero _Stratio Cloud Provisioner_, en s
 | El _control-plane_ y los nodos _worker_ en versiones distintas de Kubernetes
 | Sí
 | Hasta 3 versiones menores de diferencia y nunca con los _workers_ por delante, según la _Version Skew Policy_. Es un estado transitorio de la propia actualización: el _control-plane_ sube primero y los grupos de nodos van después, uno a uno.
-
-| Grupos `MachineDeployment` y `MachinePool` en el mismo _cluster_
-| Sí, en EKS
-| Un descriptor puede combinar ambos tipos de grupo. Lo que no hay es migración automática de uno a otro: consulta <<regressions, Regresiones que hay que esperar>>.
 
 | _Charts_ ya actualizados con Cluster API todavía en su versión anterior
 | Sí, transitoriamente
@@ -366,7 +360,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 8
 | Cierre
-| Se reactivan los _webhooks_ de `cluster-operator`, se inicia su _controller_ y se reanuda su reconciliación. Termina la sección crítica. El autoescalado vuelve a las réplicas que tenía al empezar, o a 2 si estaba en 0. En EKS, se fija `mp_role_name` si está vacío y, con _cluster-autoscaler_, se instala la segunda instancia, `cluster-autoscaler-aws`. En Azure VMs, cloud-provider-azure pasa a la imagen de la versión final de Kubernetes.
+| Se reactivan los _webhooks_ de `cluster-operator`, se inicia su _controller_ y se reanuda su reconciliación. Termina la sección crítica. El autoescalado vuelve a las réplicas que tenía al empezar, o a 2 si estaba en 0. En EKS, se fija `mp_role_name` si está vacío y, con _cluster-autoscaler_, se instala la segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas. En Azure VMs, cloud-provider-azure pasa a la imagen de la versión final de Kubernetes.
 | Pendiente
 | Ninguna
 | No
@@ -579,11 +573,6 @@ Ninguna de estas regresiones bloquea la actualización, pero sí afecta a funcio
 | Habilítalos explícitamente en el descriptor del _cluster_ si los necesitas.
 | No están desplegados, aunque el _chart_ de Calico los traiga.
 
-| Los grupos de nodos siguen siendo `MachineDeployment` en EKS
-| Los grupos gestionados por EKS solo se crean en _clusters_ nuevos: la actualización no convierte los grupos existentes.
-| Migrarlos es una operación aparte, asistida y por fases, posterior a esta actualización: consulta los xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_clusters_ EKS con _MachinePools_].
-| Los grupos existentes siguen funcionando como instancias autogestionadas.
-
 | El autoescalado no vuelve solo si la actualización aborta
 | El _script_ lo apaga al inicio y lo restaura en el paso de cierre, que no se ejecuta si el _script_ se aborta antes.
 | Devuélvelo a sus réplicas a mano y comprueba que el _deployment_ vuelve a estar disponible.
@@ -607,7 +596,7 @@ No hay una página de verificación de la instalación a la que remitir, por lo 
 
 | 2
 | Los nodos
-| Todos informan de la versión de destino, salvo en EKS los de los grupos `MachineDeployment`, que siguen en la 1.32 hasta que se migran a `MachinePool`. Ninguno queda fuera de `Ready` y el número de nodos de cada grupo es el configurado.
+| Todos informan de la versión de destino, salvo en EKS los de los grupos `MachineDeployment`, que siguen en la 1.32. Ninguno queda fuera de `Ready` y el número de nodos de cada grupo es el configurado.
 | Sí
 
 | 3
@@ -674,10 +663,6 @@ Estas tareas quedan pendientes tras la ventana:
 | Guardar el directorio de la copia de seguridad
 | Conservarlo fuera del contenedor de actualización, que es efímero.
 | Nada de inmediato, pero se pierde la copia de los objetos de infraestructura previa a la intervención.
-
-| Migrar los grupos de nodos a grupos gestionados, en EKS
-| Seguir el procedimiento de migración asistida posterior a esta actualización.
-| Los grupos existentes siguen siendo instancias autogestionadas.
 
 | Actualizar los módulos de datos
 | Cada uno según su propia ficha, después de _Stratio KEOS_.
@@ -764,12 +749,7 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | Modificar el `KeosCluster` con `kubectl apply`
 | En cualquier momento, también fuera de la ventana
 | No lo hagas: `cluster-operator` detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
-| xref:operations-manual:upgrade/aws-eks.adoc#_clusters_eks_con_machinepools[_Clusters_ EKS con _MachinePools_]
-
-| El _scale-down_ de cluster-autoscaler sobre grupos gestionados de EKS
-| Después de la ventana, al retirar nodos de un grupo gestionado
-| Nada: la imagen de cluster-autoscaler está fijada precisamente para evitar el problema. Es un riesgo conocido y aceptado hasta que se publique la corrección.
-| Incidencia `kubernetes/autoscaler#9693`
+| -
 
 | En Azure, el _kubeconfig_ caducado aborta la ejecución
 | En el paso 2

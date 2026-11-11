@@ -21,7 +21,7 @@ To run the upgrade, follow the environment's procedure.
 
 IMPORTANT: Before starting, read this page and the environment's procedure page completely. Some steps cannot be undone, and you make several decisions before launching the script. If there is any doubt, open a ticket with the Platform team before continuing.
 
-IMPORTANT: Only Kubernetes 1.32 clusters are supported. If the cluster is on an earlier version, first run the upgrade procedure until you reach the supported version.
+IMPORTANT: Only Kubernetes 1.32 clusters are supported. If the cluster is on an earlier version, first run the corresponding upgrade procedure until you reach the supported version.
 
 The script and all its dependencies come in the `cloud-provisioner-upgrade:0.9.X` Docker image, so they do not need to be installed on the machine:
 
@@ -83,7 +83,7 @@ These requirements are the same in the three environments. Each procedure adds i
 +
 IMPORTANT: The repository to be verified *is not necessarily the one that the cluster has configured today*. The script asks interactively whether to indicate a new one (see <<_interactive_prompts, interactive prompts>>); if you answer differently, that becomes the repository used for the entire upgrade, including the _cluster-operator_ chart. Verify the chart in the repository used for this execution.
 +
-When it is the turn of the _cluster-operator_ chart, the script downloads it (`helm pull`) from that repository to apply its CRDs (if the chart includes them). If the chart does not include CRDs, the script continues without issue; the upgrade stops at this step only if the download fails (chart or version not found in the repository, or invalid repository credentials). El _script_ descarga igual el _chart_ de flux2: desde ese repositorio en modo privado y, si no, desde su repositorio público.
+When it is the turn of the _cluster-operator_ chart, the script downloads it (`helm pull`) from that repository to apply its CRDs (if the chart includes them). Lo descarga antes de cambiar sus valores y su `HelmRelease`: si la descarga falla, _cluster-operator_ se queda como estaba. El _dry-run_ no hace esta descarga, así que no la comprueba. If the chart does not include CRDs, the script continues without issue; the upgrade stops at this step only if the download fails (chart or version not found in the repository, or invalid repository credentials). El _script_ descarga igual el _chart_ de flux2: desde ese repositorio en modo privado y, si no, desde su repositorio público.
 
 * Functional:
 +
@@ -316,7 +316,7 @@ The script may ask for up to three keyboard confirmations, in this order. In `--
 . *Helm repository*: right after. It shows the repository configured in `KeosCluster.spec.helm_repository.url` and lets you specify a new one. Press Enter to keep the current one. *It cannot be skipped*: it is always asked, even with `-y`.
 . *`k8s_version` bump* (only if `KeosCluster.spec.k8s_version` is going to change): it appears when reaching the Kubernetes upgrade, when the charts and Cluster API are already updated. It asks for explicit `[y/N]` confirmation before applying the patch. The uppercase `N` indicates the default answer: if you press Enter without entering anything, the answer is "no". The answers do not distinguish between upper and lower case (`y`, `yes`, `n`, `no`). Answering `n` or leaving it blank cancels only this step (the rest of the upgrade continues). It is skipped with `--start-from-k8s-version`. On Azure VMs, the image map is validated before this question: if it is incorrect, the script aborts, even if `n` is answered.
 +
-To stop the upgrade at this point, answer `n`: the script restores the `KeosCluster` webhooks, starts its controller, resumes the `HelmRelease`, waits for the `KeosCluster` to be ready, returns _cluster-autoscaler_ to the replicas it had at the start, and ends, without changing the Kubernetes version. You can change the version later in another execution. *Do not use `Ctrl+C` on this question*: the script is inside the critical section, and its recovery is not run, so the `KeosCluster` webhooks would be left disabled and the `HelmRelease` would be left suspended.
+To stop the upgrade at this point, answer `n`: the script restores the `KeosCluster` webhooks, starts its controller, resumes the `HelmRelease`, waits for the `KeosCluster` to be ready, returns _cluster-autoscaler_ to the replicas it had at the start, hace el resto de la posactualización de tu entorno (en EKS, `mp_role_name` y `cluster-autoscaler-aws` con 0 réplicas; en Azure VMs, la imagen de cloud-provider-azure), and ends, without changing the Kubernetes version. You can change the version later in another execution. *Do not use `Ctrl+C` on this question*: the script is inside the critical section, and its recovery is not run, so the `KeosCluster` webhooks would be left disabled and the `HelmRelease` would be left suspended.
 
 WARNING: If a different Helm repository is indicated, the script saves it in `KeosCluster.spec.helm_repository.url` and in the `keos` `HelmRepository`, and uses it for the _cluster-operator_ chart and, if it is a private repository, for the rest of the charts. Change this value only if the new repository publishes the same Universe of versions (`kubernetes-universe`) that corresponds to this version of _Stratio Cloud Provisioner_; a repository from a different Universe may resolve versions of charts that are incompatible with each other.
 
@@ -329,7 +329,7 @@ This section summarizes, in order, the phases the script goes through when run. 
 ** Configures the cloud provider credentials and checks access to the cluster. On EKS and GKE, it regenerates the kubeconfig if it does not grant access.
 ** Runs the automatic health check (see the <<automatic_check, automatic check>>).
 ** Asks for the initial confirmation (see the <<_interactive_prompts, interactive prompts>>).
-** En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ si no existe, la asocia a los _roles_ `eks-nodegroup` y `nodes` y permite a sus _pods_ el acceso a IMDS. Si AWS rechaza alguna de esas llamadas, el _script_ se detiene en este paso.
+** En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ si no existe, la asocia a los _roles_ `eks-nodegroup` y `nodes` y permite a sus _pods_ el acceso a IMDS. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa. Cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS detiene el _script_ en este paso.
 ** Asks for the Helm repository.
 
 . *Pre-upgrade*
@@ -348,7 +348,7 @@ NOTE: On updating its chart, _cluster-autoscaler_ returns to 2 replicas until th
 
 . *Chart upgrade*
 ** Updates the common charts (cert-manager, cluster-autoscaler, cluster-operator, flux2, and tigera-operator) and those of the provider: aws-load-balancer-controller on EKS, if it is installed, and azuredisk-csi-driver, azurefile-csi-driver, and cloud-provider-azure on Azure VMs (see <<_what_is_updated, what is updated>>). If any of these charts is not in the cluster, the script skips it; for example, aws-load-balancer-controller, which is optional on EKS, or _cluster-autoscaler_ if the cluster was created without it.
-** On EKS, and on Azure with a private registry, sets in _cluster-autoscaler_ the proprietary Stratio image `v1.35.2-0.1`, from `<registry>/stratio/cluster-autoscaler`. On Azure without a private registry, sets the upstream image `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
+** On EKS and on Azure, sets in _cluster-autoscaler_ the upstream image `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` without a private registry and `<registry>/autoscaling/cluster-autoscaler` with a private registry (`<registry>/k8s/autoscaling/cluster-autoscaler` with ECR pull-through cache).
 ** Keeps the override values (`ConfigMap` `02-<release>-helm-chart-override-values`) of each chart.
 ** After the charts complete, it scales _cluster-autoscaler_ back to 0, if it is deployed.
 ** Undoes the exclusion of the Capsule webhooks.
@@ -384,7 +384,7 @@ NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:<
 ** Returns _cluster-autoscaler_ to the replicas it had at the start, or to 2 if it was on 0, if it is deployed.
 ** On EKS, if `spec.control_plane.aws.mp_role_name` is empty and the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role exists, it waits for the `KeosCluster` to be ready and sets that role in the field. If it cannot, it shows a `[WARN]` with the command to fix it manually and ends anyway.
 ** En Azure VMs, fija en cloud-provider-azure (`cloud-controller-manager` y `cloud-node-manager`) la imagen de la versión de Kubernetes que tiene el _cluster_ al terminar, por ejemplo `v1.35.9` en 1.35, y espera a que se despliegue.
-** En EKS con _cluster-autoscaler_, instala al final una segunda instancia, `cluster-autoscaler-aws`, con el proveedor `aws` y 2 réplicas. Esta instancia escala los _MachinePool_; la existente sigue escalando los grupos _MachineDeployment_.
+** En EKS con _cluster-autoscaler_, instala al final una segunda instancia, `cluster-autoscaler-aws`, con el proveedor `aws` y 0 réplicas: queda instalada, pero no se ejecuta. La instancia existente sigue escalando los grupos _MachineDeployment_.
 
 == Final verification
 
