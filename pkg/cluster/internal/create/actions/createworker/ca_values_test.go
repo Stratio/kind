@@ -31,15 +31,21 @@ func TestClusterAutoscalerValuesPerMinor(t *testing.T) {
 		wantTag     string
 		wantCloud   string
 	}{
-		{"35", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, reg + "/stratio/cluster-autoscaler", "v1.35.2-0.1", "aws"},
-		{"35", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/stratio/cluster-autoscaler", "v1.35.2-0.1", "aws"},
-		{"35", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.35.2", "clusterapi"},
-		{"35", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/stratio/cluster-autoscaler", "v1.35.2-0.1", "clusterapi"},
-		{"36", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, reg + "/stratio/cluster-autoscaler", "v1.36.1-0.1", "aws"},
-		{"36", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.36.1", "clusterapi"},
-		{"36", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/stratio/cluster-autoscaler", "v1.36.1-0.1", "clusterapi"},
-		{"37", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/stratio/cluster-autoscaler", "v1.36.1-0.1", "aws"},
-		{"37", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.36.1", "clusterapi"},
+		{"35", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
+		{"35", "EKS private", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true}, reg + "/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
+		{"35", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/k8s/autoscaling/cluster-autoscaler", "v1.35.3", "aws"},
+		{"35", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.35.3", "clusterapi"},
+		{"35", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/autoscaling/cluster-autoscaler", "v1.35.3", "clusterapi"},
+		{"36", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.36.2", "aws"},
+		{"36", "EKS private", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true}, reg + "/autoscaling/cluster-autoscaler", "v1.36.2", "aws"},
+		{"36", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/k8s/autoscaling/cluster-autoscaler", "v1.36.2", "aws"},
+		{"36", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.36.2", "clusterapi"},
+		{"36", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/autoscaling/cluster-autoscaler", "v1.36.2", "clusterapi"},
+		{"37", "EKS public", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.37.0", "aws"},
+		{"37", "EKS private", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true}, reg + "/autoscaling/cluster-autoscaler", "v1.37.0", "aws"},
+		{"37", "EKS private, ECR pull-through", PrivateParams{KeosCluster: eks(), KeosRegUrl: reg, Private: true, CentralECR: true}, reg + "/k8s/autoscaling/cluster-autoscaler", "v1.37.0", "aws"},
+		{"37", "Azure public", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io"}, "registry.k8s.io/autoscaling/cluster-autoscaler", "v1.37.0", "clusterapi"},
+		{"37", "Azure private", PrivateParams{KeosCluster: azure(), KeosRegUrl: "acr.example.io", Private: true}, "acr.example.io/autoscaling/cluster-autoscaler", "v1.37.0", "clusterapi"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.minor+" "+tt.name, func(t *testing.T) {

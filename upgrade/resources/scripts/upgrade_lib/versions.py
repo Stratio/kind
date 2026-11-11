@@ -108,15 +108,10 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# Stratio CA build with every cloud provider (aws for EKS, clusterapi for Azure) and kubernetes/autoscaler#9693, as create cluster
-# 1.36/1.37 sets it: EKS, and Azure with a private registry. Official images hit "unknown machine for node" on scale-down for
-# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups); #9693 is not in any upstream 1.36 release yet.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.36.1-0.1"
-# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
-# Azure without a private registry: upstream image, as create cluster (no MachinePools there, so the #9693 fix is not needed).
-CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
-CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.36.1"
+# Upstream cluster-autoscaler of the target minor, as create cluster (templates/common/<minor>; all three carry kubernetes/autoscaler#9693,
+# the AWSManagedMachinePool scale-down fix). Private registry: "<keos_registry>/autoscaling/cluster-autoscaler", under the k8s/ prefix with ECR pull-through.
+CLUSTER_AUTOSCALER_VERSION_BY_MINOR = {"1.35": "v1.35.3", "1.36": "v1.36.2", "1.37": "v1.37.0"}
+CLUSTER_AUTOSCALER_REPOSITORY = "autoscaling/cluster-autoscaler"
 
 # Azure only: azurefile-csi-driver 1.35.11 images, as create cluster pins them (templates/azure/<minor>/azurefile-csi-driver-helm-values.tmpl);
 # release-1.35 publishes chart 1.35.11 twice with different defaults, so the tags cannot be left to the chart.

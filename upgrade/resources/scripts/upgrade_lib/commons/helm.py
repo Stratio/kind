@@ -11,11 +11,11 @@ import time
 from jinja2 import Template, Environment, FileSystemLoader
 from urllib.parse import urlparse
 from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_enabled, is_private_registry_enabled
-from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
+from upgrade_lib.commons.keoscluster import parse_k8s_minor, wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
 from upgrade_lib.providers.aws import update_cluster_autoscaler_aws_values
 from upgrade_lib.providers.azure import update_azurefile_csi_driver_image_tag_value, update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLOUD_REGISTRY_MARKERS, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY, CLUSTER_AUTOSCALER_UPSTREAM_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLOUD_REGISTRY_MARKERS, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_REPOSITORY, CLUSTER_AUTOSCALER_VERSION_BY_MINOR, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -227,23 +227,26 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Set the cluster-autoscaler image as create cluster 1.36/1.37 does. EKS, and Azure with a private registry: the
-    Stratio all-providers #9693 build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values()
-    left (also with ECR pull-through). Azure without a private registry: the upstream image.'''
+    '''Set the cluster-autoscaler image as create cluster does for the target minor: the upstream image of that minor, from the
+    keos registry with a private registry (under the k8s/ prefix with ECR pull-through), from registry.k8s.io otherwise,
+    whatever create_default_values() left.'''
+
+    target_minor = "%d.%d" % parse_k8s_minor(S.config["k8s_version"])
+    if target_minor not in CLUSTER_AUTOSCALER_VERSION_BY_MINOR:
+        raise Exception(f"No cluster-autoscaler version for Kubernetes {target_minor} in CLUSTER_AUTOSCALER_VERSION_BY_MINOR (upgrade_lib/versions.py)")
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        if S.provider == "aws" or is_private_registry_enabled(S.cluster_config):
-            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-            registry_url = get_keos_registry_url(S.keos_cluster).rstrip("/")
-            if registry_url:
-                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        image['tag'] = CLUSTER_AUTOSCALER_VERSION_BY_MINOR[target_minor]
+        registry_url = get_keos_registry_url(S.keos_cluster).rstrip("/")
+        if is_private_registry_enabled(S.cluster_config) and registry_url:
+            pull_through_prefix = "/k8s" if is_ecr_pull_through_enabled(S.keos_cluster) else ""
+            image['repository'] = f"{registry_url}{pull_through_prefix}/{CLUSTER_AUTOSCALER_REPOSITORY}"
         else:
-            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
-            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
+            image['repository'] = f"registry.k8s.io/{CLUSTER_AUTOSCALER_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
@@ -677,6 +680,10 @@ def upgrade_chart(chart_name, chart_data):
         with open(previous_values_file, 'w') as f:
             f.write(previous_values)
 
+        # Pulled before the HelmRelease is suspended and the values ConfigMaps are written: a missing chart version leaves the cluster as it was
+        if chart_name == "cluster-operator":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"])
+
         # Suspended while values and version change: a reconcile in between would run the old chart with the new values
         suspended = helmrelease_exists(release_name, chart_namespace)
         # --dry-run cannot resume a suspend left by an interrupted run, and a suspended HelmRelease never gets Ready
@@ -716,9 +723,7 @@ def upgrade_chart(chart_name, chart_data):
             'HelmReleaseTimeout': compute_helm_release_timeout()
         }
 
-        if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"])
-        elif chart_name == "tigera-operator":
+        if chart_name == "tigera-operator":
             # Calico >= v3.32 no longer ships its CRDs in this chart (charts/tigera-operator/README.md@v3.32.2)
             apply_chart_crds("crd.projectcalico.org.v1", chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"], rendered=True)
 
