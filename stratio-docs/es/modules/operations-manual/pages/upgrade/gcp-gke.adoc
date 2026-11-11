@@ -294,7 +294,7 @@ Si el _script_ se detiene durante el cambio de versión, el `KeosCluster` se que
 * Si el `KeosCluster` ya está en 1.35, el _script_ solo espera a que los _node pools_ terminen.
 * Si está en un _minor_ intermedio, aplica los pasos que faltan.
 
-Hasta que relances, el `HelmRelease` de _cluster-operator_ queda suspendido y el `KeosCluster` sin sus _webhooks_. El relanzamiento los restaura.
+Si el _script_ falla con un error, la recuperación automática restaura los _webhooks_ del `KeosCluster` y reanuda el `HelmRelease` de _cluster-operator_ antes de abortar. Si el proceso se interrumpe (por ejemplo, porque se detiene el contenedor), los _webhooks_ quedan desactivados y el `HelmRelease` suspendido hasta que relances. El relanzamiento los restaura.
 
 Antes de relanzar, comprueba que el _control-plane_ y todos los _node pools_ están en `RUNNING` y en el mismo _minor_ que el `k8s_version` del `KeosCluster`. Si algún _node pool_ sigue en el _minor_ anterior, espera a que termine: al relanzar, el _script_ pasa al siguiente _minor_ sin esperar a los _node pools_.
 
