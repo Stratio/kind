@@ -132,8 +132,8 @@ Asociadas a los _charts_ que instala _Stratio Cloud Provisioner_ para todos los 
 
 |
 |
-| stratio-releases.repo.stratio.com/autoscaling/cluster-autoscaler
-| v1.35.2-0.1
+| registry.k8s.io/autoscaling/cluster-autoscaler
+| v1.35.3
 
 | *cluster-operator*
 | *0.7.6*
