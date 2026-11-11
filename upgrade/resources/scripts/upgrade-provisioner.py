@@ -114,8 +114,7 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
 ]
 
 # Upstream cluster-autoscaler of the target minor, as create cluster 1.35 (v1.35.3 carries kubernetes/autoscaler#9693,
-# the AWSManagedMachinePool scale-down fix). Private registry: the mirrored copy at "<keos_registry>/autoscaling/cluster-autoscaler",
-# never behind the k8s/ ECR pull-through prefix.
+# the AWSManagedMachinePool scale-down fix). Private registry: "<keos_registry>/autoscaling/cluster-autoscaler", under the k8s/ prefix with ECR pull-through.
 CLUSTER_AUTOSCALER_VERSION = "v1.35.3"
 CLUSTER_AUTOSCALER_REPOSITORY = "autoscaling/cluster-autoscaler"
 
@@ -1441,7 +1440,7 @@ def update_flux_image_tag_values(values_file):
 
 def update_cluster_autoscaler_image_tag_value(values_file):
     '''Set the cluster-autoscaler image as create cluster 1.35 does: the upstream image of the target minor, from the
-    keos registry root with a private registry (never the k8s/ pull-through path), from registry.k8s.io otherwise,
+    keos registry with a private registry (under the k8s/ prefix with ECR pull-through), from registry.k8s.io otherwise,
     whatever create_default_values() left.'''
 
     try:
@@ -1452,7 +1451,8 @@ def update_cluster_autoscaler_image_tag_value(values_file):
         image['tag'] = CLUSTER_AUTOSCALER_VERSION
         registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
         if is_private_registry_enabled(cluster_config) and registry_url:
-            image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_REPOSITORY}"
+            pull_through_prefix = "/k8s" if is_ecr_pull_through_enabled(keos_cluster) else ""
+            image['repository'] = f"{registry_url}{pull_through_prefix}/{CLUSTER_AUTOSCALER_REPOSITORY}"
         else:
             image['repository'] = f"registry.k8s.io/{CLUSTER_AUTOSCALER_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
