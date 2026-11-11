@@ -438,11 +438,11 @@ spec:
 
 NOTE: En EKS, los _MachinePool_ con `min_size` y `max_size` llevan la anotación `cluster.x-k8s.io/replicas-managed-by`, que deja el número de réplicas en manos de _cluster-autoscaler_. No la quites: sin ella, CAPA puede enviar a EKS un número de réplicas desfasado.
 
-NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size` o `max_size` de un grupo _MachinePool_ en estos casos:
+NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quantity` de un grupo _MachinePool_ en estos casos:
 
 * El _nodegroup_ de EKS no está en estado `ACTIVE`, por ejemplo, porque tiene en curso un cambio hecho desde la consola o la CLI de AWS.
 * El tamaño deseado del _nodegroup_ aún no coincide con el de su _Auto Scaling group_. Pasa durante unos minutos tras cada cambio de _cluster-autoscaler_.
-* Con el nuevo `min_size`, algún _nodegroup_ queda con un mínimo por encima de sus nodos actuales o, con el nuevo `max_size`, con un máximo por debajo.
+* Algún _nodegroup_ queda con un mínimo por encima de su número de nodos o con un máximo por debajo. Si cambias `quantity`, ese número es el que fija la nueva `quantity`; si no, el actual.
 * No puede consultar AWS con las credenciales del _cluster_.
 
 En los dos primeros casos, repite el cambio pasados unos minutos.
@@ -479,7 +479,7 @@ En EKS, _cluster-autoscaler_ usa el proveedor `aws`:
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
 ----
 
-En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` escala los _MachinePool_ y la instancia anterior sigue escalando los _MachineDeployment_ con el primer comando.
+En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el primer comando.
 
 === Actualización de Kubernetes
 
