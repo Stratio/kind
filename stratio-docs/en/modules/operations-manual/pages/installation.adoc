@@ -432,11 +432,11 @@ La imagen depende de la versión de Kubernetes del _cluster_ y del registro:
 | `<registro>/autoscaling/cluster-autoscaler:v1.34.5`
 
 | 1.35
-| EKS: `<registro>/stratio/cluster-autoscaler:v1.35.2-0.1`. Azure: `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.2`.
-| `<registro>/stratio/cluster-autoscaler:v1.35.2-0.1`
+| `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`
+| `<registro>/autoscaling/cluster-autoscaler:v1.35.3`
 |===
 
-`<registro>` es el repositorio marcado con _keos++_++registry_. Las imágenes de esa ruta deben estar en él antes de crear el _cluster_. Con ECR _pull-through cache_, en 1.32 y 1.34 la ruta es `<registro>/k8s/autoscaling/cluster-autoscaler`.
+`<registro>` es el repositorio marcado con _keos++_++registry_. Las imágenes de esa ruta deben estar en él antes de crear el _cluster_. Con ECR _pull-through cache_, la ruta es `<registro>/k8s/autoscaling/cluster-autoscaler`.
 
 ==== Prerequisites for `ecr_pull_through_cache_enabled`
 
