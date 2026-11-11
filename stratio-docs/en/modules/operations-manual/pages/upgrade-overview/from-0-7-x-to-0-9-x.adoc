@@ -139,7 +139,7 @@ Target versions of 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| On EKS and on Azure, with the upstream image `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` without a private registry and `<registry>/autoscaling/cluster-autoscaler` with a private registry. On EKS, a second instance, `cluster-autoscaler-aws`, is also installed, with 0 replicas.
+| On EKS and on Azure, with the upstream image `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` without a private registry and `<registry>/autoscaling/cluster-autoscaler` with a private registry (`<registry>/k8s/autoscaling/cluster-autoscaler` with ECR pull-through cache). On EKS, a second instance, `cluster-autoscaler-aws`, is also installed, with 0 replicas.
 
 | aws-load-balancer-controller
 | 3.4.0
@@ -177,7 +177,7 @@ The components that determine the impact of the window are those that cannot be 
 | cluster-autoscaler
 | None.
 | 2 replicas.
-| It is scaled to zero at the start and restored at the end: *there is no autoscaling throughout the entire window*.
+| It is scaled to zero at the start and restored at the end. There is no autoscaling for almost the whole window: it only works while the charts are updated.
 
 | Application volumes
 | Provider disks.
@@ -318,7 +318,7 @@ The following steps constitute the sequence of a single execution of `upgrade-pr
 
 | 2
 | Validation and health checks
-| The script validates `clusterctl`, the kubeconfig, and the secrets, configures the provider CLI, and checks the cluster state. If it finds something, it aborts before touching anything. On EKS, if the `KeosCluster` defines `spec.networks.pods_cidr`, it checks that the `ENIConfig` objects use the cluster security group and, if not, fixes it without stopping; with `--dry-run`, it only warns. On EKS with _cluster-autoscaler_, it creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles; if AWS rejects any of those calls, it stops before changing anything in the cluster.
+| The script validates `clusterctl`, the kubeconfig, and the secrets, configures the provider CLI, and checks the cluster state. If it finds something, it aborts before touching anything. On EKS, if the `KeosCluster` defines `spec.networks.pods_cidr`, it checks that the `ENIConfig` objects use the cluster security group and, if not, fixes it without stopping; with `--dry-run`, it only warns. On EKS with _cluster-autoscaler_, it creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles. If either of the two roles is missing, it shows a `[WARN]` and continues; any other error with the IAM policy or with the IMDS _GlobalNetworkPolicy_ stops it before changing anything in the cluster.
 | Pending
 | None
 | No
@@ -332,7 +332,7 @@ The following steps constitute the sequence of a single execution of `upgrade-pr
 
 | 4
 | Preparation of the environment
-| Autoscaling is turned off (_cluster-autoscaler_ to zero replicas), and the Capsule webhooks are relaxed so that tenant isolation does not block the upgrade. *From here until the end, there is no autoscaling.*
+| Autoscaling is turned off (_cluster-autoscaler_ to zero replicas), and the Capsule webhooks are relaxed so that tenant isolation does not block the upgrade. *From here until the end, there is no autoscaling, except while the charts are updated.*
 | Pending
 | None
 | No
@@ -411,7 +411,7 @@ What changes between environments is not the sequence, but who raises the _contr
 | EKS, on Amazon Web Services
 | Managed by the provider. Its etcd is Amazon Web Services' and is not touched.
 | A single version change is applied, and the provider internally staggers the three minor versions. The wait runs against the EKS API, not the state of the `KeosCluster`, because it passes through "ready" between minor versions.
-| Confirm that the provider supports 1.35, including the cluster addons. Review the `coredns` PDB. With _cluster-autoscaler_, the script creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles with the _secrets.yml_ identity, which also needs the permissions of `stratio-aws-temp-policy.json`. If AWS rejects any of those calls, the script stops with an error before changing the cluster.
+| Confirm that the provider supports 1.35, including the cluster addons. Review the `coredns` PDB. With _cluster-autoscaler_, the script creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles with the _secrets.yml_ identity, which also needs the permissions of `stratio-aws-temp-policy.json`. If either of the two roles is missing, it shows a `[WARN]` and continues; any other error stops it before changing the cluster.
 | The most exercised path.
 
 | Azure VMs, on Microsoft Azure

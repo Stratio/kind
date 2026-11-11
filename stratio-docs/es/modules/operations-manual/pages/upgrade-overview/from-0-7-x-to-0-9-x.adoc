@@ -139,7 +139,7 @@ Versiones de destino de la 0.9.x:
 
 | cluster-autoscaler
 | 9.59.0
-| En EKS y en Azure, con la imagen de _upstream_ `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` sin registro privado y `<registro>/autoscaling/cluster-autoscaler` con registro privado. En EKS, además, se instala una segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas.
+| En EKS y en Azure, con la imagen de _upstream_ `v1.35.3`: `registry.k8s.io/autoscaling/cluster-autoscaler` sin registro privado y `<registro>/autoscaling/cluster-autoscaler` con registro privado (`<registro>/k8s/autoscaling/cluster-autoscaler` con ECR _pull-through cache_). En EKS, además, se instala una segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas.
 
 | aws-load-balancer-controller
 | 3.4.0
@@ -177,7 +177,7 @@ Los componentes que determinan el impacto de la ventana son los que no se pueden
 | cluster-autoscaler
 | Ninguno.
 | 2 réplicas.
-| Se escala a cero al inicio y se restaura al final: *durante toda la ventana no hay autoescalado*.
+| Se escala a cero al inicio y se restaura al final. Durante casi toda la ventana no hay autoescalado: solo funciona mientras se actualizan los _charts_.
 
 | Volúmenes de las aplicaciones
 | Discos del proveedor.
@@ -318,7 +318,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 2
 | Validación y comprobaciones de salud
-| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos; si AWS rechaza alguna de esas llamadas, se detiene antes de cambiar nada en el _cluster_.
+| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS lo detiene antes de cambiar nada en el _cluster_.
 | Pendiente
 | Ninguna
 | No
@@ -332,7 +332,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 4
 | Preparación del entorno
-| El autoescalado se apaga (_cluster-autoscaler_ a cero réplicas) y los _webhooks_ de Capsule se relajan para que el aislamiento de _tenants_ no bloquee la actualización. *A partir de aquí y hasta el final no hay autoescalado.*
+| El autoescalado se apaga (_cluster-autoscaler_ a cero réplicas) y los _webhooks_ de Capsule se relajan para que el aislamiento de _tenants_ no bloquee la actualización. *A partir de aquí y hasta el final no hay autoescalado, salvo mientras se actualizan los _charts_.*
 | Pendiente
 | Ninguna
 | No
@@ -411,7 +411,7 @@ Lo que cambia entre entornos no es la secuencia, sino quién sube el _control-pl
 | EKS, en Amazon Web Services
 | Gestionado por el proveedor. Su etcd es de Amazon Web Services y no se toca.
 | Se aplica un único cambio de versión y el proveedor escalona internamente las tres versiones menores. La espera se realiza contra la API de EKS, no contra el estado del `KeosCluster`, porque este pasa por «listo» entre versiones menores.
-| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos con la identidad de _secrets.yml_, que necesita también los permisos de `stratio-aws-temp-policy.json`. Si AWS rechaza alguna de esas llamadas, el _script_ se detiene con un error antes de cambiar el _cluster_.
+| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos con la identidad de _secrets.yml_, que necesita también los permisos de `stratio-aws-temp-policy.json`. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error lo detiene antes de cambiar el _cluster_.
 | El camino más ejercitado.
 
 | Azure VMs, en Microsoft Azure
