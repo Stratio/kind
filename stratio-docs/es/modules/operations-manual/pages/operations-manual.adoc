@@ -483,6 +483,45 @@ kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
 
 En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el primer comando.
 
+[[eks-activar-cluster-autoscaler-aws]]
+==== Activación de `cluster-autoscaler-aws` en EKS
+
+En los _clusters_ de EKS actualizados desde la 0.7.x, activa la instancia `cluster-autoscaler-aws` cuando vayas a usar grupos _MachinePool_. Esta instancia es la que escala esos grupos.
+
+Actívala desde sus valores de Helm. No uses `kubectl scale`: cualquier actualización de la _release_ devuelve el _Deployment_ a las réplicas de sus valores.
+
+. Guarda los valores propios de la instancia en un fichero:
++
+[source,bash]
+----
+kubectl -n kube-system get configmap 02-cluster-autoscaler-aws-helm-chart-override-values -o jsonpath='{.data.values\.yaml}' > cluster-autoscaler-aws-values.yaml
+----
++
+Si el fichero ya tiene una línea `replicaCount`, cámbiala a `replicaCount: 2` y salta al paso 3.
+
+. Añade `replicaCount: 2` al fichero:
++
+[source,bash]
+----
+printf '\nreplicaCount: 2\n' >> cluster-autoscaler-aws-values.yaml
+----
+
+. Sustituye el _ConfigMap_ por el contenido del fichero:
++
+[source,bash]
+----
+kubectl -n kube-system create configmap 02-cluster-autoscaler-aws-helm-chart-override-values --from-file=values.yaml=cluster-autoscaler-aws-values.yaml --dry-run=client -o yaml | kubectl replace -f -
+----
+
+. Comprueba que Flux aplica el cambio:
++
+[source,bash]
+----
+kubectl -n kube-system get deployment cluster-autoscaler-aws
+----
++
+*Salida esperada:* `READY` en `2/2` al cabo de unos minutos.
+
 === Actualización de Kubernetes
 
 La actualización del _cluster_ a una versión superior de Kubernetes se realizará en dos partes dentro del mismo proceso atómico: primero, el _control-plane_, y una vez que esté en la nueva versión, los nodos _worker_, iterando por cada grupo y actualizándolos uno a uno.

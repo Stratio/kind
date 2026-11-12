@@ -526,7 +526,7 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.3` in the pods of the `cluster-autoscaler` instance (`<registry>/k8s/autoscaling/cluster-autoscaler:v1.35.3` with ECR pull-through cache; `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3` without a private registry). The `cluster-autoscaler-aws` instance has no pods: it is installed with 0 replicas.
+*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.3` in the pods of the `cluster-autoscaler` instance (`<registry>/k8s/autoscaling/cluster-autoscaler:v1.35.3` with ECR pull-through cache; `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3` without a private registry). The `cluster-autoscaler-aws` instance has no pods: it is installed with 0 replicas. Cuando vayas a usar grupos _MachinePool_, actívala como se explica en xref:operations-manual:operations-manual.adoc#eks-activar-cluster-autoscaler-aws[Activación de `cluster-autoscaler-aws` en EKS].
 
 == Comprobación de la preparación para _MachinePool_
 
