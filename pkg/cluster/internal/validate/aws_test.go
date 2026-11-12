@@ -24,7 +24,7 @@ func TestValidateEKSCreate(t *testing.T) {
 	}{
 		{name: "machinepools with create_iam", mutate: func(s *commons.KeosSpec) {}},
 		{name: "node_image rejected on EKS", mutate: func(s *commons.KeosSpec) { s.WorkerNodes[0].NodeImage = "ami-0123456789abcdef0" }, wantErr: "\"node_image\""},
-		{name: "deploy_autoscaler without create_iam", mutate: func(s *commons.KeosSpec) { s.Security.AWS.CreateIAM = false }, wantErr: "requires spec.security.aws.create_iam"},
+		{name: "deploy_autoscaler without create_iam: checked against the IAM, not here", mutate: func(s *commons.KeosSpec) { s.Security.AWS.CreateIAM = false }},
 		{name: "no autoscaler, no create_iam", mutate: func(s *commons.KeosSpec) {
 			s.DeployAutoscaler = false
 			s.Security.AWS.CreateIAM = false
