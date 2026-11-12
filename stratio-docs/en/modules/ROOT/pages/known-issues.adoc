@@ -20,3 +20,47 @@ Este problema tiene estas consecuencias:
 El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ a la vez. Un _cluster_ creado con la versión 0.9 no está afectado: solo tiene _MachinePools_ y un único _cluster-autoscaler_.
 
 Las dos instancias de _cluster-autoscaler_ no pueden convivir: un _cluster_ actualizado a 0.9 que conserva sus _MachineDeployments_ no está preparado para tener _MachinePools_ a la vez. Ten en cuenta que un grupo de _workers_ nuevo sin `node_image` se crea como _MachinePool_.
+
+[[cluster-autoscaler-grupo-sin-nodos-etiquetas-taints]]
+
+== _Cluster-autoscaler_ no escala un grupo desde cero tras cambiar sus etiquetas o _taints_
+
+Después de cambiar las etiquetas o los _taints_ de un grupo de _workers_ en el `KeosCluster`, los _pods_ que necesitan los valores nuevos se quedan en estado `Pending`. El grupo no escala. El _pod_ muestra el evento `NotTriggerScaleUp` y el `KeosCluster` no muestra ningún error.
+
+El problema aparece cuando el grupo no tiene ningún nodo disponible, es decir, listo y planificable. En la práctica, es un grupo con `min_size: 0` que está a cero nodos. Además, ese grupo ya tuvo algún nodo desde el último arranque de _cluster-autoscaler_. Un grupo que no ha tenido nodos desde ese arranque no está afectado.
+
+También puede pasar de forma transitoria en un grupo con nodos, si ninguno está disponible. Por ejemplo, cuando todos están acordonados durante una sustitución de nodos.
+
+Para decidir si escala un grupo sin nodos, _cluster-autoscaler_ usa una plantilla del nodo. Guarda esa plantilla en memoria a partir del último nodo real del grupo. Con la configuración por defecto, la plantilla no caduca. Tampoco se actualiza cuando cambian las etiquetas o los _taints_ del grupo.
+
+El problema afecta a estos grupos de nodos:
+
+* EKS: grupos _MachinePool_ y grupos _MachineDeployment_ de _clusters_ actualizados desde la 0.7.
+* Azure no gestionado: grupos _MachineDeployment_.
+* GKE: no aplica, porque _Stratio Cloud Provisioner_ no instala _cluster-autoscaler_ en GKE.
+
+Para solucionarlo, reinicia el _deployment_ de _cluster-autoscaler_ que gestiona el grupo después de aplicar el cambio. Al arrancar, _cluster-autoscaler_ vuelve a construir la plantilla con la configuración actual del grupo. Busca el nombre del _deployment_ y reinícialo:
+
+[source,bash]
+----
+kubectl -n kube-system get deployments | grep cluster-autoscaler
+kubectl -n kube-system rollout restart deployment <nombre-del-deployment>
+----
+
+[cols="1,1", options="header"]
+|===
+| Tipo de _cluster_ y grupo | _Deployment_ que lo gestiona
+
+| EKS creado con la 0.9 (grupos _MachinePool_)
+| `cluster-autoscaler-aws-cluster-autoscaler`
+
+| EKS actualizado desde la 0.7 (grupos _MachineDeployment_)
+| `cluster-autoscaler-clusterapi-cluster-autoscaler`
+
+| Azure no gestionado
+| `cluster-autoscaler-clusterapi-cluster-autoscaler`
+|===
+
+Si cambias las etiquetas o los _taints_ de varios grupos, haz todos los cambios y reinicia _cluster-autoscaler_ una sola vez, al final. Un reinicio limpia la plantilla de todos los grupos. En EKS, si reinicias antes de que AWS termine de aplicar los cambios en los _nodegroups_, _cluster-autoscaler_ puede tardar hasta 6 minutos en ver los valores nuevos. Después se corrige solo.
+
+Mientras arranca, _cluster-autoscaler_ no escala. Los nodos que ya estaban pendientes de retirarse empiezan de nuevo su espera. Con la configuración por defecto, se retiran hasta 10 minutos más tarde.
