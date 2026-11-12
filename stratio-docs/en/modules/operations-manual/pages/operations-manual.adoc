@@ -447,6 +447,8 @@ NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quanti
 
 En los dos primeros casos, repite el cambio pasados unos minutos.
 
+NOTE: Después de cambiar las etiquetas o los _taints_ de un grupo, _cluster-autoscaler_ puede no escalarlo desde cero. Consulta el xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[problema conocido y su solución].
+
 ==== Test
 
 To test the autoscaling, a _Deployment_ can be created with enough replicas so that they cannot be scheduled on the current nodes:

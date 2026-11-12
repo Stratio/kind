@@ -760,6 +760,11 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | Durante todo el paso 7
 | Nada mientras dura: es necesario para que las réplicas nuevas del _control-plane_ se unan al _cluster_. Comprueba, al cerrar la ventana, que se ha vuelto a restringir, porque mientras esté abierta admite tráfico de toda la red del VPC y de los _pods_.
 | <<checks, Comprobaciones posteriores>>
+
+| En EKS, doble escalado de nodos si el _cluster_ tiene grupos _MachineDeployment_ y _MachinePool_ a la vez
+| Después de la actualización, si creas un grupo _MachinePool_ en un _cluster_ que conserva sus _MachineDeployments_. Un grupo nuevo sin `node_image` se crea como _MachinePool_.
+| Antes de crear grupos _MachinePool_ en un _cluster_ que conserva sus _MachineDeployments_, consulta el problema conocido.
+| xref:ROOT:known-issues.adoc#eks-doble-escalado-machinedeployments-machinepools[Doble escalado de nodos en EKS]
 |===
 
 TIP: Guarda la salida completa del _script_. Informa de cada paso, del cambio de versión previsto de cada componente y del tiempo total, lo que permite saber exactamente dónde se detuvo la actualización y en qué estado quedó, en lugar de reconstruirlo después.

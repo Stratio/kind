@@ -760,6 +760,11 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | Throughout step 7
 | Nothing while it lasts: it is necessary for the new _control-plane_ replicas to join the cluster. Check, upon closing the window, that it has been restricted again, because while it is open it admits traffic from the entire VPC and pod network.
 | <<checks, Post-upgrade checks>>
+
+| En EKS, doble escalado de nodos si el _cluster_ tiene grupos _MachineDeployment_ y _MachinePool_ a la vez
+| Después de la actualización, si creas un grupo _MachinePool_ en un _cluster_ que conserva sus _MachineDeployments_. Un grupo nuevo sin `node_image` se crea como _MachinePool_.
+| Antes de crear grupos _MachinePool_ en un _cluster_ que conserva sus _MachineDeployments_, consulta el problema conocido.
+| xref:ROOT:known-issues.adoc#eks-doble-escalado-machinedeployments-machinepools[Doble escalado de nodos en EKS]
 |===
 
 TIP: Save the complete output of the script. It reports each step, the expected version change for each component, and the total time, so you know exactly where the upgrade stopped and what state it left it in, instead of reconstructing it afterward.
