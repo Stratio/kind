@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (upcoming)
 
+* [PLT-5180] EKS descriptor validation: `deploy_autoscaler: true` with `security.aws.create_iam: false` is accepted when the IAM role
+  `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` already has `cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io` and
+  `AmazonEBSCSIDriverPolicy` attached (read with `iam:ListAttachedRolePolicies`); otherwise the error lists the missing policies.
+  Before, that combination was always rejected, also when the IAM was in place and for descriptors that set neither field.
 * [PLT-5180] cluster-autoscaler on Kubernetes 1.35 is the upstream image again, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`
   (with a private registry `<keos_registry>/autoscaling/cluster-autoscaler`, under the `k8s/` prefix when the ECR pull-through
   cache is enabled), on `create cluster` and
