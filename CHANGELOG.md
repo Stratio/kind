@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (upcoming)
 
+* [PLT-5180] cluster-autoscaler on Kubernetes 1.35 is the upstream image again, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`
+  (with a private registry `<keos_registry>/autoscaling/cluster-autoscaler`, under the `k8s/` prefix when the ECR pull-through
+  cache is enabled), on `create cluster` and
+  in `upgrade-provisioner.py`: v1.35.3 carries the kubernetes/autoscaler#9693 scale-down fix for AWSManagedMachinePool, so the Stratio
+  build `stratio/cluster-autoscaler:v1.35.2-0.1` is no longer used.
+* [PLT-5180] `upgrade-provisioner.py`: the cluster-operator chart is pulled (to apply its CRDs) before the values ConfigMaps and the
+  HelmRelease are touched. When the chart version was missing from the Helm repository, the values had already been written with
+  the new image tag and the failure resumed the HelmRelease, so Flux rolled out a cluster-operator pod with an image that does not exist.
+* [PLT-5180] `upgrade-provisioner.py` (EKS): the second cluster-autoscaler instance (`cluster-autoscaler-aws`) is installed with
+  `replicaCount: 0`. The two instances cannot run together while the cluster has MachineDeployments (see the known issues page),
+  so it stays installed but not running until MachinePools are used.
 * [PLT-5116] `upgrade-provisioner.py` (EKS): before the upgrade, ensure the `aws-node-annotate-pod-ip` ClusterRole and ClusterRoleBinding that `create cluster` applies since 0.17.0-0.6.0. Clusters created with earlier versions only had the `patch` permission on pods inside the `aws-node` ClusterRole, which the vpc-cni addon rewrites without it when the Kubernetes version bump re-applies it; once CAPA sets `ANNOTATE_POD_IP` again, new pods get no IP address. The step also runs on a relaunch. Drop the unused `patch_clusterrole_aws_node`
 * [PLT-5116] `upgrade-provisioner.py` (EKS): before the upgrade, apply the cluster-autoscaler `Role`/`RoleBinding` in `cluster-<name>` that `create cluster` applies since MachinePool support, which adds `get`/`list`/`watch` on `awsmanagedmachinepools`. Clusters created with earlier versions only allowed `awsmachinetemplates`: once the cluster had MachinePools, cluster-autoscaler could not list them, its main loop stopped and the liveness probe restarted it every few minutes
 * [PLT-5116] `upgrade-provisioner.py`: with a private registry (`ClusterConfig.spec.private_registry` or `--private`), move the images in the values of the charts it upgrades to the `keos_registry` of `KeosCluster.spec.docker_registries`, as `create cluster` renders them: public hosts (quay.io, docker.io, registry.k8s.io, ghcr.io, public.ecr.aws, mcr.microsoft.com) and a previous private registry (ECR, ACR, GAR, GCR) are replaced, the image path and tag are kept, and every change is printed. The values used to be copied as they were and only the tag changed, so after moving to another registry (e.g. another account) those charts kept pulling from the old one. With a private registry no chart is skipped, so the ones already at their target version are moved too
