@@ -10,9 +10,9 @@ Un guión indica que el componente no se utiliza en ese entorno. Si un _chart_ d
 | 1.32 → 1.35
 
 | _cluster-operator_
-| `0.7.5`
-| `0.7.5`
-| `0.7.5`
+| `0.7.6`
+| `0.7.6`
+| `0.7.6`
 
 | _cert-manager_
 | `v1.21.2`
@@ -46,7 +46,7 @@ Un guión indica que el componente no se utiliza en ese entorno. Si un _chart_ d
 
 | _azurefile-csi-driver_
 | -
-| `1.35.7`
+| `1.35.11`
 | -
 
 | _cloud-provider-azure_
