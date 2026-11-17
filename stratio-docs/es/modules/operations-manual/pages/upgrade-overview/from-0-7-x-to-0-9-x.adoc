@@ -318,7 +318,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 2
 | Validación y comprobaciones de salud
-| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS lo detiene antes de cambiar nada en el _cluster_.
+| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En GKE, antes de comprobar los _pods_, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS y reinicia ese _pod_; con `--dry-run`, solo avisa. En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS lo detiene antes de cambiar nada en el _cluster_.
 | Pendiente
 | Ninguna
 | No

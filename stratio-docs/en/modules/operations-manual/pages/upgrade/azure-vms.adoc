@@ -24,7 +24,7 @@ En cada paso, el _script_:
 
 . Cambia en el `KeosCluster` la versión de Kubernetes (`vX.Y.0`) y la imagen de la VM del _control-plane_ y de los grupos de trabajo que tienen `node_image`. La imagen sale de `--node-image-map`.
 . Espera a que el `KubeadmControlPlane` esté en la nueva versión, listo y con todas sus réplicas actualizadas. El límite es `--control-plane-timeout` (90 minutos por defecto).
-. Espera a que los grupos de trabajo con `node_image` tengan todas sus réplicas listas en la nueva versión. También espera a que el `kubeletVersion` de sus nodos sea de esa versión _minor_. El límite es `--node-convergence-timeout` (90 minutos por defecto): solo aborta si ningún nodo avanza durante ese tiempo.
+. Espera a que los grupos de trabajo con `node_image` tengan todas sus réplicas listas en la nueva versión. También espera a que el `kubeletVersion` de sus nodos sea de esa versión _minor_. El límite es `--node-convergence-timeout` (90 minutos por defecto): solo aborta si ningún nodo avanza durante ese tiempo. Un grupo que _cluster-autoscaler_ ha reducido a cero nodos también se actualiza: su `MachineDeployment` pasa a la nueva versión y a la nueva imagen. Como no tiene nodos, el _script_ no espera a ninguno y continúa con el siguiente grupo.
 . Espera 90 segundos antes del siguiente paso.
 
 El _script_ cambia de forma temporal dos objetos mientras dura el cambio de versión y los deshace al terminar: la `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` y el _webhook_ de validación de Capsule, que instala _Stratio KEOS_. Si no existen en el _cluster_, no hace nada con ellos:

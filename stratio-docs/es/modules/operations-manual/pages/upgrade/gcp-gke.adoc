@@ -11,6 +11,7 @@ En GKE, la actualización cambia lo siguiente:
 
 * Los componentes de la columna GKE de la tabla xref:operations-manual:upgrade.adoc#_qué_se_actualiza[qué se actualiza].
 * La versión de Kubernetes del _control-plane_ y de todos los _node pools_, de _minor_ en _minor_: 1.33, 1.34 y 1.35. En cada paso, el _script_ espera a que el _control-plane_, los _node pools_ y sus nodos alcancen la versión antes de pasar al siguiente (consulta el <<_cambio_de_versión_de_kubernetes_en_gke, cambio de versión de Kubernetes en GKE>>).
+* La `GlobalNetworkPolicy` `allow-traffic-to-gcp-imds-capg`, que indica qué _pods_ pueden acceder al servidor de metadatos de las VM. El _script_ añade a sus excepciones los _pods_ de `event-exporter-gke`.
 
 IMPORTANT: El cambio de versión de Kubernetes es el punto de no retorno. El _script_ pide confirmación antes de aplicarlo (consulta los xref:operations-manual:upgrade.adoc#_prompts_interactivos[_prompts_ interactivos]) y no permite volver a una versión anterior.
 
@@ -139,6 +140,8 @@ kubectl logs -n capg-system -l control-plane=capg-controller-manager --tail=-1 -
 NOTE: Si aparece algún error, revísalo antes de continuar.
 
 NOTE: La comprobación de _pods_ del _script_ incluye los _addons_ gestionados por Google, como `event-exporter-gke` o `konnectivity-agent`. Si alguno está en `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull`, `CreateContainerConfigError` o en la fase `Failed`, el _script_ se detiene aunque no forme parte de _Stratio KEOS_. Antes de usar `--skip-preflight-checks`, con el que el _script_ continúa aunque encuentre problemas en cualquiera de las comprobaciones, identifica de quién es el _pod_: si su imagen viene de `gke-release`, es un componente de Google.
+
+NOTE: GKE instala `event-exporter-gke` cuando el _cluster_ tiene `logging_config` activo. Ese _pod_ consulta el servidor de metadatos de la VM, y la política de red que restringe ese acceso lo dejaba en `CrashLoopBackOff`. Antes de la comprobación de _pods_, el _script_ añade `event-exporter-gke` a las excepciones de la `GlobalNetworkPolicy` `allow-traffic-to-gcp-imds-capg` y, si la cambia, reinicia el _pod_. Así, ese fallo ya no detiene la actualización.
 
 == _Dry-run_ de `upgrade-provisioner.py`
 

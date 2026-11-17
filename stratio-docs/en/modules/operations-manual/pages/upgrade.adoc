@@ -189,6 +189,11 @@ This implies that:
 `private_helm_repo=false`
 | With `--private`
 | The private registry and private Helm repository are used, and `ClusterConfig` is updated to `true`.
+
+| `private_registry=false` +
+`private_helm_repo=false`, con el _cluster_ ya actualizado sin `--private`
+| Relanzando con `--private`
+| Pasan al registro privado las imágenes de los _charts_ y de los proveedores de Cluster API, aunque ya estén en su versión de destino, y el `ClusterConfig` queda actualizado a `true`.
 |===
 
 ==== Origin of charts and images
@@ -327,6 +332,7 @@ This section summarizes, in order, the phases the script goes through when run. 
 . *Validation*
 ** Checks the version of `clusterctl` and that the secrets and the kubeconfig exist, and decrypts the secrets.
 ** Configures the cloud provider credentials and checks access to the cluster. On EKS and GKE, it regenerates the kubeconfig if it does not grant access.
+** En GKE, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS, si no están, y reinicia el _pod_. Es el único cambio antes de la confirmación inicial.
 ** Runs the automatic health check (see the <<automatic_check, automatic check>>).
 ** Asks for the initial confirmation (see the <<_interactive_prompts, interactive prompts>>).
 ** En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ si no existe, la asocia a los _roles_ `eks-nodegroup` y `nodes` y permite a sus _pods_ el acceso a IMDS. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa. Cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS detiene el _script_ en este paso.
@@ -372,7 +378,7 @@ clusterctl upgrade apply \
   --wait-providers
 ----
 +
-It skips if all providers are already on their destination version. If cert-manager is managed with Helm, it removes the `clusterctl` label beforehand so `clusterctl` doesn't replace it. Afterward, it returns the CAPI and provider controllers to 2 replicas with `priorityClassName: system-node-critical`.
+It skips if all providers are already on their destination version and, in private mode (see the <<_use_of_the_private_option, use of the `--private` option>>), their images already come from the private registry. If cert-manager is managed with Helm, it removes the `clusterctl` label beforehand so `clusterctl` doesn't replace it. Afterward, it returns the CAPI and provider controllers to 2 replicas with `priorityClassName: system-node-critical`.
 +
 NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:<version>` and `--control-plane kubeadm:<version>` parameters. EKS and GKE manage their own _control-plane_ and do not need to update these providers, but Azure VMs use `KubeadmControlPlane`, the kubeadm _control-plane_ provider of CAPI, which must be updated separately.
 

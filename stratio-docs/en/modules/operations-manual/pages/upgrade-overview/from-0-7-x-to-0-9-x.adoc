@@ -318,7 +318,7 @@ The following steps constitute the sequence of a single execution of `upgrade-pr
 
 | 2
 | Validation and health checks
-| The script validates `clusterctl`, the kubeconfig, and the secrets, configures the provider CLI, and checks the cluster state. If it finds something, it aborts before touching anything. On EKS, if the `KeosCluster` defines `spec.networks.pods_cidr`, it checks that the `ENIConfig` objects use the cluster security group and, if not, fixes it without stopping; with `--dry-run`, it only warns. On EKS with _cluster-autoscaler_, it creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles. If either of the two roles is missing, it shows a `[WARN]` and continues; any other error with the IAM policy or with the IMDS _GlobalNetworkPolicy_ stops it before changing anything in the cluster.
+| The script validates `clusterctl`, the kubeconfig, and the secrets, configures the provider CLI, and checks the cluster state. If it finds something, it aborts before touching anything. On EKS, if the `KeosCluster` defines `spec.networks.pods_cidr`, it checks that the `ENIConfig` objects use the cluster security group and, if not, fixes it without stopping; with `--dry-run`, it only warns. En GKE, antes de comprobar los _pods_, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS y reinicia ese _pod_; con `--dry-run`, solo avisa. On EKS with _cluster-autoscaler_, it creates the _cluster-autoscaler_ IAM policy and attaches it to the node roles. If either of the two roles is missing, it shows a `[WARN]` and continues; any other error with the IAM policy or with the IMDS _GlobalNetworkPolicy_ stops it before changing anything in the cluster.
 | Pending
 | None
 | No
