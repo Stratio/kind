@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (upcoming)
 
+* [PLT-5358] `upgrade-provisioner.py` with a private registry (`--private`, or `ClusterConfig.spec.private_registry: true`) no longer
+  skips the Cluster API providers when they are at the target version but their images come from another registry: it re-applies
+  them with `clusterctl` from the `keos_registry` (under `k8s/` with the ECR pull-through cache). Relaunching an upgrade that ran
+  without `--private` now moves CAPI and CAPA/CAPG/CAPZ to the private registry, as it already did for the charts. Providers already
+  on the private registry are still skipped. Private mode without a `keos_registry` entry now stops with an explicit error.
 * [PLT-5180] EKS descriptor validation: `deploy_autoscaler: true` with `security.aws.create_iam: false` is accepted when the IAM role
   `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` already has `cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io` and
   `AmazonEBSCSIDriverPolicy` attached (read with `iam:ListAttachedRolePolicies`); otherwise the error lists the missing policies.
