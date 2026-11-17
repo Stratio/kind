@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (upcoming)
 
+* [PLT-5382] GKE with `logging_config` on: GKE's `event-exporter` pod (kube-system) is added to the `allow-traffic-to-gcp-imds-capg`
+  GlobalNetworkPolicy. The `deny-all-traffic-to-gcp-imds` policy blocked its call to the metadata server, so the pod crash-looped
+  as soon as it restarted after the policy was applied and the upgrade pod health check stopped there. New clusters get it from
+  `create cluster`; `upgrade-provisioner.py` adds it to existing clusters before its pod health check and restarts the pod.
 * [PLT-5180] EKS descriptor validation: `deploy_autoscaler: true` with `security.aws.create_iam: false` is accepted when the IAM role
   `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` already has `cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io` and
   `AmazonEBSCSIDriverPolicy` attached (read with `iam:ListAttachedRolePolicies`); otherwise the error lists the missing policies.
