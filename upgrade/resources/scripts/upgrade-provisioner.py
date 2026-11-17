@@ -2266,6 +2266,22 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         print(f"[ERROR] Error updating the clusterconfig: {e}")
         raise e
 
+def private_provider_repositories(registry_url, provider, pull_through=False):
+    '''Private-mode image repository (clusterctl "repository": the image path without its last segment) of each
+    CAPI provider Deployment; the clusterctl config and the upgrade skip check both read it.'''
+
+    k8s_prefix = "k8s/" if pull_through else ""
+    repositories = {"capi-controller-manager": f"{registry_url}/{k8s_prefix}cluster-api"}
+    if provider == "aws":
+        repositories["capa-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api-aws"
+    elif provider == "gcp":
+        repositories["capg-controller-manager"] = f"{registry_url}/stratio"
+    elif provider == "azure":
+        repositories["capi-kubeadm-bootstrap-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api"
+        repositories["capi-kubeadm-control-plane-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api"
+        repositories["capz-controller-manager"] = f"{registry_url}/cluster-api-azure"
+    return repositories
+
 def create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=False):
     """Create or update clusterctl config file to use private registry"""
     print("[INFO] Configuring clusterctl for private registry:", end=" ", flush=True)
@@ -2293,20 +2309,20 @@ def create_clusterctl_config_for_private_registry(registry_url, provider, pull_t
     if 'images' not in config_data:
         config_data['images'] = {}
 
-    k8s_prefix  = "k8s/"  if pull_through else ""
     quay_prefix = "quay/" if pull_through else ""
+    repositories = private_provider_repositories(registry_url, provider, pull_through)
 
     # Align the image overrides with the original installation logic.
     config_data['images']['cluster-api'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['bootstrap-kubeadm'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['control-plane-kubeadm'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['cert-manager'] = {
@@ -2315,17 +2331,17 @@ def create_clusterctl_config_for_private_registry(registry_url, provider, pull_t
 
     if provider == "aws":
         config_data['images']['infrastructure-aws'] = {
-            'repository': f"{registry_url}/{k8s_prefix}cluster-api-aws",
+            'repository': repositories["capa-controller-manager"],
             'tag': CAPA,
         }
     elif provider == "gcp":
         config_data['images']['infrastructure-gcp'] = {
-            'repository': f"{registry_url}/stratio",
+            'repository': repositories["capg-controller-manager"],
             'tag': CAPG,
         }
     elif provider == "azure":
         config_data['images']['infrastructure-azure/cluster-api-azure-controller'] = {
-            'repository': f"{registry_url}/cluster-api-azure",
+            'repository': repositories["capz-controller-manager"],
             'tag': CAPZ,
         }
         config_data['images']['infrastructure-azure/azureserviceoperator'] = {
@@ -2516,10 +2532,9 @@ def release_cert_manager_from_clusterctl(dry_run):
         execute_command(f"{kubectl} {ns_flag}annotate {obj} {annotation}-", False, False)
     print(f"OK ({len(objs)} objects)")
 
-def upgrade_cluster_api_providers(provider, provider_current_versions=None):
-    '''Upgrade CAPI core/infra providers via clusterctl. clusterctl always scales down and
-    recreates each provider's Deployment even if already at target version (upgrader.go
-    doUpgrade() only skips on NextVersion==""); skip the whole call when unneeded to avoid that churn.'''
+def upgrade_cluster_api_providers(provider, provider_current_versions=None, expected_repositories=None):
+    '''Upgrade CAPI providers via clusterctl, which recreates every Deployment even at target version (upgrader.go
+    doUpgrade() only skips on NextVersion==""): skip when at target and, with expected_repositories, on those repositories.'''
 
     provider_current_versions = provider_current_versions or {}
 
@@ -2533,9 +2548,25 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
         target_versions["capi-kubeadm-bootstrap-controller-manager"] = CAPI_KUBEADM_BOOTSTRAP
         target_versions["capi-kubeadm-control-plane-controller-manager"] = CAPI_KUBEADM_CONTROL_PLANE
 
-    if provider_current_versions and all(
+    at_target = bool(provider_current_versions) and all(
         provider_current_versions.get(deploy) == target for deploy, target in target_versions.items()
-    ):
+    )
+    if at_target and expected_repositories:
+        elsewhere = []
+        for deploy, repository in expected_repositories.items():
+            image, _ = run_command(
+                f"{kubectl} -n {deploy.replace('-controller-manager', '-system')} get deploy {deploy} "
+                f"-o jsonpath='{{.spec.template.spec.containers[?(@.name==\"manager\")].image}}'",
+                allow_errors=True
+            )
+            # clusterctl's "repository" is the image path without its last segment (the image name).
+            current = image.strip().split("@")[0].rsplit(":", 1)[0].rsplit("/", 1)[0] if image.strip() else "unknown"
+            if current != repository:
+                elsewhere.append(f"{deploy} on {current}, expected {repository}")
+        if elsewhere:
+            print("[INFO] Cluster API providers at target versions but not on the private registry: " + "; ".join(elsewhere))
+            at_target = False
+    if at_target:
         print("[INFO] Upgrading Cluster API providers: already at target versions: SKIP")
         return
 
@@ -3955,10 +3986,14 @@ if __name__ == '__main__':
         # -------------------------------------------------
         # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
         # -------------------------------------------------
+        expected_provider_repositories = None
         if private_registry:
             registry_url = get_keos_registry_url(keos_cluster)
+            if not registry_url:
+                raise Exception("Private registry mode needs a docker_registries entry with keos_registry: true in the KeosCluster")
             print(f"[DEBUG] Using private registry: {registry_url}")
             create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=is_ecr_pull_through_enabled(keos_cluster))
+            expected_provider_repositories = private_provider_repositories(registry_url, provider, is_ecr_pull_through_enabled(keos_cluster))
             if provider == "gcp":
                 # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
                 config_dir = os.path.expanduser("~/.cluster-api")
@@ -3972,7 +4007,7 @@ if __name__ == '__main__':
         # -------------------------------------------------
         # Execute clusterctl upgrade
         # -------------------------------------------------
-        upgrade_cluster_api_providers(provider, provider_current_versions)
+        upgrade_cluster_api_providers(provider, provider_current_versions, expected_provider_repositories)
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(provider)
 
