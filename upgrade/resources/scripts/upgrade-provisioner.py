@@ -113,17 +113,10 @@ TIGERA_OPERATOR_LEGACY_TOLERATIONS = [
     {"effect": "NoSchedule", "operator": "Exists"},
 ]
 
-# Pinned on AWS, and on Azure with a private registry (one image, as create cluster 1.35). Official CA images hit "unknown machine for node" on scale-down for
-# AWSManagedMachinePool (CAPA has no Machine object for managed nodegroups). kubernetes/autoscaler#9693
-# fixes it but isn't backported to any release yet; pinned to the Stratio build listed in universe 15.1.
-# The -0.1 suffix marks the Stratio build with every cloud provider (aws for EKS, clusterapi for Azure); the bare v1.35.2 on registry.k8s.io lacks the fix.
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION = "v1.35.2-0.1"
-# Path of that build in the keos registry, outside any registry.k8s.io pull-through prefix (autoscaling/, k8s/).
-CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY = "stratio/cluster-autoscaler"
-# Azure without a private registry: upstream image, as create cluster 1.35
-# (no MachinePools there, so the #9693 fix is not needed).
-CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY = "registry.k8s.io/autoscaling/cluster-autoscaler"
-CLUSTER_AUTOSCALER_UPSTREAM_VERSION = "v1.35.2"
+# Upstream cluster-autoscaler of the target minor, as create cluster 1.35 (v1.35.3 carries kubernetes/autoscaler#9693,
+# the AWSManagedMachinePool scale-down fix). Private registry: "<keos_registry>/autoscaling/cluster-autoscaler", under the k8s/ prefix with ECR pull-through.
+CLUSTER_AUTOSCALER_VERSION = "v1.35.3"
+CLUSTER_AUTOSCALER_REPOSITORY = "autoscaling/cluster-autoscaler"
 
 # EKS only: the nodegroup role clusterawsadm creates (CAPA v2.9.3 DefaultEKSNodegroupRole).
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
@@ -696,7 +689,8 @@ def write_cluster_autoscaler_aws_values(values_file):
             "tags": ["k8s.io/cluster-autoscaler/enabled", f"k8s.io/cluster-autoscaler/{name}"],
         },
         "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
-        "replicaCount": 2,
+        # Installed but not running: the two instances cannot coexist (known issue), MachinePools are not used on upgraded clusters yet
+        "replicaCount": 0,
         # The chart grants get/update only on the lease "cluster-autoscaler" and the ConfigMap "cluster-autoscaler-status", both used by the clusterapi CA
         "extraArgs": {
             "leader-elect-resource-name": CLUSTER_AUTOSCALER_AWS_RELEASE,
@@ -716,7 +710,7 @@ def write_cluster_autoscaler_aws_values(values_file):
     }
     with open(values_file, 'w') as file:
         yaml.safe_dump(values, file, default_flow_style=False)
-    update_cluster_autoscaler_image_tag_value(values_file, "aws")
+    update_cluster_autoscaler_image_tag_value(values_file)
 
 def ensure_aws_node_annotate_pod_ip_rbac(dry_run):
     '''Ensure the aws-node-annotate-pod-ip RBAC that create cluster applies (the vpc-cni addon re-apply drops patch on pods from aws-node)'''
@@ -1444,24 +1438,23 @@ def update_flux_image_tag_values(values_file):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def update_cluster_autoscaler_image_tag_value(values_file, provider):
-    '''Set the cluster-autoscaler image as create cluster 1.35 does. EKS, and Azure with a private registry: the MP
-    scale-down fix build, always "{keos_registry}/stratio/cluster-autoscaler", whatever create_default_values() left
-    (also with ECR pull-through). Azure without a private registry: the upstream image.'''
+def update_cluster_autoscaler_image_tag_value(values_file):
+    '''Set the cluster-autoscaler image as create cluster 1.35 does: the upstream image of the target minor, from the
+    keos registry with a private registry (under the k8s/ prefix with ECR pull-through), from registry.k8s.io otherwise,
+    whatever create_default_values() left.'''
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        if provider == "aws" or is_private_registry_enabled(cluster_config):
-            image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-            registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
-            if registry_url:
-                image['repository'] = f"{registry_url}/{CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_REPOSITORY}"
+        image['tag'] = CLUSTER_AUTOSCALER_VERSION
+        registry_url = get_keos_registry_url(keos_cluster).rstrip("/")
+        if is_private_registry_enabled(cluster_config) and registry_url:
+            pull_through_prefix = "/k8s" if is_ecr_pull_through_enabled(keos_cluster) else ""
+            image['repository'] = f"{registry_url}{pull_through_prefix}/{CLUSTER_AUTOSCALER_REPOSITORY}"
         else:
-            image['repository'] = CLUSTER_AUTOSCALER_UPSTREAM_REPOSITORY
-            image['tag'] = CLUSTER_AUTOSCALER_UPSTREAM_VERSION
+            image['repository'] = f"registry.k8s.io/{CLUSTER_AUTOSCALER_REPOSITORY}"
         print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
@@ -1935,7 +1928,7 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "flux":
             update_flux_image_tag_values(default_values_file)
         elif release_name == "cluster-autoscaler" and provider in ("aws", "azure"):
-            update_cluster_autoscaler_image_tag_value(default_values_file, provider)
+            update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
         elif release_name == "azurefile-csi-driver" and provider == "azure":
@@ -1943,10 +1936,14 @@ def upgrade_chart(chart_name, chart_data):
 
         create_override_values_file(f"02-{release_name}-helm-chart-override-values", chart_namespace, override_values_file)
 
-        # New CRDs first: the target controllers cannot start on the old ones
+        # New CRDs first: the target controllers cannot start on the old ones. Also before the values ConfigMaps and the
+        # HelmRelease are touched: if the chart cannot be pulled, the cluster must stay as it was (a failure after the
+        # ConfigMaps are written resumes the HelmRelease and Flux rolls the old chart with the new values)
         if chart_name == "flux2":
             apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"],
                              values_files=[default_values_file, override_values_file])
+        elif chart_name == "cluster-operator":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
         # Suspended while values and version change: a reconcile in between would run the old chart with the new values
         suspended = helmrelease_exists(release_name, chart_namespace)
         # --dry-run cannot resume a suspend left by an interrupted run, and a suspended HelmRelease never gets Ready
@@ -1980,9 +1977,6 @@ def upgrade_chart(chart_name, chart_data):
             'HelmReleaseRetries': 3,
             'HelmReleaseTimeout': compute_helm_release_timeout()
         }
-
-        if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, config["dry_run"])
 
         helmrepository_yaml = helmrepository_template.render(helm_repo_data)
         helmrelease_yaml = helmrelease_template.render(helm_release_data)
@@ -2261,6 +2255,22 @@ def update_clusterconfig(cluster_config, charts, provider, cluster_operator_vers
         print(f"[ERROR] Error updating the clusterconfig: {e}")
         raise e
 
+def private_provider_repositories(registry_url, provider, pull_through=False):
+    '''Private-mode image repository (clusterctl "repository": the image path without its last segment) of each
+    CAPI provider Deployment; the clusterctl config and the upgrade skip check both read it.'''
+
+    k8s_prefix = "k8s/" if pull_through else ""
+    repositories = {"capi-controller-manager": f"{registry_url}/{k8s_prefix}cluster-api"}
+    if provider == "aws":
+        repositories["capa-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api-aws"
+    elif provider == "gcp":
+        repositories["capg-controller-manager"] = f"{registry_url}/stratio"
+    elif provider == "azure":
+        repositories["capi-kubeadm-bootstrap-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api"
+        repositories["capi-kubeadm-control-plane-controller-manager"] = f"{registry_url}/{k8s_prefix}cluster-api"
+        repositories["capz-controller-manager"] = f"{registry_url}/cluster-api-azure"
+    return repositories
+
 def create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=False):
     """Create or update clusterctl config file to use private registry"""
     print("[INFO] Configuring clusterctl for private registry:", end=" ", flush=True)
@@ -2288,20 +2298,20 @@ def create_clusterctl_config_for_private_registry(registry_url, provider, pull_t
     if 'images' not in config_data:
         config_data['images'] = {}
 
-    k8s_prefix  = "k8s/"  if pull_through else ""
     quay_prefix = "quay/" if pull_through else ""
+    repositories = private_provider_repositories(registry_url, provider, pull_through)
 
     # Align the image overrides with the original installation logic.
     config_data['images']['cluster-api'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['bootstrap-kubeadm'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['control-plane-kubeadm'] = {
-        'repository': f"{registry_url}/{k8s_prefix}cluster-api",
+        'repository': repositories["capi-controller-manager"],
         'tag': CAPI,
     }
     config_data['images']['cert-manager'] = {
@@ -2310,17 +2320,17 @@ def create_clusterctl_config_for_private_registry(registry_url, provider, pull_t
 
     if provider == "aws":
         config_data['images']['infrastructure-aws'] = {
-            'repository': f"{registry_url}/{k8s_prefix}cluster-api-aws",
+            'repository': repositories["capa-controller-manager"],
             'tag': CAPA,
         }
     elif provider == "gcp":
         config_data['images']['infrastructure-gcp'] = {
-            'repository': f"{registry_url}/stratio",
+            'repository': repositories["capg-controller-manager"],
             'tag': CAPG,
         }
     elif provider == "azure":
         config_data['images']['infrastructure-azure/cluster-api-azure-controller'] = {
-            'repository': f"{registry_url}/cluster-api-azure",
+            'repository': repositories["capz-controller-manager"],
             'tag': CAPZ,
         }
         config_data['images']['infrastructure-azure/azureserviceoperator'] = {
@@ -2511,10 +2521,9 @@ def release_cert_manager_from_clusterctl(dry_run):
         execute_command(f"{kubectl} {ns_flag}annotate {obj} {annotation}-", False, False)
     print(f"OK ({len(objs)} objects)")
 
-def upgrade_cluster_api_providers(provider, provider_current_versions=None):
-    '''Upgrade CAPI core/infra providers via clusterctl. clusterctl always scales down and
-    recreates each provider's Deployment even if already at target version (upgrader.go
-    doUpgrade() only skips on NextVersion==""); skip the whole call when unneeded to avoid that churn.'''
+def upgrade_cluster_api_providers(provider, provider_current_versions=None, expected_repositories=None):
+    '''Upgrade CAPI providers via clusterctl, which recreates every Deployment even at target version (upgrader.go
+    doUpgrade() only skips on NextVersion==""): skip when at target and, with expected_repositories, on those repositories.'''
 
     provider_current_versions = provider_current_versions or {}
 
@@ -2528,9 +2537,25 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
         target_versions["capi-kubeadm-bootstrap-controller-manager"] = CAPI_KUBEADM_BOOTSTRAP
         target_versions["capi-kubeadm-control-plane-controller-manager"] = CAPI_KUBEADM_CONTROL_PLANE
 
-    if provider_current_versions and all(
+    at_target = bool(provider_current_versions) and all(
         provider_current_versions.get(deploy) == target for deploy, target in target_versions.items()
-    ):
+    )
+    if at_target and expected_repositories:
+        elsewhere = []
+        for deploy, repository in expected_repositories.items():
+            image, _ = run_command(
+                f"{kubectl} -n {deploy.replace('-controller-manager', '-system')} get deploy {deploy} "
+                f"-o jsonpath='{{.spec.template.spec.containers[?(@.name==\"manager\")].image}}'",
+                allow_errors=True
+            )
+            # clusterctl's "repository" is the image path without its last segment (the image name).
+            current = image.strip().split("@")[0].rsplit(":", 1)[0].rsplit("/", 1)[0] if image.strip() else "unknown"
+            if current != repository:
+                elsewhere.append(f"{deploy} on {current}, expected {repository}")
+        if elsewhere:
+            print("[INFO] Cluster API providers at target versions but not on the private registry: " + "; ".join(elsewhere))
+            at_target = False
+    if at_target:
         print("[INFO] Upgrading Cluster API providers: already at target versions: SKIP")
         return
 
@@ -3728,7 +3753,7 @@ if __name__ == '__main__':
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
-    # EKS with cluster-autoscaler: a second one with cloudProvider aws scales the MachinePools (installed at the end).
+    # EKS with cluster-autoscaler: a second one with cloudProvider aws for the MachinePools (installed at the end with 0 replicas).
     # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
     eks_cluster_autoscaler_aws = provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
     if eks_cluster_autoscaler_aws:
@@ -3751,8 +3776,6 @@ if __name__ == '__main__':
     # Scale down cluster-autoscaler to avoid issues during the upgrade process
     # A relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
     cluster_autoscaler_replicas = scale_cluster_autoscaler(0, config["dry_run"]) or 2
-    # None on the first run; a relaunch finds it installed
-    cluster_autoscaler_aws_replicas = scale_cluster_autoscaler(0, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE) if eks_cluster_autoscaler_aws else None
 
     if provider == "aws":
         ensure_aws_node_annotate_pod_ip_rbac(config["dry_run"])
@@ -3947,10 +3970,14 @@ if __name__ == '__main__':
         # -------------------------------------------------
         # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
         # -------------------------------------------------
+        expected_provider_repositories = None
         if private_registry:
             registry_url = get_keos_registry_url(keos_cluster)
+            if not registry_url:
+                raise Exception("Private registry mode needs a docker_registries entry with keos_registry: true in the KeosCluster")
             print(f"[DEBUG] Using private registry: {registry_url}")
             create_clusterctl_config_for_private_registry(registry_url, provider, pull_through=is_ecr_pull_through_enabled(keos_cluster))
+            expected_provider_repositories = private_provider_repositories(registry_url, provider, is_ecr_pull_through_enabled(keos_cluster))
             if provider == "gcp":
                 # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
                 config_dir = os.path.expanduser("~/.cluster-api")
@@ -3964,7 +3991,7 @@ if __name__ == '__main__':
         # -------------------------------------------------
         # Execute clusterctl upgrade
         # -------------------------------------------------
-        upgrade_cluster_api_providers(provider, provider_current_versions)
+        upgrade_cluster_api_providers(provider, provider_current_versions, expected_provider_repositories)
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(provider)
 
@@ -4049,13 +4076,11 @@ if __name__ == '__main__':
     if provider == "azure":
         pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, config["dry_run"])
 
-    # Last, with the cluster at its target version: the CA aws image is built for Kubernetes 1.35
+    # Last, with the cluster at its target version: the CA aws image is the one of Kubernetes 1.35.
+    # Installed with 0 replicas: it must not run next to the clusterapi instance (known issue) until MachinePools are used.
     if eks_cluster_autoscaler_aws:
-        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools):", end=" ", flush=True)
+        print(f"[INFO] Installing chart cluster-autoscaler {common_charts['cluster-autoscaler']['version']} as {CLUSTER_AUTOSCALER_AWS_RELEASE} (cloudProvider aws, MachinePools, 0 replicas):", end=" ", flush=True)
         upgrade_chart(CLUSTER_AUTOSCALER_AWS_RELEASE, dict(common_charts["cluster-autoscaler"], chart="cluster-autoscaler", release_name=CLUSTER_AUTOSCALER_AWS_RELEASE))
-        if cluster_autoscaler_aws_replicas is not None:
-            # helm keeps the replicas scaled to 0 at start when the chart and values are unchanged
-            scale_cluster_autoscaler(cluster_autoscaler_aws_replicas or 2, config["dry_run"], CLUSTER_AUTOSCALER_AWS_RELEASE)
 
     end_time = time.time()
     elapsed_time = end_time - start_time

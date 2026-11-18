@@ -781,7 +781,7 @@ func deployClusterAutoscaler(n nodes.Node, chartsList map[string]commons.ChartEn
 		clusterAutoscalerHelmReleaseParams.ChartRepoRef = "cluster-autoscaler"
 	}
 
-	// Each per-minor template adds the ECR pull-through prefix itself: the 1.35 Stratio build is outside it.
+	// Each per-minor template adds the ECR pull-through prefix itself.
 	helmValuesCA, err := getManifest("common", "cluster-autoscaler-helm-values.tmpl", majorVersion, privateParams)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CA helm values")

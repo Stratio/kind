@@ -40,7 +40,7 @@ const (
 	// eksNodesRoleName is the clusterawsadm role of MachineDeployment nodes; CA aws pods can also run there.
 	eksNodesRoleName = "nodes.cluster-api-provider-aws.sigs.k8s.io"
 	// clusterAutoscalerPolicyName is the account-level policy attached to the eks-nodegroup and nodes roles, outside the IAM stack, for the CA aws.
-	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+	clusterAutoscalerPolicyName = commons.EKSClusterAutoscalerPolicyName
 	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
 	clusterAutoscalerPolicyDocument = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}`
 )

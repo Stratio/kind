@@ -29,6 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"golang.org/x/exp/slices"
 	"sigs.k8s.io/kind/pkg/commons"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -63,6 +64,10 @@ func validateAWS(spec commons.KeosSpec, providerSecrets map[string]string) error
 
 	cfg, err := commons.AWSGetConfig(ctx, providerSecrets)
 	if err != nil {
+		return err
+	}
+
+	if err := validateEKSAutoscalerIAM(ctx, iam.NewFromConfig(cfg), spec); err != nil {
 		return err
 	}
 
@@ -272,7 +277,7 @@ func validateAWSSecurity(spec commons.KeosSpec) error {
 	return nil
 }
 
-// validateEKSCreate checks the EKS create rules: MachinePools only, the CA aws IAM from the stack and the clusterawsadm node role.
+// validateEKSCreate checks the EKS create rules: MachinePools only and the clusterawsadm node role.
 func validateEKSCreate(spec commons.KeosSpec) error {
 	if !spec.ControlPlane.Managed {
 		return nil
@@ -282,11 +287,38 @@ func validateEKSCreate(spec commons.KeosSpec) error {
 			return errors.New("spec.worker_nodes." + wn.Name + ": Invalid value: \"node_image\": EKS clusters only support worker nodes without node_image (EKS managed node groups); use ami_type to choose the image")
 		}
 	}
-	if spec.DeployAutoscaler && !spec.Security.AWS.CreateIAM {
-		return errors.New("spec.deploy_autoscaler requires spec.security.aws.create_iam to be true in EKS clusters: the cluster-autoscaler policy is attached to the " + commons.EKSNodegroupRoleName + " and nodes.cluster-api-provider-aws.sigs.k8s.io roles through the IAM stack")
-	}
 	if spec.ControlPlane.AWS.MPRoleName != "" && spec.ControlPlane.AWS.MPRoleName != commons.EKSNodegroupRoleName {
 		return errors.New("spec.control_plane.aws.mp_role_name: Invalid value: \"" + spec.ControlPlane.AWS.MPRoleName + "\": only " + commons.EKSNodegroupRoleName + " is supported (leave it empty to use it)")
+	}
+	return nil
+}
+
+// validateEKSAutoscalerIAM checks, when the IAM is not created by Stratio Cloud Provisioner, that the MachinePool node role has the
+// policies the cluster-autoscaler (aws) and the EBS CSI driver need; only attachments can be read with the deploy user's permanent policy.
+func validateEKSAutoscalerIAM(ctx context.Context, client iam.ListAttachedRolePoliciesAPIClient, spec commons.KeosSpec) error {
+	if !spec.ControlPlane.Managed || !spec.DeployAutoscaler || spec.Security.AWS.CreateIAM {
+		return nil
+	}
+	role := commons.EKSNodegroupRoleName
+	attached := map[string]bool{}
+	pages := iam.NewListAttachedRolePoliciesPaginator(client, &iam.ListAttachedRolePoliciesInput{RoleName: aws.String(role)})
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			return errors.Wrap(err, "spec.deploy_autoscaler with spec.security.aws.create_iam false: failed to read the policies attached to the IAM role "+role+" (iam:ListAttachedRolePolicies)")
+		}
+		for _, p := range page.AttachedPolicies {
+			attached[aws.ToString(p.PolicyName)] = true
+		}
+	}
+	var missing []string
+	for _, name := range []string{commons.EKSClusterAutoscalerPolicyName, "AmazonEBSCSIDriverPolicy"} {
+		if !attached[name] {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return errors.New("spec.deploy_autoscaler with spec.security.aws.create_iam false requires the IAM role " + role + " with these policies attached: " + strings.Join(missing, ", ") + "; attach them, or set spec.security.aws.create_iam to true so Stratio Cloud Provisioner creates and attaches them")
 	}
 	return nil
 }
