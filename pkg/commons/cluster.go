@@ -45,6 +45,8 @@ const (
 
 	// EKSNodegroupRoleName is the clusterawsadm node-group role, the only mp_role_name accepted on EKS.
 	EKSNodegroupRoleName = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+	// EKSClusterAutoscalerPolicyName is the account-level cluster-autoscaler (aws) policy attached to the EKS node roles.
+	EKSClusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 )
 
 type Resource struct {

@@ -38,7 +38,7 @@ const (
 	// eksNodegroupRoleName is the clusterawsadm node-group role; every EKS MachinePool uses it so the CA aws gets its permissions.
 	eksNodegroupRoleName = commons.EKSNodegroupRoleName
 	// clusterAutoscalerPolicyName is the account-level policy attached to the eks-nodegroup role, outside the IAM stack, for the CA aws.
-	clusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
+	clusterAutoscalerPolicyName = commons.EKSClusterAutoscalerPolicyName
 	// clusterAutoscalerPolicyDocument is the "Full Cluster Autoscaler Features Policy" of the CA aws README, writes limited to CA-enabled ASGs.
 	clusterAutoscalerPolicyDocument = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"],"Condition":{"Null":{"aws:ResourceTag/k8s.io/cluster-autoscaler/enabled":"false"}}}]}`
 )
