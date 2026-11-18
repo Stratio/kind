@@ -415,7 +415,7 @@ NOTE: El parámetro `ecr_pull_through_cache_enabled` es una configuración _day-
 
 ==== Imagen de _cluster-autoscaler_
 
-Con `deploy_autoscaler: true`, _Stratio Cloud Provisioner_ instala _cluster-autoscaler_ en EKS y en Azure no gestionado. En EKS, _cluster-autoscaler_ usa el proveedor `aws` y requiere `spec.security.aws.create_iam: true`. Con ese valor, _Stratio Cloud Provisioner_ asocia la política IAM de _cluster-autoscaler_ a los _roles_ de los nodos.
+Con `deploy_autoscaler: true`, _Stratio Cloud Provisioner_ instala _cluster-autoscaler_ en EKS y en Azure no gestionado. En EKS, _cluster-autoscaler_ usa el proveedor `aws`. Con `spec.security.aws.create_iam: true`, _Stratio Cloud Provisioner_ asocia la política IAM de _cluster-autoscaler_ a los _roles_ de los nodos. Con `create_iam: false`, el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` ya debe tener asociadas las políticas `cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io` y `AmazonEBSCSIDriverPolicy`. Si falta alguna, la validación del descriptor falla e indica cuáles.
 
 NOTE: _Cluster-autoscaler_ puede no escalar desde cero un grupo después de cambiar sus etiquetas o _taints_. Consulta el xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[problema conocido y su solución].
 
@@ -881,7 +881,10 @@ NOTE: En _MachinePool_, `root++_++volume.type` y `root++_++volume.encrypted` no 
 | Usa `ami_type` para elegir el tipo de AMI.
 
 | Volumen CRI separado (`cri_volume`) no admitido en _MachinePool_
-|
+| Al editar el `KeosCluster`, se rechaza añadirlo o cambiarlo en un grupo _MachinePool_. El valor que ya tenía el grupo se mantiene y se puede quitar.
+
+| Volúmenes adicionales (`extra_volumes`) no admitidos en _MachinePool_
+| Al editar el `KeosCluster`, se rechaza añadirlos o cambiarlos en un grupo _MachinePool_. Los valores que ya tenía el grupo se mantienen y se pueden quitar.
 
 | `ami++_++type` en _MachinePool_ solo admite `BOTTLEROCKET_x86_64`/`BOTTLEROCKET_x86_64_NVIDIA`
 |

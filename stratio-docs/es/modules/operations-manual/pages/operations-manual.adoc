@@ -517,7 +517,7 @@ kubectl -n kube-system create configmap 02-cluster-autoscaler-aws-helm-chart-ove
 +
 [source,bash]
 ----
-kubectl -n kube-system get deployment cluster-autoscaler-aws
+kubectl -n kube-system get deployment cluster-autoscaler-aws-cluster-autoscaler
 ----
 +
 *Salida esperada:* `READY` en `2/2` al cabo de unos minutos.
