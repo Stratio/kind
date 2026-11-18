@@ -2,8 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.9 (upcoming)
+## 0.9.9 (2026-11-18)
 
+* EKS `upgrade-provisioner.py`: the second cluster-autoscaler (release `cluster-autoscaler-aws`, cloudProvider aws, for MachinePools)
+  now names its Deployment, ServiceAccount, Service, RBAC and PodDisruptionBudget `cluster-autoscaler-aws-cluster-autoscaler`,
+  the same names `create cluster` gives the cluster-autoscaler of EKS. The release, its ConfigMaps, lease and status ConfigMap keep
+  the name `cluster-autoscaler-aws`.
 * [PLT-5381] `upgrade-provisioner.py` (Azure): a worker group scaled to 0 nodes by the cluster-autoscaler no longer stops the upgrade.
   The wait for each group's nodes at every Kubernetes step treated a group with no Node as not converged and failed after its timeout;
   a group whose desired and current replicas are 0 is now converged once its MachineDeployment is.
