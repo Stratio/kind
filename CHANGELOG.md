@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.9 (upcoming)
+## 0.9.9 (2026-11-18)
 
 * EKS `upgrade-provisioner.py`: the second cluster-autoscaler (release `cluster-autoscaler-aws`, cloudProvider aws, for MachinePools)
   now names its Deployment, ServiceAccount, Service, RBAC and PodDisruptionBudget `cluster-autoscaler-aws-cluster-autoscaler`,
