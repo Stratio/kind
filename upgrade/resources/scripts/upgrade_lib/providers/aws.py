@@ -225,9 +225,14 @@ def remove_cluster_autoscaler_aws_09_release(dry_run):
         print("FAILED")
         print(f"[ERROR] Could not read the HelmRelease {CLUSTER_AUTOSCALER_AWS_09_RELEASE}: {err.strip()}")
         sys.exit(1)
+    from upgrade_lib.commons.helm import helmrelease_is_suspended, set_helmrelease_suspend  # here: commons.helm imports this module
+    suspended = helmrelease_is_suspended(CLUSTER_AUTOSCALER_AWS_09_RELEASE, "kube-system")
     if dry_run:
-        print("DRY-RUN")
+        print("DRY-RUN (resume, then delete)" if suspended else "DRY-RUN")
         return
+    # helm-controller skips the uninstall of a suspended HelmRelease
+    if suspended:
+        set_helmrelease_suspend(CLUSTER_AUTOSCALER_AWS_09_RELEASE, "kube-system", False)
     # helm-controller uninstalls the release (Deployment, RBAC) before the HelmRelease is gone
     run_command(f"{S.kubectl} delete helmrelease {CLUSTER_AUTOSCALER_AWS_09_RELEASE} -n kube-system --wait=true --timeout=5m")
     for cm in (f"00-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-default-values", f"02-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-override-values"):
