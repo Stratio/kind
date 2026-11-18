@@ -51,7 +51,7 @@ kubectl -n kube-system rollout restart deployment <nombre-del-deployment>
 |===
 | Tipo de _cluster_ y grupo | _Deployment_ que lo gestiona
 
-| EKS creado con la 0.9 (grupos _MachinePool_)
+| EKS, grupos _MachinePool_ (creado con la 0.9 o actualizado desde la 0.7)
 | `cluster-autoscaler-aws-cluster-autoscaler`
 
 | EKS actualizado desde la 0.7 (grupos _MachineDeployment_)
