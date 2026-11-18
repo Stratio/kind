@@ -125,6 +125,8 @@ EKS_NODES_ROLE = "nodes.cluster-api-provider-aws.sigs.k8s.io"
 
 # EKS only: second cluster-autoscaler, cloudProvider aws, for MachinePools; the clusterapi one keeps the MachineDeployments.
 CLUSTER_AUTOSCALER_AWS_RELEASE = "cluster-autoscaler-aws"
+# Deployment name of create cluster's CA aws (release cluster-autoscaler, chart default fullname), so both paths share it.
+CLUSTER_AUTOSCALER_AWS_DEPLOYMENT = "cluster-autoscaler-aws-cluster-autoscaler"
 # Its own status ConfigMap: the default cluster-autoscaler-status belongs to the clusterapi CA.
 CLUSTER_AUTOSCALER_AWS_STATUS_CONFIGMAP = "cluster-autoscaler-aws-status"
 # Same name and document as create cluster (createworker/aws.go clusterAutoscalerPolicyName/clusterAutoscalerPolicyDocument).
@@ -699,7 +701,7 @@ def write_cluster_autoscaler_aws_values(values_file):
             "clusterName": name,
             "tags": ["k8s.io/cluster-autoscaler/enabled", f"k8s.io/cluster-autoscaler/{name}"],
         },
-        "fullnameOverride": CLUSTER_AUTOSCALER_AWS_RELEASE,
+        "fullnameOverride": CLUSTER_AUTOSCALER_AWS_DEPLOYMENT,
         # Installed but not running: the two instances cannot coexist (known issue), MachinePools are not used on upgraded clusters yet
         "replicaCount": 0,
         # The chart grants get/update only on the lease "cluster-autoscaler" and the ConfigMap "cluster-autoscaler-status", both used by the clusterapi CA
