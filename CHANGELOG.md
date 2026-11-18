@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5381] `upgrade-provisioner.py` (Azure): a worker group scaled to 0 nodes by the cluster-autoscaler no longer stops the upgrade.
+  The wait for each group's nodes at every Kubernetes step treated a group with no Node as not converged and failed after its timeout;
+  a group whose desired and current replicas are 0 is now converged once its MachineDeployment is.
 * [PLT-5234] `upgrade-provisioner.py` (GKE): target Kubernetes 1.37, as on EKS and Azure. GKE was capped at 1.36 because 1.37 was only in the RAPID channel; it is now in REGULAR and EXTENDED too, and `--k8s-version 1.37` was rejected
 * [PLT-5180] `create cluster` (EKS): the cluster-autoscaler runs with `cloudProvider: aws` and scales the MachinePool Auto Scaling groups found by the cluster tags. Its image, on every provider, is the upstream `registry.k8s.io/autoscaling/cluster-autoscaler` of the cluster minor (`v1.35.3` on Kubernetes 1.35, `v1.36.2` on 1.36, `v1.37.0` on 1.37, all with the kubernetes/autoscaler#9693 scale-down fix for AWSManagedMachinePool); with a private registry `<keos_registry>/autoscaling/cluster-autoscaler`, under the `k8s/` prefix when the ECR pull-through cache is enabled. The Stratio build `stratio/cluster-autoscaler` is no longer used.
   The policy `cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io` is created when missing and attached to the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role after the clusterawsadm stack, outside it. The deploy identity needs `iam:GetPolicy`, `iam:CreatePolicy`, `iam:ListAttachedRolePolicies` and `iam:AttachRolePolicy`. The cluster-autoscaler pods are added to the `allow-traffic-to-aws-imds` GlobalNetworkPolicy, the `clusterapi` Role/RoleBinding is no longer applied on EKS, and an empty `control_plane.aws.mp_role_name` is set to the eks-nodegroup role in the `KeosCluster`

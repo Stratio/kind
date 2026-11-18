@@ -525,8 +525,11 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
                 1 for node in wn_nodes
                 if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(target_minor_prefix)
             )
-            kubelet_converged = bool(wn_nodes) and progress == len(wn_nodes)
-            converged = spec_converged and kubelet_converged and len(wn_nodes) == sum(md.get("status", {}).get("replicas", 0) for md in mds)
+            expected_nodes = sum(md.get("status", {}).get("replicas") or 0 for md in mds)
+            desired_nodes = sum(md.get("spec", {}).get("replicas") or 0 for md in mds)
+            # A group the cluster-autoscaler scaled to 0 has no Node to check; spec_converged covers it.
+            kubelet_converged = progress == len(wn_nodes) and (bool(wn_nodes) or desired_nodes == expected_nodes == 0)
+            converged = spec_converged and kubelet_converged and len(wn_nodes) == expected_nodes
         except (ValueError, TypeError):
             converged = False
         if converged:
