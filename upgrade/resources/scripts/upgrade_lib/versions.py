@@ -168,10 +168,11 @@ subjects:
   namespace: kube-system"""
 
 # EKS only (MachinePools only on 0.10): one cluster-autoscaler, release "cluster-autoscaler" with cloudProvider aws, as create cluster.
-# Deployment of that release with cloudProvider clusterapi and with aws (both seen live on 0.9 clusters)
+# Deployment of that release with cloudProvider clusterapi and with aws (both seen live on 0.9 clusters); the aws name is also the
+# Deployment of the 0.9 second release below from 0.9.9 on (fullnameOverride)
 CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT = "cluster-autoscaler-clusterapi-cluster-autoscaler"
 CLUSTER_AUTOSCALER_AWS_DEPLOYMENT = "cluster-autoscaler-aws-cluster-autoscaler"
-# Second release the 0.9 upgrade-provisioner.py installs for MachinePools on clusters from 0.7.5 (fullnameOverride = release name)
+# Second release the 0.9 upgrade-provisioner.py installs for MachinePools on clusters from 0.7.5; also its Deployment name in 0.9.9-m.3..m.6
 CLUSTER_AUTOSCALER_AWS_09_RELEASE = "cluster-autoscaler-aws"
 # The clusterawsadm role of every EKS MachinePool (CAPA DefaultEKSNodegroupRole), the only mp_role_name cluster-operator accepts
 EKS_NODEGROUP_ROLE = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
