@@ -16,11 +16,12 @@ from upgrade_lib.commons.capi import create_clusterctl_config_for_private_regist
 from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repository, print_planned_changes, update_helm_repository, upgrade_charts, validate_helm_repository
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
+from upgrade_lib.commons.network import ensure_imds_allow
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.providers.aws import configure_aws_credentials, ensure_aws_node_annotate_pod_ip_rbac, ensure_mp_role_name, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
-from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, aws_eks_charts, azure_vm_charts, common_charts
 from upgrade_lib import state as S
 
 
@@ -307,6 +308,11 @@ def run():
         if parse_k8s_minor(S.keos_cluster["spec"]["k8s_version"]) < min_azure_start:
             print(f"[ERROR] Cluster k8s_version is {S.keos_cluster['spec']['k8s_version']}; this release upgrades Azure VMs clusters from {min_azure_start[0]}.{min_azure_start[1]} onwards — upgrade it to {min_azure_start[0]}.{min_azure_start[1]} with the previous release first")
             sys.exit(1)
+
+    # GKE with logging on: event-exporter crash-loops while the IMDS deny policy blocks it; allow it before the
+    # pod health check so a cluster already in that state does not abort here.
+    if S.provider == "gcp" and ensure_imds_allow(GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, "event-exporter", S.config["dry_run"]):
+        run_command(f"{S.kubectl} -n kube-system delete pod -l k8s-app=event-exporter --ignore-not-found", allow_errors=True)
 
     preflight_cluster_health_checks(S.keos_cluster, cluster_name, S.provider)
 

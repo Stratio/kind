@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5382] GKE with `logging_config` on: GKE's `event-exporter` pod (kube-system) is added to the `allow-traffic-to-gcp-imds-capg`
+  GlobalNetworkPolicy. The `deny-all-traffic-to-gcp-imds` policy blocked its call to the metadata server, so the pod crash-looped
+  as soon as it restarted after the policy was applied and the upgrade pod health check stopped there. New clusters get it from
+  `create cluster`; `upgrade-provisioner.py` adds it to existing clusters before its pod health check and restarts the pod.
 * [PLT-5381] `upgrade-provisioner.py` (Azure): a worker group scaled to 0 nodes by the cluster-autoscaler no longer stops the upgrade.
   The wait for each group's nodes at every Kubernetes step treated a group with no Node as not converged and failed after its timeout;
   a group whose desired and current replicas are 0 is now converged once its MachineDeployment is.

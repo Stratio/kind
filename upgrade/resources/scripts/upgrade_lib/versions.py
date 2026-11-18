@@ -182,6 +182,10 @@ CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{
 IMDS_ALLOW_GNP = "allow-traffic-to-aws-imds"
 IMDS_DENY_GNP = "deny-all-traffic-to-aws-imds"
 IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR = "app.kubernetes.io/name == 'aws-cluster-autoscaler'"
+# create cluster file createworker/files/gcp/allow-egress-imds_gnetpol.yaml; GKE's event-exporter (logging on) reads the project id from IMDS.
+GCP_IMDS_ALLOW_GNP = "allow-traffic-to-gcp-imds-capg"
+GCP_IMDS_DENY_GNP = "deny-all-traffic-to-gcp-imds"
+GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR = "k8s-app == 'event-exporter'"
 
 # Azure only: cloud-provider-azure's own per-minor image table can reference an
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).

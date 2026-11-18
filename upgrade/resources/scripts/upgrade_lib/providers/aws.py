@@ -8,6 +8,7 @@ import subprocess
 import time
 import yaml
 from upgrade_lib.commons.keoscluster import wait_for_keoscluster_settled
+from upgrade_lib.commons.network import ensure_imds_allow
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib.versions import AWS_NODE_ANNOTATE_POD_IP_RBAC, CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT, CLUSTER_AUTOSCALER_AWS_POLICY_NAME, EKS_NODEGROUP_ROLE, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, IMDS_ALLOW_GNP, IMDS_DENY_GNP
 from upgrade_lib import state as S
@@ -210,32 +211,7 @@ def ensure_cluster_autoscaler_aws_iam(dry_run):
 def ensure_imds_allow_cluster_autoscaler_aws(dry_run):
     '''Add the cluster-autoscaler aws pods to the IMDS allow GlobalNetworkPolicy, as create cluster'''
 
-    print(f"[INFO] Allowing IMDS egress to the cluster-autoscaler aws pods (GlobalNetworkPolicy {IMDS_ALLOW_GNP}):", end=" ", flush=True)
-    gnp = "globalnetworkpolicies.crd.projectcalico.org"
-    selector, err = run_command(f"{S.kubectl} get {gnp} {IMDS_ALLOW_GNP} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
-    if "NotFound" in err:
-        _, deny_err = run_command(f"{S.kubectl} get {gnp} {IMDS_DENY_GNP} -o name", allow_errors=True)
-        if "NotFound" in deny_err:
-            print(f"SKIP (no {IMDS_DENY_GNP}: IMDS egress is not restricted)")
-            return
-        print("FAILED")
-        print(f"[ERROR] {IMDS_DENY_GNP} exists but {IMDS_ALLOW_GNP} does not: the cluster-autoscaler aws could not reach IMDS")
-        sys.exit(1)
-    if err.strip() or not selector.strip():
-        print("FAILED")
-        print(f"[ERROR] Could not read {IMDS_ALLOW_GNP}: {err.strip()}")
-        sys.exit(1)
-    if IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR in selector:
-        print("SKIP (already allowed)")
-        return
-    patch_file = "/tmp/imds-allow-cluster-autoscaler-aws-patch.json"
-    with open(patch_file, "w") as f:
-        json.dump({"spec": {"selector": f"{selector.strip()} || {IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR}"}}, f)
-    if dry_run:
-        print("DRY-RUN")
-        return
-    run_command(f"{S.kubectl} patch {gnp} {IMDS_ALLOW_GNP} --type=merge --patch-file {patch_file}")
-    print("OK")
+    ensure_imds_allow(IMDS_ALLOW_GNP, IMDS_DENY_GNP, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, "cluster-autoscaler aws", dry_run)
 
 def remove_cluster_autoscaler_aws_09_release(dry_run):
     '''Delete the second CA release that the 0.9 upgrade adds for MachinePools: on 0.10 the release cluster-autoscaler becomes the only one, with cloudProvider aws'''

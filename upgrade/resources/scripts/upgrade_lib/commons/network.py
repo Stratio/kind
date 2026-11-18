@@ -2,6 +2,7 @@
 """commons.network — moved verbatim from upgrade-provisioner.py (PLT-4916)."""
 
 import os
+import sys
 import json
 import yaml
 from jinja2 import Template, Environment, FileSystemLoader
@@ -81,3 +82,35 @@ spec:
         run_command(f"{S.kubectl} patch GlobalNetworkPolicy allow-all-traffic-from-control-plane --type merge --patch-file {restore_file}")
         os.remove(restore_file)
         print("OK")
+
+def ensure_imds_allow(allow_gnp, deny_gnp, term, what, dry_run):
+    '''Add term to the IMDS allow GlobalNetworkPolicy, as create cluster; True if the policy was patched'''
+
+    print(f"[INFO] Allowing IMDS egress to the {what} pods (GlobalNetworkPolicy {allow_gnp}):", end=" ", flush=True)
+    gnp = "globalnetworkpolicies.crd.projectcalico.org"
+    selector, err = run_command(f"{S.kubectl} get {gnp} {allow_gnp} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
+    if "NotFound" in err:
+        _, deny_err = run_command(f"{S.kubectl} get {gnp} {deny_gnp} -o name", allow_errors=True)
+        if "NotFound" in deny_err:
+            print(f"SKIP (no {deny_gnp}: IMDS egress is not restricted)")
+            return False
+        print("FAILED")
+        print(f"[ERROR] {deny_gnp} exists but {allow_gnp} does not: the {what} could not reach IMDS")
+        sys.exit(1)
+    if err.strip() or not selector.strip():
+        print("FAILED")
+        print(f"[ERROR] Could not read {allow_gnp}: {err.strip()}")
+        sys.exit(1)
+    # A hand-applied patch may store the term with double quotes.
+    if term in selector.replace('"', "'"):
+        print("SKIP (already allowed)")
+        return False
+    patch_file = f"/tmp/imds-allow-{what.replace(' ', '-')}-patch.json"
+    with open(patch_file, "w") as f:
+        json.dump({"spec": {"selector": f"{selector.strip()} || {term}"}}, f)
+    if dry_run:
+        print("DRY-RUN")
+        return False
+    run_command(f"{S.kubectl} patch {gnp} {allow_gnp} --type=merge --patch-file {patch_file}")
+    print("OK")
+    return True
