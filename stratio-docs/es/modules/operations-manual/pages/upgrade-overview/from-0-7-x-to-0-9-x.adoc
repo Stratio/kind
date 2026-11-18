@@ -747,8 +747,8 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 | <<outage, Parada y disponibilidad>>
 
 | Modificar el `KeosCluster` con `kubectl apply`
-| En cualquier momento, también fuera de la ventana
-| No lo hagas: `cluster-operator` detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
+| Mientras `cluster-operator` siga en la versión 0.5.x: antes de la actualización y hasta que el paso 5 lo actualice
+| No lo hagas: `cluster-operator` 0.5.x detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
 | -
 
 | En Azure, el _kubeconfig_ caducado aborta la ejecución

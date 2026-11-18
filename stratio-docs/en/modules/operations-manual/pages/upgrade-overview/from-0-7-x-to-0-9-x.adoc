@@ -747,8 +747,8 @@ What the backup that the script makes serves for, then: to reconstruct the Clust
 | <<outage, Downtime and availability>>
 
 | Modifying the `KeosCluster` with `kubectl apply`
-| At any time, also outside the window
-| Do not do it: `cluster-operator` detects the annotation that `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
+| While `cluster-operator` is still on version 0.5.x: before the upgrade and until step 5 upgrades it
+| Do not do it: `cluster-operator` 0.5.x detects the annotation that `apply` generates and skips the real reconciliation cycle, so the changes are never processed. Use `patch`.
 | -
 
 | On Azure, the expired kubeconfig aborts the execution

@@ -160,7 +160,7 @@ En el _dry-run_, el _script_ solo pregunta por el repositorio de Helm: pulsa Int
 * "[INFO] Planned k8s_version bump: <versión actual> -> v1.35.<patch>", con el _patch_ que usará el _script_, y "[INFO] Bumping k8s_version: DRY-RUN".
 * Al final: "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: DRY-RUN (no changes were applied)".
 
-Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real.
+Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real. La excepción es el _pod_ `event-exporter-gke` en `CrashLoopBackOff` cuando antes aparece "[INFO] Allowing IMDS egress to the event-exporter pods (GlobalNetworkPolicy allow-traffic-to-gcp-imds-capg): DRY-RUN": el _dry-run_ no cambia la política y la ejecución real sí.
 
 NOTE: Aunque no cambia nada en el _cluster_, el _dry-run_ también activa las cuentas de servicio en `gcloud` y reescribe el _kubeconfig_ montado.
 
