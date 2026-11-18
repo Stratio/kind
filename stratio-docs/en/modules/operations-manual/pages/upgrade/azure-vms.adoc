@@ -1,4 +1,5 @@
 = Actualización en Azure VMs
+
 :sectnums:
 :sectnumlevels: 1
 
@@ -16,6 +17,7 @@ IMPORTANT: El cambio de versión de Kubernetes es el punto de no retorno. El _sc
 En Azure VMs solo se usa el _script_ `upgrade-provisioner.py` de la imagen de actualización.
 
 [#_cambio_de_versión_de_kubernetes_en_azure_vms]
+
 === Cambio de versión de Kubernetes en Azure VMs
 
 El _control-plane_ de Azure VMs es un `KubeadmControlPlane` de Cluster API. Su _webhook_ rechaza los saltos de dos o más _minors_, así que el _script_ aplica un cambio por cada _minor_ (1.32 → 1.33 → 1.34 → 1.35) y espera a que cada uno termine antes de aplicar el siguiente.
@@ -308,6 +310,7 @@ NOTE: Si aparece algún error, revísalo antes de continuar.
 include::partial$upgrade-recovery.adoc[]
 
 [#_proceso_interrumpido_durante_el_cambio_de_versión]
+
 === Proceso interrumpido durante el cambio de versión
 
 Si el proceso del _script_ se mata durante el cambio de versión de Kubernetes (por ejemplo, porque se detiene el contenedor), los cambios temporales de la política de red y del _webhook_ de Capsule pueden quedar aplicados, si el _cluster_ los tiene. Si el _script_ falla con un error, los deshace él mismo.

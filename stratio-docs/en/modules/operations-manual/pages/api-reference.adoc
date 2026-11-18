@@ -61,7 +61,6 @@ This resource defines the desired state of the _ClusterConfig_ resource.
 | Specifies whether a private container registry will be used during installation. If enabled, images will be pulled from the registry defined as _keos++_++registry_.
 | _true_
 | -
-| -
 |===
 
 === _ClusterConfigStatus_

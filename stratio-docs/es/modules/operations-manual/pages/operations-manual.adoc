@@ -484,6 +484,7 @@ kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
 En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el primer comando.
 
 [[eks-activar-cluster-autoscaler-aws]]
+
 ==== Activación de `cluster-autoscaler-aws` en EKS
 
 En los _clusters_ de EKS actualizados desde la 0.7.x, activa la instancia `cluster-autoscaler-aws` cuando vayas a usar grupos _MachinePool_. Esta instancia es la que escala esos grupos.
