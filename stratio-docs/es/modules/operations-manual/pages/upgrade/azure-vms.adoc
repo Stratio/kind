@@ -2,7 +2,7 @@
 :sectnums:
 :sectnumlevels: 1
 
-Este procedimiento actualiza un _cluster_ de Azure VMs creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.x, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
+Este procedimiento actualiza un _cluster_ de Azure VMs creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.9, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
 
 == Antes de empezar
 
@@ -83,7 +83,7 @@ Descarga la imagen:
 
 [source,bash]
 ----
-docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+docker pull <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 Arranca el contenedor:
@@ -91,13 +91,13 @@ Arranca el contenedor:
 [source,bash]
 ----
 docker run \
-  --name cloud-provisioner-upgrade-0.9.X \
+  --name cloud-provisioner-upgrade-0.9.9 \
   --net host \
   -it \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v $PWD/backup:/upgrade/backup \
-  <registry>/cloud-provisioner-upgrade:0.9.X
+  <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 NOTE: El _script_ no genera un fichero de registro propio con marca de tiempo; toda su salida se envía a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero en el volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
@@ -312,11 +312,11 @@ include::partial$upgrade-recovery.adoc[]
 
 Si el proceso del _script_ se mata durante el cambio de versión de Kubernetes (por ejemplo, porque se detiene el contenedor), los cambios temporales de la política de red y del _webhook_ de Capsule pueden quedar aplicados, si el _cluster_ los tiene. Si el _script_ falla con un error, los deshace él mismo.
 
-Si el contenedor se detuvo, vuelve a entrar en él. No lances otro `docker run` con el mismo nombre: falla con "Conflict. The container name "/cloud-provisioner-upgrade-0.9.X" is already in use".
+Si el contenedor se detuvo, vuelve a entrar en él. No lances otro `docker run` con el mismo nombre: falla con "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use".
 
 [source,bash]
 ----
-docker start -ai cloud-provisioner-upgrade-0.9.X
+docker start -ai cloud-provisioner-upgrade-0.9.9
 ----
 
 Antes de relanzar, espera a que el `KeosCluster` termine de aplicar la versión que dejó el proceso interrumpido. _cluster-operator_ sigue aplicándola por su cuenta, y mientras tanto el _script_ se detiene en sus comprobaciones iniciales con "KeosCluster.status.ready = False (expected true)":

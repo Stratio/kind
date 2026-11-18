@@ -67,5 +67,5 @@ Un guión indica que el componente no se utiliza en ese entorno. Si un _chart_ d
 | Proveedor de infraestructura
 | CAPA `v2.9.3`
 | CAPZ `v1.21.3`
-| CAPG `1.6.1-0.4.2`
+| CAPG `1.6.1-0.4.3`
 |===

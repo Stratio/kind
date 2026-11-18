@@ -34,8 +34,8 @@ A su vez, podrá utilizarse el alias "kw" desde el contenedor local para interac
 ----
 root@example-azure-control-plane:/# kw get nodes
 NAME                                STATUS   ROLES           AGE   VERSION
-example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.26.8
-example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
+example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.35.8
+example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.35.8
 ...
 ----
 
@@ -595,7 +595,7 @@ Para iniciar la actualización, una vez satisfechos los prerrequisitos, se ejecu
 
 [source,bash]
 ----
-kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.32.x"}}'
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.35.x"}}'
 ----
 
 NOTE: El _controller_ aprovisiona un nuevo nodo del grupo de _workers_ con la versión actualizada y, una vez que esté _Ready_ en Kubernetes, elimina un nodo con la versión anterior. De esta forma, se garantiza el número de nodos configurado.

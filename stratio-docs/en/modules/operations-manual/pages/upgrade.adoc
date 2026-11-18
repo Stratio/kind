@@ -2,7 +2,7 @@
 
 == Description
 
-The `upgrade-provisioner.py` script upgrades a cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.x with Kubernetes 1.35. Each environment has its own step-by-step procedure:
+The `upgrade-provisioner.py` script upgrades a cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.9 with Kubernetes 1.35. Each environment has its own step-by-step procedure:
 
 * xref:operations-manual:upgrade/aws-eks.adoc[EKS] on AWS (managed).
 * xref:operations-manual:upgrade/azure-vms.adoc[Azure VMs] (no gestionado).
@@ -23,7 +23,7 @@ IMPORTANT: Before starting, read this page and the environment's procedure page 
 
 IMPORTANT: Only Kubernetes 1.32 clusters are supported. If the cluster is on an earlier version, first run the corresponding upgrade procedure until you reach the supported version.
 
-The script and all its dependencies come in the `cloud-provisioner-upgrade:0.9.X` Docker image, so they do not need to be installed on the machine:
+The script and all its dependencies come in the `cloud-provisioner-upgrade:0.9.9` Docker image, so they do not need to be installed on the machine:
 
 [%header,cols="2,4,1"]
 |===
@@ -378,9 +378,11 @@ clusterctl upgrade apply \
   --wait-providers
 ----
 +
+`<provider>:<version>` es `aws:v2.9.3` en EKS, `azure:v1.21.3` en Azure VMs y `gcp:1.6.1-0.4.3` en GKE.
++
 It skips if all providers are already on their destination version and, in private mode (see the <<_use_of_the_private_option, use of the `--private` option>>), their images already come from the private registry. If cert-manager is managed with Helm, it removes the `clusterctl` label beforehand so `clusterctl` doesn't replace it. Afterward, it returns the CAPI and provider controllers to 2 replicas with `priorityClassName: system-node-critical`.
 +
-NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:<version>` and `--control-plane kubeadm:<version>` parameters. EKS and GKE manage their own _control-plane_ and do not need to update these providers, but Azure VMs use `KubeadmControlPlane`, the kubeadm _control-plane_ provider of CAPI, which must be updated separately.
+NOTE: On Azure VMs, the command additionally includes the `--bootstrap kubeadm:v1.10.10` and `--control-plane kubeadm:v1.10.10` parameters. EKS and GKE manage their own _control-plane_ and do not need to update these providers, but Azure VMs use `KubeadmControlPlane`, the kubeadm _control-plane_ provider of CAPI, which must be updated separately.
 
 . *Kubernetes version upgrade*: each environment does it in a different way. See the "Before starting" section of the environment's procedure.
 

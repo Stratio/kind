@@ -3,7 +3,7 @@
 :sectnumlevels: 1
 
 
-Este procedimiento actualiza un _cluster_ de GKE creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.x, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
+Este procedimiento actualiza un _cluster_ de GKE creado con _Stratio Cloud Provisioner_ 0.7.x, con Kubernetes 1.32, a la versión 0.9.9, con Kubernetes 1.35. Lee el procedimiento completo antes de aplicarlo y, después, sigue los apartados en orden.
 
 == Antes de empezar
 
@@ -85,7 +85,7 @@ Descarga la imagen:
 
 [source,bash]
 ----
-docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+docker pull <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 Arranca el contenedor:
@@ -93,13 +93,13 @@ Arranca el contenedor:
 [source,bash]
 ----
 docker run \
-  --name cloud-provisioner-upgrade-0.9.X \
+  --name cloud-provisioner-upgrade-0.9.9 \
   --net host \
   -it \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v $PWD/backup:/upgrade/backup \
-  <registry>/cloud-provisioner-upgrade:0.9.X
+  <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 NOTE: El _script_ no genera un fichero de registro propio con marca de tiempo; toda su salida se envía a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero en el volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.

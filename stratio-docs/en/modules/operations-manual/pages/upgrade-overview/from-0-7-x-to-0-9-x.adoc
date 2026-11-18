@@ -1,6 +1,6 @@
 = Upgrade from 0.7.x to 0.9.x
 
-This sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.7.x to 0.9.x, which accompanies the move to Universe 15.1 from 14.8.x, 14.9.x, or 14.10.x in the environments deployed on the cloud. It includes the Kubernetes jump from version 1.32 to 1.35, which in these environments is the responsibility of _Stratio Cloud Provisioner_, not _Stratio KEOS_. Use it to plan the maintenance window, know what to prepare beforehand, and what to check afterward.
+This sheet summarizes the impact of upgrading _Stratio Cloud Provisioner_ from 0.7.x to 0.9.9, which accompanies the move to Universe 15.1 from 14.8.x, 14.9.x, or 14.10.x in the environments deployed on the cloud. It includes the Kubernetes jump from version 1.32 to 1.35, which in these environments is the responsibility of _Stratio Cloud Provisioner_, not _Stratio KEOS_. Use it to plan the maintenance window, know what to prepare beforehand, and what to check afterward.
 
 Each section answers a question and links to the page that details the procedure. When you reach the intervention window, follow the xref:operations-manual:upgrade.adoc[upgrade procedure] step by step.
 
@@ -107,7 +107,7 @@ The upgrade runs a single execution of `upgrade-provisioner.py`, which processes
 | It goes at the end because it is executed by the components of the two previous blocks: `cluster-operator` translates the `k8s_version` change, and Cluster API replaces the machines.
 |===
 
-Target versions of 0.9.x:
+Target versions of 0.9.9:
 
 [cols="2,1,3", options="header"]
 |===
@@ -118,7 +118,7 @@ Target versions of 0.9.x:
 | `clusterctl` v1.10.10 must be in the `PATH`; the script checks it and aborts if it is earlier.
 
 | CAPA, CAPZ, and CAPG
-| v2.9.3, v1.21.3, and 1.6.1-0.4.2
+| v2.9.3, v1.21.3, and 1.6.1-0.4.3
 | Only the cluster's provider is upgraded.
 
 | `cluster-operator`
@@ -462,7 +462,7 @@ IMPORTANT: On Azure VMs, the _control-plane_ etcd is managed by kubeadm and its 
 
 === Data and consistency
 
-* *What changes in the data model.* Nothing in the application data. The infrastructure changes: the nodes are replaced and, on Azure VMs, the _control-plane_ etcd members are upgraded *from the v3.5 series to v3.6*, an irreversible storage-format change. See <<no-return, Point of no return>>. The Cluster API CRDs move to the versions shipped with 0.9.x, which requires converting existing objects.
+* *What changes in the data model.* Nothing in the application data. The infrastructure changes: the nodes are replaced and, on Azure VMs, the _control-plane_ etcd members are upgraded *from the v3.5 series to v3.6*, an irreversible storage-format change. See <<no-return, Point of no return>>. The Cluster API CRDs move to the versions shipped with 0.9.9, which requires converting existing objects.
 * *Is a mandatory backup needed before?* The script itself makes it at the start, and it does not have to be requested: it exports to disk the Cluster API objects, the Capsule webhooks, and the secrets of the Cluster API and provider namespaces. It is advisable not to deactivate it and to keep that directory until the window is closed.
 * *What that backup covers and what it does not cover.* It serves to reconstruct the infrastructure objects if they are corrupted or deleted. *It does not serve to go back to the previous version*: the objects it contains describe the cluster as it was, but restoring them does not downgrade Kubernetes or the providers.
 * *What happens to the volumes.* The provider disks survive the replacement of the nodes: they are detached from the retired node and attached to the new one. What lives on a node's local disk, by contrast, is lost.

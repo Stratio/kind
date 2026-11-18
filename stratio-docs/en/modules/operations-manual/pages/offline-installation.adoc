@@ -10,11 +10,11 @@ To perform a successful offline installation, it is necessary to specify:
 
 * _ClusterConfig_:
 ** *`spec.private_registry`: _true_*. With this parameter, you tell _Stratio Cloud Provisioner_ that all images needed during provisioning and installation of the cluster should be retrieved from the _keos registry_.
-** *`spec.private_helm_repo`: _true_*. This parameter tells _Stratio Cloud Provisioner_ that all the charts required for provisioning and installing the cluster should be fetched from the _keos registry_.
+** *`spec.private_helm_repo`: _true_*. This parameter tells _Stratio Cloud Provisioner_ that all the charts required for provisioning and installing the cluster should be fetched from the Helm repository set in `spec.helm_repository` of the _KeosCluster_.
 * _KeosCluster_:
 ** `spec.docker_registries`: in the 'docker++_++registries' section, the _keos registry_ from which the images will be downloaded for offline deployment must be indicated. This registry must have the necessary images for each installation.
 
-NOTE: Images must be available in the repository defined as the _keos registry_, keeping the same original path name. For example, the image `registry.k8s.io/cluster-api/cluster-api-controller:v1.10.8` must be pulled from `<keos_registry_url>/cluster-api/cluster-api-controller:v1.10.8`.
+NOTE: Images must be available in the repository defined as the _keos registry_, keeping the same original path name. For example, the image `registry.k8s.io/cluster-api/cluster-api-controller:v1.10.10` must be pulled from `<keos_registry_url>/cluster-api/cluster-api-controller:v1.10.10`.
 
 == Images
 
@@ -23,7 +23,7 @@ The images required for an offline installation are composed of two types: image
 |===
 | Version | Common | EKS | Unmanaged Azure | GKE
 
-| v1.26.x
+| v1.35.x
 | xref:operations-manual:offline-installation/common-images.adoc[common images]
 | xref:operations-manual:offline-installation/aws-eks-images.adoc[EKS]
 | xref:operations-manual:offline-installation/azure-vms-images.adoc[unmanaged Azure]

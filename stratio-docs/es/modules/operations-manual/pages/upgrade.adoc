@@ -2,7 +2,7 @@
 
 == Descripción
 
-El _script_ `upgrade-provisioner.py` actualiza un _cluster_ creado con _Stratio Cloud Provisioner_ 0.7.x y Kubernetes 1.32 a la versión 0.9.x con Kubernetes 1.35. Cada entorno tiene su propio procedimiento paso a paso:
+El _script_ `upgrade-provisioner.py` actualiza un _cluster_ creado con _Stratio Cloud Provisioner_ 0.7.x y Kubernetes 1.32 a la versión 0.9.9 con Kubernetes 1.35. Cada entorno tiene su propio procedimiento paso a paso:
 
 * xref:operations-manual:upgrade/aws-eks.adoc[EKS] en AWS (gestionado).
 * xref:operations-manual:upgrade/azure-vms.adoc[Azure VMs] (no gestionado).
@@ -23,7 +23,7 @@ IMPORTANT: Antes de empezar, lee completamente esta página y la del procedimien
 
 IMPORTANT: Solo se admiten _clusters_ en la versión 1.32 de Kubernetes. Si tu _cluster_ está en una versión anterior, realiza primero el procedimiento de actualización correspondiente hasta alcanzar la versión admitida.
 
-El _script_ y todas sus dependencias vienen en la imagen de Docker `cloud-provisioner-upgrade:0.9.X`, así que no necesitas instalarlas en tu máquina:
+El _script_ y todas sus dependencias vienen en la imagen de Docker `cloud-provisioner-upgrade:0.9.9`, así que no necesitas instalarlas en tu máquina:
 
 [%header,cols="2,4,1"]
 |===
@@ -378,9 +378,11 @@ clusterctl upgrade apply \
   --wait-providers
 ----
 +
+`<proveedor>:<versión>` es `aws:v2.9.3` en EKS, `azure:v1.21.3` en Azure VMs y `gcp:1.6.1-0.4.3` en GKE.
++
 Se omite si todos los proveedores ya están en su versión de destino y, en modo privado (consulta el <<_uso_de_la_opción_private, uso de la opción `--private`>>), sus imágenes ya vienen del registro privado. Antes, si cert-manager está gestionado con Helm, le quita la etiqueta de `clusterctl` para que `clusterctl` no lo reemplace. Después, devuelve los _controllers_ de CAPI y del proveedor a 2 réplicas con `priorityClassName: system-node-critical`.
 +
-NOTE: En Azure VMs, el comando incluye además los parámetros `--bootstrap kubeadm:<versión>` y `--control-plane kubeadm:<versión>`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos proveedores, pero Azure VMs usa `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
+NOTE: En Azure VMs, el comando incluye además los parámetros `--bootstrap kubeadm:v1.10.10` y `--control-plane kubeadm:v1.10.10`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos proveedores, pero Azure VMs usa `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
 
 . *Actualización de la versión de Kubernetes*: cada entorno la realiza de forma distinta. Consulta el apartado "Antes de empezar" del procedimiento de tu entorno.
 

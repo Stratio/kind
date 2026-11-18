@@ -749,11 +749,6 @@ Los parámetros de la fase del _keos-installer_ se indicarán en este apartado.
 |_Flavour_ de instalación que indica el tamaño del _cluster_ y su resiliencia. Por defecto, es "production".
 |development
 |Sí
-
-|_version_
-|Versión del _keos-installer_.
-|1.0.0
-|No
 |===
 
 === Ejemplo de descriptor
@@ -915,7 +910,6 @@ En este ejemplo se pueden ver las siguientes particularidades:
 ** _cluster++_++network_
 *** _private++_++cluster_
 **** _enable++_++private++_++endpoint_
-**** _enable++_++private++_++nodes_
 **** _control++_++plane++_++cidr++_++block_
 ** _ip++_++allocation++_++policy_
 *** _cluster++_++ipv4++_++cidr++_++block_
@@ -993,7 +987,6 @@ spec:
       cluster_network:
         private_cluster:
           enable_private_endpoint: true
-          enable_private_nodes: true
           control_plane_cidr_block: 172.16.16.0/28
       ip_allocation_policy:
         cluster_ipv4_cidr_block: 172.16.0.0/16
@@ -1047,8 +1040,8 @@ metadata:
 spec:
     private_registry: true
     private_helm_repo: true
-    cluster_operator_version: 0.7.x
-    cluster_operator_image_version: 0.7.x
+    cluster_operator_version: 0.7.6
+    cluster_operator_image_version: 0.7.6
 ----
 
 ==== Azure no gestionado
@@ -1157,8 +1150,7 @@ Para crear un _cluster_, basta con un simple comando (consulta las particularida
 sudo ./cloud-provisioner create cluster --name stratio-pre --descriptor cluster-gcp.yaml
 Vault Password:
 Creating temporary cluster "stratio-pre" ...
- ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (cloud-provisioner:<version>) 📸
+ ✓ Ensuring node image (cloud-provisioner:0.9.9) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️

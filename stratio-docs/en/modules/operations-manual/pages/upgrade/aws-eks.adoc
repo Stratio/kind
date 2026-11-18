@@ -3,7 +3,7 @@
 :sectnums:
 :sectnumlevels: 1
 
-This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.x with Kubernetes 1.35. Read the complete procedure before applying it, then follow the sections in order.
+This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.9 with Kubernetes 1.35. Read the complete procedure before applying it, then follow the sections in order.
 
 == Before starting
 
@@ -27,7 +27,7 @@ On EKS, the upgrade image includes three scripts. They are run in this order:
 | Only if the cache is enabled, before `upgrade-provisioner.py`.
 
 | `upgrade-provisioner.py`
-| Updates the components and the Kubernetes version from 0.7.x to 0.9.x.
+| Updates the components and the Kubernetes version from 0.7.x to 0.9.9.
 | Always.
 
 | `activate-capa-machinepool-features.py`
@@ -88,7 +88,7 @@ Download the image:
 
 [source,bash]
 ----
-docker pull <registry>/cloud-provisioner-upgrade:0.9.X
+docker pull <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 Start the container:
@@ -96,14 +96,14 @@ Start the container:
 [source,bash]
 ----
 docker run \
-  --name cloud-provisioner-upgrade-0.9.X \
+  --name cloud-provisioner-upgrade-0.9.9 \
   --net host \
   -it \
   -v $PWD/secrets.yml:/upgrade/secrets.yml \
   -v $PWD/.kube/config:/upgrade/.kube/config \
   -v $PWD/backup:/upgrade/backup \
   -v $PWD/keos.yaml:/upgrade/keos.yaml \
-  <registry>/cloud-provisioner-upgrade:0.9.X
+  <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
 NOTE: Mount the _keos.yaml_ that _Stratio KEOS_ uses (the one in its working directory). If the pull-through cache is enabled, `ecr_pull_through.py` sets `docker_registry.ecr_pull_through_cache_enabled: true` in it. Before starting the container, check that the file exists: if it does not exist, Docker creates a directory with that name and the script ends, indicating that it could not update _keos.yaml_.
@@ -293,7 +293,7 @@ Before applying any change, the script automatically saves a copy of the previou
 
 === Prerequisites
 
-* In `--cluster-operator`, the 0.7.x version of _cluster-operator_ from Universe 15.1 is specified.
+* In `--cluster-operator`, the 0.7.6 version of _cluster-operator_ is specified.
 * The pull-through cache rules must already exist in the cloud account for the upstreams that _Stratio KEOS_ uses (`registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io`, `public.ecr.aws`). The script doesn't create them; it assumes they already exist.
 * The destination repositories must already have the _cluster-operator_ chart in the version of `--cluster-operator` and its image.
 
@@ -301,7 +301,7 @@ Before applying any change, the script automatically saves a copy of the previou
 
 [source,bash]
 ----
-python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version>
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator 0.7.6
 ----
 
 [%header,cols="1,2,1,1"]
@@ -347,7 +347,7 @@ Inside the container, run the script. It has no `--dry-run` mode:
 
 [source,bash]
 ----
-python3 ecr_pull_through.py -p <vault-password> --cluster-operator <version> 2>&1 | tee /upgrade/backup/ecr-pull-through-$(date +%Y%m%d-%H%M%S).log
+python3 ecr_pull_through.py -p <vault-password> --cluster-operator 0.7.6 2>&1 | tee /upgrade/backup/ecr-pull-through-$(date +%Y%m%d-%H%M%S).log
 ----
 
 When it asks for the Helm repository, press Enter to keep the current one if you aren't changing the repository, or enter the URL of the destination repository.

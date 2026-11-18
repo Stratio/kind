@@ -1,6 +1,6 @@
 = Actualización de 0.7.x a 0.9.x
 
-Esta ficha resume el impacto de actualizar _Stratio Cloud Provisioner_ de 0.7.x a 0.9.x, la actualización que acompaña al paso al Universo 15.1 desde 14.8.x, 14.9.x o 14.10.x en los entornos desplegados en _cloud_. Incluye el salto de Kubernetes de la versión 1.32 a la 1.35, que en estos entornos es responsabilidad de _Stratio Cloud Provisioner_ y no de _Stratio KEOS_. Utilízala para planificar la ventana de mantenimiento, saber qué preparar antes y qué comprobar después.
+Esta ficha resume el impacto de actualizar _Stratio Cloud Provisioner_ de 0.7.x a 0.9.9, la actualización que acompaña al paso al Universo 15.1 desde 14.8.x, 14.9.x o 14.10.x en los entornos desplegados en _cloud_. Incluye el salto de Kubernetes de la versión 1.32 a la 1.35, que en estos entornos es responsabilidad de _Stratio Cloud Provisioner_ y no de _Stratio KEOS_. Utilízala para planificar la ventana de mantenimiento, saber qué preparar antes y qué comprobar después.
 
 Cada sección responde a una pregunta y enlaza con la página que detalla el procedimiento. Cuando llegues a la ventana de intervención, sigue el xref:operations-manual:upgrade.adoc[procedimiento de actualización] paso a paso.
 
@@ -107,7 +107,7 @@ La actualización consiste en una única ejecución de `upgrade-provisioner.py`,
 | Va al final porque lo ejecutan los componentes de los dos bloques anteriores: `cluster-operator` traduce el cambio de `k8s_version` y Cluster API reemplaza las máquinas.
 |===
 
-Versiones de destino de la 0.9.x:
+Versiones de destino de la 0.9.9:
 
 [cols="2,1,3", options="header"]
 |===
@@ -118,7 +118,7 @@ Versiones de destino de la 0.9.x:
 | `clusterctl` v1.10.10 tiene que estar en el `PATH`; el _script_ lo comprueba y aborta si es anterior.
 
 | CAPA, CAPZ y CAPG
-| v2.9.3, v1.21.3 y 1.6.1-0.4.2
+| v2.9.3, v1.21.3 y 1.6.1-0.4.3
 | Solo se actualiza el proveedor del _cluster_.
 
 | `cluster-operator`
@@ -462,7 +462,7 @@ IMPORTANT: En Azure VMs, el etcd del _control-plane_ lo gestiona kubeadm y su ve
 
 === Datos y consistencia
 
-* *Qué cambia en el modelo de datos.* Nada en los datos de las aplicaciones. Lo que cambia es la infraestructura: los nodos se reemplazan y, en Azure VMs, con ellos los miembros del etcd del _control-plane_, que además *sube de la serie v3.5 a la v3.6*, un cambio de formato de almacenamiento irreversible. Consulta <<no-return, Punto de no retorno>>. Los CRD de Cluster API pasan a las versiones de la 0.9.x, lo que implica la conversión de los objetos existentes.
+* *Qué cambia en el modelo de datos.* Nada en los datos de las aplicaciones. Lo que cambia es la infraestructura: los nodos se reemplazan y, en Azure VMs, con ellos los miembros del etcd del _control-plane_, que además *sube de la serie v3.5 a la v3.6*, un cambio de formato de almacenamiento irreversible. Consulta <<no-return, Punto de no retorno>>. Los CRD de Cluster API pasan a las versiones de la 0.9.9, lo que implica la conversión de los objetos existentes.
 * *¿Hace falta una copia de seguridad obligatoria antes?* La hace el propio _script_ al empezar, y no hay que pedirla: exporta a disco los objetos de Cluster API, los _webhooks_ de Capsule y los secretos de los _namespaces_ de Cluster API y del proveedor. Conviene no desactivarla y conservar ese directorio hasta cerrar la ventana.
 * *Qué cubre y qué no cubre esa copia.* Sirve para reconstruir los objetos de infraestructura si se corrompen o se eliminan. *No sirve para volver a la versión anterior*: los objetos que contiene describen el _cluster_ tal como estaba, pero restaurarlos no degrada ni a Kubernetes ni a los proveedores.
 * *Qué le ocurre a los volúmenes.* Los discos del proveedor sobreviven al reemplazo de los nodos: se desenganchan del nodo retirado y se enganchan al nuevo. Lo que viva en el disco local de un nodo, en cambio, se pierde con él.

@@ -67,5 +67,5 @@ A dash indicates that the component is not used in that environment. If a chart 
 | Infrastructure provider
 | CAPA `v2.9.3`
 | CAPZ `v1.21.3`
-| CAPG `1.6.1-0.4.2`
+| CAPG `1.6.1-0.4.3`
 |===

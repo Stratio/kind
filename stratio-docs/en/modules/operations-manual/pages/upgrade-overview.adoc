@@ -16,7 +16,7 @@ TIP: Start with the summary section of the sheet. It answers, at a glance, every
 
 | 14.8.x, 14.9.x, 14.10.x
 | 0.7.x, with Kubernetes 1.32
-| 0.9.x, with Kubernetes 1.35
+| 0.9.9, with Kubernetes 1.35
 | xref:operations-manual:upgrade-overview/from-0-7-x-to-0-9-x.adoc[Upgrade from 0.7.x to 0.9.x]
 
 | Earlier than 14.8.x
