@@ -134,6 +134,10 @@ CLUSTER_AUTOSCALER_AWS_POLICY_DOCUMENT = '{"Version":"2012-10-17","Statement":[{
 IMDS_ALLOW_GNP = "allow-traffic-to-aws-imds"
 IMDS_DENY_GNP = "deny-all-traffic-to-aws-imds"
 IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR = "app.kubernetes.io/name == 'aws-cluster-autoscaler'"
+# create cluster file createworker/files/gcp/allow-egress-imds_gnetpol.yaml; GKE's event-exporter (logging on) reads the project id from IMDS.
+GCP_IMDS_ALLOW_GNP = "allow-traffic-to-gcp-imds-capg"
+GCP_IMDS_DENY_GNP = "deny-all-traffic-to-gcp-imds"
+GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR = "k8s-app == 'event-exporter'"
 
 # EKS only: same Role/RoleBinding as create cluster (templates/common/autoscaler_rbac.tmpl); clusters created before MachinePool support lack awsmanagedmachinepools.
 CLUSTER_AUTOSCALER_EKS_RBAC = """---
@@ -647,35 +651,42 @@ def ensure_cluster_autoscaler_aws_iam(dry_run):
             sys.exit(1)
     print("OK (" + ", ".join(name for name, _ in actions) + ")")
 
-def ensure_imds_allow_cluster_autoscaler_aws(dry_run):
-    '''Add the cluster-autoscaler aws pods to the IMDS allow GlobalNetworkPolicy, as create cluster'''
+def ensure_imds_allow(allow_gnp, deny_gnp, term, what, dry_run):
+    '''Add term to the IMDS allow GlobalNetworkPolicy, as create cluster; True if the policy was patched'''
 
-    print(f"[INFO] Allowing IMDS egress to the cluster-autoscaler aws pods (GlobalNetworkPolicy {IMDS_ALLOW_GNP}):", end=" ", flush=True)
+    print(f"[INFO] Allowing IMDS egress to the {what} pods (GlobalNetworkPolicy {allow_gnp}):", end=" ", flush=True)
     gnp = "globalnetworkpolicies.crd.projectcalico.org"
-    selector, err = run_command(f"{kubectl} get {gnp} {IMDS_ALLOW_GNP} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
+    selector, err = run_command(f"{kubectl} get {gnp} {allow_gnp} -o jsonpath='{{.spec.selector}}'", allow_errors=True)
     if "NotFound" in err:
-        _, deny_err = run_command(f"{kubectl} get {gnp} {IMDS_DENY_GNP} -o name", allow_errors=True)
+        _, deny_err = run_command(f"{kubectl} get {gnp} {deny_gnp} -o name", allow_errors=True)
         if "NotFound" in deny_err:
-            print(f"SKIP (no {IMDS_DENY_GNP}: IMDS egress is not restricted)")
-            return
+            print(f"SKIP (no {deny_gnp}: IMDS egress is not restricted)")
+            return False
         print("FAILED")
-        print(f"[ERROR] {IMDS_DENY_GNP} exists but {IMDS_ALLOW_GNP} does not: the cluster-autoscaler aws could not reach IMDS")
+        print(f"[ERROR] {deny_gnp} exists but {allow_gnp} does not: the {what} could not reach IMDS")
         sys.exit(1)
     if err.strip() or not selector.strip():
         print("FAILED")
-        print(f"[ERROR] Could not read {IMDS_ALLOW_GNP}: {err.strip()}")
+        print(f"[ERROR] Could not read {allow_gnp}: {err.strip()}")
         sys.exit(1)
-    if IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR in selector:
+    # A hand-applied patch may store the term with double quotes.
+    if term in selector.replace('"', "'"):
         print("SKIP (already allowed)")
-        return
-    patch_file = "/tmp/imds-allow-cluster-autoscaler-aws-patch.json"
+        return False
+    patch_file = f"/tmp/imds-allow-{what.replace(' ', '-')}-patch.json"
     with open(patch_file, "w") as f:
-        json.dump({"spec": {"selector": f"{selector.strip()} || {IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR}"}}, f)
+        json.dump({"spec": {"selector": f"{selector.strip()} || {term}"}}, f)
     if dry_run:
         print("DRY-RUN")
-        return
-    run_command(f"{kubectl} patch {gnp} {IMDS_ALLOW_GNP} --type=merge --patch-file {patch_file}")
+        return False
+    run_command(f"{kubectl} patch {gnp} {allow_gnp} --type=merge --patch-file {patch_file}")
     print("OK")
+    return True
+
+def ensure_imds_allow_cluster_autoscaler_aws(dry_run):
+    '''Add the cluster-autoscaler aws pods to the IMDS allow GlobalNetworkPolicy, as create cluster'''
+
+    ensure_imds_allow(IMDS_ALLOW_GNP, IMDS_DENY_GNP, IMDS_ALLOW_CLUSTER_AUTOSCALER_AWS_SELECTOR, "cluster-autoscaler aws", dry_run)
 
 def write_cluster_autoscaler_aws_values(values_file):
     '''Values of the cluster-autoscaler aws release: MachinePool ASGs found by the create cluster CA tags, own lease next to the clusterapi CA'''
@@ -3741,6 +3752,11 @@ if __name__ == '__main__':
         provider = provider_from_cluster
 
     print("[INFO] Provider: " + provider)
+
+    # GKE with logging on: event-exporter crash-loops while the IMDS deny policy blocks it; allow it before the
+    # pod health check so a cluster already in that state does not abort here.
+    if provider == "gcp" and ensure_imds_allow(GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, "event-exporter", config["dry_run"]):
+        run_command(f"{kubectl} -n kube-system delete pod -l k8s-app=event-exporter --ignore-not-found", allow_errors=True)
 
     preflight_cluster_health_checks(keos_cluster, cluster_name, provider)
 

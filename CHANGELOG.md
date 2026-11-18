@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (upcoming)
 
+* [PLT-5382] GKE with `logging_config` on: GKE's `event-exporter` pod (kube-system) is added to the `allow-traffic-to-gcp-imds-capg`
+  GlobalNetworkPolicy. The `deny-all-traffic-to-gcp-imds` policy blocked its call to the metadata server, so the pod crash-looped
+  as soon as it restarted after the policy was applied and the upgrade pod health check stopped there. New clusters get it from
+  `create cluster`; `upgrade-provisioner.py` adds it to existing clusters before its pod health check and restarts the pod. 
 * [PLT-5358] `upgrade-provisioner.py` with a private registry (`--private`, or `ClusterConfig.spec.private_registry: true`) no longer
   skips the Cluster API providers when they are at the target version but their images come from another registry: it re-applies
   them with `clusterctl` from the `keos_registry` (under `k8s/` with the ECR pull-through cache). Relaunching an upgrade that ran
