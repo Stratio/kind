@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.9 (2026-11-18)
 
+* [PLT-5299] Bump CAPG (`cluster-api-gcp-controller` image and its `metadata.yaml`/`infrastructure-components.yaml` manifests) 1.6.1-0.4.2 → 1.6.1-0.4.3 (Stratio/cluster-api-provider-gcp#54: zlib CVE-2026-4738 and Go vulnerabilities, Go 1.26.10, `golang.org/x/net` v0.60.0, `go.opentelemetry.io/otel` v1.45.0) in `DEPENDENCIES`, `docs/images`, both Dockerfiles, `pkg/commons/cluster.go` and the `CAPG` constant of `upgrade-provisioner.py`
 * EKS `upgrade-provisioner.py`: the second cluster-autoscaler (release `cluster-autoscaler-aws`, cloudProvider aws, for MachinePools)
   now names its Deployment, ServiceAccount, Service, RBAC and PodDisruptionBudget `cluster-autoscaler-aws-cluster-autoscaler`,
   the same names `create cluster` gives the cluster-autoscaler of EKS. The release, its ConfigMaps, lease and status ConfigMap keep
