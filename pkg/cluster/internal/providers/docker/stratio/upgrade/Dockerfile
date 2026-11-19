@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 ARG UPGRADE_DIR=upgrade/resources/scripts
 
@@ -23,16 +23,21 @@ ENV CLUSTER_TOPOLOGY=true \
 
 # Tool versions
 ARG CLUSTERCTL=v1.10.10
-ARG YQ_VERSION=v4.53.6
-ARG KUBECTL_VERSION=1.37.1
-ARG HELM_VERSION=4.3.0
+ARG YQ_VERSION=v4.54.3
+ARG KUBECTL_VERSION=1.37.2
+ARG HELM_VERSION=3.22.1
+ARG AWSCLI_VERSION=2.41.1
+ARG AZURE_CLI_VERSION=2.93.0
+# packages.microsoft.com has no trixie suite for azure-cli; its install script falls back to bookworm on Debian too
+ARG AZURE_CLI_DIST=bookworm
+ARG GCLOUD_VERSION=594.0.0
 ARG CAPA=v2.9.3
 ARG CAPG=1.6.1-0.4.2
 ARG CAPZ=v1.21.3
 # upgrade-providers.py (v1beta2 migration) — separate from the clusterctl/local repository upgrade-provisioner.py uses
-ARG CLUSTERCTL_V1BETA2=v1.13.6
-ARG CAPA_V1BETA2=v2.13.0
-ARG CAPZ_V1BETA2=v1.26.1
+ARG CLUSTERCTL_V1BETA2=v1.13.8
+ARG CAPA_V1BETA2=v2.13.1
+ARG CAPZ_V1BETA2=v1.26.2
 ARG CAPG_V1BETA2=1.13.1-0.1.0-M1
 
 # =========================
@@ -61,7 +66,7 @@ RUN curl -L https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_l
 # =========================
 # Install AWS CLI v2
 # =========================
-RUN curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.27.10.zip" -o awscliv2.zip && \
+RUN curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" -o awscliv2.zip && \
     unzip awscliv2.zip && \
     ./aws/install && \
     rm -rf awscliv2.zip aws
@@ -69,7 +74,13 @@ RUN curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.27.10.zip" 
 # =========================
 # Install Azure CLI
 # =========================
-RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/keyrings/microsoft.gpg && \
+    chmod go+r /etc/apt/keyrings/microsoft.gpg && \
+    printf 'Types: deb\nURIs: https://packages.microsoft.com/repos/azure-cli/\nSuites: %s\nComponents: main\nArchitectures: %s\nSigned-by: /etc/apt/keyrings/microsoft.gpg\n' \
+        "${AZURE_CLI_DIST}" "$(dpkg --print-architecture)" > /etc/apt/sources.list.d/azure-cli.sources && \
+    apt-get update && \
+    apt-get install -y azure-cli=${AZURE_CLI_VERSION}-1~${AZURE_CLI_DIST} && \
     rm -rf /var/lib/apt/lists/*
 
 # =========================
@@ -80,8 +91,8 @@ RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -
     > /etc/apt/sources.list.d/google-cloud-sdk.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        google-cloud-cli \
-        google-cloud-cli-gke-gcloud-auth-plugin && \
+        google-cloud-cli=${GCLOUD_VERSION}-0 \
+        google-cloud-cli-gke-gcloud-auth-plugin=${GCLOUD_VERSION}-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # =========================

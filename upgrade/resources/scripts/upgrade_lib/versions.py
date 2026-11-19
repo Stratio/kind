@@ -68,22 +68,22 @@ CLUSTERCTL = "v1.10.10"
 # Providers must already be on the v1beta2 line (upgrade-providers.py, PLT-4852); clusterctl is then skipped.
 MIN_CAPI_CORE = "v1.13.0"
 
-CAPI = "v1.13.6"
+CAPI = "v1.13.8"
 
-CAPI_KUBEADM_BOOTSTRAP = "v1.13.6"
+CAPI_KUBEADM_BOOTSTRAP = "v1.13.8"
 
-CAPI_KUBEADM_CONTROL_PLANE = "v1.13.6"
+CAPI_KUBEADM_CONTROL_PLANE = "v1.13.8"
 
-CAPA = "v2.13.0"
+CAPA = "v2.13.1"
 
 # Milestone installed by upgrade-providers.py (#990); switch to the final PLT-4891 release (1.13.1-0.1.0) once pinned.
 CAPG = "1.13.1-0.1.0-M1"
 
-CAPZ = "v1.26.1"
+CAPZ = "v1.26.2"
 
-TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.0"
+TIGERA_OPERATOR_CALICOCTL_VERSION = "v3.33.1"
 
-TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.0"
+TIGERA_OPERATOR_CONTROLLER_VERSION = "v1.44.1"
 
 # Flux v2.8.8 components shipped by the flux2 2.18.4 chart, pinned in templates/common/<minor>/flux2-helm-values.tmpl.
 FLUX_IMAGE_TAGS = {
@@ -192,19 +192,19 @@ GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR = "k8s-app == 'event-exporter'"
 # unpublished CCM tag (found live 2026-08-20: k8s 1.32 -> v1.32.16, missing everywhere).
 # Mirrors templates/azure/<minor>/cloud-provider-azure-helm-values.tmpl instead.
 CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR = {
-    "1.35": "v1.35.9",
-    "1.36": "v1.36.6",
-    "1.37": "v1.37.0",
+    "1.35": "v1.35.14",
+    "1.36": "v1.36.11",
+    "1.37": "v1.37.5",
 }
 
 common_charts = {
     "cert-manager": {
-        "version": "v1.21.2",
+        "version": "v1.21.3",
         "namespace": "cert-manager",
         "repo": "https://charts.jetstack.io"
     },
     "cluster-autoscaler": {
-        "version": "9.59.0",
+        "version": "9.60.0",
         "namespace": "kube-system",
         "repo": "https://kubernetes.github.io/autoscaler"
     },
@@ -220,7 +220,7 @@ common_charts = {
         "release_name": "flux"
     },
     "tigera-operator": {
-        "version": "v3.33.0",
+        "version": "v3.33.1",
         "namespace": "tigera-operator",
         "repo": "https://docs.projectcalico.org/charts"
     }
@@ -228,7 +228,7 @@ common_charts = {
 
 aws_eks_charts = {
     "aws-load-balancer-controller": {
-        "version": "3.4.3",
+        "version": "3.6.3",
         "namespace": "kube-system",
         "repo": "https://aws.github.io/eks-charts"
     }
@@ -236,9 +236,9 @@ aws_eks_charts = {
 
 azure_vm_charts = {
     "azuredisk-csi-driver": {
-        "version": "1.36.0",
+        "version": "1.36.3",
         "namespace": "kube-system",
-        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts"
+        "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/release-1.36/charts"
     },
     "azurefile-csi-driver": {
         "version": "1.35.11",
@@ -246,7 +246,7 @@ azure_vm_charts = {
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/azurefile-csi-driver/release-1.35/charts"
     },
     "cloud-provider-azure": {
-        "version": "1.36.0",
+        "version": "1.37.4",
         "namespace": "kube-system",
         "repo": "https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo"
     }

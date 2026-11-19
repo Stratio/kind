@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
+  Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
+  cert-manager chart and images v1.21.2 → v1.21.3; Calico (tigera-operator and `crd.projectcalico.org.v1` charts) v3.33.0 → v3.33.1 with tigera-operator v1.44.1;
+  cluster-autoscaler chart 9.59.0 → 9.60.0 (images unchanged); aws-load-balancer-controller chart and image 3.4.0 (1.35) / 3.4.3 → 3.6.3;
+  azuredisk-csi-driver 1.34.5 (1.35) / 1.36.0 → 1.36.3, from the chart index of its `release-1.36` branch; cloud-provider-azure chart 1.35.3 (1.35) / 1.36.0 → 1.37.4
+  with the cloud-controller-manager/cloud-node-manager images v1.35.14, v1.36.11 and v1.37.5 per minor.
+  Bootstrap image: Helm v3.22.1 with the `helm-s3` plugin pinned to v0.17.2, AWS CLI 2.41.1. Upgrade image: Helm v3.22.1 (same major as the bootstrap image),
+  `kubectl` 1.37.2, `yq` v4.54.3, AWS CLI 2.41.1; the backup runs the `clusterctl-<CAPI version>` binary the image ships. Go 1.26.11. `DEPENDENCIES`/`docs/images` updated
 * [PLT-5382] GKE with `logging_config` on: GKE's `event-exporter` pod (kube-system) is added to the `allow-traffic-to-gcp-imds-capg`
   GlobalNetworkPolicy. The `deny-all-traffic-to-gcp-imds` policy blocked its call to the metadata server, so the pod crash-looped
   as soon as it restarted after the policy was applied and the upgrade pod health check stopped there. New clusters get it from
