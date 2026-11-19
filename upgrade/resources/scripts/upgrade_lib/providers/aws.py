@@ -235,8 +235,10 @@ def remove_cluster_autoscaler_aws_09_release(dry_run):
         set_helmrelease_suspend(CLUSTER_AUTOSCALER_AWS_09_RELEASE, "kube-system", False)
     # helm-controller uninstalls the release (Deployment, RBAC) before the HelmRelease is gone
     run_command(f"{S.kubectl} delete helmrelease {CLUSTER_AUTOSCALER_AWS_09_RELEASE} -n kube-system --wait=true --timeout=5m")
-    for cm in (f"00-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-default-values", f"02-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-override-values"):
+    # The values ConfigMaps, plus the status ConfigMap and the leader-election Lease that release ran with (not Helm objects)
+    for cm in (f"00-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-default-values", f"02-{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-helm-chart-override-values", f"{CLUSTER_AUTOSCALER_AWS_09_RELEASE}-status"):
         run_command(f"{S.kubectl} delete configmap {cm} -n kube-system --ignore-not-found", allow_errors=True)
+    run_command(f"{S.kubectl} delete lease {CLUSTER_AUTOSCALER_AWS_09_RELEASE} -n kube-system --ignore-not-found", allow_errors=True)
     print("OK")
 
 def update_cluster_autoscaler_aws_values(values_file):

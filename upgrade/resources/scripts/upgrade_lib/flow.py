@@ -12,7 +12,7 @@ from datetime import datetime
 from ansible_vault import Vault
 from upgrade_lib.cli import get_version, parse_args, request_confirmation
 from upgrade_lib.commons.backup import backup, prepare_capsule, restore_capsule
-from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, require_capi_core_min_version, require_providers_at_target, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
+from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, private_provider_repositories, require_capi_core_min_version, require_providers_at_target, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
 from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repository, print_planned_changes, update_helm_repository, upgrade_charts, validate_helm_repository
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
@@ -546,10 +546,14 @@ def run():
         # -------------------------------------------------
         # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
         # -------------------------------------------------
+        expected_provider_repositories = None
         if private_registry:
             registry_url = get_keos_registry_url(S.keos_cluster)
+            if not registry_url:
+                raise Exception("Private registry mode needs a docker_registries entry with keos_registry: true in the KeosCluster")
             print(f"[DEBUG] Using private registry: {registry_url}")
             create_clusterctl_config_for_private_registry(registry_url, S.provider, pull_through=is_ecr_pull_through_enabled(S.keos_cluster))
+            expected_provider_repositories = private_provider_repositories(registry_url, S.provider, is_ecr_pull_through_enabled(S.keos_cluster))
             if S.provider == "gcp":
                 # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
                 config_dir = os.path.expanduser("~/.cluster-api")
@@ -563,7 +567,7 @@ def run():
         # -------------------------------------------------
         # Execute clusterctl upgrade
         # -------------------------------------------------
-        upgrade_cluster_api_providers(S.provider, provider_current_versions)
+        upgrade_cluster_api_providers(S.provider, provider_current_versions, expected_provider_repositories)
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(S.provider)
 
@@ -634,10 +638,6 @@ def run():
         )
         execute_command(command, False)
 
-    # Every run, also a relaunch that skips the chart: the CCM ends on the tag of the minor the kube-apiserver runs
-    if S.provider == "azure":
-        repin_cloud_provider_azure_after_bump(cluster_name)
-
     command = S.kubectl + " wait deployment -n kube-system keoscluster-controller-manager --for=condition=Available --timeout=5m"
     try:
         run_command(command)
@@ -650,6 +650,11 @@ def run():
 
     if S.provider == "aws":
         ensure_mp_role_name(cluster_name, S.config["dry_run"])
+
+    # Every run, also a relaunch that skips the chart: the CCM ends on the tag of the minor the kube-apiserver runs.
+    # After the cluster-autoscaler restore: a timeout here must not leave it at 0
+    if S.provider == "azure":
+        repin_cloud_provider_azure_after_bump(cluster_name)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
