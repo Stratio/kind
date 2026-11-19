@@ -4,6 +4,7 @@
     "Description": "Stratio azure workers permissions",
     "Actions": [
         "Microsoft.Authorization/*/read",
+        "Microsoft.Compute/disks/delete",
         "Microsoft.Compute/disks/read",
         "Microsoft.Compute/disks/write",
         "Microsoft.ContainerRegistry/registries/pull/read",
