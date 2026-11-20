@@ -104,9 +104,12 @@ cmd_sync() {
     log "seeded $TOOLS_FILE from $DEFAULTS"
   fi
   local dir=${SYNC_DIR:-/deployments} t rc=0
-  # make for builds run on the VM (2026-10-22); apt, not asdf
+  # make for vm-run.sh --host builds (2026-10-22); apt, not asdf
   dpkg -s make >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -q make >/dev/null ||
     { log "WARNING: apt-get install make failed"; rc=1; }
+  # buildx for Dockerfiles using RUN --mount (cluster-operator, 2026-10-27); Docker CE hosts already ship docker-buildx-plugin
+  docker buildx version >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -q docker-buildx >/dev/null ||
+    { log "WARNING: apt-get install docker-buildx failed"; rc=1; }
   cd "$dir"
   for t in $(awk '!/^#/ && NF {print $1}' "$TOOLS_FILE" .tool-versions 2>/dev/null | sort -u); do
     asdf plugin list 2>/dev/null | grep -qx "$t" || asdf plugin add "$t" || { log "WARNING: plugin add $t failed"; rc=1; }

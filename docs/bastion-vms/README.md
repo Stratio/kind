@@ -2,7 +2,7 @@
 
 Remote VMs used to run `cloud-provisioner create cluster` (and other kind bootstraps) instead of the laptop.
 
-Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the laptop; `vm-autostop.sh`, `bastion-tools.sh` and `tool-versions.*` are pushed to the VMs by them. Laptop commands below run from the repository root. Set `VM_OWNER` (default `$USER`) before `create` to choose the `owner` tag and the name of the first SSH rule.
+Scripts live in [`scripts/`](scripts/): `eks-vm.sh`, `azure-vm.sh` and `vm-run.sh` run on the laptop; `vm-autostop.sh`, `bastion-tools.sh` and `tool-versions.*` are pushed to the VMs by them. Laptop commands below run from the repository root. Set `VM_OWNER` (default `$USER`) before `create` to choose the `owner` tag and the name of the first SSH rule.
 
 **Why**: each kind bootstrap peaks at ~2.5 GB RAM; two or three in parallel on a 16 GB laptop have triggered `systemd-oomd` and killed the desktop session together with every running `create cluster`. On a VM the bootstrap is isolated and survives laptop reboots/VPN drops.
 
@@ -242,6 +242,7 @@ Run long operations inside `tmux` (installed) so they survive an SSH disconnect;
 |---|---|---|---|---|
 | docker, git, jq, python3, unzip, curl, tmux | yes | yes | Ubuntu apt (curl, tmux already in the image) | `unattended-upgrades` daily — enabled origins are `${distro_codename}` and `${distro_codename}-security` only, **not** `-updates`: security fixes, no feature upgrades |
 | make | yes | yes | Ubuntu apt: user-data of `eks-vm.sh`/`azure-vm.sh` on new VMs, `bastion-tools sync` on existing ones (added 2026-10-22, for builds run on the VM instead of the laptop) | Same as the row above |
+| docker-buildx (0.30.1) | yes | yes | Ubuntu apt, same two paths as `make` (added 2026-10-27: the cluster-operator Dockerfile uses `RUN --mount`, which the classic builder rejects). The GKE VM runs Docker CE and already has `docker-buildx-plugin` 0.17.1 from Docker's repo — don't install Ubuntu's `docker-buildx` there (held-package conflict) | Same as the row above |
 | kubectl | 1.36.5 (default), 1.33.13 | same | asdf (`asdf-community/asdf-kubectl`) | Never automatically — edit `.tool-versions` + `bastion-tools sync` |
 | helm | 3.19.0 | 3.19.0 | asdf (`Antiarchitect/asdf-helm`) — same version as `DEPENDENCIES` | Same |
 | yq | 4.54.1 | 4.54.1 | asdf (`sudermanjr/asdf-yq`) | Same |
@@ -310,6 +311,32 @@ From the laptop, `eks-vm.sh tools sync` / `azure-vm.sh tools sync` pushes the cu
 **Alias `k` = `kubectl`** for every user: `bastion-tools sync` / `completions` writes `/etc/profile.d/bastion-aliases.sh` (login shells: ssh, `sudo -i`, new tmux windows) and `completions/k`, which binds kubectl's completion to `k`. Verified on Azure and EKS 2026-10-02 in the three shells (`k ge<Tab>` → `get`).
 
 `bash-completion` (2.11) ships with the image and `/etc/bash.bashrc` loads it. `bastion-tools sync` / `completions` writes one file per tool in `/usr/share/bash-completion/completions/`, loaded lazily on the first Tab (no shell start-up cost): `asdf completion bash`, `kubectl|helm|clusterctl|clusterawsadm completion bash`, `yq shell-completion bash`, `complete -C aws_completer aws`, and a link to azure-cli's own `/etc/bash_completion.d/azure-cli`. docker and git come with their packages. Completions are generated from the **default** versions; a per-cluster pin of another minor may differ in a few flags.
+
+## Builds off the laptop (`vm-run.sh`)
+
+Go build/test/lint, `make` and `docker build` can run on `eks-vm-janr` instead of the laptop, where they compete for memory with everything else open.
+
+[`docs/bastion-vms/scripts/vm-run.sh`](scripts/vm-run.sh), run from the repo or worktree on the laptop:
+
+```bash
+cd <repo-or-worktree>
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh -- 'go build ./... && go test ./pkg/...'
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh --get bin/cloud-provisioner -- make build
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh --host -- docker build -t <image>:<tag> .
+```
+
+- Syncs the working tree with `rsync --delete` (uncommitted changes included; `.git`, `bin/`, `_artifacts/`, `dist/` excluded) to `/deployments/build/<dir>`.
+- Default: runs in `golang:<go.mod minor>` with `GOTOOLCHAIN=auto`, `--memory 6g --cpus 3` (the VM is shared with bootstraps), module and build caches in the docker volumes `vmrun-gomod` / `vmrun-gocache`.
+- `--host`: runs on the VM host (docker with buildx, `make`; no Go there).
+- cluster-operator image: `make docker-build` runs `make test` first and needs Go, so build the Dockerfile directly. Its base `distroless/static-debian12:nonroot` has no registry prefix and does not exist on Docker Hub, so pre-tag it from `gcr.io` (same digest as the `qa.int.stratio.com` mirror, checked 2026-10-27: `sha256:afa5c872…`):
+
+  ```bash
+  cd <cluster-operator>
+  bash <kind>/docs/bastion-vms/scripts/vm-run.sh --host --get co.tar.gz -- 'docker pull -q gcr.io/distroless/static-debian12:nonroot && docker tag gcr.io/distroless/static-debian12:nonroot distroless/static-debian12:nonroot && docker build -t <ecr>/stratio/cluster-operator:<version> . && docker save <ecr>/stratio/cluster-operator:<version> | gzip > co.tar.gz'
+  docker load -i co.tar.gz && docker push <ecr>/stratio/cluster-operator:<version>
+  ```
+- One run at a time per VM (`flock /deployments/build/.lock`, waits up to 2 h). Exit code is the command's. `--get <path>` copies an artifact back into the local tree.
+- Tested 2026-10-22: `go test ./pkg/commons/...` of a cloud-provisioner worktree → `ok`, 1m36s on the first run of the repo (module download).
 
 ## Auto-stop after hours (`vm-autostop`)
 
