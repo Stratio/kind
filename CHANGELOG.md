@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5145] `upgrade-providers.py` migrates clusters without a private registry: CAPI, CAPA and CAPZ keep the images of
+  their manifests and CAPG comes from `<keos_registry>/stratio`, as `create cluster` does; new `--private` flag, as in
+  `upgrade-provisioner.py`, to take every provider from the `keos_registry`. It stops before any change only when the
+  `KeosCluster` has no `keos_registry` entry and the cluster is private or on GKE.
 * [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
   `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
   `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.8 and `cluster-operator` 0.8.0-m.3,

@@ -112,6 +112,7 @@ def parse_args():
     parser.add_argument("--storage-migration-timeout", type=int, default=3, help="Minutes without any CRD settling before the script migrates the leftovers itself")
     parser.add_argument("--resume-from", help="Backup dir of a previous run that failed mid-clusterctl: tolerate missing/stopped providers and compare content against its snapshot")
     parser.add_argument("--dry-run", action="store_true", help="Run checks, backups and 'clusterctl upgrade plan' for real; only print mutating steps")
+    parser.add_argument("--private", action="store_true", help="Pull the providers from the keos_registry even if the ClusterConfig has no private registry (as upgrade-provisioner.py)")
     return vars(parser.parse_args())
 
 
@@ -393,18 +394,17 @@ def backup(backup_dir, cluster_name, core_version):
 
 # ---------------------------------------------------------------- clusterctl
 
-def get_registry(keos_cluster, cluster_config):
-    if not cluster_config["spec"].get("private_registry"):
-        return None, False
+def get_registry(keos_cluster, cluster_config, private_flag):
+    '''keos_registry URL, ECR pull-through and the effective private mode (ClusterConfig or --private, as upgrade-provisioner.py).'''
     registry, pull_through = None, False
     for r in keos_cluster["spec"].get("docker_registries", []):
         if r.get("keos_registry"):
             registry = r["url"]
         pull_through = pull_through or bool(r.get("ecr_pull_through_cache_enabled"))
-    return registry, pull_through
+    return registry, pull_through, bool(cluster_config["spec"].get("private_registry")) or private_flag
 
 
-def write_clusterctl_config(path, core_version, infra_version, registry, pull_through):
+def write_clusterctl_config(path, core_version, infra_version, registry, pull_through, private):
     '''Own config file per phase, so the one upgrade-provisioner.py uses is never touched.'''
     cfg = {"providers": [
         {"name": "cluster-api", "type": "CoreProvider", "url": f"{CAPI_REPO}/cluster-api/{core_version}/core-components.yaml"},
@@ -413,7 +413,10 @@ def write_clusterctl_config(path, core_version, infra_version, registry, pull_th
         {"name": infra["name"], "type": "InfrastructureProvider",
          "url": f"{CAPI_REPO}/{infra['repo']}/{infra_version}/infrastructure-components.yaml"},
     ]}
-    if registry:
+    if registry and not private and infra["name"] == "gcp":
+        # Public registry: only CAPG comes from the keos_registry (its manifest names a placeholder image), as on create.
+        cfg["images"] = {infra["repo"]: {"repository": f"{registry}/{infra['image']}", "tag": infra_version}}
+    elif registry and private:
         k8s = "k8s/" if pull_through else ""
         quay = "quay/" if pull_through else ""
         cfg["images"] = {
@@ -904,12 +907,12 @@ if __name__ == "__main__":
         with open(os.path.join(config["resume_from"], "snapshot-before.json")) as f:
             before = json.load(f)
         print(f"[INFO] Resuming: content and object names are compared against {config['resume_from']}/snapshot-before.json")
-    registry, pull_through = get_registry(keos_cluster, cluster_config)
-    print(f"[INFO] Private registry: {registry or 'no'}{' (ECR pull-through)' if pull_through else ''}")
-    if infra["image"] and not registry:
+    registry, pull_through, private = get_registry(keos_cluster, cluster_config, config["private"])
+    print(f"[INFO] Private registry: {(registry or 'none in the KeosCluster') if private else 'no'}{' (ECR pull-through)' if private and pull_through else ''}")
+    if not registry and (private or infra["name"] == "gcp"):
         hand_over_backup(backup_dir)
-        sys.exit(f"[ERROR] {infra['name']} {infra_target} is pulled from the private registry and the cluster has none. Nothing was changed. Backup: {backup_dir}")
-    cfg_v1beta2 = write_clusterctl_config(os.path.join(backup_dir, "clusterctl-v1beta2.yaml"), CAPI, infra_target, registry, pull_through)
+        sys.exit(f"[ERROR] {infra['name']} {infra_target} is pulled from the keos_registry and the KeosCluster has none. Nothing was changed. Backup: {backup_dir}")
+    cfg_v1beta2 = write_clusterctl_config(os.path.join(backup_dir, "clusterctl-v1beta2.yaml"), CAPI, infra_target, registry, pull_through, private)
 
     if not at_target:
         info("Validating the plan (clusterctl upgrade plan, read-only):")
@@ -944,7 +947,7 @@ if __name__ == "__main__":
             egress_added = kubeadm_egress_allow()
 
         if phase1 and not at_target:
-            cfg_v1beta1 = write_clusterctl_config(os.path.join(backup_dir, "clusterctl-v1beta1.yaml"), CAPI_KUBEADM_V1BETA1, infra_current, registry, pull_through)
+            cfg_v1beta1 = write_clusterctl_config(os.path.join(backup_dir, "clusterctl-v1beta1.yaml"), CAPI_KUBEADM_V1BETA1, infra_current, registry, pull_through, private)
             clusterctl_apply(config["clusterctl_v1beta1"], cfg_v1beta1,
                              f"--bootstrap kubeadm:{CAPI_KUBEADM_V1BETA1} --control-plane kubeadm:{CAPI_KUBEADM_V1BETA1}",
                              os.path.join(backup_dir, "clusterctl-phase1.log"), "Phase 1")
