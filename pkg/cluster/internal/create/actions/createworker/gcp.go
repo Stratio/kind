@@ -53,19 +53,19 @@ var googleCharts = ChartsDictionary{
 	Charts: map[string]map[string]map[string]commons.ChartEntry{
 		"35": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: false, Reconcile: false},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
 			},
 			"unmanaged": {},
 		},
 		"36": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: false, Reconcile: false},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
 			},
 			"unmanaged": {},
 		},
 		"37": {
 			"managed": {
-				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.0", Namespace: "tigera-operator", Pull: false, Reconcile: false},
+				"tigera-operator": {Repository: "https://docs.projectcalico.org/charts", Version: "v3.33.1", Namespace: "tigera-operator", Pull: false, Reconcile: false},
 			},
 			"unmanaged": {},
 		},

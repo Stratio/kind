@@ -30,10 +30,10 @@ import (
 )
 
 var (
-	capi_version = "v1.13.6"
-	capa_version = "v2.13.0"
-	capz_version = "v1.26.1"
-	capg_version = "1.13.1-0.1.0-M1"
+	capi_version = "v1.13.8"
+	capa_version = "v2.13.1"
+	capz_version = "v1.26.2"
+	capg_version = "1.13.1-0.1.0-M2"
 )
 
 const (
@@ -42,6 +42,11 @@ const (
 	DefaultGhcrPrefix      = "/ghcr"
 	DefaultK8sPrefix       = "/k8s"
 	DefaultQuayPrefix      = "/quay"
+
+	// EKSNodegroupRoleName is the clusterawsadm node-group role, the only mp_role_name accepted on EKS.
+	EKSNodegroupRoleName = "eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io"
+	// EKSClusterAutoscalerPolicyName is the account-level cluster-autoscaler (aws) policy attached to the EKS node roles.
+	EKSClusterAutoscalerPolicyName = "cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io"
 )
 
 type Resource struct {

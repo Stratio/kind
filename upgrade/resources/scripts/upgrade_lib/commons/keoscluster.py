@@ -10,9 +10,9 @@ from upgrade_lib.commons.backup import capsule_nodes_webhook
 from upgrade_lib.commons.k8s import is_private_helm_repo_enabled, is_private_registry_enabled, update_annotation_label
 from upgrade_lib.commons.network import cp_global_network_policy
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.azure import wait_for_capi_kcp_version
+from upgrade_lib.providers.azure import cleanup_orphaned_cp_resources, wait_for_capi_kcp_version
 from upgrade_lib.providers.gcp import resolve_gke_version, wait_for_gke_node_pool_convergence
-from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPI, CAPZ, STEP_SETTLE_SECONDS
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPI, CAPZ, CP_ORPHAN_CHECK_INTERVAL_SECONDS, STEP_SETTLE_SECONDS
 from upgrade_lib import state as S
 
 def wait_for_keos_cluster(cluster_name, timeout_minutes):
@@ -453,6 +453,10 @@ def restore_keoscluster_webhooks():
     ]
     try:
         print("[INFO] Restoring KEOSCluster webhooks from backup:", end =" ", flush=True)
+        if S.config["dry_run"]:
+            # The create below is skipped in dry-run, so the existence check would fail on a cluster whose webhooks were removed by an interrupted run.
+            print(f"\n[DRY-RUN] would restore the webhooks from {backup_file}")
+            return
         _, err = run_command(f"{S.kubectl} create -f {backup_file}", allow_errors=True)
         if err and "AlreadyExists" not in err:
             raise Exception(f"Failed to restore webhooks from backup: {err}")
@@ -488,7 +492,12 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
     print(f"[INFO] Waiting for the real worker nodes ({wn_name}) to reach {target_version} (timeout {stall_minutes}m without progress):", end=" ", flush=True)
     best_progress = -1
     deadline = time.time() + stall_minutes * 60
+    last_orphan_check = 0
     while time.time() < deadline:
+        # Azure: the KCP can converge before an orphaned CP Node is confirmed; Azure then reuses its IP and this rollout hangs
+        if S.provider == "azure" and time.time() - last_orphan_check > CP_ORPHAN_CHECK_INTERVAL_SECONDS:
+            cleanup_orphaned_cp_resources(cluster_name, S.config["dry_run"])
+            last_orphan_check = time.time()
         progress = best_progress
         output, _ = run_command(
             # v1beta2 explicitly: upgrade-providers.py already moved the core, and its status has no updated/unavailableReplicas
@@ -516,8 +525,11 @@ def wait_for_capi_md_convergence(cluster_name, wn_name, target_version, stall_mi
                 1 for node in wn_nodes
                 if node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "").startswith(target_minor_prefix)
             )
-            kubelet_converged = bool(wn_nodes) and progress == len(wn_nodes)
-            converged = spec_converged and kubelet_converged and len(wn_nodes) == sum(md.get("status", {}).get("replicas", 0) for md in mds)
+            expected_nodes = sum(md.get("status", {}).get("replicas") or 0 for md in mds)
+            desired_nodes = sum(md.get("spec", {}).get("replicas") or 0 for md in mds)
+            # A group the cluster-autoscaler scaled to 0 has no Node to check; spec_converged covers it.
+            kubelet_converged = progress == len(wn_nodes) and (bool(wn_nodes) or desired_nodes == expected_nodes == 0)
+            converged = spec_converged and kubelet_converged and len(wn_nodes) == expected_nodes
         except (ValueError, TypeError):
             converged = False
         if converged:

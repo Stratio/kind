@@ -7,13 +7,14 @@ ENV EXP_MACHINE_POOL=true
 ENV CAPA_EKS_ADD_ROLES=true
 
 # Core tool/version args
-ARG CLUSTERCTL=v1.13.6
-ENV CLUSTERAWSADM=v2.13.0
-ENV HELM=v3.22.0
-ENV AWSCLI_VERSION=2.30.6
-ARG CAPA=v2.13.0
-ARG CAPG=1.13.1-0.1.0-M1
-ARG CAPZ=v1.26.1
+ARG CLUSTERCTL=v1.13.8
+ENV CLUSTERAWSADM=v2.13.1
+ENV HELM=v3.22.1
+ENV HELM_S3=v0.17.2
+ENV AWSCLI_VERSION=2.41.1
+ARG CAPA=v2.13.1
+ARG CAPG=1.13.1-0.1.0-M2
+ARG CAPZ=v1.26.2
 ENV CAPI_REPO=/root/.cluster-api/local-repository
 
 ## System packages (minimal, drop previous Python pip stack)
@@ -61,7 +62,7 @@ RUN set -e pipefail \
     && mv /root/linux-amd64/helm /usr/local/bin/helm \
     && rm -rf /root/linux-amd64 /root/helm.tar.gz \
     && chmod +x /usr/local/bin/helm \
-    && helm plugin install https://github.com/hypnoglow/helm-s3.git \
+    && helm plugin install https://github.com/hypnoglow/helm-s3.git --version ${HELM_S3} \
     && helm plugin list \
     && apt-get purge -y git \
     && apt-get autoremove -y --purge \
