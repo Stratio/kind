@@ -16,3 +16,4 @@
 *** xref:operations-manual:upgrade/aws-eks.adoc[]
 ** xref:operations-manual:api-reference.adoc[]
 ** xref:operations-manual:credentials.adoc[]
+* xref:ROOT:known-issues.adoc[Problemas conocidos]
