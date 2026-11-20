@@ -10,7 +10,13 @@ Scripts live in [`scripts/`](scripts/): `eks-vm.sh`, `azure-vm.sh` and `vm-run.s
 |---|---|---|---|
 | GKE | `gke-vm-janr-11` (GCP `clusterapi-369611`, `europe-west4-a`; default for every GKE test since 2026-11-06) | **Yes** — GKE requires a bastion in the same network (`stratio-docs/.../installation.adoc`, "Bastion") | `gcloud compute ssh --tunnel-through-iap` |
 | EKS | `eks-vm-janr` (AWS `eu-west-1`) | No — public VM in the default VPC | SSH, one Linux user + one `/32` SG rule per person |
-| Azure | `azure-vm-janr`, `azure-vm-janr-2` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
+| Azure | `azure-vm-janr` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
+
+Ruben has his own VMs, one per provider: `eks-vm-ruben`, `azure-vm-ruben` (RG `bastion-vm-ruben`) and `gke-vm-ruben` (subnet `hsbc-demo-cb`). They are his: don't run tests on them.
+
+## Policy: one main VM per provider
+
+Only the main VM of each provider stays. An extra VM (another subnet such as `hsbc-demo-cb` 172.16.0.0/20, `cloud-platform` scopes, a parallel load) is created only for a concrete test, with approval, and deleted the same day: first copy its `/deployments/descriptors/` and the `/deployments/<cluster>/` folder of every cluster still alive to the main VM, check that nobody is using it, then delete the VM with its disks, NIC, IP and NSG/SG (never a shared resource group).
 
 ## Policy: stop, do not recreate
 
@@ -125,36 +131,36 @@ aws ec2 authorize-security-group-ingress $P --group-id $SG --ip-permissions 'IpP
 aws ec2 revoke-security-group-ingress $P --group-id $SG --security-group-rule-ids <sgr-id> [<sgr-id> ...]
 ```
 
-**Azure — `azure-vm-janr` and `azure-vm-janr-2`** (one NSG each, `azure-vm-janr-nsg` / `azure-vm-janr-2-nsg`; one rule `user-<name>` per person holding all their IPs):
+**Azure — `azure-vm-janr`** (NSG `azure-vm-janr-nsg`; one rule `user-<name>` per person holding all their IPs):
 
 ```bash
-NSG=azure-vm-janr-nsg      # or azure-vm-janr-2-nsg
+NSG=azure-vm-janr-nsg
 # list: rule, single IP, IP list, port
 az network nsg rule list -g bastion-vm-janr --nsg-name $NSG --query "[].[name,sourceAddressPrefix,join(',',sourceAddressPrefixes),destinationPortRange]" -o tsv
 # set the full list of IPs to keep (replaces the current ones)
 az network nsg rule update -g bastion-vm-janr --nsg-name $NSG -n user-<name> --source-address-prefixes <ip1>/32 [<ip2>/32 ...]
 ```
 
-**GKE — network `hsbc-demo`** (every VM there: `gke-vm-janr-10`, `gke-vm-janr-11`, …): since 2026-11-06 the firewall rule `hsbc-demo-allow-ssh` accepts SSH only from the IAP range `35.235.240.0/20` (it was `0.0.0.0/0`), and `hsbc-demo-allow-rdp` is disabled. Always connect with `--tunnel-through-iap`; SSH straight to the public IP no longer works. The VMs keep their public IP only for outbound traffic: `hsbc-demo` has no Cloud NAT. Check the rules:
+**GKE — network `hsbc-demo`** (every VM there: `gke-vm-janr-11`, …): since 2026-11-06 the firewall rule `hsbc-demo-allow-ssh` accepts SSH only from the IAP range `35.235.240.0/20` (it was `0.0.0.0/0`), and `hsbc-demo-allow-rdp` is disabled. Always connect with `--tunnel-through-iap`; SSH straight to the public IP no longer works. The VMs keep their public IP only for outbound traffic: `hsbc-demo` has no Cloud NAT. Check the rules:
 
 ```bash
 gcloud compute firewall-rules list --project=clusterapi-369611 --filter='network~hsbc-demo$' --format='table(name,sourceRanges.list(),allowed[].map().firewall_rule().list(),disabled)'
 ```
 
-## GKE — `gke-vm-janr-11` (default) and `gke-vm-janr-10`
+## GKE — `gke-vm-janr-11`
 
-**Use `gke-vm-janr-11` for every GKE test** (2026-11-06). It is a copy of `gke-vm-janr-10` with the default scopes, without `cloud-platform` (checked 2026-11-06: `n2-standard-8`, 200 GB), so it behaves like a customer bastion: a script that fails to activate the `secrets.yml` service account fails here too. `gke-vm-janr-10` keeps `cloud-platform` and stays as an alternative only. The description below was verified on `-10`.
+**Use `gke-vm-janr-11` for every GKE test** (2026-11-06). It has the default scopes, without `cloud-platform`, so it behaves like a customer bastion: a script that fails to activate the `secrets.yml` service account fails here too. It lives in subnet `hsbc-demo-ca` (10.0.0.0/20), the range our 0.9 and 0.10 test descriptors authorize in `master_authorized_networks_config.cidr_blocks`. A test that needs another subnet or `cloud-platform` gets an extra VM for that test only (see [Policy: one main VM per provider](#policy-one-main-vm-per-provider)).
 
-`gke-vm-janr-11` has **no public IP** since 2026-11-06: SSH through IAP works, Docker Hub and Ubuntu apt do not (GAR works). Add an external IP before a create and remove it after:
+Without a public IP, SSH through IAP works, but Docker Hub and Ubuntu apt do not (GAR works). Check whether it has one (`gcloud compute instances describe gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --format='value(networkInterfaces[0].accessConfigs[0].natIP)'`), add it before a create and remove it after:
 
 ```bash
 gcloud compute instances add-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0
 gcloud compute instances delete-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0 --access-config-name="external-nat"
 ```
 
-### `gke-vm-janr-10`
+### Configuration
 
-Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, external IP, network tag `bastion`. Tools: Docker 27, helm 3.16, jq, yq, gcloud.
+Verified 2026-11-20 on `gke-vm-janr-11`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, network tag `bastion`, `/etc/sysctl.d/90-kind.conf` below applied, `vm-autostop` at 18:00 `Europe/Madrid` (`poweroff`). Tools: Docker 27, helm 3.16, jq, yq, gcloud.
 
 `vm-autostop` installed 2026-10-05 (18:00 `Europe/Madrid`, `poweroff` → instance `TERMINATED`); `stop-if-idle 5` tested live. Right after `instances start`, `gcloud compute ssh/scp` can fail for ~20-40 s with IAP `4003: failed to connect to backend` (sshd not up yet) — retry.
 
@@ -419,9 +425,9 @@ gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo bash /tmp/vm-autosto
 
 Starting the VMs in the morning stays manual (`eks-vm.sh start`, `azure-vm.sh start`, `gcloud compute instances start gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a`).
 
-## Azure — `azure-vm-janr` and `azure-vm-janr-2`
+## Azure — `azure-vm-janr`
 
-Two VMs with the same settings (checked 2026-11-06 with `az vm show` / `az disk list`): `Standard_D4as_v5`, root 32 GB StandardSSD in RG `bastion-vm-janr`, data 16 GB StandardSSD (`<vm>-data`) in RG `bastion-vm-janr-data`, one NSG each. Use `--name azure-vm-janr-2` to act on the second one.
+Checked 2026-11-06 with `az vm show` / `az disk list`: `Standard_D4as_v5`, root 32 GB StandardSSD in RG `bastion-vm-janr`, data 16 GB StandardSSD (`azure-vm-janr-data`) in RG `bastion-vm-janr-data`, NSG `azure-vm-janr-nsg`.
 
 Managed with [`docs/bastion-vms/scripts/azure-vm.sh`](scripts/azure-vm.sh) — same actions and options as `eks-vm.sh` (`create --my-ip`, `status`, `start`, `stop`, `ssh`, `grant`, `revoke`, `autostop …`, `tools …`, `upload`) plus `kubeconfig <cluster>`. Uses the `az` session of the laptop (subscription `EOS`). Giving a colleague access works as on EKS (`grant`/`revoke`, NSG rule `user-<name>` instead of an SG rule).
 
