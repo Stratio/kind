@@ -246,7 +246,7 @@ def upgrade_cluster_api_providers(provider, provider_current_versions=None):
     print("[INFO] Upgrading Cluster API providers:", end=" ", flush=True)
 
     command = (
-        f"{S.env_vars} clusterctl upgrade apply "
+        f"{S.env_vars} clusterctl-{CAPI} upgrade apply "
         f"--kubeconfig {S.kubeconfig} "
         f"--core cluster-api:{CAPI} "
     )
