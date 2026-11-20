@@ -1,1 +1,1 @@
-stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller:1.13.1-0.1.0-M1
+stratio-releases.repo.stratio.com/stratio/cluster-api-gcp-controller:1.13.1-0.1.0-M2

@@ -7,6 +7,7 @@ import json
 import subprocess
 from upgrade_lib.commons.shell import execute_command, run_command
 from upgrade_lib import state as S
+from upgrade_lib.versions import CAPI
 
 def backup(backup_dir, namespace, cluster_name, dry_run):
     '''Backup CAPX cluster move files, capsule webhooks and CAPI/CAPX namespace secrets'''
@@ -19,7 +20,7 @@ def backup(backup_dir, namespace, cluster_name, dry_run):
     else:
         os.makedirs(backup_dir + "/" + namespace, exist_ok=True)
         # upgrade-providers.py has already moved the core to v1beta2; the image's default clusterctl (v1.10.10) rejects it
-        command = "clusterctl-v1.13.6 --kubeconfig " + S.kubeconfig + " -n cluster-" + cluster_name + " move --to-directory " + backup_dir + "/" + namespace + " 2>&1"
+        command = "clusterctl-" + CAPI + " --kubeconfig " + S.kubeconfig + " -n cluster-" + cluster_name + " move --to-directory " + backup_dir + "/" + namespace + " 2>&1"
         status, output = subprocess.getstatusoutput(command)
         if status != 0:
             print("FAILED")

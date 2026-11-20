@@ -32,9 +32,16 @@ require (
 	al.essio.dev/pkg/shellescape v1.6.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5 v5.7.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerservice/armcontainerservice/v3 v3.0.0
+<<<<<<< HEAD
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi v1.3.0
 	github.com/aws/aws-sdk-go-v2 v1.47.5
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.341.0
+=======
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi v1.2.0
+	github.com/aws/aws-sdk-go-v2 v1.19.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.105.1
+	github.com/aws/aws-sdk-go-v2/service/iam v1.21.0
+>>>>>>> 94409d7b ([PLT-5180] EKS: cluster-autoscaler con provider aws y port a 0.10 de los cambios de create y upgrade de 0.9 (#1073))
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/oauth2 v0.37.0
 )
