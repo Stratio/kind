@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
+  `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
+  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.8 and `cluster-operator` 0.8.0-m.3,
+  which `upgrade-providers.py` and `upgrade-provisioner.py` install by default.
 * [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
   Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
   cert-manager chart and images v1.21.2 → v1.21.3; Calico (tigera-operator and `crd.projectcalico.org.v1` charts) v3.33.0 → v3.33.1 with tigera-operator v1.44.1;
@@ -72,7 +76,7 @@ All notable changes to this project will be documented in this file.
 * [PLT-4935] Add `docs/bastion-vms/`: how to create and manage the per-provider deployment VMs (EKS, Azure, GKE) used to run `create cluster` off the laptop, with their scripts — VM lifecycle, per-person SSH access, persistent `/deployments` volume, asdf tool versions and after-hours auto-stop that skips running bootstraps (Azure deallocates)
 * [PLT-4852] New `upgrade-providers.py` (upgrade image): moves a 0.9 cluster from Cluster API v1.10.10 to v1.13.6 (`v1beta2`) without changing its Kubernetes version — core and kubeadm providers, CAPA v2.13.0 on EKS, the rebased CAPG fork on GKE, CAPZ v1.26.1 on Azure VMs (one step from v1.21.3, labelling the ASO CRDs first), then the `v1beta2` cluster-operator; backups, dry-run, content diff before/after and controlled recovery
 * [PLT-4852] Install Cluster API v1.13.6, CAPA v2.13.0 and CAPZ v1.26.1 (bundled ASO v2.18.0, `clusterctl` v1.13.6); the worker `MachineHealthCheck` is written as `cluster.x-k8s.io/v1beta2`
-* [PLT-4852] GKE: install the rebased CAPG fork `1.13.1-0.1.0-M1`; `upgrade-providers.py` targets it (its manifests are now in the upgrade image), records it in the `ClusterConfig` and defaults to cluster-operator `0.8.0-m.1`
+* [PLT-4852] GKE: install the rebased CAPG fork `1.13.1-0.1.0-M2`; `upgrade-providers.py` targets it (its manifests are now in the upgrade image), records it in the `ClusterConfig` and defaults to cluster-operator `0.8.0-m.1`
 * [PLT-4867] Bump `cert-manager` chart and images v1.21.1 → v1.21.2 and the Azure `cloud-controller-manager`/`cloud-node-manager` image v1.35.8 → v1.35.9 (Go dependency CVEs); upgrade image: `yq` v4.45.1 → v4.53.6, `helm` 4.2.4 → 4.3.0, `apt-get upgrade` of the base packages; bump CAPG to 1.6.1-0.4.2 (grpc CVE, OpenSSL rebuild); bump the version constants in `upgrade-provisioner.py` (`__version__`/`CLOUD_PROVISIONER` 0.9.4 → 0.9.5, `CAPG`, `CLUSTER_OPERATOR` and its `common_charts` entry 0.7.3 → 0.7.4) and `DEPENDENCIES`/`docs/images` `cloud-provisioner` to 0.9.5, `cluster-operator` image and chart to 0.7.4 (Stratio/cluster-operator#351) and `cluster-autoscaler` image to `v1.35.2` (see Stratio/kind#981)
 * [PLT-4896] Upgrade docs (GKE): document the CAPG reconciliation loop caused by GKE's automatic node pool labels as a pre-upgrade check and known issue of the 0.7.x → 0.9.x route, link it from the upgrade requirements and from the `UPGRADE_NODES` note, and add the `GCPManagedMachinePool` workaround for clusters created with 0.7.x
 * [PLT-4793] Document the post-install and post-upgrade override of the cluster-autoscaler image to Stratio's `v1.35.2` build (MachinePool scale-down fix, kubernetes/autoscaler#9693) on EKS clusters with MachinePool groups

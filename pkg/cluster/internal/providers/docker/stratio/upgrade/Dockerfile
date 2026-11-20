@@ -32,13 +32,13 @@ ARG AZURE_CLI_VERSION=2.93.0
 ARG AZURE_CLI_DIST=bookworm
 ARG GCLOUD_VERSION=594.0.0
 ARG CAPA=v2.9.3
-ARG CAPG=1.6.1-0.4.2
+ARG CAPG=1.6.1-0.4.3
 ARG CAPZ=v1.21.3
 # upgrade-providers.py (v1beta2 migration) — separate from the clusterctl/local repository upgrade-provisioner.py uses
 ARG CLUSTERCTL_V1BETA2=v1.13.8
 ARG CAPA_V1BETA2=v2.13.1
 ARG CAPZ_V1BETA2=v1.26.2
-ARG CAPG_V1BETA2=1.13.1-0.1.0-M1
+ARG CAPG_V1BETA2=1.13.1-0.1.0-M2
 
 # =========================
 # Base system dependencies
@@ -180,7 +180,7 @@ RUN CAPZ_URL=https://github.com/kubernetes-sigs/cluster-api-provider-azure/relea
     curl -fL ${CAPZ_URL}/metadata.yaml -o ${CAPI_REPO}/infrastructure-azure/${CAPZ_V1BETA2}/metadata.yaml
 
 # CAPG versions clusterctl reads: the installed ones it keeps and the upgrade-providers.py target (curl -f, fail loudly).
-ARG CAPG_KEEP_VERSIONS="1.6.1-0.4.1 1.6.1-0.4.2"
+ARG CAPG_KEEP_VERSIONS="1.6.1-0.4.1 1.6.1-0.4.2 1.6.1-0.4.3"
 RUN for v in ${CAPG_KEEP_VERSIONS} ${CAPG_V1BETA2}; do \
       mkdir -p ${CAPI_REPO}/infrastructure-gcp/${v} && \
       for f in metadata.yaml infrastructure-components.yaml; do \

@@ -25,11 +25,11 @@ CLUSTERCTL_V1BETA2 = "v1.13.8"
 CAPI = "v1.13.8"
 CAPA = "v2.13.1"
 # Stratio CAPG fork rebased on upstream v1.13.1 (PLT-4891).
-CAPG = "1.13.1-0.1.0-M1"
+CAPG = "1.13.1-0.1.0-M2"
 # Last CAPZ built against CAPI v1.13 (go.mod @ v1.26.2); moved in one step from 0.9's v1.21.3.
 CAPZ = "v1.26.2"
 # Default target cluster-operator: the first line that writes and reads the core objects as v1beta2.
-CLUSTER_OPERATOR = "0.8.0-m.2"
+CLUSTER_OPERATOR = "0.8.0-m.3"
 MIN_CORE_FOR_PHASE2 = (1, 10)
 # upgrade-provisioner.py 0.9.x leaves cluster-operator on this line; anything else means it did not run.
 SOURCE_OPERATOR_LINE = "0.7."
