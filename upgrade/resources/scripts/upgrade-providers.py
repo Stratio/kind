@@ -759,12 +759,16 @@ def upgrade_operator(operator_version):
     values = cm["data"]["values.yaml"]
     image = run(f"{kubectl} -n kube-system get deploy {OPERATOR_DEPLOYMENT} -o jsonpath='{{.spec.template.spec.containers[0].image}}'").strip()
     repo, current = image.rsplit(":", 1)
-    if values.count(f"tag: {current}") != 1:
+    # A relaunch after a failed HelmRelease upgrade finds the values already on the target tag.
+    already_set = values.count(f"tag: {operator_version}") == 1
+    if not already_set and values.count(f"tag: {current}") != 1:
         print("FAILED")
-        raise Exception(f"expected exactly one 'tag: {current}' in {OPERATOR_VALUES_CM}")
+        raise Exception(f"expected exactly one 'tag: {current}' or 'tag: {operator_version}' in {OPERATOR_VALUES_CM}")
     cm["data"]["values.yaml"] = values.replace(f"tag: {current}", f"tag: {operator_version}")
     cm["metadata"] = {"name": cm["metadata"]["name"], "namespace": cm["metadata"]["namespace"]}
-    if config["dry_run"]:
+    if already_set:
+        print(f"\n[INFO] {OPERATOR_VALUES_CM} already has image tag {operator_version}: kept")
+    elif config["dry_run"]:
         print(f"\n[DRY-RUN] would set image tag {current} -> {operator_version} in {OPERATOR_VALUES_CM}")
     else:
         subprocess.run(f"{kubectl} apply -f -", shell=True, input=json.dumps(cm), text=True, check=True, capture_output=True)
