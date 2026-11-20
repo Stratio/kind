@@ -9,7 +9,7 @@ calicoctl:
 {{- else }}
   image: docker.io/calico/calico
 {{- end }}
-  #tag: 3.33.0
+  #tag: 3.33.1
 certs:
   node:
     cert:
@@ -84,7 +84,7 @@ tigeraOperator:
 {{- end }}
   image: tigera/operator
   # We need to set this version since tigera-operator chart point to an older one
-  version: v1.44.0
+  version: v1.44.1
 # Tolerations for the tigera/operator pod: bootstrap set of projectcalico/calico#14027, cordoned nodes are not tolerated.
 tolerations:
   - key: CriticalAddonsOnly
