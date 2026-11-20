@@ -40,7 +40,7 @@ Actions:
   tools <sub>                     asdf tools + az on the VM (bastion-tools.sh, defaults tool-versions.azure):
                                   sync | status | completions | install-az
   upload <file> [name]            Copy to /deployments/binaries/ (cloud-provisioner, named cloud-provisioner-<version> from
-                                  '<file> version' unless [name]) /deployments/archives/ (*.tar, *.tar.gz, *.tgz) or /deployments/descriptors/ (*.yaml, *.yml; secrets* 640); never overwrites
+                                  '<file> version' unless [name]) /deployments/archives/ (*.tar, *.tar.gz, *.tgz) or /deployments/descriptors/ (*.yaml, *.yml; 640 if the name or the local file name contains "secrets"); never overwrites
   kubeconfig <cluster>            Copy /deployments/<cluster>/.kube/config (root 0600) to ~/.kube/<cluster>.kubeconfig (0600)
 
 Options:
@@ -107,7 +107,7 @@ custom_data() {
 set -euxo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y docker.io jq unzip git python3 make unattended-upgrades
+apt-get install -y docker.io docker-buildx jq unzip git python3 make unattended-upgrades
 systemctl enable --now docker unattended-upgrades
 # kind documented known issue: 4 parallel bootstraps exhaust the Ubuntu inotify default (128) and kube-proxy dies with 'too many open files'
 printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' > /etc/sysctl.d/90-kind.conf
@@ -297,8 +297,8 @@ do_upload() {
   if [[ $sub == binaries ]]; then
     remote "$pip" "chmod 775 /deployments/$sub/$name && /deployments/$sub/$name version"
   else
-    # secrets*.yml hold cloud credentials: owner + deployers only
-    local mode=664; [[ $name == secrets* ]] && mode=640
+    # secrets files hold cloud credentials: owner + deployers only (also renamed ones, e.g. <cluster>-secrets.yml)
+    local mode=664; [[ $name == *secrets* || $(basename "$f") == *secrets* ]] && mode=640
     remote "$pip" "chmod $mode /deployments/$sub/$name && ls -lh /deployments/$sub/$name"
   fi
   echo "RESULT: OK — /deployments/$sub/$name"
