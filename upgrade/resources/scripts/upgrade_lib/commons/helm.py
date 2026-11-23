@@ -4,16 +4,18 @@
 import os
 import sys
 import json
+import re
 import shlex
 import yaml
 import time
 from jinja2 import Template, Environment, FileSystemLoader
 from urllib.parse import urlparse
 from upgrade_lib.commons.k8s import get_keos_registry_url, is_ecr_pull_through_enabled, is_private_registry_enabled
-from upgrade_lib.commons.keoscluster import wait_for_keos_cluster
+from upgrade_lib.commons.keoscluster import parse_k8s_minor, wait_for_keos_cluster
 from upgrade_lib.commons.shell import execute_command, redact_command, run_command
-from upgrade_lib.providers.azure import update_cloud_provider_azure_image_tag_value
-from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
+from upgrade_lib.providers.aws import update_cluster_autoscaler_aws_values
+from upgrade_lib.providers.azure import update_azurefile_csi_driver_image_tag_value, update_cloud_provider_azure_image_tag_value
+from upgrade_lib.versions import CAPA, CAPG, CAPI, CAPI_KUBEADM_BOOTSTRAP, CAPI_KUBEADM_CONTROL_PLANE, CAPZ, CLOUD_REGISTRY_MARKERS, GCR_IMAGE_REGISTRIES, PRIVATE_IMAGE_REGISTRY_PATTERNS, PROVIDER_OWNED_IMAGE_REGISTRIES, PUBLIC_IMAGE_REGISTRIES, CLUSTER_AUTOSCALER_REPOSITORY, CLUSTER_AUTOSCALER_VERSION_BY_MINOR, DRY_RUN_HELM_RELEASE_TIMEOUT, DRY_RUN_POD_HEALTH_TIMEOUT_SECONDS, FLUX_IMAGE_TAGS, HELM_RELEASE_TIMEOUT_FALLBACK, TIGERA_OPERATOR_CALICOCTL_VERSION, TIGERA_OPERATOR_CONTROLLER_VERSION, TIGERA_OPERATOR_LEGACY_TOLERATIONS, TIGERA_OPERATOR_TOLERATIONS
 from upgrade_lib import state as S
 
 _helm_release_timeout_cache = None
@@ -55,6 +57,16 @@ def validate_helm_repository(helm_repository):
     except ValueError:
         raise ValueError(f"The Helm repository '{helm_repository}' is invalid.")
 
+def helm_credentials_for_other_cloud_host(credentials_url, repo_url, keos_repo_type=""):
+    '''True when repo_url is on ECR/ACR/GAR and the secrets-file Helm credentials belong to another host: create sets
+    those up without auth_required (the HelmRepository provider authenticates), so the old credentials must not be sent.
+    Without a credentials url, a KeosCluster repository type other than ecr/acr/gar (e.g. generic) means the same.'''
+    if not any(m in repo_url for m in CLOUD_REGISTRY_MARKERS):
+        return False
+    if credentials_url:
+        return urlparse(credentials_url).netloc != urlparse(repo_url).netloc
+    return keos_repo_type not in ("ecr", "acr", "gar")
+
 def update_helm_repository(cluster_name, helm_repository, dry_run):
     '''Update the Helm repository'''
 
@@ -69,15 +81,24 @@ def update_helm_repository(cluster_name, helm_repository, dry_run):
     command = f"{S.kubectl} -n cluster-{cluster_name} patch KeosCluster {cluster_name} --type='json' -p='{patch_json}'"
     execute_command(command, dry_run, False)
 
-    patch_helmRepository = [
-        {"op": "replace", "path": "/spec/url", "value": helm_repository},
-    ]
-    patch_json = json.dumps(patch_helmRepository)
     existing_helmrepo, err = run_command(f"{S.kubectl} get helmrepository -n kube-system keos --ignore-not-found", allow_errors=True)
     if "doesn't have a resource type \"helmrepository\"" in err:
         existing_helmrepo = False
 
     if existing_helmrepo:
+        # Same type create sets (oci:// -> oci, else default). Moving to another host on ECR/ACR/GAR drops the old
+        # secretRef: those authenticate through the HelmRepository provider, as create sets them up without auth_required.
+        patch_helmRepository = [
+            {"op": "replace", "path": "/spec/url", "value": helm_repository},
+            {"op": "add", "path": "/spec/type", "value": "oci" if helm_repository.startswith("oci://") else "default"},
+        ]
+        current_out, _ = run_command(f"{S.kubectl} get helmrepository -n kube-system keos -o jsonpath='{{.spec}}'", allow_errors=True)
+        current_spec = json.loads(current_out or "{}")
+        host_changed = urlparse(current_spec.get("url", "")).netloc != urlparse(helm_repository).netloc
+        cloud_registry = any(m in helm_repository for m in CLOUD_REGISTRY_MARKERS)
+        if "secretRef" in current_spec and host_changed and cloud_registry:
+            patch_helmRepository.append({"op": "remove", "path": "/spec/secretRef"})
+        patch_json = json.dumps(patch_helmRepository)
         command = f"{S.kubectl} -n kube-system patch helmrepository keos --type='json' -p='{patch_json}'"
         execute_command(command, dry_run, False)
 
@@ -131,6 +152,36 @@ def render_values_template(values_file, keos_cluster, cluster_config):
     except Exception as e:
         raise e
 
+def rewrite_values_image_registry(values, registry_url, chart_name):
+    '''Move the image references of a chart's values to the keos registry, as create cluster renders them in private mode'''
+
+    registry_url = registry_url.rstrip("/")
+    registry_path_segments = len([s for s in registry_url.split("/")[1:] if s])
+    line_re = re.compile(r'^(\s*-?\s*(?:image|repository|registry|imageRepository|baseRepo):\s*["\']?)([^"\'\s#]+)(["\']?\s*)$')
+    changes = []
+    lines = values.split("\n")
+    for i, line in enumerate(lines):
+        match = line_re.match(line)
+        if not match:
+            continue
+        ref = match.group(2)
+        if ref == registry_url or ref.startswith(registry_url + "/"):
+            continue
+        host, _, rest = ref.partition("/")
+        is_public = host in PUBLIC_IMAGE_REGISTRIES
+        is_private = host in GCR_IMAGE_REGISTRIES or any(p in host for p in PRIVATE_IMAGE_REGISTRY_PATTERNS)
+        if not (is_public or is_private) or any(host.startswith(p) for p in PROVIDER_OWNED_IMAGE_REGISTRIES):
+            continue
+        if is_private:
+            # An old keos registry carries the same number of path segments (GAR project/repo, ACR prefix) as the current one.
+            rest = "/".join(rest.split("/")[registry_path_segments:]) if rest else rest
+        new_ref = registry_url + ("/" + rest if rest else "")
+        lines[i] = match.group(1) + new_ref + match.group(3)
+        changes.append(f"{ref} -> {new_ref}")
+    if changes:
+        print(f"\n[INFO] Moving the {chart_name} images to the keos registry: " + ", ".join(changes), end=" ", flush=True)
+    return "\n".join(lines)
+
 def create_default_values(chart_name, namespace, values_file, provider):
     '''Create defaults values file'''
 
@@ -143,6 +194,8 @@ def create_default_values(chart_name, namespace, values_file, provider):
             values = render_values_template( f"values/{provider}/{chart_name}_default_values.tmpl", S.keos_cluster, S.cluster_config)
         else:
             values, err = run_command(f"{S.helm} get values {chart_name} -n {namespace} --output yaml")
+        if is_private_registry_enabled(S.cluster_config):
+            values = rewrite_values_image_registry(values, get_keos_registry_url(S.keos_cluster), chart_name)
         if is_ecr_pull_through_enabled(S.keos_cluster):
             registry_url = get_keos_registry_url(S.keos_cluster)
             pull_through_substitutions = [
@@ -174,18 +227,27 @@ def update_cluster_operator_image_tag_value(values_file, cluster_operator_versio
         print(f"An error occurred: {e}")
 
 def update_cluster_autoscaler_image_tag_value(values_file):
-    '''Pin cluster-autoscaler to the Stratio #9693 build used on every provider that deploys it. This custom image lives
-    at "{registry}/autoscaling/...", never behind the k8s.io ECR pull-through cache like the
-    official one — must undo create_default_values()'s rewrite or the tag hits a dead path (verified live).'''
+    '''Set the cluster-autoscaler image as create cluster does for the target minor: the upstream image of that minor, from the
+    keos registry with a private registry (under the k8s/ prefix with ECR pull-through), from registry.k8s.io otherwise,
+    whatever create_default_values() left.'''
+
+    target_minor = "%d.%d" % parse_k8s_minor(S.config["k8s_version"])
+    if target_minor not in CLUSTER_AUTOSCALER_VERSION_BY_MINOR:
+        raise Exception(f"No cluster-autoscaler version for Kubernetes {target_minor} in CLUSTER_AUTOSCALER_VERSION_BY_MINOR (upgrade_lib/versions.py)")
 
     try:
         with open(values_file, 'r') as file:
             values = yaml.safe_load(file)
 
         image = values.setdefault('image', {})
-        image['tag'] = CLUSTER_AUTOSCALER_MP_SCALEDOWN_FIX_VERSION
-        if 'repository' in image:
-            image['repository'] = image['repository'].replace('/k8s/autoscaling', '/autoscaling')
+        image['tag'] = CLUSTER_AUTOSCALER_VERSION_BY_MINOR[target_minor]
+        registry_url = get_keos_registry_url(S.keos_cluster).rstrip("/")
+        if is_private_registry_enabled(S.cluster_config) and registry_url:
+            pull_through_prefix = "/k8s" if is_ecr_pull_through_enabled(S.keos_cluster) else ""
+            image['repository'] = f"{registry_url}{pull_through_prefix}/{CLUSTER_AUTOSCALER_REPOSITORY}"
+        else:
+            image['repository'] = f"registry.k8s.io/{CLUSTER_AUTOSCALER_REPOSITORY}"
+        print(f"\n[INFO] cluster-autoscaler image: {image.get('repository', '<chart default>')}:{image['tag']}", end=" ", flush=True)
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -211,6 +273,24 @@ def update_flux_values(values_file):
 
     except Exception as e:
         print(f"An error occurred: {e}")
+
+def ensure_flux_migrate_serviceaccount(namespace):
+    '''The flux2 chart's pre-upgrade migrate Job runs as ServiceAccount kustomize-controller, created only with kustomizeController.create=true
+    (2.18.4 templates/pre-upgrade-migrate-resources.yaml). Create it when missing; the chart's CRD ClusterRoleBinding already names it. True if created here.'''
+
+    existing, _ = run_command(f"{S.kubectl} -n {namespace} get serviceaccount kustomize-controller --ignore-not-found -o name")
+    if existing.strip():
+        return False
+    print(f"(ServiceAccount {namespace}/kustomize-controller missing, created for the flux migrate hook) ", end="", flush=True)
+    run_command(f"{S.kubectl} -n {namespace} create serviceaccount kustomize-controller")
+    return True
+
+def remove_flux_migrate_serviceaccount(namespace):
+    '''Remove the ServiceAccount made by ensure_flux_migrate_serviceaccount unless a kustomize-controller Deployment now uses it.'''
+
+    deployed, _ = run_command(f"{S.kubectl} -n {namespace} get deployment kustomize-controller --ignore-not-found -o name")
+    if not deployed.strip():
+        run_command(f"{S.kubectl} -n {namespace} delete serviceaccount kustomize-controller --ignore-not-found")
 
 def update_tigera_operator_image_tag_value(values_file):
     '''Update tigera-operator calicoctl/controller image tags. Currently match the chart's
@@ -368,6 +448,75 @@ def apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_user
         except Exception as e:
             print(f"WARN ({e}) — continuing without CRD update")
 
+def helmrelease_exists(release_name, namespace):
+    '''Whether the HelmRelease exists (a release installed without Flux has none to suspend)'''
+
+    _, err = run_command(f"{S.kubectl} get helmrelease {release_name} -n {namespace} -o name", allow_errors=True)
+    return "NotFound" not in (err or "")
+
+def set_helmrelease_suspend(release_name, namespace, suspend):
+    '''Suspend/resume a HelmRelease. After suspending, wait until helm-controller has observed it, so no reconcile started before is still in flight'''
+
+    patch = json.dumps({"spec": {"suspend": suspend}})
+    run_command(f"{S.kubectl} patch helmrelease {release_name} -n {namespace} --type merge --patch '{patch}'")
+    if not suspend or S.config["dry_run"]:
+        return
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        output, _ = run_command(f"{S.kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}}'", allow_errors=True)
+        generations = output.split()
+        if len(generations) == 2 and generations[0] == generations[1]:
+            return
+        time.sleep(2)
+    print(f"(HelmRelease {namespace}/{release_name} suspend not observed after 120s: helm-controller not reconciling) ", end="", flush=True)
+
+def helmrelease_is_suspended(release_name, namespace):
+    '''Whether the HelmRelease has spec.suspend=true'''
+
+    output, _ = run_command(f"{S.kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.spec.suspend}}'", allow_errors=True)
+    return output.strip() == "true"
+
+def resume_leftover_helmrelease_suspend(release_name, namespace):
+    '''Resume a HelmRelease left suspended by a run killed between suspend and resume'''
+
+    if helmrelease_is_suspended(release_name, namespace):
+        print(f"[WARN] HelmRelease {namespace}/{release_name} left suspended by an interrupted run: resuming")
+        set_helmrelease_suspend(release_name, namespace, False)
+
+def wait_for_helmrepository_ready(repo_name, namespace, timeout_seconds=300):
+    '''Wait until source-controller has reconciled the latest HelmRepository spec (e.g. a new URL) and it is Ready'''
+
+    if S.config["dry_run"]:
+        return
+    # An OCI HelmRepository has no index and reports no status: the HelmChart pulls the version itself
+    repo_type, _ = run_command(f"{S.kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.spec.type}}'", allow_errors=True)
+    if repo_type.strip() == "oci":
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{S.kubectl} get helmrepository {repo_name} -n {namespace} -o jsonpath='{{.metadata.generation}} {{.status.observedGeneration}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 3 and fields[0] == fields[1] and fields[2] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRepository {namespace}/{repo_name} not Ready with its latest spec after {timeout_seconds}s (generation/observedGeneration/Ready: {output})")
+        time.sleep(3)
+
+def check_helmrelease_chart_version(release_name, namespace, chart_version, timeout_seconds=900):
+    '''Wait until the release Flux installed is the target chart version and Ready (a Ready read right after the apply can be the previous one)'''
+
+    if S.config["dry_run"]:
+        return
+    deadline = time.time() + timeout_seconds
+    while True:
+        output, _ = run_command(f"{S.kubectl} get helmrelease {release_name} -n {namespace} -o jsonpath='{{.status.history[0].chartVersion}} {{.status.conditions[?(@.type==\"Ready\")].status}}'", allow_errors=True)
+        fields = output.split()
+        if len(fields) == 2 and fields[0] == chart_version and fields[1] == "True":
+            return
+        if time.time() > deadline:
+            raise Exception(f"HelmRelease {namespace}/{release_name} not Ready with chart {chart_version} after {timeout_seconds}s (installed chart, Ready: {output})")
+        time.sleep(5)
+
 def wait_for_helmrelease_ready(release_name, namespace, timeout="15m"):
     '''Wait for a HelmRelease to report Ready=True, raising with the real status on failure'''
 
@@ -470,9 +619,13 @@ def upgrade_chart(chart_name, chart_data):
         if "auth_required" in S.keos_cluster["spec"]["helm_repository"]:
             if S.keos_cluster["spec"]["helm_repository"]["auth_required"]:
                 if "user" in S.vault_secrets_data["secrets"]["helm_repository"] and "pass" in S.vault_secrets_data["secrets"]["helm_repository"]:
-                    repo_auth_required= True
-                    repo_username = S.vault_secrets_data["secrets"]["helm_repository"]["user"]
-                    repo_password = S.vault_secrets_data["secrets"]["helm_repository"]["pass"]
+                    if helm_credentials_for_other_cloud_host(S.vault_secrets_data["secrets"]["helm_repository"].get("url", ""), repo_url,
+                                                             S.keos_cluster["spec"]["helm_repository"].get("type", "")):
+                        print(f"[INFO] Helm repository credentials in the secrets file are for another host: {repo_url} authenticates through the HelmRepository provider", end=" ", flush=True)
+                    else:
+                        repo_auth_required= True
+                        repo_username = S.vault_secrets_data["secrets"]["helm_repository"]["user"]
+                        repo_password = S.vault_secrets_data["secrets"]["helm_repository"]["pass"]
                 else:
                     print("[ERROR] Helm repository credentials not found in secrets file")
                     sys.exit(1)
@@ -486,6 +639,9 @@ def upgrade_chart(chart_name, chart_data):
     previous_values = ""
     values_written = False
     release_applied = False
+    suspended = False
+    dry_run_leftover_suspend = False
+    flux_migrate_sa_created = False
 
     # Cleanup function for temp files
     def cleanup_temp_files():
@@ -505,9 +661,13 @@ def upgrade_chart(chart_name, chart_data):
         elif release_name == "flux":
             update_flux_values(default_values_file)
         elif release_name == "cluster-autoscaler" and S.provider in ("aws", "azure"):
+            if S.provider == "aws":
+                update_cluster_autoscaler_aws_values(default_values_file)
             update_cluster_autoscaler_image_tag_value(default_values_file)
         elif release_name == "cloud-provider-azure" and S.provider == "azure":
             update_cloud_provider_azure_image_tag_value(default_values_file)
+        elif release_name == "azurefile-csi-driver" and S.provider == "azure":
+            update_azurefile_csi_driver_image_tag_value(default_values_file)
 
         create_empty_values_file(empty_values_file)
 
@@ -520,9 +680,24 @@ def upgrade_chart(chart_name, chart_data):
         with open(previous_values_file, 'w') as f:
             f.write(previous_values)
 
+        # Pulled before the HelmRelease is suspended and the values ConfigMaps are written: a missing chart version leaves the cluster as it was
+        if chart_name == "cluster-operator":
+            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"])
+
+        # Suspended while values and version change: a reconcile in between would run the old chart with the new values
+        suspended = helmrelease_exists(release_name, chart_namespace)
+        # --dry-run cannot resume a suspend left by an interrupted run, and a suspended HelmRelease never gets Ready
+        dry_run_leftover_suspend = S.config["dry_run"] and suspended and helmrelease_is_suspended(release_name, chart_namespace)
+        if suspended:
+            set_helmrelease_suspend(release_name, chart_namespace, True)
+
         create_configmap_from_values(default_values_configmap, chart_namespace, default_values_file)
         values_written = True
-        create_configmap_from_values(f"02-{release_name}-helm-chart-override-values", chart_namespace, empty_values_file)
+        # The user's overrides (image, tolerations, resources...) are kept: the 02- ConfigMap is only created when missing
+        override_configmap = f"02-{release_name}-helm-chart-override-values"
+        override_exists, _ = run_command(f"{S.kubectl} get configmap {override_configmap} -n {chart_namespace} --ignore-not-found -o name")
+        if not override_exists.strip():
+            create_configmap_from_values(override_configmap, chart_namespace, empty_values_file)
 
         helm_repo_data = {
             'repository_name': repo_name,
@@ -548,9 +723,7 @@ def upgrade_chart(chart_name, chart_data):
             'HelmReleaseTimeout': compute_helm_release_timeout()
         }
 
-        if chart_name == "cluster-operator":
-            apply_chart_crds(chart_name, chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"])
-        elif chart_name == "tigera-operator":
+        if chart_name == "tigera-operator":
             # Calico >= v3.32 no longer ships its CRDs in this chart (charts/tigera-operator/README.md@v3.32.2)
             apply_chart_crds("crd.projectcalico.org.v1", chart_version, repo_url, repo_schema, repo_username, repo_password, S.config["dry_run"], rendered=True)
 
@@ -568,13 +741,25 @@ def upgrade_chart(chart_name, chart_data):
 
         # We need to use --server-side and --force-conflicts flags to avoid metadata.resourceVersion conflicts
         run_command(f"{S.kubectl} apply -f {repository_file} --server-side --force-conflicts")
+        # helm-controller uses a Ready HelmChart artifact without checking its version: the index must already list the target chart
+        wait_for_helmrepository_ready(repo_name, "kube-system")
+        if release_name == "flux":
+            flux_migrate_sa_created = ensure_flux_migrate_serviceaccount(chart_namespace)
         run_command(f"{S.kubectl} apply -f {release_file} -n {chart_namespace} --server-side --force-conflicts")
         release_applied = True
+        if suspended:
+            set_helmrelease_suspend(release_name, chart_namespace, False)
+            suspended = False
 
         # cluster-operator has its own dedicated wait right after upgrade_charts() returns
-        if chart_name != "cluster-operator":
+        if dry_run_leftover_suspend:
+            print(f"(HelmRelease {chart_namespace}/{release_name} left suspended by an interrupted run: the real run resumes it, Ready wait skipped) ", end="", flush=True)
+        elif chart_name != "cluster-operator":
             wait_for_helmrelease_ready(release_name, chart_namespace, timeout=compute_helm_release_timeout())
+            check_helmrelease_chart_version(release_name, chart_namespace, chart_version)
             check_release_pods_healthy(chart_name, release_name, chart_namespace)
+            if flux_migrate_sa_created:
+                remove_flux_migrate_serviceaccount(chart_namespace)
 
         print("OK")
 
@@ -594,6 +779,11 @@ def upgrade_chart(chart_name, chart_data):
                 print("OK")
             except Exception as restore_error:
                 print(f"FAILED ({restore_error})")
+        if suspended:
+            try:
+                set_helmrelease_suspend(release_name, chart_namespace, False)
+            except Exception as resume_error:
+                print(f"[WARN] Could not resume HelmRelease {chart_namespace}/{release_name}: {resume_error}")
         cleanup_temp_files()
         raise e
 
@@ -651,12 +841,16 @@ def upgrade_charts(charts, chart_current_versions=None):
     reconciliation is idempotent — verified live, re-running an unchanged chart creates no new revision).'''
 
     chart_current_versions = chart_current_versions or {}
+    # flux2 first: every other HelmRelease needs a working helm-controller. Its CRDs are not pre-applied: the chart's
+    # pre-upgrade `flux migrate` hook (crds.migration) must run before stored v1beta2/v2beta2 versions disappear.
+    if "flux2" in charts:
+        charts = {"flux2": charts["flux2"], **{k: v for k, v in charts.items() if k != "flux2"}}
     # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
     # the chart version — skipping them would also skip re-applying that override. Never skip these.
     never_skip = {"cluster-autoscaler", "tigera-operator"}
-    if is_ecr_pull_through_enabled(S.keos_cluster):
-        # create_default_values() rewrites image paths for pull-through — an already-matching
-        # chart would otherwise SKIP and keep its pre-pull-through path forever.
+    if is_ecr_pull_through_enabled(S.keos_cluster) or is_private_registry_enabled(S.cluster_config):
+        # create_default_values() rewrites image paths for pull-through and moves them to the keos
+        # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
         never_skip = set(charts.keys())
     try:
         print(f"[INFO] Updating charts versions:")
@@ -664,6 +858,8 @@ def upgrade_charts(charts, chart_current_versions=None):
             chart_version = chart_data["version"]
             if chart_name not in never_skip and chart_current_versions.get(chart_name) == chart_version:
                 print(f"[INFO] Chart {chart_name} already at version {chart_version}: SKIP")
+                # A run killed between suspend and resume leaves spec.suspend=true; upgrade_chart() clears it for the rest
+                resume_leftover_helmrelease_suspend("flux" if chart_name == "flux2" else chart_name, chart_data["namespace"])
                 continue
             print(f"[INFO] Updating chart {chart_name} to version {chart_version}:", end =" ", flush=True)
             upgrade_chart(chart_name, chart_data)

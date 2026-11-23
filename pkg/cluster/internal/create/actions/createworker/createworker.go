@@ -433,7 +433,7 @@ func (a *action) Execute(ctx *actions.ActionContext) error {
 			ctx.Status.Start("[CAPA] Ensuring IAM security 👮")
 			defer ctx.Status.End(false)
 
-			err = createCloudFormationStack(n, provider.capxEnvVars, a.keosCluster.Spec.Security.AWS.NodegroupExtraPolicyARN)
+			err = createCloudFormationStack(n, provider.capxEnvVars, a.keosCluster.Spec.Security.AWS.NodegroupExtraPolicyARN, a.keosCluster.Spec.ControlPlane.Managed)
 			if err != nil {
 				return errors.Wrap(err, "failed to create the IAM security")
 			}

@@ -5,21 +5,23 @@ import os
 import sys
 import subprocess
 import base64
+import json
 import logging
 import time
 from datetime import datetime
 from ansible_vault import Vault
 from upgrade_lib.cli import get_version, parse_args, request_confirmation
 from upgrade_lib.commons.backup import backup, prepare_capsule, restore_capsule
-from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, require_capi_core_min_version, require_providers_at_target, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
+from upgrade_lib.commons.capi import create_clusterctl_config_for_private_registry, private_provider_repositories, require_capi_core_min_version, require_providers_at_target, restore_capi_capx_ha_replicas, upgrade_cluster_api_providers
 from upgrade_lib.commons.helm import filter_installed_charts, get_helm_repository, print_planned_changes, update_helm_repository, upgrade_charts, validate_helm_repository
 from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_registry_url, is_ecr_pull_through_enabled, is_private_helm_repo_enabled, is_private_registry_enabled, preflight_cluster_health_checks, scale_cluster_autoscaler
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
+from upgrade_lib.commons.network import ensure_imds_allow
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.aws import configure_aws_credentials, wait_for_eks_worker_convergence
+from upgrade_lib.providers.aws import configure_aws_credentials, ensure_aws_node_annotate_pod_ip_rbac, ensure_mp_role_name, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
-from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, aws_eks_charts, azure_vm_charts, common_charts
+from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, aws_eks_charts, azure_vm_charts, common_charts
 from upgrade_lib import state as S
 
 
@@ -139,43 +141,69 @@ def run():
         command = S.kubectl + " get ns >/dev/null 2>&1"
         return subprocess.call(command, shell=True) == 0
 
-    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error
-    if not test_kubectl():
-        print("FAILED (attempting kubeconfig refresh)", flush=True)
+    # If kubectl access fails, attempt kubeconfig refresh for supported providers before exiting with error.
+    # EKS: a static token (e.g. the create cluster kubeconfig) is refreshed too, since it can expire during the run.
+    kubectl_ok = test_kubectl()
+    static_token = False
+    if S.provider == "aws" and kubectl_ok:
+        view = subprocess.run(f"kubectl --kubeconfig {S.kubeconfig} config view --minify --raw -o json",
+                              shell=True, capture_output=True, text=True)
+        users = json.loads(view.stdout).get("users") if view.returncode == 0 and view.stdout.strip() else None
+        user = (users[0].get("user") or {}) if users else {}
+        static_token = "token" in user and "exec" not in user
+    if not kubectl_ok or static_token:
+        print("OK (static token, refreshing kubeconfig)" if kubectl_ok else "FAILED (attempting kubeconfig refresh)", flush=True)
 
         if S.provider == "aws":
             region = S.vault_secrets_data['secrets']['aws']['credentials']['region']
+            # kubectl already works: if the refresh cannot replace the kubeconfig, put it back and go on
+            kubeconfig_backup = open(S.kubeconfig).read() if kubectl_ok else None
+            refresh_error = None
 
             # Try to get cluster name from context or use provided name
             if cluster_name_guess:
                 cluster_name_for_refresh = cluster_name_guess
+            elif kubectl_ok:
+                refresh_error = "cluster name not detected from context"
             else:
                 print("[ERROR] Cannot refresh kubeconfig: cluster name not detected from context")
                 print("[HINT] Ensure your kubeconfig has a valid context set")
                 sys.exit(1)
 
-            refresh_cmd = (
-                f"aws eks update-kubeconfig "
-                f"--name {cluster_name_for_refresh} "
-                f"--region {region} "
-                f"--kubeconfig {S.kubeconfig}"
-            )
+            if not refresh_error:
+                refresh_cmd = (
+                    f"aws eks update-kubeconfig "
+                    f"--name {cluster_name_for_refresh} "
+                    f"--region {region} "
+                    f"--kubeconfig {S.kubeconfig}"
+                )
 
-            print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
-            status = subprocess.call(refresh_cmd, shell=True)
+                print(f"[INFO] Attempting to refresh kubeconfig for cluster: {cluster_name_for_refresh}")
+                status = subprocess.call(refresh_cmd, shell=True)
 
-            if status != 0:
-                print("[ERROR] Failed to refresh kubeconfig")
-                sys.exit(1)
+                if status != 0:
+                    if not kubectl_ok:
+                        print("[ERROR] Failed to refresh kubeconfig")
+                        sys.exit(1)
+                    refresh_error = "aws eks update-kubeconfig failed"
+                else:
+                    # Rebuild kubectl with refreshed kubeconfig
+                    S.kubectl = "kubectl --kubeconfig " + S.kubeconfig
 
-            # Rebuild kubectl with refreshed kubeconfig
-            S.kubectl = "kubectl --kubeconfig " + S.kubeconfig
+                    if test_kubectl():
+                        print("OK (kubeconfig refreshed)")
+                    elif not kubectl_ok:
+                        print("[ERROR] kubectl still failing after kubeconfig refresh")
+                        sys.exit(1)
+                    else:
+                        refresh_error = "kubectl fails with the refreshed kubeconfig"
 
-            if not test_kubectl():
-                print("[ERROR] kubectl still failing after kubeconfig refresh")
-                sys.exit(1)
-
-            print("OK (kubeconfig refreshed)")
+            if refresh_error:
+                with open(S.kubeconfig, "w") as f:
+                    f.write(kubeconfig_backup)
+                print(f"[WARN] Kubeconfig refresh not applied ({refresh_error}): going on with the current kubeconfig. "
+                      f"If it carries a static token, the token can expire during the run (Unauthorized); refresh it and relaunch: "
+                      f"aws eks update-kubeconfig --name {cluster_name_guess or '<cluster>'} --region {region} --kubeconfig {S.kubeconfig}")
 
         elif S.provider == "azure":
             print("[ERROR] kubectl access failed")
@@ -235,7 +263,7 @@ def run():
             print("[ERROR] kubectl access failed and auto-refresh not supported for this provider")
             sys.exit(1)
     else:
-        print("OK")
+        print("OK (no static token, kubeconfig kept)" if S.provider == "aws" else "OK")
 
     # Activate CAPG service account and refresh GKE kubeconfig after kubectl validation
     if S.provider == "gcp":
@@ -281,6 +309,11 @@ def run():
             print(f"[ERROR] Cluster k8s_version is {S.keos_cluster['spec']['k8s_version']}; this release upgrades Azure VMs clusters from {min_azure_start[0]}.{min_azure_start[1]} onwards — upgrade it to {min_azure_start[0]}.{min_azure_start[1]} with the previous release first")
             sys.exit(1)
 
+    # GKE with logging on: event-exporter crash-loops while the IMDS deny policy blocks it; allow it before the
+    # pod health check so a cluster already in that state does not abort here.
+    if S.provider == "gcp" and ensure_imds_allow(GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, "event-exporter", S.config["dry_run"]):
+        run_command(f"{S.kubectl} -n kube-system delete pod -l k8s-app=event-exporter --ignore-not-found", allow_errors=True)
+
     preflight_cluster_health_checks(S.keos_cluster, cluster_name, S.provider)
 
     require_capi_core_min_version()
@@ -295,6 +328,13 @@ def run():
         print("[ERROR] Upgrade is only supported for EKS, GKE and Azure VMs clusters")
         sys.exit(1)
 
+    # EKS with cluster-autoscaler: it ends as one release with cloudProvider aws (MachinePools only on 0.10).
+    # Its IAM and IMDS prerequisites go first, before any change, so a missing permission stops the run here.
+    eks_cluster_autoscaler = S.provider == "aws" and bool(filter_installed_charts({"cluster-autoscaler": common_charts["cluster-autoscaler"]}))
+    if eks_cluster_autoscaler:
+        ensure_cluster_autoscaler_aws_iam(S.config["dry_run"])
+        ensure_imds_allow_cluster_autoscaler_aws(S.config["dry_run"])
+
     # Setting clusterctl env vars
     S.env_vars = "CLUSTER_TOPOLOGY=true CLUSTERCTL_DISABLE_VERSIONCHECK=true GOPROXY=off"
 
@@ -308,8 +348,11 @@ def run():
         update_helm_repository(cluster_name, helm_repository, S.config["dry_run"])
         S.config["helm_repository_override"] = helm_repository
 
-    # Scale down cluster-autoscaler to avoid issues during the upgrade process
-    scale_cluster_autoscaler(0, S.config["dry_run"])
+    # Scale down cluster-autoscaler to avoid issues during the upgrade process; a relaunch after an aborted run finds it at 0: restore the chart's replicaCount (2) then
+    cluster_autoscaler_replicas = scale_cluster_autoscaler(0, S.config["dry_run"]) or 2
+
+    if S.provider == "aws":
+        ensure_aws_node_annotate_pod_ip_rbac(S.config["dry_run"])
 
     # Configure provider-specific environment variables and credentials for clusterctl
     print("[INFO] Configuring provider-specific environment variables for clusterctl:", end=" ", flush=True)
@@ -420,8 +463,15 @@ def run():
 
     chart_current_versions, provider_current_versions = print_planned_changes(charts_to_upgrade, S.provider)
 
+    if eks_cluster_autoscaler:
+        remove_cluster_autoscaler_aws_09_release(S.config["dry_run"])
+
     upgrade_charts(charts_to_upgrade, chart_current_versions)
     print("[INFO] All charts updated successfully")
+
+    # The cluster-autoscaler chart upgrade brings it back to its replicaCount (and a clusterapi release switched to aws gets a new Deployment): keep it at 0 until the end
+    print("[INFO] Scaling cluster-autoscaler back to 0 after the charts update")
+    scale_cluster_autoscaler(0, S.config["dry_run"])
 
     # Restore capsule
     if not S.config["disable_prepare_capsule"]:
@@ -434,7 +484,8 @@ def run():
         f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.spec.suspend}}'",
         allow_errors=True
     )
-    if suspend_check.strip() == "true":
+    co_leftover_suspend = suspend_check.strip() == "true"
+    if co_leftover_suspend:
         print("[WARN] cluster-operator helmrelease is suspended (leftover from a previously interrupted run) — unsuspending before waiting:", end=" ", flush=True)
         run_command(f"{S.kubectl} patch helmrelease cluster-operator -n kube-system --type merge --patch '{{\"spec\":{{\"suspend\":false}}}}'")
         print("OK")
@@ -442,15 +493,19 @@ def run():
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end=" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if S.config["dry_run"] else "5m"
     command = f"{S.kubectl} wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("[WARN] HelmRelease not ready, checking status...")
-        status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[INFO] HelmRelease status: {status_output}")
-        raise e
+    if S.config["dry_run"] and co_leftover_suspend:
+        # --dry-run cannot resume the leftover suspend above, and a suspended HelmRelease never gets Ready
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("[WARN] HelmRelease not ready, checking status...")
+            status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o jsonpath='{{.status}}'"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[INFO] HelmRelease status: {status_output}")
+            raise e
     print("[INFO] Upgrading Cluster Operator components...")
 
     # Recovery (except block below) must cover every step from here on — a failure in
@@ -491,10 +546,14 @@ def run():
         # -------------------------------------------------
         # Private registry configuration for GCP (critical: must run before clusterctl upgrade)
         # -------------------------------------------------
+        expected_provider_repositories = None
         if private_registry:
             registry_url = get_keos_registry_url(S.keos_cluster)
+            if not registry_url:
+                raise Exception("Private registry mode needs a docker_registries entry with keos_registry: true in the KeosCluster")
             print(f"[DEBUG] Using private registry: {registry_url}")
             create_clusterctl_config_for_private_registry(registry_url, S.provider, pull_through=is_ecr_pull_through_enabled(S.keos_cluster))
+            expected_provider_repositories = private_provider_repositories(registry_url, S.provider, is_ecr_pull_through_enabled(S.keos_cluster))
             if S.provider == "gcp":
                 # Also patch GCP CRDs to remove conversion webhooks (caBundle issue)
                 config_dir = os.path.expanduser("~/.cluster-api")
@@ -508,7 +567,7 @@ def run():
         # -------------------------------------------------
         # Execute clusterctl upgrade
         # -------------------------------------------------
-        upgrade_cluster_api_providers(S.provider, provider_current_versions)
+        upgrade_cluster_api_providers(S.provider, provider_current_versions, expected_provider_repositories)
         print("[INFO] Cluster API providers upgraded successfully")
         restore_capi_capx_ha_replicas(S.provider)
 
@@ -547,17 +606,21 @@ def run():
     print("[INFO] Waiting for the cluster-operator helmrelease to be ready:", end =" ", flush=True)
     cluster_operator_wait_timeout = DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT if S.config["dry_run"] else "5m"
     command = S.kubectl + f" wait helmrelease cluster-operator -n kube-system --for=condition=Ready --timeout={cluster_operator_wait_timeout}"
-    try:
-        run_command(command)
-        print("OK")
-    except Exception as e:
-        print("FAILED")
-        print("[ERROR] HelmRelease failed to become ready, checking status...")
-        status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
-        status_output, _ = run_command(status_cmd, allow_errors=True)
-        print(f"[DEBUG] HelmRelease details:\n{status_output}")
-        print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
-        raise e
+    if S.config["dry_run"] and co_leftover_suspend:
+        # --dry-run skipped the resume above, so the leftover suspend is still there
+        print("SKIP (left suspended by an interrupted run: the real run resumes it)")
+    else:
+        try:
+            run_command(command)
+            print("OK")
+        except Exception as e:
+            print("FAILED")
+            print("[ERROR] HelmRelease failed to become ready, checking status...")
+            status_cmd = f"{S.kubectl} get helmrelease cluster-operator -n kube-system -o yaml"
+            status_output, _ = run_command(status_cmd, allow_errors=True)
+            print(f"[DEBUG] HelmRelease details:\n{status_output}")
+            print("[HINT] Check if the Helm chart exists in the registry and credentials are correct")
+            raise e
 
     if k8s_version_bumped:
         # A k8s_version bump can take much longer than the generic 5m wait below —
@@ -566,8 +629,6 @@ def run():
         wait_for_k8s_version_bump(cluster_name, S.provider, S.config["k8s_version"])
         if S.provider == "aws":
             wait_for_eks_worker_convergence(cluster_name, S.config["k8s_version"])
-        if S.provider == "azure":
-            repin_cloud_provider_azure_after_bump(S.config["k8s_version"])
     else:
         print("[INFO] Waiting for keoscluster to be ready:", end =" ", flush=True)
 
@@ -585,7 +646,15 @@ def run():
         print("[ERROR] Failed to wait for keoscluster-controller-manager:", e)
 
     print("[INFO] Restoring cluster-autoscaler replicas")
-    scale_cluster_autoscaler(2, S.config["dry_run"])
+    scale_cluster_autoscaler(cluster_autoscaler_replicas, S.config["dry_run"])
+
+    if S.provider == "aws":
+        ensure_mp_role_name(cluster_name, S.config["dry_run"])
+
+    # Every run, also a relaunch that skips the chart: the CCM ends on the tag of the minor the kube-apiserver runs.
+    # After the cluster-autoscaler restore: a timeout here must not leave it at 0
+    if S.provider == "azure":
+        repin_cloud_provider_azure_after_bump(cluster_name)
 
     end_time = time.time()
     elapsed_time = end_time - start_time

@@ -1,5 +1,5 @@
-quay.io/calico/calico:v3.33.0
-quay.io/calico/node:v3.33.0
-quay.io/calico/third-party-cni-plugins:v3.33.0
-quay.io/calico/whisker:v3.33.0
-quay.io/tigera/operator:v1.44.0
+quay.io/calico/calico:v3.33.1
+quay.io/calico/node:v3.33.1
+quay.io/calico/third-party-cni-plugins:v3.33.1
+quay.io/calico/whisker:v3.33.1
+quay.io/tigera/operator:v1.44.1
