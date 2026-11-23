@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5510] `upgrade-provisioner.py` with Capsule 1.0.x, which generates its webhooks from `CapsuleConfiguration default`
+  (`spec.admission`): the system namespaces are excluded from Capsule's namespace webhooks there, and the original
+  `objectSelector` of each one is put back at the end; Capsule 0.x keeps its webhook configurations as before.
+  On EKS the exclusion stays until the EKS add-ons, which EKS updates after the `k8s_version` bump, are ACTIVE: the
+  script now waits for every add-on of the `AWSManagedControlPlane` to be ACTIVE at its version and the control plane
+  Ready (30 min), and fails naming the add-on and its issue otherwise. The backup also saves `CapsuleConfiguration default`.
 * [PLT-5145] `upgrade-providers.py` migrates clusters without a private registry: CAPI, CAPA and CAPZ keep the images of
   their manifests and CAPG comes from `<keos_registry>/stratio`, as `create cluster` does; new `--private` flag, as in
   `upgrade-provisioner.py`, to take every provider from the `keos_registry`. It stops before any change only when the
