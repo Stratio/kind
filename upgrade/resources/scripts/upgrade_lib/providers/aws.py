@@ -148,6 +148,40 @@ def wait_for_eks_worker_convergence(cluster_name, target_minor, stall_minutes=No
         time.sleep(30)
     raise Exception(f"No progress for {stall_minutes}m waiting for EKS nodegroups and nodes to reach {target_minor}")
 
+def wait_for_eks_addons_active(cluster_name, timeout_minutes=30):
+    '''AWS only: EKS updates the add-ons after the k8s_version bump; wait until every add-on of the
+    AWSManagedControlPlane is ACTIVE at its spec version and the control plane is Ready (PLT-5510).'''
+
+    print(f"[INFO] Waiting for the EKS add-ons to be ACTIVE and the AWSManagedControlPlane Ready (timeout {timeout_minutes}m):", end=" ", flush=True)
+    if S.config["dry_run"]:
+        print("DRY-RUN")
+        return
+    pending = []
+    deadline = time.time() + timeout_minutes * 60
+    while time.time() < deadline:
+        raw, _ = run_command(f"{S.kubectl} -n cluster-{cluster_name} get awsmanagedcontrolplane {cluster_name}-control-plane -o json", allow_errors=True)
+        try:
+            cp = json.loads(raw)
+        except ValueError:
+            time.sleep(30)
+            continue
+        status_addons = {a.get("name"): a for a in cp.get("status", {}).get("addons") or []}
+        pending = []
+        for addon in cp.get("spec", {}).get("addons") or []:
+            current = status_addons.get(addon["name"], {})
+            if current.get("status") != "ACTIVE" or (addon.get("version") and current.get("version") != addon["version"]):
+                issues = "; ".join(i.get("message", "") for i in current.get("issues") or [])
+                pending.append(f"{addon['name']} {current.get('version', '-')} {current.get('status', '-')} (wanted {addon.get('version')}){': ' + issues if issues else ''}")
+        not_true = [c.get("type") for c in cp.get("status", {}).get("conditions") or []
+                    if c.get("type") in ("Ready", "EKSAddonsConfigured") and c.get("status") != "True"]
+        if not pending and not not_true and cp.get("status", {}).get("ready"):
+            print("OK")
+            return
+        pending += [f"condition {t} not True" for t in not_true]
+        time.sleep(30)
+    print("FAILED")
+    raise Exception(f"EKS add-ons not ACTIVE or AWSManagedControlPlane not Ready after {timeout_minutes}m: " + " | ".join(pending))
+
 def run_aws_iam(command):
     '''Run an AWS CLI IAM command, retrying up to 3 times, 5 s apart, a failure other than AccessDenied, NoSuchEntity or EntityAlreadyExists'''
 
