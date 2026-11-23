@@ -14,70 +14,72 @@ En Azure VMs, la actualización cambia lo siguiente:
 
 IMPORTANT: El cambio de versión de Kubernetes es el punto de no retorno. El _script_ pide confirmación antes de aplicarlo (consulta los xref:operations-manual:upgrade.adoc#_prompts_interactivos[_prompts_ interactivos]) y no permite volver a una versión anterior.
 
-En Azure VMs solo se usa el _script_ `upgrade-provisioner.py` de la imagen de actualización.
+En Azure VMs, solo se usa el _script_ `upgrade-provisioner.py` de la imagen de actualización.
 
 [#_cambio_de_versión_de_kubernetes_en_azure_vms]
 
 === Cambio de versión de Kubernetes en Azure VMs
 
-El _control-plane_ de Azure VMs es un `KubeadmControlPlane` de Cluster API. Su _webhook_ rechaza los saltos de dos o más _minors_, así que el _script_ aplica un cambio por cada _minor_ (1.32 → 1.33 → 1.34 → 1.35) y espera a que cada uno termine antes de aplicar el siguiente.
+El _control-plane_ de Azure VMs es un `KubeadmControlPlane` de Cluster API. Su _webhook_ rechaza los saltos de dos o más _minors_, así que el _script_ aplica un cambio por cada _minor_ (1.32 → 1.33 → 1.34 → 1.35) y espera a que termine cada uno antes de aplicar el siguiente.
 
 En cada paso, el _script_:
 
-. Cambia en el `KeosCluster` la versión de Kubernetes (`vX.Y.0`) y la imagen de la VM del _control-plane_ y de los grupos de trabajo que tienen `node_image`. La imagen sale de `--node-image-map`.
+. Cambia en el `KeosCluster` la versión de Kubernetes (`vX.Y.0`) y la imagen de la VM del _control-plane_ y de los grupos de trabajo que tienen `node_image`. La imagen se toma de `--node-image-map`.
 . Espera a que el `KubeadmControlPlane` esté en la nueva versión, listo y con todas sus réplicas actualizadas. El límite es `--control-plane-timeout` (90 minutos por defecto).
 . Espera a que los grupos de trabajo con `node_image` tengan todas sus réplicas listas en la nueva versión. También espera a que el `kubeletVersion` de sus nodos sea de esa versión _minor_. El límite es `--node-convergence-timeout` (90 minutos por defecto): solo aborta si ningún nodo avanza durante ese tiempo. Un grupo que _cluster-autoscaler_ ha reducido a cero nodos también se actualiza: su `MachineDeployment` pasa a la nueva versión y a la nueva imagen. Como no tiene nodos, el _script_ no espera a ninguno y continúa con el siguiente grupo.
 . Espera 90 segundos antes del siguiente paso.
 
-El _script_ cambia de forma temporal dos objetos mientras dura el cambio de versión y los deshace al terminar: la `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` y el _webhook_ de validación de Capsule, que instala _Stratio KEOS_. Si no existen en el _cluster_, no hace nada con ellos:
+Mientras dura el cambio de versión, el _script_ modifica temporalmente dos objetos y deshace los cambios al terminar: la `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` y el _webhook_ de validación de Capsule, que instala _Stratio KEOS_. Si no existen en el _cluster_, no hace nada con ellos:
 
-* Abre la `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` al CIDR de la red y de los _pods_ del _cluster_. Al terminar, la vuelve a generar con las IP de los nodos de _control-plane_ de ese momento.
-* Quita del _webhook_ de validación de Capsule la entrada `nodes.capsule.clastix.io`, que puede bloquear la unión de las réplicas nuevas del _control-plane_. Al terminar, la vuelve a añadir.
+* Abre la política `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` al CIDR de la red y a los _pods_ del _cluster_. Al terminar, la vuelve a generar con las IP de los nodos de _control-plane_ de ese momento.
+* Quita del _webhook_ de validación de Capsule la entrada `nodes.capsule.clastix.io`, ya que puede bloquear la unión de las nuevas réplicas del _control-plane_. Al terminar, la vuelve a añadir.
 
-Si el proceso se interrumpe a mitad del cambio de versión, ve a <<_proceso_interrumpido_durante_el_cambio_de_versión, proceso interrumpido durante el cambio de versión>> antes de relanzarlo.
+Si el proceso se interrumpe a mitad del cambio de versión, consulta el <<_proceso_interrumpido_durante_el_cambio_de_versión, proceso interrumpido durante el cambio de versión>> antes de relanzarlo.
 
 == Requisitos
 
 Además de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], en Azure VMs necesitas:
 
-* Que las credenciales del _service principal_ en _secrets.yml_ (`client_id`, `client_secret`, `tenant_id` y `subscription_id`) sigan siendo válidas. El _script_ inicia sesión con ellas en la CLI de Azure y se las pasa a Cluster API.
-* Una imagen de VM de Kubernetes para cada _minor_ del cambio: 1.33, 1.34 y 1.35. Cada paso necesita la imagen de su _minor_, no la del destino final. Cada imagen tiene que ser un _resource ID_ completo con uno de estos dos formatos:
+* Que las credenciales del _service principal_ en `secrets.yml` (`client_id`, `client_secret`, `tenant_id` y `subscription_id`) sigan siendo válidas. El _script_ inicia sesión con ellas en la CLI de Azure y se las pasa a Cluster API.
+* Una imagen de VM de Kubernetes para cada _minor_ del cambio: 1.33, 1.34 y 1.35. Cada paso necesita la imagen de su _minor_, no la del destino final. Cada imagen tiene que ser un _resource ID_ completo, con uno de estos dos formatos:
 ** `/subscriptions/<id>/resourceGroups/<grupo>/providers/Microsoft.Compute/images/<imagen>`
 ** `/CommunityGalleries/<galería>/Images/<imagen>/Versions/<versión>`
 +
 Una imagen de _Compute Gallery_ (SIG) no es válida: el _webhook_ de `KeosCluster` la rechaza.
 +
-IMPORTANT: La imagen de 1.33 tiene que estar construida con `kubeadm` v1.33.13 o superior. Con versiones anteriores, el paso a 1.34 no termina: las réplicas nuevas del _control-plane_ se quedan como _learners_ de etcd y no llegan a promocionarse.
+IMPORTANT: La imagen de la versión 1.33 debe construirse con `kubeadm` v1.33.13 o superior. Con versiones anteriores, el paso a la 1.34 no termina: las réplicas nuevas del _control-plane_ se quedan como _learners_ de etcd y no logran promocionarse.
 
-NOTE: En Azure VMs, el _script_ no regenera el _kubeconfig_. Si al arrancar no puede acceder al _cluster_ (`kubectl get ns`), se detiene. Actualiza las credenciales del _kubeconfig_ y vuelve a lanzarlo.
+NOTE: En Azure VMs, el _script_ no regenera el _kubeconfig_. Si al arrancar no puede acceder al _cluster_ (`kubectl get ns`), se detiene. Actualiza las credenciales del _kubeconfig_ y vuelve a ejecutarlo.
 
 == Permisos
 
-Antes de empezar, comprueba los permisos del _service principal_ en _secrets.yml_. Necesita los mismos permisos que en la instalación:
+Antes de empezar, comprueba los permisos del _service principal_ en `secrets.yml`. Necesita los mismos permisos que en la instalación:
 
-* Con permisos a nivel de suscripción: los de xref:attachment$stratio-azure-role.json[`stratio-azure-role.json`].
-* Con permisos a nivel de grupo de recursos: los de xref:attachment$stratio-azure-role-rg.json[`stratio-azure-role-rg.json`] y los de xref:attachment$stratio-azure-acr.json[`stratio-azure-acr.json`].
+* Con permisos a nivel de suscripción, los de xref:attachment$stratio-azure-role.json[`stratio-azure-role.json`].
+* Con permisos a nivel de grupo de recursos, los de xref:attachment$stratio-azure-role-rg.json[`stratio-azure-role-rg.json`] y los de xref:attachment$stratio-azure-acr.json[`stratio-azure-acr.json`].
 
 == Contenedor de actualización
 
 === Preparación
 
-Sitúate en el directorio de trabajo desde el que ejecutarás el contenedor. Normalmente es el mismo _workspace_ desde el que se instalaron el _cluster_ y _keos-installer_, ya que probablemente ya contenga varios de los ficheros necesarios (consulta la <<_estructura_necesaria, estructura necesaria>>); si no, usa un directorio específico para ello.
+Sitúate en el directorio de trabajo desde el que ejecutarás el contenedor. Normalmente, es el mismo _workspace_ desde el que se instalaron el _cluster_ y _keos-installer_, porque probablemente ya contiene varios de los ficheros necesarios (consulta la <<_estructura_necesaria, estructura necesaria>>); si no, usa un directorio específico.
 
-Crea un directorio local para copias de seguridad:
+Crea un directorio local para las copias de seguridad:
 
 [source,bash]
 ----
 mkdir -p $PWD/backup
 ----
 
+[#_estructura_necesaria]
+
 === Estructura necesaria
 
-Asegúrate de que el directorio de trabajo incluya los siguientes elementos. Solo hace falta lo que se monta desde el _host_; el _script_ principal, las plantillas Jinja2 y las dependencias ya están en la imagen y no hace falta tenerlos aquí:
+Asegúrate de que el directorio de trabajo incluye los siguientes elementos. Solo hace falta lo que se monta desde el _host_; el _script_ principal, las plantillas Jinja2 y las dependencias ya están en la imagen, y no hace falta tenerlos aquí:
 
-* `secrets.yml`: credenciales del _cluster_.
-* `.kube/config`: fichero _kubeconfig_ del _cluster_.
-* `backup/`: directorio para copias de seguridad (puede estar vacío al inicio).
+* `secrets.yml`: las credenciales del _cluster_.
+* `.kube/config`: el fichero _kubeconfig_ del _cluster_.
+* `backup/`: el directorio para las copias de seguridad (puede estar vacío al principio).
 
 === Ejecución del contenedor
 
@@ -102,13 +104,13 @@ docker run \
   <registry>/cloud-provisioner-upgrade:0.9.9
 ----
 
-NOTE: El _script_ no genera un fichero de registro propio con marca de tiempo; toda su salida se envía a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero en el volumen montado, por ejemplo, añadiendo `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
+NOTE: El _script_ no genera un fichero de registro propio con marca de tiempo: toda su salida se envía a la consola del contenedor. Para conservar un registro completo de la ejecución, redirige la salida a un fichero en el volumen montado; por ejemplo, añade `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` al comando del _script_.
 
 Ejecuta los comandos `kubectl` de este procedimiento dentro del contenedor, que usa el _kubeconfig_ montado.
 
 == Comprobaciones previas
 
-Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], comprueba en Azure VMs:
+Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.adoc#_requisitos_comunes[requisitos comunes], en Azure VMs comprueba lo siguiente:
 
 * _Control-plane_:
 +
@@ -117,7 +119,7 @@ Además de las comprobaciones funcionales de los xref:operations-manual:upgrade.
 kubectl -n cluster-<nombre-cluster> get kubeadmcontrolplane
 ----
 +
-*Salida esperada:* `INITIALIZED` y `API SERVER AVAILABLE` en `true`, el mismo número en `REPLICAS`, `READY` y `UPDATED`, y `UNAVAILABLE` en `0`.
+*Salida esperada:* `INITIALIZED` y `API SERVER AVAILABLE` en `true`; el mismo número en `REPLICAS`, `READY` y `UPDATED`, y `UNAVAILABLE` en `0`.
 
 * Máquinas en ejecución:
 +
@@ -158,7 +160,7 @@ kubectl logs -n capz-system -l control-plane=capz-controller-manager --tail=-1 -
 +
 NOTE: Si aparece algún error, revísalo antes de continuar.
 
-NOTE: El _script_ comprueba además que exista el `ClusterRoleBinding` `kubeadm:apiserver-kubelet-client`. Si falta, lo crea: sin él, las comprobaciones de salud de etcd de Cluster API pueden dejar colgado el cambio de versión. Con `--dry-run` no lo crea.
+NOTE: Además, el _script_ comprueba que exista el `ClusterRoleBinding` llamado `kubeadm:apiserver-kubelet-client`. Si falta, lo crea, porque sin él, las comprobaciones de salud de etcd de Cluster API pueden dejar colgado el cambio de versión. Con `--dry-run`, no lo crea.
 
 == _Dry-run_ de `upgrade-provisioner.py`
 
@@ -173,7 +175,7 @@ python3 upgrade-provisioner.py -p <vault-password> --dry-run --node-image-map '{
 }' 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
 ----
 
-Ejemplo de mapa con imágenes de la _Community Gallery_ de Stratio:
+Este es un ejemplo de mapa con imágenes de la _Community Gallery_ de Stratio:
 
 [source,json]
 ----
@@ -184,17 +186,17 @@ Ejemplo de mapa con imágenes de la _Community Gallery_ de Stratio:
 }
 ----
 
-El _dry-run_ valida el mapa de imágenes: si falta, si no es un JSON válido, si una imagen no tiene un formato válido o si falta un _minor_, el _script_ se detiene con el error correspondiente. Es el único punto en el que un mapa incompleto se detecta antes de cambiar el _cluster_.
+El _dry-run_ valida el mapa de imágenes: si falta, si no es un JSON válido, si una imagen no tiene un formato válido o si falta un _minor_, el _script_ se detiene con el error correspondiente. Es el único punto en el que se detecta un mapa incompleto antes de cambiar el _cluster_.
 
-En el _dry-run_, el _script_ solo pregunta por el repositorio de Helm: pulsa Intro para mantener el actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
+En el _dry-run_, el _script_ solo pregunta por el repositorio de Helm: pulsa Intro para mantener el actual, si no cambias de repositorio, o escribe la URL del repositorio de destino.
 
 *Salida esperada:*
 
-* Al principio: "[INFO] Mode: DRY-RUN (no changes will be applied)".
+* Al principio, "[INFO] Mode: DRY-RUN (no changes will be applied)".
 * "[INFO] Bumping k8s_version: DRY-RUN".
-* Al final: "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: DRY-RUN (no changes were applied)".
+* Al final, "[INFO] Upgrade process finished successfully in ..." y "[INFO] Mode was: DRY-RUN (no changes were applied)".
 
-Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real. La excepción es "[WARN] ClusterRoleBinding kubeadm:apiserver-kubelet-client is missing … Creating it now.": el _dry-run_ no lo crea y lo crea la ejecución real.
+Si aparece algún `[WARN]` o `[ERROR]`, corrígelo y repite el _dry-run_ antes de la actualización real. La excepción es "[WARN] ClusterRoleBinding kubeadm:apiserver-kubelet-client is missing … Creating it now.": el _dry-run_ no crea ese objeto, y la ejecución real sí.
 
 == Ejecución de `upgrade-provisioner.py`
 
@@ -211,7 +213,7 @@ python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
 
 Responde a los _prompts_ en este orden:
 
-. "Press ENTER to continue upgrading the cluster or any other key to abort:" pulsa Intro.
+. "Press ENTER to continue upgrading the cluster or any other key to abort:": pulsa Intro.
 . "The current helm repository is: <url>. Do you want to indicate a new helm repository? Press enter or specify new repository:" pulsa Intro para mantener el repositorio actual si no cambias de repositorio, o escribe la URL del repositorio de destino.
 . "Proceed with the k8s_version bump <versión actual> -> v1.35.0? [y/N]:" escribe `y`. Es el punto de no retorno.
 
@@ -225,13 +227,13 @@ include::partial$upgrade-monitoring.adoc[]
 
 === Cambio de `k8s_version`
 
-Durante el cambio de versión, el _script_ muestra una línea por paso: "Stepping control plane to vX.Y.0", "Waiting for the real control plane to reach vX.Y.0", "Waiting for the real worker nodes (<grupo>) to reach vX.Y.0" y "Letting the cluster settle for 90s before the next step".
+Durante el cambio de versión, el _script_ muestra una línea por paso: `Stepping control plane to vX.Y.0`, `Waiting for the real control plane to reach vX.Y.0`, `Waiting for the real worker nodes (<grupo>) to reach vX.Y.0` y `Letting the cluster settle for 90s before the next step`.
 
-Mientras se sustituyen las réplicas del _control-plane_, pueden aparecer líneas "[INFO] 1 control-plane Node(s) with no matching Machine — holding until the confirmation window elapses" y "[INFO] 1 etcd member(s) with no matching Node — holding until the confirmation window elapses". Mientras la espera termine en `OK`, no hace falta hacer nada.
+Mientras se sustituyen las réplicas del _control-plane_, pueden aparecer las líneas "[INFO] 1 control-plane Node(s) with no matching Machine — holding until the confirmation window elapses" y "[INFO] 1 etcd member(s) with no matching Node — holding until the confirmation window elapses". Si la espera termina en `OK`, no hace falta hacer nada.
 
 Si ese estado dura 10 minutos, el _script_ borra el nodo o el miembro de etcd y lo indica con "[INFO] Deleted orphaned Node <nodo>" o "[INFO] Removed orphaned etcd member <miembro>". Solo borra un nodo de _control-plane_ sin `Machine` y con la condición `Ready` en `Unknown`, y un miembro de etcd que no responde y no corresponde a ningún nodo. No borra nada si el _cluster_ tiene menos de dos nodos de _control-plane_ o menos de tres miembros de etcd.
 
-El _script_ espera a los grupos de trabajo uno detrás de otro, en el orden de `spec.worker_nodes` del `KeosCluster`. Los `MachineDeployment` cambian de versión de uno en uno, también dentro de un mismo grupo: mientras uno se actualiza, los demás pueden seguir en la versión anterior hasta que les llega el turno.
+El _script_ espera a los grupos de trabajo uno tras otro, en el orden de `spec.worker_nodes` del `KeosCluster`. Los `MachineDeployment` cambian de versión uno a uno, incluso dentro del mismo grupo: mientras uno se actualiza, los demás pueden seguir en la versión anterior hasta que les toque el turno.
 
 Sigue el _control-plane_ y los nodos:
 
@@ -241,11 +243,11 @@ watch -n30 kubectl -n cluster-<nombre-cluster> get kubeadmcontrolplane,machinede
 watch -n30 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 ----
 
-*Salida esperada:* la versión avanza de _minor_ en _minor_ (1.33, 1.34, 1.35) en el `KubeadmControlPlane`, en los _MachineDeployments_ y en el `kubeletVersion` de los nodos.
+*Salida esperada:* la versión avanza de _minor_ en _minor_ (1.33, 1.34 y 1.35) en el `KubeadmControlPlane`, en los _MachineDeployments_ y en el `kubeletVersion` de los nodos.
 
 == Comprobaciones posteriores
 
-Además de la xref:operations-manual:upgrade.adoc#_verificación_final[verificación final] común, comprueba en Azure VMs:
+Además de la xref:operations-manual:upgrade.adoc#_verificación_final[verificación final] común, en Azure VMs comprueba lo siguiente:
 
 * _Control-plane_, grupos de trabajo y nodos:
 +
@@ -256,7 +258,7 @@ kubectl get machines -A
 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
 ----
 +
-*Salida esperada:* todas las máquinas con `PHASE = Running`, el `KubeadmControlPlane` y los _MachineDeployments_ con `node_image` en `v1.35.0`, y todos sus nodos con un `kubeletVersion` `v1.35.<patch>`, el de la imagen de 1.35 del mapa (por ejemplo, `v1.35.8`).
+*Salida esperada:* todas las máquinas con `PHASE = Running`; el `KubeadmControlPlane` y los _MachineDeployments_ con `node_image` en `v1.35.0`; y todos sus nodos con un `kubeletVersion` de `v1.35.<patch>`, correspondiente a la imagen de la versión 1.35 del mapa (por ejemplo, `v1.35.8`).
 
 * Política de red del _control-plane_, si el _cluster_ la tiene:
 +
@@ -265,7 +267,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo
 kubectl get globalnetworkpolicy allow-all-traffic-from-control-plane -o jsonpath='{.spec.ingress[0].source.nets}{"\n"}'
 ----
 +
-*Salida esperada:* solo direcciones `/32`, las de los nodos de _control-plane_. Si aparecen los CIDR de la red y de los _pods_ (por ejemplo, `10.0.0.0/16`), la apertura temporal no se deshizo (consulta el <<_proceso_interrumpido_durante_el_cambio_de_versión, proceso interrumpido durante el cambio de versión>>).
+*Salida esperada:* solo direcciones `/32`, las de los nodos de _control-plane_. Si aparecen los CIDR de la red y de los _pods_ (por ejemplo, `10.0.0.0/16`), no se ha deshecho la apertura temporal (consulta el <<_proceso_interrumpido_durante_el_cambio_de_versión, proceso interrumpido durante el cambio de versión>>).
 
 * _Webhook_ de nodos de Capsule, si el _cluster_ tiene Capsule:
 +
@@ -284,7 +286,7 @@ kubectl get validatingwebhookconfiguration capsule-validating-webhook-configurat
 kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Salida esperada:* con registro privado, `<registro>/autoscaling/cluster-autoscaler:v1.35.3`; sin registro privado, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`.
+*Salida esperada:* con un registro privado, `<registro>/autoscaling/cluster-autoscaler:v1.35.3`; sin registro privado, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`.
 
 * Imagen de cloud-provider-azure:
 +
@@ -313,25 +315,25 @@ include::partial$upgrade-recovery.adoc[]
 
 === Proceso interrumpido durante el cambio de versión
 
-Si el proceso del _script_ se mata durante el cambio de versión de Kubernetes (por ejemplo, porque se detiene el contenedor), los cambios temporales de la política de red y del _webhook_ de Capsule pueden quedar aplicados, si el _cluster_ los tiene. Si el _script_ falla con un error, los deshace él mismo.
+Si el proceso del _script_ termina de forma forzada durante el cambio de versión de Kubernetes (por ejemplo, si se detiene el contenedor), los cambios temporales en la política de red y en el _webhook_ de Capsule pueden quedar aplicados si el _cluster_ los mantiene. Si el _script_ falla con un error, los deshace él mismo.
 
-Si el contenedor se detuvo, vuelve a entrar en él. No lances otro `docker run` con el mismo nombre: falla con "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use".
+Si el contenedor se detuvo, vuelve a entrar en él. No lances otro `docker run` con el mismo nombre, porque falla con el error "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use":
 
 [source,bash]
 ----
 docker start -ai cloud-provisioner-upgrade-0.9.9
 ----
 
-Antes de relanzar, espera a que el `KeosCluster` termine de aplicar la versión que dejó el proceso interrumpido. _cluster-operator_ sigue aplicándola por su cuenta, y mientras tanto el _script_ se detiene en sus comprobaciones iniciales con "KeosCluster.status.ready = False (expected true)":
+Antes de relanzarlo, espera a que el `KeosCluster` termine de aplicar la versión que dejó el proceso interrumpido. _cluster-operator_ sigue aplicándola por su cuenta y, mientras tanto, el _script_ se detiene en sus comprobaciones iniciales con el error "KeosCluster.status.ready = False (expected true)":
 
 [source,bash]
 ----
 kubectl get keoscluster -n cluster-<nombre-cluster>
 ----
 
-*Salida esperada:* `READY` a `true` y `PHASE` en `Provisioned`.
+*Salida esperada:* `READY` en `true` y `PHASE` en `Provisioned`.
 
-Antes de relanzar, si el _cluster_ los tiene, comprueba los dos cambios:
+Antes de relanzarlo, comprueba también los dos cambios, si el _cluster_ los tiene:
 
 [source,bash]
 ----
@@ -340,9 +342,9 @@ kubectl get validatingwebhookconfiguration capsule-validating-webhook-configurat
   -o jsonpath='{range .webhooks[*]}{.name}{"\n"}{end}'
 ----
 
-Al relanzar con el mismo comando, el _script_ continúa desde el _minor_ en el que está el _cluster_. Al terminar, deja restaurado lo que el proceso interrumpido dejó a medias: los _webhooks_ del `KeosCluster`, el `HelmRelease` de _cluster-operator_ sin suspender y _cluster-autoscaler_ con sus réplicas.
+Si lo vuelves a ejecutar con el mismo comando, el _script_ continúa desde el _minor_ en el que se encuentra el _cluster_. Al terminar, restaura lo que el proceso interrumpido dejó a medias: los _webhooks_ del `KeosCluster`, el `HelmRelease` de _cluster-operator_ sin suspender y _cluster-autoscaler_ con sus réplicas.
 
-IMPORTANT: Si el proceso se interrumpió después de quitar la entrada `nodes.capsule.clastix.io`, el siguiente lanzamiento no la recupera: cada ejecución guarda sus copias en un directorio nuevo y no encuentra la anterior. Después de terminar la actualización, si la entrada falta, añádela desde la copia de la ejecución interrumpida:
+IMPORTANT: Si el proceso se interrumpió después de quitar la entrada `nodes.capsule.clastix.io`, el siguiente lanzamiento no la recupera, porque cada ejecución guarda sus copias en un directorio nuevo y no encuentra la anterior. Después de terminar la actualización, si la entrada falta, añádela a partir de la copia de la ejecución interrumpida:
 
 [source,bash]
 ----

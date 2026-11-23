@@ -419,11 +419,11 @@ spec:
 
 image::autoescalado.png[]
 
-Para el autoescalado de nodos se utiliza _cluster-autoscaler_, que detectará _pods_ pendientes de ejecutar por falta de recursos y escalará el grupo de nodos que considere necesario según los filtros de los despliegues.
+Para el autoescalado de los nodos, se utiliza _cluster-autoscaler_, que detecta los _pods_ que no pueden ejecutarse por falta de recursos y escala el grupo de nodos que considera necesario, según los filtros de los despliegues.
 
-Esta operación se realiza en el _API Server_, donde los _controllers_ se encargan de crear las máquinas virtuales en el proveedor de _cloud_ y agregarlas al _cluster_ como nodos _worker_ de Kubernetes.
+Esta operación se realiza en el _API Server_, donde los _controllers_ se encargan de crear las máquinas virtuales en el proveedor de _cloud_ y de añadirlas al _cluster_ como nodos _worker_ de Kubernetes.
 
-Dado que el autoescalado está basado en el _cluster-autoscaler_, se añadirán el mínimo y el máximo en el grupo de nodos en el recurso _KeosCluster_:
+Como el autoescalado se basa en _cluster-autoscaler_, indica el mínimo y el máximo de cada grupo de nodos en el recurso _KeosCluster_:
 
 [source,yaml]
 ----
@@ -438,36 +438,36 @@ spec:
 
 NOTE: En EKS, los _MachinePool_ con `min_size` y `max_size` llevan la anotación `cluster.x-k8s.io/replicas-managed-by`, que deja el número de réplicas en manos de _cluster-autoscaler_. No la quites: sin ella, CAPA puede enviar a EKS un número de réplicas desfasado.
 
-NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quantity` de un grupo _MachinePool_ en estos casos:
+NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quantity` en un grupo _MachinePool_ en estos casos:
 
-* El _nodegroup_ de EKS no está en estado `ACTIVE`, por ejemplo, porque tiene en curso un cambio hecho desde la consola o la CLI de AWS.
-* El tamaño deseado del _nodegroup_ aún no coincide con el de su _Auto Scaling group_. Pasa durante unos minutos tras cada cambio de _cluster-autoscaler_.
-* Algún _nodegroup_ queda con un mínimo por encima de su número de nodos o con un máximo por debajo. Si cambias `quantity`, ese número es el que fija la nueva `quantity`; si no, el actual.
-* No puede consultar AWS con las credenciales del _cluster_.
+* El _nodegroup_ de EKS no está en estado `ACTIVE` (por ejemplo, porque tiene en curso un cambio hecho desde la consola o desde la CLI de AWS).
+* El tamaño deseado del _nodegroup_ aún no coincide con el de su _Auto Scaling group_. Ocurre durante unos minutos después de cada cambio de _cluster-autoscaler_.
+* Algún _nodegroup_ se queda con un mínimo por encima de su número de nodos o con un máximo por debajo de él. Si cambias `quantity`, ese valor se convierte en la nueva `quantity`; si no, se mantiene el valor actual.
+* El _cluster_ no puede consultar AWS con sus credenciales.
 
 En los dos primeros casos, repite el cambio pasados unos minutos.
 
-NOTE: Después de cambiar las etiquetas o los _taints_ de un grupo, _cluster-autoscaler_ puede no escalarlo desde cero. Consulta el xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[problema conocido y su solución].
+NOTE: Puede que _cluster-autoscaler_ no escale un grupo desde cero después de cambiar sus etiquetas o sus _taints_. Consulta el xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[problema conocido y su solución].
 
 ==== Prueba
 
-Para probar el autoescalado, se puede crear un _Deployment_ con suficientes réplicas de modo que no se puedan ejecutar en los nodos actuales:
+Para probar el autoescalado, crea un _Deployment_ con más réplicas de las que se pueden ejecutar en los nodos actuales:
 
 [source,bash]
 ----
 kubectl create deploy test --replicas 1500 --image nginx:alpine
 ----
 
-Al terminar la prueba, se elimina el _Deployment_:
+Al terminar la prueba, elimina el _Deployment_:
 
 [source,bash]
 ----
-kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
+kubectl delete deploy test
 ----
 
 ==== _Logs_
 
-Los _logs_ del _cluster-autoscaler_ se pueden ver desde su _Deployment_. En Azure no gestionado:
+Los _logs_ de _cluster-autoscaler_ se pueden consultar desde su _Deployment_. En Azure no gestionado:
 
 [source,bash]
 ----
@@ -481,15 +481,15 @@ En EKS, _cluster-autoscaler_ usa el proveedor `aws`:
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
 ----
 
-En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el primer comando.
+En los _clusters_ de EKS actualizados a partir de la versión 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el comando de Azure no gestionado.
 
 [[eks-activar-cluster-autoscaler-aws]]
 
 ==== Activación de `cluster-autoscaler-aws` en EKS
 
-En los _clusters_ de EKS actualizados desde la 0.7.x, activa la instancia `cluster-autoscaler-aws` cuando vayas a usar grupos _MachinePool_. Esta instancia es la que escala esos grupos.
+En los _clusters_ de EKS actualizados desde la 0.7.x, activa la instancia `cluster-autoscaler-aws` cuando vayas a usar grupos _MachinePool_, porque es la instancia que escala esos grupos.
 
-Actívala desde sus valores de Helm. No uses `kubectl scale`: cualquier actualización de la _release_ devuelve el _Deployment_ a las réplicas de sus valores.
+Actívala desde sus valores de Helm. No uses `kubectl scale`, porque cualquier actualización de la _release_ devuelve el _Deployment_ a las réplicas definidas en sus valores.
 
 . Guarda los valores propios de la instancia en un fichero:
 +
@@ -498,7 +498,7 @@ Actívala desde sus valores de Helm. No uses `kubectl scale`: cualquier actualiz
 kubectl -n kube-system get configmap 02-cluster-autoscaler-aws-helm-chart-override-values -o jsonpath='{.data.values\.yaml}' > cluster-autoscaler-aws-values.yaml
 ----
 +
-Si el fichero ya tiene una línea `replicaCount`, cámbiala a `replicaCount: 2` y salta al paso 3.
+Si el fichero ya tiene una línea `replicaCount`, cámbiala por `replicaCount: 2` y pasa al paso 3.
 
 . Añade `replicaCount: 2` al fichero:
 +
