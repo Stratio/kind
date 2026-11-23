@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.9.10 (upcoming)
+
+* [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
+  user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
+  sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
+  value on the release's current values and never skips the azurefile-csi-driver chart, which stays at the same version.
+
 ## 0.9.9 (2026-11-19)
 
 * [PLT-5299] Bump CAPG (`cluster-api-gcp-controller` image and its `metadata.yaml`/`infrastructure-components.yaml` manifests) 1.6.1-0.4.2 → 1.6.1-0.4.3 (Stratio/cluster-api-provider-gcp#54: zlib CVE-2026-4738 and Go vulnerabilities, Go 1.26.10, `golang.org/x/net` v0.60.0, `go.opentelemetry.io/otel` v1.45.0) in `DEPENDENCIES`, `docs/images`, both Dockerfiles, `pkg/commons/cluster.go` and the `CAPG` constant of `upgrade-provisioner.py`
