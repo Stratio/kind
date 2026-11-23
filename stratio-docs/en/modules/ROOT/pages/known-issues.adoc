@@ -1,66 +1,66 @@
-= Problemas conocidos
+= Known issues
 
-[[eks-doble-escalado-machinedeployments-machinepools]]
+[#eks-doble-escalado-machinedeployments-machinepools]
 
-== Doble escalado de nodos en EKS con _MachineDeployments_ y _MachinePools_ en el mismo _cluster_
+== Double node scaling in EKS with _MachineDeployments_ and _MachinePools_ in the same cluster
 
-En EKS, los grupos _MachineDeployment_ no tienen imágenes de nodo para las versiones nuevas de Kubernetes, así que hay que migrarlos a _MachinePools_. La actualización a _Stratio Cloud Provisioner_ 0.9 no cambia esos grupos: sus nodos se quedan en la versión 1.32 hasta que los migras.
+In EKS, the _MachineDeployment_ groups do not have node images for the new Kubernetes versions, so they must be migrated to _MachinePools_. The upgrade to _Stratio Cloud Provisioner_ 0.9 does not change those groups: their nodes stay on version 1.32 until they are migrated.
 
-Mientras dura la migración, el _cluster_ tiene grupos de los dos tipos, y cada tipo lo escala un _cluster-autoscaler_ distinto. Por eso la actualización instala una segunda instancia, `cluster-autoscaler-aws`, que escala los _MachinePools_. La instancia que ya existía sigue escalando los _MachineDeployments_.
+During the migration, the cluster has groups of both types, and each type is scaled by a different cluster-autoscaler. For this reason, the upgrade installs a second instance, `cluster-autoscaler-aws`, which scales the _MachinePools_. The existing instance continues to scale the _MachineDeployments_.
 
-Cada instancia gestiona solo sus grupos de nodos, pero las dos reaccionan a los mismos _pods_ pendientes.
+Each instance manages only its own node groups, but both react to the same pending pods.
 
-El problema aparece cuando el _cluster_ tiene grupos de nodos de los dos tipos. Un _pod_ pendiente que no fija dónde ejecutarse cabe en un nodo de cualquiera de ellos. Los dos _cluster-autoscaler_ añaden nodos para ese mismo _pod_, y el _cluster_ crece más de lo necesario.
+The problem arises when the cluster contains node groups of both types. A pending pod that doesn't indicate where it must run fits on a node in either type, so both cluster-autoscalers add nodes for that same pod, and the cluster grows more than necessary.
 
-Este problema tiene estas consecuencias:
+This problem has these consequences:
 
-* El _cluster_ arranca más nodos de los que la carga necesita. _Cluster-autoscaler_ los retira después, cuando quedan vacíos, pero mientras tanto generan coste.
-* Los nodos de más consumen direcciones IP de las subredes. Si una subred se queda sin direcciones libres, los _pods_ nuevos se quedan en estado `ContainerCreating`. El error que muestran es `failed to assign an IP address to container`.
+* The cluster starts up more nodes than the workload requires. cluster-autoscaler removes them afterward, when they are left empty, but in the meantime, they generate costs.
+* The extra nodes consume IP addresses from the subnets. When a subnet runs out of free addresses, new pods stay in the `ContainerCreating` state with the `failed to assign an IP address to container` error.
 
-El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ a la vez. Un _cluster_ creado con la versión 0.9 no está afectado: solo tiene _MachinePools_ y un único _cluster-autoscaler_.
+The problem only affects upgraded EKS clusters that have both _MachineDeployments_ and _MachinePools_. A cluster created with 0.9 is not affected, because it only has _MachinePools_ and a single cluster-autoscaler.
 
-Las dos instancias de _cluster-autoscaler_ no pueden convivir: un _cluster_ actualizado a 0.9 que conserva sus _MachineDeployments_ no está preparado para tener _MachinePools_ a la vez. Ten en cuenta que un grupo de _workers_ nuevo sin `node_image` se crea como _MachinePool_.
+The two cluster-autoscaler instances cannot coexist: a cluster upgraded to version 0.9 that keeps its _MachineDeployments_ is not prepared to have _MachinePools_ at the same time. Note that a new worker group without `node_image` is created as _MachinePool_.
 
-[[cluster-autoscaler-grupo-sin-nodos-etiquetas-taints]]
+[#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints]
 
-== _Cluster-autoscaler_ no escala un grupo desde cero tras cambiar sus etiquetas o _taints_
+== cluster-autoscaler does not scale a group from zero after changing its labels or its taints
 
-Después de cambiar las etiquetas o los _taints_ de un grupo de _workers_ en el `KeosCluster`, los _pods_ que necesitan los valores nuevos se quedan en estado `Pending`. El grupo no escala. El _pod_ muestra el evento `NotTriggerScaleUp` y el `KeosCluster` no muestra ningún error.
+After changing the labels or taints of a worker group in the `KeosCluster`, the pods that need the new values remain in `Pending` state. The group does not scale: the pod shows the `NotTriggerScaleUp` event, and the `KeosCluster` shows no error.
 
-El problema aparece cuando el grupo no tiene ningún nodo disponible, es decir, listo y planificable. En la práctica, es un grupo con `min_size: 0` que está a cero nodos. Además, ese grupo ya tuvo algún nodo desde el último arranque de _cluster-autoscaler_. Un grupo que no ha tenido nodos desde ese arranque no está afectado.
+The problem arises when the group has no available nodes (i.e., ready and schedulable). In practice, it is a group with `min_size: 0` that has zero nodes and has had at least one node since the last startup of cluster-autoscaler. A group that has not had nodes since that startup is not affected.
 
-También puede pasar de forma transitoria en un grupo con nodos, si ninguno está disponible. Por ejemplo, cuando todos están acordonados durante una sustitución de nodos.
+It can also happen transiently in a group with nodes, when none are available; for example, when they are all cordoned during a node replacement.
 
-Para decidir si escala un grupo sin nodos, _cluster-autoscaler_ usa una plantilla del nodo. Guarda esa plantilla en memoria a partir del último nodo real del grupo. Con la configuración por defecto, la plantilla no caduca. Tampoco se actualiza cuando cambian las etiquetas o los _taints_ del grupo.
+To decide whether to scale a group without nodes, cluster-autoscaler uses a node template that it keeps in memory from the last actual node in the group. With the default configuration, the template does not expire, and it is not updated when the group's labels or taints change.
 
-El problema afecta a estos grupos de nodos:
+The problem affects these node groups:
 
-* EKS: grupos _MachinePool_ y grupos _MachineDeployment_ de _clusters_ actualizados desde la 0.7.
-* Azure no gestionado: grupos _MachineDeployment_.
-* GKE: no aplica, porque _Stratio Cloud Provisioner_ no instala _cluster-autoscaler_ en GKE.
+* EKS: the _MachinePool_ and _MachineDeployment_ groups of clusters upgraded from version 0.7.
+* Unmanaged Azure: the _MachineDeployment_ groups.
+* GKE: does not apply, because _Stratio Cloud Provisioner_ does not install cluster-autoscaler in GKE.
 
-Para solucionarlo, reinicia el _deployment_ de _cluster-autoscaler_ que gestiona el grupo después de aplicar el cambio. Al arrancar, _cluster-autoscaler_ vuelve a construir la plantilla con la configuración actual del grupo. Busca el nombre del _deployment_ y reinícialo:
+To solve it, after applying the change, restart the cluster-autoscaler deployment that manages the group. On startup, cluster-autoscaler rebuilds the template with the group's current configuration. Find the deployment name and restart it:
 
 [source,bash]
 ----
 kubectl -n kube-system get deployments | grep cluster-autoscaler
-kubectl -n kube-system rollout restart deployment <nombre-del-deployment>
+kubectl -n kube-system rollout restart deployment <deployment-name>
 ----
 
 [cols="1,1", options="header"]
 |===
-| Tipo de _cluster_ y grupo | _Deployment_ que lo gestiona
+| Cluster and group type | Deployment that manages it
 
-| EKS, grupos _MachinePool_ (creado con la 0.9 o actualizado desde la 0.7)
+| EKS, _MachinePool_ groups (created with 0.9 or upgraded from 0.7)
 | `cluster-autoscaler-aws-cluster-autoscaler`
 
-| EKS actualizado desde la 0.7 (grupos _MachineDeployment_)
+| EKS upgraded from 0.7 (_MachineDeployment_ groups)
 | `cluster-autoscaler-clusterapi-cluster-autoscaler`
 
-| Azure no gestionado
+| Unmanaged Azure
 | `cluster-autoscaler-clusterapi-cluster-autoscaler`
 |===
 
-Si cambias las etiquetas o los _taints_ de varios grupos, haz todos los cambios y reinicia _cluster-autoscaler_ una sola vez, al final. Un reinicio limpia la plantilla de todos los grupos. En EKS, si reinicias antes de que AWS termine de aplicar los cambios en los _nodegroups_, _cluster-autoscaler_ puede tardar hasta 6 minutos en ver los valores nuevos. Después se corrige solo.
+When the labels or taints of several groups change, make all changes and restart cluster-autoscaler only once at the end: a restart empties the template for all groups. In EKS, if the restart happens before AWS finishes applying the changes to the nodegroups, cluster-autoscaler may take up to 6 minutes to detect the new values. Afterward, it corrects itself.
 
-Mientras arranca, _cluster-autoscaler_ no escala. Los nodos que ya estaban pendientes de retirarse empiezan de nuevo su espera. Con la configuración por defecto, se retiran hasta 10 minutos más tarde.
+While it starts up, cluster-autoscaler does not scale. Nodes that were already pending removal restart their wait: with the default configuration, they are removed up to 10 minutes later.
