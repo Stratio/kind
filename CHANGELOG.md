@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
   image tag an earlier run already set in `00-cluster-operator-helm-chart-default-values` and goes on with the HelmRelease.
 * [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
   `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
-  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.10 (0.10.0-m.9 was cut still pinning m.8) and `cluster-operator` 0.8.0-m.3,
+  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.12 (0.10.0-m.9 was cut still pinning m.8, 0.10.0-m.11 still pinning m.10) and `cluster-operator` 0.8.0-m.3,
   which `upgrade-providers.py` and `upgrade-provisioner.py` install by default.
 * [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
   Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
