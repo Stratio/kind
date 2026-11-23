@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
+  user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
+  sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
+  value on the release's current values and never skips the azurefile-csi-driver chart, which stays at the same version.
 * [PLT-5510] `upgrade-provisioner.py` with Capsule 1.0.x, which generates its webhooks from `CapsuleConfiguration default`
   (`spec.admission`): the system namespaces are excluded from Capsule's namespace webhooks there, and the original
   `objectSelector` of each one is put back at the end; Capsule 0.x keeps its webhook configurations as before.
