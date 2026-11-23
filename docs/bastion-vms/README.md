@@ -2,7 +2,7 @@
 
 Remote VMs used to run `cloud-provisioner create cluster` (and other kind bootstraps) instead of the laptop.
 
-Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the laptop; `vm-autostop.sh`, `bastion-tools.sh` and `tool-versions.*` are pushed to the VMs by them. Laptop commands below run from the repository root. Set `VM_OWNER` (default `$USER`) before `create` to choose the `owner` tag and the name of the first SSH rule.
+Scripts live in [`scripts/`](scripts/): `eks-vm.sh`, `azure-vm.sh` and `vm-run.sh` run on the laptop; `vm-autostop.sh`, `bastion-tools.sh` and `tool-versions.*` are pushed to the VMs by them. Laptop commands below run from the repository root. Set `VM_OWNER` (default `$USER`) before `create` to choose the `owner` tag and the name of the first SSH rule.
 
 **Why**: each kind bootstrap peaks at ~2.5 GB RAM; two or three in parallel on a 16 GB laptop have triggered `systemd-oomd` and killed the desktop session together with every running `create cluster`. On a VM the bootstrap is isolated and survives laptop reboots/VPN drops.
 
@@ -10,7 +10,13 @@ Scripts live in [`scripts/`](scripts/): `eks-vm.sh` and `azure-vm.sh` run on the
 |---|---|---|---|
 | GKE | `gke-vm-janr-11` (GCP `clusterapi-369611`, `europe-west4-a`; default for every GKE test since 2026-11-06) | **Yes** — GKE requires a bastion in the same network (`stratio-docs/.../installation.adoc`, "Bastion") | `gcloud compute ssh --tunnel-through-iap` |
 | EKS | `eks-vm-janr` (AWS `eu-west-1`) | No — public VM in the default VPC | SSH, one Linux user + one `/32` SG rule per person |
-| Azure | `azure-vm-janr`, `azure-vm-janr-2` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
+| Azure | `azure-vm-janr` (subscription `EOS`, RG `bastion-vm-janr`, `westeurope`) | No — public VM | SSH, one Linux user + one `/32` NSG rule per person |
+
+Ruben has his own VMs, one per provider: `eks-vm-ruben`, `azure-vm-ruben` (RG `bastion-vm-ruben`) and `gke-vm-ruben` (subnet `hsbc-demo-cb`). They are his: don't run tests on them.
+
+## Policy: one main VM per provider
+
+Only the main VM of each provider stays. An extra VM (another subnet such as `hsbc-demo-cb` 172.16.0.0/20, `cloud-platform` scopes, a parallel load) is created only for a concrete test, with approval, and deleted the same day: first copy its `/deployments/descriptors/` and the `/deployments/<cluster>/` folder of every cluster still alive to the main VM, check that nobody is using it, then delete the VM with its disks, NIC, IP and NSG/SG (never a shared resource group).
 
 ## Policy: stop, do not recreate
 
@@ -125,36 +131,36 @@ aws ec2 authorize-security-group-ingress $P --group-id $SG --ip-permissions 'IpP
 aws ec2 revoke-security-group-ingress $P --group-id $SG --security-group-rule-ids <sgr-id> [<sgr-id> ...]
 ```
 
-**Azure — `azure-vm-janr` and `azure-vm-janr-2`** (one NSG each, `azure-vm-janr-nsg` / `azure-vm-janr-2-nsg`; one rule `user-<name>` per person holding all their IPs):
+**Azure — `azure-vm-janr`** (NSG `azure-vm-janr-nsg`; one rule `user-<name>` per person holding all their IPs):
 
 ```bash
-NSG=azure-vm-janr-nsg      # or azure-vm-janr-2-nsg
+NSG=azure-vm-janr-nsg
 # list: rule, single IP, IP list, port
 az network nsg rule list -g bastion-vm-janr --nsg-name $NSG --query "[].[name,sourceAddressPrefix,join(',',sourceAddressPrefixes),destinationPortRange]" -o tsv
 # set the full list of IPs to keep (replaces the current ones)
 az network nsg rule update -g bastion-vm-janr --nsg-name $NSG -n user-<name> --source-address-prefixes <ip1>/32 [<ip2>/32 ...]
 ```
 
-**GKE — network `hsbc-demo`** (every VM there: `gke-vm-janr-10`, `gke-vm-janr-11`, …): since 2026-11-06 the firewall rule `hsbc-demo-allow-ssh` accepts SSH only from the IAP range `35.235.240.0/20` (it was `0.0.0.0/0`), and `hsbc-demo-allow-rdp` is disabled. Always connect with `--tunnel-through-iap`; SSH straight to the public IP no longer works. The VMs keep their public IP only for outbound traffic: `hsbc-demo` has no Cloud NAT. Check the rules:
+**GKE — network `hsbc-demo`** (every VM there: `gke-vm-janr-11`, …): since 2026-11-06 the firewall rule `hsbc-demo-allow-ssh` accepts SSH only from the IAP range `35.235.240.0/20` (it was `0.0.0.0/0`), and `hsbc-demo-allow-rdp` is disabled. Always connect with `--tunnel-through-iap`; SSH straight to the public IP no longer works. The VMs keep their public IP only for outbound traffic: `hsbc-demo` has no Cloud NAT. Check the rules:
 
 ```bash
 gcloud compute firewall-rules list --project=clusterapi-369611 --filter='network~hsbc-demo$' --format='table(name,sourceRanges.list(),allowed[].map().firewall_rule().list(),disabled)'
 ```
 
-## GKE — `gke-vm-janr-11` (default) and `gke-vm-janr-10`
+## GKE — `gke-vm-janr-11`
 
-**Use `gke-vm-janr-11` for every GKE test** (2026-11-06). It is a copy of `gke-vm-janr-10` with the default scopes, without `cloud-platform` (checked 2026-11-06: `n2-standard-8`, 200 GB), so it behaves like a customer bastion: a script that fails to activate the `secrets.yml` service account fails here too. `gke-vm-janr-10` keeps `cloud-platform` and stays as an alternative only. The description below was verified on `-10`.
+**Use `gke-vm-janr-11` for every GKE test** (2026-11-06). It has the default scopes, without `cloud-platform`, so it behaves like a customer bastion: a script that fails to activate the `secrets.yml` service account fails here too. It lives in subnet `hsbc-demo-ca` (10.0.0.0/20), the range our 0.9 and 0.10 test descriptors authorize in `master_authorized_networks_config.cidr_blocks`. A test that needs another subnet or `cloud-platform` gets an extra VM for that test only (see [Policy: one main VM per provider](#policy-one-main-vm-per-provider)).
 
-`gke-vm-janr-11` has **no public IP** since 2026-11-06: SSH through IAP works, Docker Hub and Ubuntu apt do not (GAR works). Add an external IP before a create and remove it after:
+Without a public IP, SSH through IAP works, but Docker Hub and Ubuntu apt do not (GAR works). Check whether it has one (`gcloud compute instances describe gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --format='value(networkInterfaces[0].accessConfigs[0].natIP)'`), add it before a create and remove it after:
 
 ```bash
 gcloud compute instances add-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0
 gcloud compute instances delete-access-config gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a --network-interface=nic0 --access-config-name="external-nat"
 ```
 
-### `gke-vm-janr-10`
+### Configuration
 
-Verified 2026-10-01 with `gcloud compute instances describe`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, external IP, network tag `bastion`. Tools: Docker 27, helm 3.16, jq, yq, gcloud.
+Verified 2026-11-20 on `gke-vm-janr-11`: `n2-standard-8` (8 vCPU / 32 GB), Ubuntu 20.04, 200 GB disk, cgroup v2, network `hsbc-demo` / subnet `hsbc-demo-ca`, network tag `bastion`, `/etc/sysctl.d/90-kind.conf` below applied, `vm-autostop` at 18:00 `Europe/Madrid` (`poweroff`). Tools: Docker 27, helm 3.16, jq, yq, gcloud.
 
 `vm-autostop` installed 2026-10-05 (18:00 `Europe/Madrid`, `poweroff` → instance `TERMINATED`); `stop-if-idle 5` tested live. Right after `instances start`, `gcloud compute ssh/scp` can fail for ~20-40 s with IAP `4003: failed to connect to backend` (sshd not up yet) — retry.
 
@@ -242,6 +248,7 @@ Run long operations inside `tmux` (installed) so they survive an SSH disconnect;
 |---|---|---|---|---|
 | docker, git, jq, python3, unzip, curl, tmux | yes | yes | Ubuntu apt (curl, tmux already in the image) | `unattended-upgrades` daily — enabled origins are `${distro_codename}` and `${distro_codename}-security` only, **not** `-updates`: security fixes, no feature upgrades |
 | make | yes | yes | Ubuntu apt: user-data of `eks-vm.sh`/`azure-vm.sh` on new VMs, `bastion-tools sync` on existing ones (added 2026-10-22, for builds run on the VM instead of the laptop) | Same as the row above |
+| docker-buildx (0.30.1) | yes | yes | Ubuntu apt, same two paths as `make` (added 2026-10-27: the cluster-operator Dockerfile uses `RUN --mount`, which the classic builder rejects). The GKE VM runs Docker CE and already has `docker-buildx-plugin` 0.17.1 from Docker's repo — don't install Ubuntu's `docker-buildx` there (held-package conflict) | Same as the row above |
 | kubectl | 1.36.5 (default), 1.33.13 | same | asdf (`asdf-community/asdf-kubectl`) | Never automatically — edit `.tool-versions` + `bastion-tools sync` |
 | helm | 3.19.0 | 3.19.0 | asdf (`Antiarchitect/asdf-helm`) — same version as `DEPENDENCIES` | Same |
 | yq | 4.54.1 | 4.54.1 | asdf (`sudermanjr/asdf-yq`) | Same |
@@ -310,6 +317,32 @@ From the laptop, `eks-vm.sh tools sync` / `azure-vm.sh tools sync` pushes the cu
 **Alias `k` = `kubectl`** for every user: `bastion-tools sync` / `completions` writes `/etc/profile.d/bastion-aliases.sh` (login shells: ssh, `sudo -i`, new tmux windows) and `completions/k`, which binds kubectl's completion to `k`. Verified on Azure and EKS 2026-10-02 in the three shells (`k ge<Tab>` → `get`).
 
 `bash-completion` (2.11) ships with the image and `/etc/bash.bashrc` loads it. `bastion-tools sync` / `completions` writes one file per tool in `/usr/share/bash-completion/completions/`, loaded lazily on the first Tab (no shell start-up cost): `asdf completion bash`, `kubectl|helm|clusterctl|clusterawsadm completion bash`, `yq shell-completion bash`, `complete -C aws_completer aws`, and a link to azure-cli's own `/etc/bash_completion.d/azure-cli`. docker and git come with their packages. Completions are generated from the **default** versions; a per-cluster pin of another minor may differ in a few flags.
+
+## Builds off the laptop (`vm-run.sh`)
+
+Go build/test/lint, `make` and `docker build` can run on `eks-vm-janr` instead of the laptop, where they compete for memory with everything else open.
+
+[`docs/bastion-vms/scripts/vm-run.sh`](scripts/vm-run.sh), run from the repo or worktree on the laptop:
+
+```bash
+cd <repo-or-worktree>
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh -- 'go build ./... && go test ./pkg/...'
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh --get bin/cloud-provisioner -- make build
+bash <kind>/docs/bastion-vms/scripts/vm-run.sh --host -- docker build -t <image>:<tag> .
+```
+
+- Syncs the working tree with `rsync --delete` (uncommitted changes included; `.git`, `bin/`, `_artifacts/`, `dist/` excluded) to `/deployments/build/<dir>`.
+- Default: runs in `golang:<go.mod minor>` with `GOTOOLCHAIN=auto`, `--memory 6g --cpus 3` (the VM is shared with bootstraps), module and build caches in the docker volumes `vmrun-gomod` / `vmrun-gocache`.
+- `--host`: runs on the VM host (docker with buildx, `make`; no Go there).
+- cluster-operator image: `make docker-build` runs `make test` first and needs Go, so build the Dockerfile directly. Its base `distroless/static-debian12:nonroot` has no registry prefix and does not exist on Docker Hub, so pre-tag it from `gcr.io` (same digest as the `qa.int.stratio.com` mirror, checked 2026-10-27: `sha256:afa5c872…`):
+
+  ```bash
+  cd <cluster-operator>
+  bash <kind>/docs/bastion-vms/scripts/vm-run.sh --host --get co.tar.gz -- 'docker pull -q gcr.io/distroless/static-debian12:nonroot && docker tag gcr.io/distroless/static-debian12:nonroot distroless/static-debian12:nonroot && docker build -t <ecr>/stratio/cluster-operator:<version> . && docker save <ecr>/stratio/cluster-operator:<version> | gzip > co.tar.gz'
+  docker load -i co.tar.gz && docker push <ecr>/stratio/cluster-operator:<version>
+  ```
+- One run at a time per VM (`flock /deployments/build/.lock`, waits up to 2 h). Exit code is the command's. `--get <path>` copies an artifact back into the local tree.
+- Tested 2026-10-22: `go test ./pkg/commons/...` of a cloud-provisioner worktree → `ok`, 1m36s on the first run of the repo (module download).
 
 ## Auto-stop after hours (`vm-autostop`)
 
@@ -392,9 +425,9 @@ gcloud compute ssh gke-vm-janr-11 "${O[@]}" --command 'sudo bash /tmp/vm-autosto
 
 Starting the VMs in the morning stays manual (`eks-vm.sh start`, `azure-vm.sh start`, `gcloud compute instances start gke-vm-janr-11 --project=clusterapi-369611 --zone=europe-west4-a`).
 
-## Azure — `azure-vm-janr` and `azure-vm-janr-2`
+## Azure — `azure-vm-janr`
 
-Two VMs with the same settings (checked 2026-11-06 with `az vm show` / `az disk list`): `Standard_D4as_v5`, root 32 GB StandardSSD in RG `bastion-vm-janr`, data 16 GB StandardSSD (`<vm>-data`) in RG `bastion-vm-janr-data`, one NSG each. Use `--name azure-vm-janr-2` to act on the second one.
+Checked 2026-11-06 with `az vm show` / `az disk list`: `Standard_D4as_v5`, root 32 GB StandardSSD in RG `bastion-vm-janr`, data 16 GB StandardSSD (`azure-vm-janr-data`) in RG `bastion-vm-janr-data`, NSG `azure-vm-janr-nsg`.
 
 Managed with [`docs/bastion-vms/scripts/azure-vm.sh`](scripts/azure-vm.sh) — same actions and options as `eks-vm.sh` (`create --my-ip`, `status`, `start`, `stop`, `ssh`, `grant`, `revoke`, `autostop …`, `tools …`, `upload`) plus `kubeconfig <cluster>`. Uses the `az` session of the laptop (subscription `EOS`). Giving a colleague access works as on EKS (`grant`/`revoke`, NSG rule `user-<name>` instead of an SG rule).
 
