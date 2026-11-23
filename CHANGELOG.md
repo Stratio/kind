@@ -10,8 +10,6 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
-<<<<<<< HEAD
-=======
 * [PLT-5145] `upgrade-providers.py` migrates clusters without a private registry: CAPI, CAPA and CAPZ keep the images of
   their manifests and CAPG comes from `<keos_registry>/stratio`, as `create cluster` does; new `--private` flag, as in
   `upgrade-provisioner.py`, to take every provider from the `keos_registry`. It stops before any change only when the
@@ -20,7 +18,7 @@ All notable changes to this project will be documented in this file.
   image tag an earlier run already set in `00-cluster-operator-helm-chart-default-values` and goes on with the HelmRelease.
 * [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
   `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
-  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.8 and `cluster-operator` 0.8.0-m.3,
+  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.10 (0.10.0-m.9 was cut still pinning m.8) and `cluster-operator` 0.8.0-m.3,
   which `upgrade-providers.py` and `upgrade-provisioner.py` install by default.
 * [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
   Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
@@ -75,7 +73,6 @@ All notable changes to this project will be documented in this file.
 * [PLT-5180] `upgrade-provisioner.py --dry-run`: the KEOSCluster webhooks restore only reports what it would do. The real restore is skipped in dry-run,
   so its existence check failed on a cluster whose webhooks an interrupted run had removed
 * [PLT-5163] `upgrade-provisioner.py`: upgrade flux2 before the other charts, since every other `HelmRelease` needs a working helm-controller. The Flux CRDs are not applied beforehand: the flux2 chart's pre-upgrade `flux migrate` hook migrates the stored Flux objects first
->>>>>>> 93dbb491 ([PLT-5145] Upgrade a 0.10: clusters sin registro privado y relanzamiento en `upgrade-providers.py`, y `clusterctl` v1beta2 al volver a aplicar los proveedores (#1076))
 * [PLT-5130] `upgrade-provisioner.py` (GKE): activate the service account from the loose fields `keos-installer` writes to `secrets.yml` (`client_email`, `private_key`, `private_key_id`, ...). It was only activated when `secrets.gcp.credentials` carried a `service_account_key`, so with the usual `secrets.yml` gcloud kept the VM default account, the script still printed `Configuring GCP gcloud credentials OK` and, on a VM without the `cloud-platform` scope, the kubeconfig refresh failed with `403 insufficient authentication scopes`. It now fails when `secrets.yml` has no usable service account, or when the active account is not the one in `secrets.yml`
 * [PLT-5234] `upgrade-provisioner.py` (GKE): target Kubernetes 1.37, as on EKS and Azure. GKE was capped at 1.36 because 1.37 was only in the RAPID channel; it is now in REGULAR and EXTENDED too, and `--k8s-version 1.37` was rejected
 * [PLT-5023] `DEPENDENCIES` and `docs/images/commons/imagenes-kind.txt` pin the `cloud-provisioner` image to the next milestone, 0.10.0-m.7 (they were left on 0.10.0-m.2)
