@@ -1,6 +1,7 @@
 """Runtime values set by flow.run() and read by the other modules (were module globals)."""
 
 backup_dir = None
+capsule_restore_patch = None
 cluster_config = None
 cluster_operator_version = None
 config = None

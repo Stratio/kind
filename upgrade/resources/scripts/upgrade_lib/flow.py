@@ -18,7 +18,7 @@ from upgrade_lib.commons.k8s import get_keos_cluster_cluster_config, get_keos_re
 from upgrade_lib.commons.keoscluster import bump_k8s_version, parse_k8s_minor, disable_keoscluster_webhooks, restore_keoscluster_webhooks, start_keoscluster_controller, stop_keoscluster_controller, update_clusterconfig, wait_for_k8s_version_bump
 from upgrade_lib.commons.network import ensure_imds_allow
 from upgrade_lib.commons.shell import execute_command, run_command
-from upgrade_lib.providers.aws import configure_aws_credentials, ensure_aws_node_annotate_pod_ip_rbac, ensure_mp_role_name, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_worker_convergence
+from upgrade_lib.providers.aws import configure_aws_credentials, ensure_aws_node_annotate_pod_ip_rbac, ensure_mp_role_name, ensure_cluster_autoscaler_aws_iam, ensure_imds_allow_cluster_autoscaler_aws, remove_cluster_autoscaler_aws_09_release, wait_for_eks_addons_active, wait_for_eks_worker_convergence
 from upgrade_lib.providers.azure import configure_azure_credentials, repin_cloud_provider_azure_after_bump
 from upgrade_lib.providers.gcp import activate_capg_service_account, configure_gcp_credentials, patch_capg_crds_live, patch_gcp_crd_conversion_webhook
 from upgrade_lib.versions import AZURE_K8S_VERSION_BY_MINOR, CAPA, CAPG, CAPZ, CLUSTERCTL, K8S_VERSION_BY_PROVIDER, DRY_RUN_CLUSTER_OPERATOR_WAIT_TIMEOUT, DRY_RUN_KEOSCLUSTER_READY_TIMEOUT_SECONDS, GCP_IMDS_ALLOW_EVENT_EXPORTER_SELECTOR, GCP_IMDS_ALLOW_GNP, GCP_IMDS_DENY_GNP, aws_eks_charts, azure_vm_charts, common_charts
@@ -473,8 +473,8 @@ def run():
     print("[INFO] Scaling cluster-autoscaler back to 0 after the charts update")
     scale_cluster_autoscaler(0, S.config["dry_run"])
 
-    # Restore capsule
-    if not S.config["disable_prepare_capsule"]:
+    # Restore capsule (EKS: after the add-ons, which EKS updates after the k8s_version bump, are ACTIVE — PLT-5510)
+    if not S.config["disable_prepare_capsule"] and S.provider != "aws":
         restore_capsule(S.config["dry_run"])
 
     # A run killed mid critical-section can leave spec.suspend=true behind, which Flux
@@ -594,6 +594,11 @@ def run():
         except Exception as recovery_error:
             print(f"[ERROR] Recovery ALSO failed: {recovery_error}")
             print("[ERROR] Cluster may be left with KeosCluster webhooks disabled and the controller stopped — manual intervention required")
+        if S.provider == "aws" and not S.config["disable_prepare_capsule"]:
+            try:
+                restore_capsule(S.config["dry_run"])
+            except (Exception, SystemExit) as capsule_error:
+                print(f"[ERROR] Restoring capsule failed too: {capsule_error} — a relaunch prepares and restores it again")
         raise e
 
     restore_keoscluster_webhooks()
@@ -650,6 +655,12 @@ def run():
 
     if S.provider == "aws":
         ensure_mp_role_name(cluster_name, S.config["dry_run"])
+        # After the cluster-autoscaler restore: a timeout here must not leave it at 0
+        try:
+            wait_for_eks_addons_active(cluster_name)
+        finally:
+            if not S.config["disable_prepare_capsule"]:
+                restore_capsule(S.config["dry_run"])
 
     # Every run, also a relaunch that skips the chart: the CCM ends on the tag of the minor the kube-apiserver runs.
     # After the cluster-autoscaler restore: a timeout here must not leave it at 0
