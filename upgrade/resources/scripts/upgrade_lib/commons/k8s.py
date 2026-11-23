@@ -4,40 +4,49 @@
 import os
 import json
 from upgrade_lib.commons.shell import execute_command, run_command
+from upgrade_lib.versions import CLUSTER_AUTOSCALER_AWS_09_RELEASE, CLUSTER_AUTOSCALER_AWS_DEPLOYMENT, CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT
 from upgrade_lib import state as S
 
 def scale_cluster_autoscaler(replicas, dry_run):
-    '''Scale cluster-autoscaler deployment'''
+    '''Scale every cluster-autoscaler deployment present (clusterapi, the EKS aws one, the second aws release of the 0.9 upgrade)
+    and return the highest replicas they had (None if none is deployed)'''
 
-    command = S.kubectl + " get deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --ignore-not-found -o=jsonpath='{.spec.replicas}'"
-    output = execute_command(command, False, False)
+    found = []
+    for deployment in (CLUSTER_AUTOSCALER_CLUSTERAPI_DEPLOYMENT, CLUSTER_AUTOSCALER_AWS_DEPLOYMENT, CLUSTER_AUTOSCALER_AWS_09_RELEASE):
+        command = S.kubectl + f" get deploy {deployment} -n kube-system --ignore-not-found -o=jsonpath='{{.spec.replicas}}'"
+        output = execute_command(command, False, False)
 
-    if output.strip() == "":
+        if output.strip() == "":
+            continue
+
+        current_replicas = int(output)
+        found.append(current_replicas)
+
+        if current_replicas == replicas:
+            print(f"[INFO] Cluster autoscaler {deployment} already at desired replicas: SKIP")
+            continue
+
+        scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
+        print(f"[INFO] {scaling_type} cluster autoscaler {deployment} replicas:", end=" ", flush=True)
+
+        if dry_run:
+            print("DRY-RUN")
+            continue
+
+        # Scale
+        command = S.kubectl + f" scale deploy {deployment} -n kube-system --replicas={replicas}"
+        execute_command(command, False, False)
+
+        # Wait until ready
+        command = S.kubectl + f" wait deployment {deployment} -n kube-system --for=condition=Available --timeout=5m"
+        execute_command(command, False, False)
+
+        print("OK")
+
+    if not found:
         print("[INFO] Cluster autoscaler not deployed: SKIP")
-        return
-
-    current_replicas = int(output)
-
-    if current_replicas == replicas:
-        print("[INFO] Cluster autoscaler already at desired replicas: SKIP")
-        return
-
-    scaling_type = "Scaling down" if current_replicas > replicas else "Scaling up"
-    print(f"[INFO] {scaling_type} cluster autoscaler replicas:", end=" ", flush=True)
-
-    if dry_run:
-        print("DRY-RUN")
-        return
-
-    # Scale
-    command = S.kubectl + f" scale deploy cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --replicas={replicas}"
-    execute_command(command, False, False)
-
-    # Wait until ready
-    command = S.kubectl + " wait deployment cluster-autoscaler-clusterapi-cluster-autoscaler -n kube-system --for=condition=Available --timeout=5m"
-    execute_command(command, False, False)
-
-    print("OK")
+        return None
+    return max(found)
 
 def get_keos_cluster_cluster_config():
     '''Get the KeosCluster and ClusterConfig objects'''

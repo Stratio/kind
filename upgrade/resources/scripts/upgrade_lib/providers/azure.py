@@ -6,8 +6,9 @@ import sys
 import json
 import yaml
 import time
+from urllib.parse import urlparse
 from upgrade_lib.commons.shell import run_command
-from upgrade_lib.versions import CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR, CP_ORPHAN_CHECK_GRACE_SECONDS, CP_ORPHAN_CHECK_INTERVAL_SECONDS, CP_ORPHAN_CONFIRM_SECONDS
+from upgrade_lib.versions import AZUREFILE_CSI_DRIVER_IMAGES, CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR, CP_ORPHAN_CHECK_GRACE_SECONDS, CP_ORPHAN_CHECK_INTERVAL_SECONDS, CP_ORPHAN_CONFIRM_SECONDS
 from upgrade_lib import state as S
 
 def update_cloud_provider_azure_image_tag_value(values_file):
@@ -31,6 +32,28 @@ def update_cloud_provider_azure_image_tag_value(values_file):
                 repo = repo.replace("/oss/kubernetes", "/oss/v2/kubernetes")
             section["imageRepository"] = repo
             section["imageTag"] = ccm_tag
+
+        with open(values_file, 'w') as file:
+            yaml.safe_dump(values, file, default_flow_style=False)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def update_azurefile_csi_driver_image_tag_value(values_file):
+    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+
+    try:
+        with open(values_file, 'r') as file:
+            values = yaml.safe_load(file) or {}
+
+        for path, (repository, tag) in AZUREFILE_CSI_DRIVER_IMAGES.items():
+            section = values
+            for key in path:
+                if not isinstance(section.get(key), dict):
+                    section[key] = {}
+                section = section[key]
+            section["repository"] = repository
+            section["tag"] = tag
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -85,26 +108,56 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
     if not live_node_names:
         return  # every Machine is still provisioning — nothing can be judged orphaned yet
 
+    node_output, _ = run_command(
+        f"{S.kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
+        allow_errors=True
+    )
+    try:
+        nodes = json.loads(node_output).get("items", [])
+    except (ValueError, TypeError):
+        return
+    if not nodes:
+        return
+
+    # A mixed 3.5/3.6 etcd can answer members with an empty name (az-5180-a2), so a member is also matched by its peer URL host
+    live_addresses = {
+        a["address"] for obj in machines + nodes for a in obj.get("status", {}).get("addresses") or []
+        if a.get("type") in ("InternalIP", "ExternalIP") and a.get("address")
+    }
+
     running_node = next(
         (m["status"]["nodeRef"]["name"] for m in machines
          if m.get("status", {}).get("phase") == "Running" and m.get("status", {}).get("nodeRef")),
         None
     )
     if running_node:
-        etcdctl = (
-            f"{S.kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
-            "--endpoints=https://127.0.0.1:2379 "
+        etcdctl_tls = (
             "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
             "--cert=/etc/kubernetes/pki/etcd/server.crt "
             "--key=/etc/kubernetes/pki/etcd/server.key "
         )
+        etcdctl_exec = f"{S.kubectl} exec -n kube-system etcd-{running_node} -c etcd -- etcdctl "
+        etcdctl = etcdctl_exec + "--endpoints=https://127.0.0.1:2379 " + etcdctl_tls
         member_output, _ = run_command(etcdctl + "member list -w json", allow_errors=True)
         try:
             members = json.loads(member_output).get("members", [])
         except (ValueError, TypeError):
             members = []
         if members:
-            orphans = [m for m in members if m.get("name", "") not in live_node_names]
+            def member_is_healthy(member):
+                # A running member is not an orphan; one that never started (mid-join leak) has no client URL to answer
+                for url in member.get("clientURLs") or []:
+                    out, _ = run_command(etcdctl_exec + f"--endpoints={url} " + etcdctl_tls + "endpoint health --command-timeout=5s", allow_errors=True)
+                    if " is healthy:" in out:
+                        return True
+                return False
+            orphans = [
+                m for m in members
+                if m.get("name", "") not in live_node_names
+                and not {urlparse(u).hostname for u in m.get("peerURLs") or []} & live_addresses
+                and not member_is_healthy(m)
+            ]
+            # A healthy candidate drops out of the list, so its hold restarts if it turns unhealthy later
             confirmed = confirmed_orphans(orphans, lambda m: m["ID"], _orphan_member_first_seen)
             if orphans and not confirmed:
                 print(f"[INFO] {len(orphans)} etcd member(s) with no matching Node — holding until the confirmation window elapses")
@@ -121,23 +174,12 @@ def cleanup_orphaned_cp_resources(cluster_name, dry_run):
                     else:
                         print(f"[INFO] Removed orphaned etcd member {member_id}")
 
-    node_output, _ = run_command(
-        f"{S.kubectl} get node -l node-role.kubernetes.io/control-plane -o json",
-        allow_errors=True
-    )
-    try:
-        nodes = json.loads(node_output).get("items", [])
-    except (ValueError, TypeError):
-        return
-    if not nodes:
-        return
-
-    # A Node with no Machine that is still Ready is a name-matching problem, not an orphan.
+    # Only Ready=Unknown (kubelet gone) is an orphan: Ready=False or no Ready condition is a CP still joining.
     orphan_nodes = [
         n for n in nodes
         if n["metadata"]["name"] not in live_node_names
-        and not any(c.get("type") == "Ready" and c.get("status") == "True"
-                    for c in n.get("status", {}).get("conditions", []))
+        and any(c.get("type") == "Ready" and c.get("status") == "Unknown"
+                for c in n.get("status", {}).get("conditions", []))
     ]
     confirmed_nodes = confirmed_orphans(orphan_nodes, lambda n: n["metadata"]["name"], _orphan_node_first_seen)
     if orphan_nodes and not confirmed_nodes:
@@ -215,23 +257,48 @@ def configure_azure_credentials(vault_secrets_data):
         print(f"[ERROR] Azure CLI login failed: {e}")
         sys.exit(1)
 
-def repin_cloud_provider_azure_after_bump(target_minor, timeout_minutes=15):
-    '''Azure only: the chart upgrade pins the CCM/cloud-node-manager to the PRE-bump minor (charts
-    run before bump_k8s_version()) and nothing moved it afterwards (live 2026-10-01: k8s v1.36.5
-    with CCM v1.35.9). Re-pin the default values to target_minor and wait for the pods to roll.'''
+def repin_cloud_provider_azure_after_bump(cluster_name, timeout_minutes=15):
+    '''Azure only, at the end of every run (charts pin the PRE-bump minor and are skipped on a relaunch; live 2026-10-01:
+    k8s v1.36.5 with CCM v1.35.9): re-pin the CCM/cloud-node-manager to the minor the kube-apiserver runs and wait
+    for the pods to roll; nothing when both already carry that tag.'''
 
-    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(target_minor)
+    components = ("cloudControllerManager", "cloudNodeManager")
+    print("[INFO] Re-pinning cloud-provider-azure CCM/cloud-node-manager to the kube-apiserver minor:", end=" ", flush=True)
+    version_output, _ = run_command(f"{S.kubectl} version -o json", allow_errors=True)
+    spec_version, _ = run_command(
+        f"{S.kubectl} get keoscluster {cluster_name} -n cluster-{cluster_name} -o jsonpath='{{.spec.k8s_version}}'", allow_errors=True)
+    try:
+        server = json.loads(version_output)["serverVersion"]
+        live_minor = f"{server['major']}.{''.join(ch for ch in server['minor'] if ch.isdigit())}"
+    except (ValueError, TypeError, KeyError):
+        print("SKIP")
+        print("[WARN] Could not read the kube-apiserver version — CCM left as is")
+        return
+    spec_minor = ".".join((spec_version or "").strip().lstrip("v").split(".")[:2])
+    # The CCM may be one minor older than the kube-apiserver, never newer: wait until the bump has reached the apiserver
+    if live_minor != spec_minor:
+        print("SKIP")
+        print(f"[WARN] kube-apiserver runs k8s {live_minor} but KeosCluster spec.k8s_version is '{(spec_version or '').strip()}' — CCM left as is")
+        return
+    ccm_tag = CLOUD_PROVIDER_AZURE_CCM_VERSION_BY_MINOR.get(live_minor)
     if not ccm_tag:
-        print(f"[WARN] No known-good cloud-provider-azure CCM tag for k8s {target_minor} — CCM left on the pre-bump minor")
+        print("SKIP")
+        print(f"[WARN] No known-good cloud-provider-azure CCM tag for k8s {live_minor} — CCM left as is")
         return
     configmap = "00-cloud-provider-azure-helm-chart-default-values"
-    print(f"[INFO] Re-pinning cloud-provider-azure CCM/cloud-node-manager to {ccm_tag} for k8s {target_minor}:", end=" ", flush=True)
-    if S.config["dry_run"]:
-        print("DRY-RUN")
+    values_yaml, _ = run_command(f"{S.kubectl} get configmap {configmap} -n kube-system -o jsonpath='{{.data.values\\.yaml}}'", allow_errors=True)
+    if not values_yaml:
+        print(f"SKIP (ConfigMap kube-system/{configmap} not found)")
         return
-    values_yaml, _ = run_command(f"{S.kubectl} get configmap {configmap} -n kube-system -o jsonpath='{{.data.values\\.yaml}}'")
     values = yaml.safe_load(values_yaml) or {}
-    for component in ("cloudControllerManager", "cloudNodeManager"):
+    current = {c: (values.get(c) or {}).get("imageTag") for c in components}
+    if all(tag == ccm_tag for tag in current.values()):
+        print(f"OK (already {ccm_tag} for k8s {live_minor})")
+        return
+    if S.config["dry_run"]:
+        print(f"DRY-RUN ({current} -> {ccm_tag} for k8s {live_minor})")
+        return
+    for component in components:
         values.setdefault(component, {})["imageTag"] = ccm_tag
     values_file = "/tmp/cloud-provider-azure_repin_values.yaml"
     with open(values_file, 'w') as file:
