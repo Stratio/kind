@@ -845,9 +845,9 @@ def upgrade_charts(charts, chart_current_versions=None):
     # pre-upgrade `flux migrate` hook (crds.migration) must run before stored v1beta2/v2beta2 versions disappear.
     if "flux2" in charts:
         charts = {"flux2": charts["flux2"], **{k: v for k, v in charts.items() if k != "flux2"}}
-    # cluster-autoscaler/tigera-operator carry a values-level image tag override independent of
-    # the chart version — skipping them would also skip re-applying that override. Never skip these.
-    never_skip = {"cluster-autoscaler", "tigera-operator"}
+    # cluster-autoscaler/tigera-operator carry a values-level image tag override, and azurefile-csi-driver its image tags and
+    # controller tolerations, independent of the chart version — skipping them would also skip re-applying that override. Never skip these.
+    never_skip = {"cluster-autoscaler", "tigera-operator", "azurefile-csi-driver"}
     if is_ecr_pull_through_enabled(S.keos_cluster) or is_private_registry_enabled(S.cluster_config):
         # create_default_values() rewrites image paths for pull-through and moves them to the keos
         # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.

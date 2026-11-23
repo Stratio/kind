@@ -40,7 +40,7 @@ def update_cloud_provider_azure_image_tag_value(values_file):
         print(f"An error occurred: {e}")
 
 def update_azurefile_csi_driver_image_tag_value(values_file):
-    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+    '''Set the azurefile-csi-driver image repositories and tags and the controller tolerations as create cluster does, keeping baseRepo'''
 
     try:
         with open(values_file, 'r') as file:
@@ -54,6 +54,11 @@ def update_azurefile_csi_driver_image_tag_value(values_file):
                 section = section[key]
             section["repository"] = repository
             section["tag"] = tag
+
+        # Keeps the controller off the control plane: its cloud config carries the nodes identity, which control-plane VMs lack
+        if not isinstance(values.get("controller"), dict):
+            values["controller"] = {}
+        values["controller"]["tolerations"] = {}
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)

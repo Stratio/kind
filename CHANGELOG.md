@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
+  user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
+  sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
+  value on the release's current values and never skips the azurefile-csi-driver chart, which stays at the same version.
 * [PLT-5510] `upgrade-provisioner.py` with Capsule 1.0.x, which generates its webhooks from `CapsuleConfiguration default`
   (`spec.admission`): the system namespaces are excluded from Capsule's namespace webhooks there, and the original
   `objectSelector` of each one is put back at the end; Capsule 0.x keeps its webhook configurations as before.
@@ -24,7 +28,11 @@ All notable changes to this project will be documented in this file.
   image tag an earlier run already set in `00-cluster-operator-helm-chart-default-values` and goes on with the HelmRelease.
 * [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
   `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
+<<<<<<< HEAD
   `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.10 (0.10.0-m.9 was cut still pinning m.8) and `cluster-operator` 0.8.0-m.3,
+=======
+  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.13 (0.10.0-m.9 was cut still pinning m.8, 0.10.0-m.11 still pinning m.10) and `cluster-operator` 0.8.0-m.3,
+>>>>>>> 755af89c ([PLT-5520] Azure: el controlador de azurefile-csi-driver no se ejecuta en nodos de control-plane (#1084))
   which `upgrade-providers.py` and `upgrade-provisioner.py` install by default.
 * [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
   Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
