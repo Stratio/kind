@@ -10,9 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5145] `upgrade-providers.py` migrates clusters without a private registry: CAPI, CAPA and CAPZ keep the images of
+  their manifests and CAPG comes from `<keos_registry>/stratio`, as `create cluster` does; new `--private` flag, as in
+  `upgrade-provisioner.py`, to take every provider from the `keos_registry`. It stops before any change only when the
+  `KeosCluster` has no `keos_registry` entry and the cluster is private or on GKE.
+* [PLT-5145] `upgrade-providers.py` can be relaunched after the cluster-operator HelmRelease upgrade failed: it keeps the
+  image tag an earlier run already set in `00-cluster-operator-helm-chart-default-values` and goes on with the HelmRelease.
 * [PLT-5299] GKE: CAPG `1.13.1-0.1.0-M2` on create and as the `upgrade-providers.py` target; the upgrade image ships the CAPG
   `1.6.1-0.4.3` manifests (the version clusters created with 0.9.9 run) and uses it in its `clusterctl` local repository.
-  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.8 and `cluster-operator` 0.8.0-m.3,
+  `DEPENDENCIES`/`docs/images` pin the next milestones, `cloud-provisioner` 0.10.0-m.10 (0.10.0-m.9 was cut still pinning m.8) and `cluster-operator` 0.8.0-m.3,
   which `upgrade-providers.py` and `upgrade-provisioner.py` install by default.
 * [PLT-5145] Latest versions compatible with Kubernetes 1.37 on every provider and minor (1.35, 1.36, 1.37), `create cluster` and `upgrade-provisioner.py`:
   Cluster API, kubeadm providers and `clusterctl` v1.13.6 → v1.13.8; CAPA and `clusterawsadm` v2.13.0 → v2.13.1; CAPZ v1.26.1 → v1.26.2 (bundled ASO v2.18.0);
