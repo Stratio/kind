@@ -68,6 +68,8 @@ EGRESS_POLICY = "allow-all-egress"
 EGRESS_POLICY_YAML = ("apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: allow-all-egress\n"
                       "spec:\n  egress:\n  - {}\n  podSelector: {}\n  policyTypes:\n  - Egress\n")
 CA_DEPLOYMENT = "cluster-autoscaler-clusterapi-cluster-autoscaler"
+# The other CAs upgrade-provisioner.py stops (upgrade_lib/versions.py): provider aws, they scale the MachinePools.
+AWS_CA_DEPLOYMENTS = ("cluster-autoscaler-aws-cluster-autoscaler", "cluster-autoscaler-aws")
 OPERATOR_DEPLOYMENT = "keoscluster-controller-manager"
 OPERATOR_VALUES_CM = "00-cluster-operator-helm-chart-default-values"
 # Read through the same API version before and after, so any field the migration drops shows up as a diff.
@@ -284,7 +286,28 @@ def snapshot(cluster_name):
         c = d["spec"]["template"]["spec"]["containers"][0]
         snap["deployments"][f"{ns}/{deploy}"] = {"image": c["image"], "replicas": d["spec"].get("replicas"), "args": c.get("args", []),
                                                  "priorityClassName": d["spec"]["template"]["spec"].get("priorityClassName")}
+    snap["autoscalers"] = autoscaler_replicas()
     return snap
+
+
+def autoscaler_replicas():
+    '''Replicas of every cluster-autoscaler Deployment present (absent ones left out).'''
+    replicas = {}
+    for deploy in (CA_DEPLOYMENT,) + AWS_CA_DEPLOYMENTS:
+        raw = run(f"{kubectl} -n kube-system get deploy {deploy} --ignore-not-found -o jsonpath='{{.spec.replicas}}'", allow_errors=True).strip()
+        if raw:
+            replicas[deploy] = int(raw)
+    return replicas
+
+
+def restore_aws_autoscalers(replicas_by_deploy):
+    '''The aws CAs do not read the CAPI API: back to their replicas only after verify(), so it sees a stable cluster.'''
+    if not replicas_by_deploy:
+        return
+    info("Starting the aws cluster-autoscaler again:")
+    for deploy, replicas in replicas_by_deploy.items():
+        scale("kube-system", deploy, replicas, wait=False)
+    print("OK (" + ", ".join(f"{d} {r}" for d, r in replicas_by_deploy.items()) + ")")
 
 
 def content_snapshot(cluster_name):
@@ -841,8 +864,9 @@ def verify(before, keos_name):
     for pdb in kjson("get pdb -A")["items"]:
         if pdb["metadata"]["namespace"] in [ns for ns, _ in PROVIDER_DEPLOYMENTS[:2]] and pdb.get("status", {}).get("disruptionsAllowed", 0) < 1:
             problems.append(f"PDB {pdb['metadata']['namespace']}/{pdb['metadata']['name']} allows 0 disruptions")
-    kc = kjson(f"-n cluster-{keos_name} get keoscluster {keos_name}").get("status", {})
-    if not (kc.get("ready") and kc.get("phase") == "Provisioned"):
+    # A transient Syncing (replicas changed outside this script) settles on its own: wait before failing.
+    if not wait_keoscluster_ready(keos_name, timeout_seconds=300):
+        kc = kjson(f"-n cluster-{keos_name} get keoscluster {keos_name}").get("status", {})
         problems.append(f"KeosCluster is {kc.get('ready')}/{kc.get('phase')}")
     for p in problems:
         print(f"  [FAIL] {p}")
@@ -855,16 +879,16 @@ def wait_keoscluster_ready(name, timeout_seconds=600):
     info("Waiting for the KeosCluster to be ready/Provisioned:")
     if config["dry_run"]:
         print("DRY-RUN")
-        return
+        return True
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         s = kjson(f"-n cluster-{name} get keoscluster {name}").get("status", {})
         if s.get("ready") and s.get("phase") == "Provisioned":
             print("OK")
-            return
+            return True
         time.sleep(15)
     print("FAILED")
-    raise Exception("KeosCluster did not reach ready/Provisioned")
+    return False
 
 
 # ---------------------------------------------------------------- main
@@ -933,15 +957,20 @@ if __name__ == "__main__":
         if input("Press ENTER to start the migration or any other key to abort: ") != "":
             sys.exit(0)
 
-    ca_replicas = int(run(f"{kubectl} -n kube-system get deploy {CA_DEPLOYMENT} --ignore-not-found -o jsonpath='{{.spec.replicas}}'", allow_errors=True).strip() or 0)
+    # Live replicas; at 0 (a killed run stopped it), those of the snapshot, the --resume-from one on a relaunch.
+    autoscalers = {d: r or before.get("autoscalers", {}).get(d, 0) for d, r in autoscaler_replicas().items()}
+    ca_replicas = autoscalers.get(CA_DEPLOYMENT, 0)
+    aws_ca = {d: r for d, r in autoscalers.items() if d != CA_DEPLOYMENT and r}
     webhooks_deleted = False
     capsule_plan = []
     egress_added = []
     try:
-        if ca_replicas:
+        stopped = [d for d, r in autoscalers.items() if r]
+        if stopped:
             info("Stopping cluster-autoscaler:")
-            scale("kube-system", CA_DEPLOYMENT, 0, wait=False)
-            print("OK")
+            for deploy in stopped:
+                scale("kube-system", deploy, 0, wait=False)
+            print(f"OK ({', '.join(stopped)})")
         stop_operator()
         if not at_target:
             capsule_plan = capsule_exclude_clusterctl_namespaces(backup_dir)
@@ -981,7 +1010,8 @@ if __name__ == "__main__":
         webhooks_deleted = False
         upgrade_operator(config["cluster_operator"])
         restart_cluster_autoscaler(ca_replicas)
-        wait_keoscluster_ready(cluster_name)
+        if not wait_keoscluster_ready(cluster_name):
+            raise Exception("KeosCluster did not reach ready/Provisioned")
     except Exception as e:
         print(f"\n[ERROR] {e}")
         print("[INFO] Recovery: restoring webhooks, cluster-operator and cluster-autoscaler (no downgrade is attempted)")
@@ -994,6 +1024,7 @@ if __name__ == "__main__":
             scale("kube-system", OPERATOR_DEPLOYMENT, 2, wait=False)
             if ca_replicas:
                 scale("kube-system", CA_DEPLOYMENT, ca_replicas, wait=False)
+            restore_aws_autoscalers(aws_ca)
         except Exception as recovery_error:
             print(f"[ERROR] Recovery also failed: {recovery_error} — manual intervention required, backup in {backup_dir}")
         hand_over_backup(backup_dir)
@@ -1008,7 +1039,10 @@ if __name__ == "__main__":
             for line in lost + added:
                 print(f"  [CONTENT] {line}")
     finally:
-        hand_over_backup(backup_dir)
+        try:
+            restore_aws_autoscalers(aws_ca)
+        finally:
+            hand_over_backup(backup_dir)
     minutes, seconds = divmod(time.time() - start, 60)
     print(f"[INFO] upgrade-providers finished in {int(minutes)}m{int(seconds)}s — backup: {backup_dir}")
     print("[INFO] Mode was: " + ("DRY-RUN (no changes were applied)" if config["dry_run"] else "REAL — changes were applied"))
