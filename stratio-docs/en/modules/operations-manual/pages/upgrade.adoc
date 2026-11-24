@@ -337,7 +337,7 @@ This section summarizes, in order, the phases that the script goes through when 
 ** Checks the `clusterctl` version, verifies that the secrets and the _kubeconfig_ exist, and decrypts the secrets.
 ** Configures the cloud provider credentials and checks access to the cluster. In EKS and in GKE, regenerates the _kubeconfig_ when it does not grant access.
 ** In GKE, adds the `event-exporter-gke` pods to the exceptions of the IMDS _GlobalNetworkPolicy_ when they are not there, and restarts the pod. It is the only change before the initial confirmation.
-** Performs the automatic health check (see the <<_automatic_check, automatic check>>).
+** Performs the automatic health check (see the <<automatic_check, automatic check>>).
 ** Asks for the initial confirmation (see the <<_prompts_interactivos, interactive prompts>>).
 ** In EKS with cluster-autoscaler, creates the cluster-autoscaler IAM policy when it does not exist, associates it with the `eks-nodegroup` and `nodes` roles, and allows IMDS access to its pods. If either role is missing, it shows a `[WARN]` and continues. Any other error in the IAM policy or in the IMDS _GlobalNetworkPolicy_ stops the script at this step.
 ** Asks for the Helm repository.
