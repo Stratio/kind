@@ -370,6 +370,8 @@ Verify the change by consulting the state of the _KeosCluster_ resource:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
+NOTE: While the `KeosCluster` is not ready (`ready: false`), the cluster rejects any specification changes with the message "the keoscluster resource cannot be updated until it is ready". This happens while a previous change is being applied and also while cluster-autoscaler adds or removes nodes from a group. Wait for the `KeosCluster` to be `ready: true`, then repeat the change.
+
 ==== Create a new worker group
 
 To create a new node group, simply add a new element to the _worker++_++nodes_ array of the _KeosCluster_ resource:

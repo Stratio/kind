@@ -1,0 +1,66 @@
+= Known issues
+
+[#eks-doble-escalado-machinedeployments-machinepools]
+
+== Double node scaling in EKS with _MachineDeployments_ and _MachinePools_ in the same cluster
+
+In EKS, the _MachineDeployment_ groups do not have node images for the new Kubernetes versions, so you must migrate them to _MachinePools_. The upgrade to _Stratio Cloud Provisioner_ 0.9 does not change those groups: their nodes stay on version 1.32 until you migrate them.
+
+During the migration, the cluster has groups of both types, and each type is scaled by a different cluster-autoscaler. For this reason, the upgrade installs a second instance, `cluster-autoscaler-aws`, which scales the _MachinePools_. The existing instance continues to scale the _MachineDeployments_.
+
+Each instance manages only its own node groups, but both react to the same pending pods.
+
+The problem arises when the cluster contains node groups of both types. A pending pod that doesn't indicate where it must run fits on a node of either type. Both cluster-autoscalers add nodes for that same pod, and the cluster grows more than necessary.
+
+This problem has these consequences:
+
+* The cluster starts up more nodes than the workload requires. Cluster-autoscaler removes them afterward, when they are left empty, but in the meantime, they generate costs.
+* The extra nodes consume IP addresses from the subnets. When a subnet runs out of free addresses, new pods stay in the `ContainerCreating` state with the `failed to assign an IP address to container` error.
+
+The problem only affects upgraded EKS clusters that have both _MachineDeployments_ and _MachinePools_. A cluster created with 0.9 is not affected, because it only has _MachinePools_ and a single cluster-autoscaler.
+
+The two cluster-autoscaler instances do not coordinate with each other: a cluster upgraded to version 0.9 that keeps its _MachineDeployments_ is not prepared to have _MachinePools_ at the same time. Note that a new worker group without `node_image` is created as a _MachinePool_.
+
+[#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints]
+
+== Cluster-autoscaler does not scale a group from zero after changing its labels or its taints
+
+After changing the labels or taints of a worker group in the `KeosCluster`, the pods that need the new values remain in `Pending` state. The group does not scale: the pod shows the `NotTriggerScaleUp` event, and the `KeosCluster` shows no error.
+
+The problem arises when the group has no available nodes (i.e., ready and schedulable). In practice, it is a group with `min_size: 0` that has zero nodes. That group has also had at least one node since the last startup of cluster-autoscaler. A group that has not had nodes since that startup is not affected.
+
+It can also happen transiently in a group with nodes, when none are available; for example, when they are all cordoned during a node replacement.
+
+To decide whether to scale a group without nodes, cluster-autoscaler uses a node template that it keeps in memory from the last actual node in the group. With the default configuration, the template does not expire, and it is not updated when the group's labels or taints change.
+
+The problem affects these node groups:
+
+* EKS: the _MachinePool_ and _MachineDeployment_ groups of clusters upgraded from version 0.7.
+* Unmanaged Azure: the _MachineDeployment_ groups.
+* GKE: does not apply, because _Stratio Cloud Provisioner_ does not install cluster-autoscaler in GKE.
+
+To solve it, after applying the change, restart the cluster-autoscaler deployment that manages the group. On startup, cluster-autoscaler rebuilds the template with the group's current configuration. Find the deployment name and restart it:
+
+[source,bash]
+----
+kubectl -n kube-system get deployments | grep cluster-autoscaler
+kubectl -n kube-system rollout restart deployment <deployment-name>
+----
+
+[cols="1,1", options="header"]
+|===
+| Cluster and group type | Deployment that manages it
+
+| EKS, _MachinePool_ groups (created with 0.9 or upgraded from 0.7)
+| `cluster-autoscaler-aws-cluster-autoscaler`
+
+| EKS upgraded from 0.7 (_MachineDeployment_ groups)
+| `cluster-autoscaler-clusterapi-cluster-autoscaler`
+
+| Unmanaged Azure
+| `cluster-autoscaler-clusterapi-cluster-autoscaler`
+|===
+
+If you change the labels or taints of several groups, make all the changes and restart cluster-autoscaler only once, at the end: a restart empties the template of all groups. In EKS, if you restart before AWS finishes applying the changes to the nodegroups, cluster-autoscaler may take up to 6 minutes to detect the new values. Afterward, it corrects itself.
+
+While it starts up, cluster-autoscaler does not scale. Nodes that were already pending removal restart their wait: with the default configuration, they are removed up to 10 minutes later.
