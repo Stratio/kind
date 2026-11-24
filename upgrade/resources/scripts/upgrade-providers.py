@@ -294,20 +294,30 @@ def autoscaler_replicas():
     '''Replicas of every cluster-autoscaler Deployment present (absent ones left out).'''
     replicas = {}
     for deploy in (CA_DEPLOYMENT,) + AWS_CA_DEPLOYMENTS:
-        raw = run(f"{kubectl} -n kube-system get deploy {deploy} --ignore-not-found -o jsonpath='{{.spec.replicas}}'", allow_errors=True).strip()
+        raw = run(f"{kubectl} -n kube-system get deploy {deploy} --ignore-not-found -o jsonpath='{{.spec.replicas}}'").strip()
         if raw:
             replicas[deploy] = int(raw)
     return replicas
 
 
-def restore_aws_autoscalers(replicas_by_deploy):
+def restore_aws_autoscalers(replicas_by_deploy, check=True):
     '''The aws CAs do not read the CAPI API: back to their replicas only after verify(), so it sees a stable cluster.'''
     if not replicas_by_deploy:
         return
     info("Starting the aws cluster-autoscaler again:")
     for deploy, replicas in replicas_by_deploy.items():
         scale("kube-system", deploy, replicas, wait=False)
-    print("OK (" + ", ".join(f"{d} {r}" for d, r in replicas_by_deploy.items()) + ")")
+    summary = ", ".join(f"{d} {r}" for d, r in replicas_by_deploy.items())
+    if not check or config["dry_run"]:
+        print(f"OK ({summary})")
+        return
+    not_ready = []
+    for deploy, replicas in replicas_by_deploy.items():
+        run(f"{kubectl} -n kube-system rollout status deploy {deploy} --timeout 180s", allow_errors=True, retries=0)
+        ready = run(f"{kubectl} -n kube-system get deploy {deploy} -o jsonpath='{{.status.readyReplicas}}'", allow_errors=True).strip() or "0"
+        if int(ready) < replicas:
+            not_ready.append(f"{deploy} {ready}/{replicas} ready")
+    print(f"WARN ({'; '.join(not_ready)}) — check its pods" if not_ready else f"OK ({summary})")
 
 
 def content_snapshot(cluster_name):
@@ -864,10 +874,11 @@ def verify(before, keos_name):
     for pdb in kjson("get pdb -A")["items"]:
         if pdb["metadata"]["namespace"] in [ns for ns, _ in PROVIDER_DEPLOYMENTS[:2]] and pdb.get("status", {}).get("disruptionsAllowed", 0) < 1:
             problems.append(f"PDB {pdb['metadata']['namespace']}/{pdb['metadata']['name']} allows 0 disruptions")
-    # A transient Syncing (replicas changed outside this script) settles on its own: wait before failing.
-    if not wait_keoscluster_ready(keos_name, timeout_seconds=300):
+    # A transient Syncing (replicas changed outside this script) settles on its own: wait only if nothing else failed.
+    if problems or not wait_keoscluster_ready(keos_name, timeout_seconds=300):
         kc = kjson(f"-n cluster-{keos_name} get keoscluster {keos_name}").get("status", {})
-        problems.append(f"KeosCluster is {kc.get('ready')}/{kc.get('phase')}")
+        if not (kc.get("ready") and kc.get("phase") == "Provisioned"):
+            problems.append(f"KeosCluster is {kc.get('ready')}/{kc.get('phase')}")
     for p in problems:
         print(f"  [FAIL] {p}")
     if problems:
@@ -957,7 +968,7 @@ if __name__ == "__main__":
         if input("Press ENTER to start the migration or any other key to abort: ") != "":
             sys.exit(0)
 
-    # Live replicas; at 0 (a killed run stopped it), those of the snapshot, the --resume-from one on a relaunch.
+    # Live replicas; at 0 after a killed run, only a --resume-from relaunch recovers them from the first run's snapshot.
     autoscalers = {d: r or before.get("autoscalers", {}).get(d, 0) for d, r in autoscaler_replicas().items()}
     ca_replicas = autoscalers.get(CA_DEPLOYMENT, 0)
     aws_ca = {d: r for d, r in autoscalers.items() if d != CA_DEPLOYMENT and r}
@@ -1012,9 +1023,15 @@ if __name__ == "__main__":
         restart_cluster_autoscaler(ca_replicas)
         if not wait_keoscluster_ready(cluster_name):
             raise Exception("KeosCluster did not reach ready/Provisioned")
-    except Exception as e:
-        print(f"\n[ERROR] {e}")
+    except (Exception, KeyboardInterrupt) as e:
+        print(f"\n[ERROR] {e or type(e).__name__}")
         print("[INFO] Recovery: restoring webhooks, cluster-operator and cluster-autoscaler (no downgrade is attempted)")
+        try:
+            if ca_replicas:
+                scale("kube-system", CA_DEPLOYMENT, ca_replicas, wait=False)
+            restore_aws_autoscalers(aws_ca, check=False)
+        except Exception as ca_error:
+            print(f"[ERROR] Restoring cluster-autoscaler failed: {ca_error} — scale it back by hand: {', '.join(f'{d} {r}' for d, r in autoscalers.items() if r)}")
         try:
             capsule_restore(capsule_plan)
             kubeadm_egress_remove(egress_added)
@@ -1022,9 +1039,6 @@ if __name__ == "__main__":
                 restore_keoscluster_webhooks(backup_dir)
             run(f"{kubectl} -n kube-system patch helmrelease cluster-operator --type merge -p '{{\"spec\":{{\"suspend\":false}}}}'", mutating=True, allow_errors=True)
             scale("kube-system", OPERATOR_DEPLOYMENT, 2, wait=False)
-            if ca_replicas:
-                scale("kube-system", CA_DEPLOYMENT, ca_replicas, wait=False)
-            restore_aws_autoscalers(aws_ca)
         except Exception as recovery_error:
             print(f"[ERROR] Recovery also failed: {recovery_error} — manual intervention required, backup in {backup_dir}")
         hand_over_backup(backup_dir)
