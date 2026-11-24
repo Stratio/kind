@@ -1,6 +1,7 @@
 controller:
   podAnnotations:
     cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes: socket-dir,azure-cred
+  tolerations: {}
 
 # Tags pinned: release-1.35 publishes chart 1.35.11 twice (charts/latest and charts/v1.35.11) with different defaults
 image:

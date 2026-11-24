@@ -1556,7 +1556,7 @@ def pin_cloud_provider_azure_ccm_to_current_minor(cluster_name, dry_run):
     print(f"OK ({current} -> {ccm_tag})")
 
 def update_azurefile_csi_driver_image_tag_value(values_file):
-    '''Set the azurefile-csi-driver image repositories and tags as create cluster pins them, keeping baseRepo'''
+    '''Set the azurefile-csi-driver image repositories and tags and the controller tolerations as create cluster does, keeping baseRepo'''
 
     try:
         with open(values_file, 'r') as file:
@@ -1570,6 +1570,11 @@ def update_azurefile_csi_driver_image_tag_value(values_file):
                 section = section[key]
             section["repository"] = repository
             section["tag"] = tag
+
+        # Keeps the controller off the control plane: its cloud config carries the nodes identity, which control-plane VMs lack
+        if not isinstance(values.get("controller"), dict):
+            values["controller"] = {}
+        values["controller"]["tolerations"] = {}
 
         with open(values_file, 'w') as file:
             yaml.safe_dump(values, file, default_flow_style=False)
@@ -2093,9 +2098,9 @@ def upgrade_charts(charts, chart_current_versions=None):
     reconciliation is idempotent — verified live, re-running an unchanged chart creates no new revision).'''
 
     chart_current_versions = chart_current_versions or {}
-    # cluster-autoscaler/tigera-operator/flux2 carry a values-level image tag override independent of
-    # the chart version — skipping them would also skip re-applying that override. Never skip these.
-    never_skip = {"cluster-autoscaler", "tigera-operator", "flux2"}
+    # cluster-autoscaler/tigera-operator/flux2 carry a values-level image tag override, and azurefile-csi-driver its image tags and
+    # controller tolerations, independent of the chart version — skipping them would also skip re-applying that override. Never skip these.
+    never_skip = {"cluster-autoscaler", "tigera-operator", "flux2", "azurefile-csi-driver"}
     if is_ecr_pull_through_enabled(keos_cluster) or is_private_registry_enabled(cluster_config):
         # create_default_values() rewrites image paths for pull-through and moves them to the keos
         # registry — an already-matching chart would otherwise SKIP and keep its old paths forever.
