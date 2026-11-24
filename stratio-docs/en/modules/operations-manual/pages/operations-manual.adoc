@@ -370,7 +370,7 @@ Verify the change by consulting the state of the _KeosCluster_ resource:
 kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
 ----
 
-NOTE: Mientras el `KeosCluster` no esté listo (`ready: false`), el _cluster_ rechaza cualquier cambio de su especificación. El mensaje es «the keoscluster resource cannot be updated until it is ready». Pasa mientras se aplica un cambio anterior y también mientras el _cluster-autoscaler_ añade o retira nodos de un grupo. Espera a `ready: true` y repite el cambio.
+NOTE: While the `KeosCluster` is not ready (`ready: false`), the cluster rejects any specification changes with the message "the keoscluster resource cannot be updated until it is ready". This happens while a previous change is being applied and also while cluster-autoscaler adds or removes nodes from a group. Wait for the `KeosCluster` to be `ready: true`, then repeat the change.
 
 ==== Create a new worker group
 
