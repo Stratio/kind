@@ -10,7 +10,7 @@ Mientras dura la migración, el _cluster_ tiene grupos de ambos tipos, y cada ti
 
 Cada instancia gestiona solo sus propios grupos de nodos, pero ambas reaccionan a los mismos _pods_ pendientes.
 
-El problema surge cuando el _cluster_ contiene grupos de nodos de ambos tipos. Un _pod_ pendiente que no indica dónde tiene que ejecutarse cabe en un nodo de cualquiera de ellos, así que los dos _cluster-autoscaler_ añaden nodos para ese mismo _pod_, y el _cluster_ crece más de lo necesario.
+El problema surge cuando el _cluster_ contiene grupos de nodos de ambos tipos. Un _pod_ pendiente que no indica dónde tiene que ejecutarse cabe en un nodo de cualquiera de ellos. Los dos _cluster-autoscaler_ añaden nodos para ese mismo _pod_, y el _cluster_ crece más de lo necesario.
 
 Este problema tiene estas consecuencias:
 
@@ -19,7 +19,7 @@ Este problema tiene estas consecuencias:
 
 El problema solo afecta a los _clusters_ de EKS actualizados que tienen _MachineDeployments_ y _MachinePools_ al mismo tiempo. Un _cluster_ creado con la 0.9 no está afectado, porque solo tiene _MachinePools_ y un único _cluster-autoscaler_.
 
-Las dos instancias de _cluster-autoscaler_ no pueden coexistir: un _cluster_ actualizado a la versión 0.9 que conserva sus _MachineDeployments_ no está preparado para tener _MachinePools_ al mismo tiempo. Ten en cuenta que un grupo de _workers_ nuevo sin `node_image` se crea como _MachinePool_.
+Las dos instancias de _cluster-autoscaler_ no se coordinan entre sí: un _cluster_ actualizado a la versión 0.9 que conserva sus _MachineDeployments_ no está preparado para tener _MachinePools_ al mismo tiempo. Ten en cuenta que un grupo de _workers_ nuevo sin `node_image` se crea como _MachinePool_.
 
 [#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints]
 
@@ -27,7 +27,7 @@ Las dos instancias de _cluster-autoscaler_ no pueden coexistir: un _cluster_ act
 
 Después de cambiar las etiquetas o los _taints_ de un grupo de _workers_ en el `KeosCluster`, los _pods_ que necesitan los nuevos valores quedan en el estado `Pending`. El grupo no escala: el _pod_ muestra el evento `NotTriggerScaleUp`, y el `KeosCluster` no muestra ningún error.
 
-El problema surge cuando el grupo no tiene ningún nodo disponible (es decir, listo y planificable). En la práctica, es un grupo con `min_size: 0` que tiene cero nodos y que ya tuvo al menos un nodo desde el último arranque de _cluster-autoscaler_. Un grupo que no ha tenido nodos desde ese arranque no está afectado.
+El problema surge cuando el grupo no tiene ningún nodo disponible (es decir, listo y planificable). En la práctica, es un grupo con `min_size: 0` que tiene cero nodos. Además, ese grupo ya tuvo al menos un nodo desde el último arranque de _cluster-autoscaler_. Un grupo que no ha tenido nodos desde ese arranque no está afectado.
 
 También puede ocurrir de forma transitoria en un grupo con nodos, si ninguno está disponible; por ejemplo, cuando todos están acordonados durante una sustitución de nodos.
 
@@ -61,6 +61,6 @@ kubectl -n kube-system rollout restart deployment <nombre-del-deployment>
 | `cluster-autoscaler-clusterapi-cluster-autoscaler`
 |===
 
-Si cambias las etiquetas o los _taints_ de varios grupos, haz todos los cambios y reinicia _cluster-autoscaler_ una sola vez, al final: un reinicio vacía la plantilla de todos los grupos. En EKS, si reinicias antes de que AWS termine de aplicar los cambios en los _nodegroups_, el _cluster-autoscaler_ puede tardar hasta 6 minutos en detectar los nuevos valores. Después, se corrige solo.
+Si cambias las etiquetas o los _taints_ de varios grupos, haz todos los cambios y reinicia _cluster-autoscaler_ una sola vez, al final: un reinicio vacía la plantilla de todos los grupos. En EKS, si reinicias antes de que AWS termine de aplicar los cambios en los _nodegroups_, _cluster-autoscaler_ puede tardar hasta 6 minutos en detectar los nuevos valores. Después, se corrige solo.
 
 Mientras arranca, _cluster-autoscaler_ no escala. Los nodos que ya estaban pendientes de retirarse vuelven a empezar su espera: con la configuración por defecto, se retiran hasta 10 minutos más tarde.
