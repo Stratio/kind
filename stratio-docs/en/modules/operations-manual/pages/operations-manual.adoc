@@ -419,11 +419,11 @@ spec:
 
 image::autoescalado.png[]
 
-For node autoscaling, _cluster-autoscaler_ detects pods pending due to a lack of resources and scales the node group it deems necessary based on deployment filters.
+For autoscaling nodes, the cluster-autoscaler is used; it detects pods that cannot run due to a lack of resources and scales the node group it deems necessary, according to the deployments' filters.
 
-This operation runs on the _API Server_, where the controllers create virtual machines on the cloud provider and add them to the cluster as Kubernetes worker nodes.
+This operation is performed on the _API Server_, where the controllers create virtual machines on the cloud provider and add them to the cluster as Kubernetes worker nodes.
 
-Since autoscaling is based on _cluster-autoscaler_, the minimum and maximum in the node group will be added in the _KeosCluster_ resource:
+Since autoscaling is based on cluster-autoscaler, indicate the minimum and the maximum of each node group in the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -436,92 +436,92 @@ spec:
       ...
 ----
 
-NOTE: En EKS, los _MachinePool_ con `min_size` y `max_size` llevan la anotación `cluster.x-k8s.io/replicas-managed-by`, que deja el número de réplicas en manos de _cluster-autoscaler_. No la quites: sin ella, CAPA puede enviar a EKS un número de réplicas desfasado.
+NOTE: In EKS, the _MachinePool_ objects with `min_size` and `max_size` carry the `cluster.x-k8s.io/replicas-managed-by` annotation, which leaves the number of replicas to the cluster-autoscaler. Do not remove it: without it, CAPA may send EKS an outdated replica count.
 
-NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quantity` de un grupo _MachinePool_ en estos casos:
+NOTE: In EKS, the cluster rejects a change of `min_size`, `max_size`, or `quantity` in a _MachinePool_ group in these cases:
 
-* El _nodegroup_ de EKS no está en estado `ACTIVE`, por ejemplo, porque tiene en curso un cambio hecho desde la consola o la CLI de AWS.
-* El tamaño deseado del _nodegroup_ aún no coincide con el de su _Auto Scaling group_. Pasa durante unos minutos tras cada cambio de _cluster-autoscaler_.
-* Algún _nodegroup_ queda con un mínimo por encima de su número de nodos o con un máximo por debajo. Si cambias `quantity`, ese número es el que fija la nueva `quantity`; si no, el actual.
-* No puede consultar AWS con las credenciales del _cluster_.
+* The EKS nodegroup is not in `ACTIVE` state (for example, because it has an in-progress change made from the console or from the AWS CLI).
+* The desired size of the nodegroup does not yet match that of its Auto Scaling group. This happens for a few minutes after each cluster-autoscaler change.
+* Any nodegroup is left with a minimum above its number of nodes or with a maximum below it. That number of nodes is the one the new `quantity` sets if you change it; otherwise, it is the current one.
+* The cluster cannot query AWS with its credentials.
 
-En los dos primeros casos, repite el cambio pasados unos minutos.
+In the first two cases, repeat the change after a few minutes.
 
-NOTE: Después de cambiar las etiquetas o los _taints_ de un grupo, _cluster-autoscaler_ puede no escalarlo desde cero. Consulta el xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[problema conocido y su solución].
+NOTE: cluster-autoscaler may not scale a group from zero after changing its labels or its taints. See the xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[known issue and its solution].
 
 ==== Test
 
-To test the autoscaling, a _Deployment_ can be created with enough replicas so that they cannot be scheduled on the current nodes:
+To test the autoscaling, create a _Deployment_ with more replicas than can be run on the current nodes:
 
 [source,bash]
 ----
 kubectl create deploy test --replicas 1500 --image nginx:alpine
 ----
 
-Upon finishing the test, the _Deployment_ is deleted:
+On finishing the test, delete the _Deployment_:
 
 [source,bash]
 ----
-kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
+kubectl delete deploy test
 ----
 
 ==== Logs
 
-The _cluster-autoscaler_ logs can be viewed from its _Deployment_. On unmanaged Azure:
+You can view the cluster-autoscaler logs from its _Deployment_. In unmanaged Azure:
 
 [source,bash]
 ----
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
 ----
 
-En EKS, _cluster-autoscaler_ usa el proveedor `aws`:
+In EKS, cluster-autoscaler uses the `aws` provider:
 
 [source,bash]
 ----
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
 ----
 
-En los _clusters_ de EKS actualizados desde la 0.7.x, la instancia `cluster-autoscaler-aws` está instalada con 0 réplicas y no tiene _logs_. La instancia anterior sigue escalando los _MachineDeployment_: consulta sus _logs_ con el primer comando.
+In EKS clusters upgraded from version 0.7.x, the `cluster-autoscaler-aws` instance is installed with 0 replicas and has no logs. The previous instance continues to scale the _MachineDeployment_ objects: view its logs with the command for unmanaged Azure.
 
 [[eks-activar-cluster-autoscaler-aws]]
 
-==== Activación de `cluster-autoscaler-aws` en EKS
+==== Enabling `cluster-autoscaler-aws` in EKS
 
-En los _clusters_ de EKS actualizados desde la 0.7.x, activa la instancia `cluster-autoscaler-aws` cuando vayas a usar grupos _MachinePool_. Esta instancia es la que escala esos grupos.
+In EKS clusters upgraded from 0.7.x, enable the `cluster-autoscaler-aws` instance when _MachinePool_ groups are to be used, because it is the instance that scales those groups.
 
-Actívala desde sus valores de Helm. No uses `kubectl scale`: cualquier actualización de la _release_ devuelve el _Deployment_ a las réplicas de sus valores.
+Enable it from its Helm values. Do not use `kubectl scale`, because any release update returns the _Deployment_ to the replicas defined in its values.
 
-. Guarda los valores propios de la instancia en un fichero:
+. Save the instance's own values to a file:
 +
 [source,bash]
 ----
 kubectl -n kube-system get configmap 02-cluster-autoscaler-aws-helm-chart-override-values -o jsonpath='{.data.values\.yaml}' > cluster-autoscaler-aws-values.yaml
 ----
 +
-Si el fichero ya tiene una línea `replicaCount`, cámbiala a `replicaCount: 2` y salta al paso 3.
+If the file already has a `replicaCount` line, change it to `replicaCount: 2`, then move on to step 3.
 
-. Añade `replicaCount: 2` al fichero:
+. Add `replicaCount: 2` to the file:
 +
 [source,bash]
 ----
 printf '\nreplicaCount: 2\n' >> cluster-autoscaler-aws-values.yaml
 ----
 
-. Sustituye el _ConfigMap_ por el contenido del fichero:
+. Replace the _ConfigMap_ with the content of the file:
 +
 [source,bash]
 ----
 kubectl -n kube-system create configmap 02-cluster-autoscaler-aws-helm-chart-override-values --from-file=values.yaml=cluster-autoscaler-aws-values.yaml --dry-run=client -o yaml | kubectl replace -f -
 ----
 
-. Comprueba que Flux aplica el cambio:
+. Check that Flux applies the change:
 +
 [source,bash]
 ----
 kubectl -n kube-system get deployment cluster-autoscaler-aws-cluster-autoscaler
 ----
 +
-*Salida esperada:* `READY` en `2/2` al cabo de unos minutos.
+*Expected output:* `READY` at `2/2` after a few minutes.
 
 === Kubernetes upgrade
 

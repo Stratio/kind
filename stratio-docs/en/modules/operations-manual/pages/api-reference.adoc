@@ -77,7 +77,7 @@ Defines the configurations for the _control-plane_.
 
 | *`max_unhealthy`* _integer_
 | Specifies the maximum percentage of machines in the _control-plane_ that can be in an _unhealthy_ state before starting the repair.
-| 34 en Azure no gestionado, si el descriptor no incluye _ClusterConfig_
+| 34 in unmanaged Azure, when the descriptor does not include _ClusterConfig_
 | Maximum: 100. Minimum: 0.
 |===
 

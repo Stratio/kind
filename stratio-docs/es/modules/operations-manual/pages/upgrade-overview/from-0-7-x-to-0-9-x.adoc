@@ -102,7 +102,7 @@ La actualización consiste en una única ejecución de `upgrade-provisioner.py`,
 
 | 3
 | Kubernetes
-| El _control-plane_ y los grupos de nodos _worker_, de la versión 1.32 a la 1.35. En EKS, los grupos `MachineDeployment` se quedan en la 1.32.
+| El _control-plane_ y los grupos de nodos _worker_ de la versión 1.32 a la 1.35. En EKS, los grupos de `MachineDeployment` se quedan en la versión 1.32.
 | El etcd del _control-plane_, solo en las VMs de Azure. En EKS y en GKE es del proveedor.
 | Va al final porque lo ejecutan los componentes de los dos bloques anteriores: `cluster-operator` traduce el cambio de `k8s_version` y Cluster API reemplaza las máquinas.
 |===
@@ -151,7 +151,7 @@ Versiones de destino de la 0.9.9:
 
 | Kubernetes
 | 1.35
-| `cluster-operator` 0.7.6 admite las versiones 1.32, 1.33, 1.34 y 1.35. En Azure VMs y en GKE, la actualización pasa por 1.33 y 1.34 antes de llegar a 1.35.
+| `cluster-operator` 0.7.6 admite las versiones 1.32, 1.33, 1.34 y 1.35. En Azure VMs y en GKE, la actualización pasa por las versiones 1.33 y 1.34 antes de llegar a la 1.35.
 |===
 
 NOTE: El _script_ lee las versiones instaladas y muestra el cambio previsto de cada componente antes de aplicar nada, así que no hay que hacer la comparación con lo que hay en el _cluster_ a mano.
@@ -318,7 +318,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 2
 | Validación y comprobaciones de salud
-| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En GKE, antes de comprobar los _pods_, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS y reinicia ese _pod_; con `--dry-run`, solo avisa. En EKS con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS lo detiene antes de cambiar nada en el _cluster_.
+| El _script_ valida `clusterctl`, el _kubeconfig_ y los secretos, configura la CLI del proveedor y comprueba el estado del _cluster_. Si encuentra algo, aborta antes de tocar nada. En EKS, si el `KeosCluster` define `spec.networks.pods_cidr`, comprueba que los `ENIConfig` usen el grupo de seguridad del _cluster_ y, si no, lo corrige sin detenerse; con `--dry-run`, solo avisa. En GKE, antes de comprobar los _pods_, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS y reinicia ese _pod_; con `--dry-run`, solo avisa. En EKS, con _cluster-autoscaler_, crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error con la política IAM o con la _GlobalNetworkPolicy_ de IMDS lo detiene antes de cambiar nada en el _cluster_.
 | Pendiente
 | Ninguna
 | No
@@ -360,7 +360,7 @@ Los pasos siguientes constituyen la secuencia de una única ejecución de `upgra
 
 | 8
 | Cierre
-| Se reactivan los _webhooks_ de `cluster-operator`, se inicia su _controller_ y se reanuda su reconciliación. Termina la sección crítica. El autoescalado vuelve a las réplicas que tenía al empezar, o a 2 si estaba en 0. En EKS, se fija `mp_role_name` si está vacío y, con _cluster-autoscaler_, se instala la segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas. En Azure VMs, cloud-provider-azure pasa a la imagen de la versión final de Kubernetes.
+| Se reactivan los _webhooks_ de `cluster-operator`, se inicia su _controller_ y se reanuda su reconciliación. Termina la sección crítica. El autoescalado vuelve a las réplicas que tenía al inicio, o a 2 si estaba en 0. En EKS, se fija `mp_role_name` si está vacío y, con _cluster-autoscaler_, se instala la segunda instancia, `cluster-autoscaler-aws`, con 0 réplicas. En Azure VMs, cloud-provider-azure pasa a la imagen de la versión final de Kubernetes.
 | Pendiente
 | Ninguna
 | No
@@ -411,7 +411,7 @@ Lo que cambia entre entornos no es la secuencia, sino quién sube el _control-pl
 | EKS, en Amazon Web Services
 | Gestionado por el proveedor. Su etcd es de Amazon Web Services y no se toca.
 | Se aplica un único cambio de versión y el proveedor escalona internamente las tres versiones menores. La espera se realiza contra la API de EKS, no contra el estado del `KeosCluster`, porque este pasa por «listo» entre versiones menores.
-| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos con la identidad de _secrets.yml_, que necesita también los permisos de `stratio-aws-temp-policy.json`. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error lo detiene antes de cambiar el _cluster_.
+| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos con la identidad de _secrets.yml_, que también requiere los permisos de `stratio-aws-temp-policy.json`. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error lo detiene antes de cambiar el _cluster_.
 | El camino más ejercitado.
 
 | Azure VMs, en Microsoft Azure
@@ -748,7 +748,7 @@ Para qué sirve entonces la copia de seguridad que hace el _script_: para recons
 
 | Modificar el `KeosCluster` con `kubectl apply`
 | Mientras `cluster-operator` siga en la versión 0.5.x: antes de la actualización y hasta que el paso 5 lo actualice
-| No lo hagas: `cluster-operator` 0.5.x detecta la anotación que genera `apply` y se salta el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
+| No lo hagas: `cluster-operator` 0.5.x detecta la anotación que genera `apply` y omite el ciclo de reconciliación real, por lo que los cambios nunca se procesan. Usa `patch`.
 | -
 
 | En Azure, el _kubeconfig_ caducado aborta la ejecución

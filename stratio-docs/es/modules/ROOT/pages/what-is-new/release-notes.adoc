@@ -5,14 +5,14 @@ Estos son los aspectos más destacados de las versiones de _Stratio Cloud Provis
 == 0.9.9
 
 * Compatibilidad con Kubernetes 1.35.
-* Actualización desde la 0.7.x con el _script_ `upgrade-provisioner.py` de la imagen `cloud-provisioner-upgrade:0.9.9`, que deja el _cluster_ en Kubernetes 1.35 y _cluster-operator_ 0.7.6.
+* Actualización desde la 0.7.x con el _script_ `upgrade-provisioner.py` de la imagen `cloud-provisioner-upgrade:0.9.9`, que deja el _cluster_ con Kubernetes 1.35 y _cluster-operator_ 0.7.6.
 * Actualización de Cluster API (v1.10.10) y de sus proveedores: CAPA v2.9.3, CAPZ v1.21.3 y CAPG 1.6.1-0.4.3.
-* Actualización de Calico y Tigera Operator (v3.31.7), cert-manager (v1.21.2) y Flux (2.17.2).
-* En EKS, todos los grupos de nodos se crean como _MachinePool_ (grupos gestionados por EKS) y se rechazan los grupos con _node++_++image_. _Cluster-autoscaler_ usa el proveedor `aws`.
-* En EKS, `deploy_autoscaler: true` se admite con `security.aws.create_iam: false` si el _role_ `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` ya tiene asociadas las políticas necesarias.
-* _Cluster-autoscaler_ usa la imagen de _upstream_ de la versión de Kubernetes del _cluster_.
-* Nuevos campos: `calico.observability_enabled` (Whisker y Goldmane, desactivados por defecto) y `security.aws.nodegroup_extra_policy_arn`.
-* Nuevo valor `BOTTLEROCKET_x86_64_NVIDIA` en _ami++_++type_.
+* Actualización de Calico y de Tigera Operator (v3.31.7), de cert-manager (v1.21.2) y de Flux (2.17.2).
+* En EKS, todos los grupos de nodos se crean como _MachinePool_ (grupos gestionados por EKS), y se rechazan los grupos con _node++_++image_. _Cluster-autoscaler_ usa el proveedor `aws`.
+* En EKS, se admite `deploy_autoscaler: true` con `security.aws.create_iam: false` si el rol `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` ya tiene asociadas las políticas necesarias.
+* _Cluster-autoscaler_ usa la imagen _upstream_ correspondiente a la versión de Kubernetes del _cluster_.
+* Nuevos campos: `calico.observability_enabled`, que activa Whisker y Goldmane de Calico (desactivado por defecto), y `security.aws.nodegroup_extra_policy_arn`.
+* Nuevo valor `BOTTLEROCKET_x86_64_NVIDIA` en el campo _ami++_++type_.
 
 == 0.17.0-0.8.X
 

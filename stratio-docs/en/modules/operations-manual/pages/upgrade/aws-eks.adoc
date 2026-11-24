@@ -9,12 +9,12 @@ This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 
 
 On EKS, the upgrade changes the following:
 
-* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated] table.
+* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_upgraded[what is upgraded] table.
 * The version of the _control-plane_, from 1.32 to 1.35. The script changes `KeosCluster.spec.k8s_version` only once, and CAPA raises the EKS _control-plane_ minor by minor up to 1.35.
 * Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced.
-* Con _cluster-autoscaler_, la política IAM de _cluster-autoscaler_ en los _roles_ `eks-nodegroup` y `nodes`, y una segunda instancia, `cluster-autoscaler-aws`, instalada con 0 réplicas. La instancia existente sigue escalando los grupos _MachineDeployment_.
+* With cluster-autoscaler, the cluster-autoscaler IAM policy on the `eks-nodegroup` and `nodes` roles, and a second instance, `cluster-autoscaler-aws`, installed with 0 replicas. The existing instance continues to scale the _MachineDeployment_ groups.
 
-IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow you to return to a previous version.
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_prompts_interactivos[interactive prompts]) and does not allow you to return to a previous version.
 
 On EKS, the upgrade image includes three scripts. They are run in this order:
 
@@ -54,9 +54,9 @@ Before starting, check the permissions of each identity:
 
 * *User who runs the upgrade scripts*: the identity of _secrets.yml_ (the access key or, if it exists, the `role_arn`). It needs the permissions of xref:attachment$stratio-eks-policy.json[`stratio-eks-policy.json`] and xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`], the same as in the installation.
 * *User who runs `clusterawsadm`* to update the CloudFormation stack: the user of the _secrets.yml_ access key, also if `role_arn` exists, because `aws-secrets-exec.py` does not assume the role. It needs the permissions of xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`].
-* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files: they are added to the stack in the <<actualizacion_stack_iam, IAM stack update>>. `upgrade-provisioner.py` attaches the cluster-autoscaler policy, outside the stack.
+* *Node roles* (`nodes` and `eks-nodegroup`). Their permissions are not in these files; they are added to the stack in the <<actualizacion_stack_iam, IAM stack update>>. `upgrade-provisioner.py` attaches the cluster-autoscaler policy outside the stack.
 
-IMPORTANT: All these permissions are blocking. Some are applied when needed, but have everything ready before you start: the permissions of these identities and the independent IAM policy for the `eks-nodegroup` role. This way, you won't need to stop the upgrade midway to request them.
+IMPORTANT: All these permissions are blocking. Some are applied when needed, but have everything ready before you start: the permissions for these identities and the independent IAM policy for the `eks-nodegroup` role. This way, you won't need to stop the upgrade midway to request them.
 
 == Upgrade container
 
@@ -78,7 +78,7 @@ Make sure the working directory includes the following elements. Only what is mo
 * `secrets.yml`: credentials of the cluster.
 * `.kube/config`: kubeconfig file of the cluster.
 * `backup/`: directory for backups (can be empty at the start).
-* `keos.yaml`: fichero _keos.yaml_ que usa _Stratio KEOS_.
+* `keos.yaml`: _keos.yaml_ file that _Stratio KEOS_ uses.
 
 === Running the container
 
@@ -112,7 +112,7 @@ NOTE: None of the scripts generate their own timestamped log files; all output g
 
 [NOTE]
 ====
-If access to the cluster fails, `upgrade-provisioner.py` and `ecr_pull_through.py` regenerate the kubeconfig mounted at `/upgrade/.kube/config`. `upgrade-provisioner.py` also regenerates it if it uses a static token, like the one the cluster creation leaves, because it can expire during the run. The new context uses `aws eks get-token` and requires AWS credentials. For this reason, run the `kubectl` commands of this procedure inside the container, with the credentials of _secrets.yml_:
+If access to the cluster fails, `upgrade-provisioner.py` and `ecr_pull_through.py` regenerate the kubeconfig mounted at `/upgrade/.kube/config`. `upgrade-provisioner.py` also regenerates it if it uses a static token, like the one left by cluster creation, because it can expire during the run. The new context uses `aws eks get-token` and requires AWS credentials. For this reason, run the `kubectl` commands of this procedure inside the container, with the credentials of _secrets.yml_:
 
 [source,bash]
 ----
@@ -124,16 +124,16 @@ Before executing the command, `aws-secrets-exec.py` shows the AWS identity it us
 
 == Pre-checks
 
-`aws-secrets-exec.py` no regenera el _kubeconfig_. Si el montado es antiguo, los comandos `kubectl` fallan con `You must be logged in to the server`. Antes de las comprobaciones, regenéralo con las credenciales de _secrets.yml_:
+`aws-secrets-exec.py` does not regenerate the kubeconfig. When the mounted kubeconfig is old, the `kubectl` commands fail with the message "You must be logged in to the server". Before the checks, regenerate it with the credentials of _secrets.yml_:
 
 [source,bash]
 ----
 python3 aws-secrets-exec.py -p <vault-password> -- \
-  aws eks update-kubeconfig --name <nombre-cluster> --region <región> \
+  aws eks update-kubeconfig --name <cluster-name> --region <region> \
   --kubeconfig /upgrade/.kube/config
 ----
 
-NOTE: Si el _cluster_ se creó con `role_arn`, el usuario de la clave de acceso de _secrets.yml_ no tiene acceso al _cluster_ y los comandos `kubectl` siguen fallando con el mismo error. En ese caso, lanza los comandos `kubectl` de este procedimiento con una identidad que tenga acceso al _cluster_.
+NOTE: When the cluster was created with `role_arn`, the user of the access key in _secrets.yml_ does not have access to the cluster, and the `kubectl` commands continue to fail with the same error. In that case, run the `kubectl` commands in this procedure with an identity that has access to the cluster.
 
 In addition to the functional checks of the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], check on EKS:
 
@@ -274,14 +274,14 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
 +
 *Expected output:* a table with the resources of the stack (`Resource | Type | Status`), among them the `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io` role.
 +
-If the stack was already up to date, the command ends with this error, shows its help (`Usage:`) and returns exit code 1. It changes nothing and you can ignore it:
+When the stack was already up to date, the command ends with this error, shows its help (`Usage:`), and returns exit code 1. It does not change anything and can be ignored:
 +
 [source,text]
 ----
 Error: failed to update AWS CloudFormation stack: operation error CloudFormation: UpdateStack, https response error StatusCode: 400, RequestID: <id>, api error ValidationError: No updates are to be performed.
 ----
 +
-NOTE: La política de _cluster-autoscaler_ (`cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io`) no forma parte del _stack_. La asocian a los _roles_ `eks-nodegroup` y `nodes` _Stratio Cloud Provisioner_, al crear el _cluster_, y `upgrade-provisioner.py`, al actualizarlo. Las actualizaciones del _stack_ no la quitan. No la añadas a esta configuración: si el _stack_ la incluye, la siguiente actualización sin ella la quita de los _roles_.
+NOTE: The cluster-autoscaler policy (`cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io`) is not part of the stack. It is associated with the `eks-nodegroup` and `nodes` roles by _Stratio Cloud Provisioner_ on creating the cluster, and by `upgrade-provisioner.py` on upgrading it. Stack updates do not remove it. Do not add it to this configuration: when the stack includes it, the next update without it removes it from the roles.
 
 == Migration to ECR pull-through cache (optional)
 
@@ -451,14 +451,14 @@ Inside the container, run the script with the `--dry-run` option. It does not ch
 python3 upgrade-provisioner.py -p <vault-password> --dry-run 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
 ----
 
-In the dry run, the script asks for the Helm repository: press Enter to keep the current one, or enter the destination repository URL.
+In the _dry-run_, the script asks for the Helm repository: press Enter to keep the current one, or enter the destination repository URL.
 
 *Expected output:*
 
 * At the start: "[INFO] Mode: DRY-RUN (no changes will be applied)".
 * At the end: "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: DRY-RUN (no changes were applied)".
 
-If any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the real upgrade. La excepción es "[WARN] ENIConfig <nombre> has a stale security group … — fixing": el _dry-run_ no lo corrige y lo corrige la ejecución real.
+If any `[WARN]` or `[ERROR]` appears, correct it and repeat the _dry-run_ before the actual upgrade. The exception is "[WARN] ENIConfig <name> has a stale security group … — fixing": the _dry-run_ does not correct it, but the actual execution does.
 
 == Running `upgrade-provisioner.py`
 
@@ -526,24 +526,24 @@ python3 aws-secrets-exec.py -p <vault-password> -- \
   kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
 ----
 +
-*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.3` in the pods of the `cluster-autoscaler` instance (`<registry>/k8s/autoscaling/cluster-autoscaler:v1.35.3` with ECR pull-through cache; `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3` without a private registry). The `cluster-autoscaler-aws` instance has no pods: it is installed with 0 replicas. Cuando vayas a usar grupos _MachinePool_, actívala como se explica en xref:operations-manual:operations-manual.adoc#eks-activar-cluster-autoscaler-aws[Activación de `cluster-autoscaler-aws` en EKS].
+*Expected output:* `<registry>/autoscaling/cluster-autoscaler:v1.35.3` on the pods of the `cluster-autoscaler` instance (`<registry>/k8s/autoscaling/cluster-autoscaler:v1.35.3` with ECR pull-through cache; `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3` without a private registry). The `cluster-autoscaler-aws` instance has no pods: it is installed with 0 replicas. When _MachinePool_ groups are to be used, enable it as explained in xref:operations-manual:operations-manual.adoc#eks-activar-cluster-autoscaler-aws[Enabling `cluster-autoscaler-aws` in EKS].
 
-== Comprobación de la preparación para _MachinePool_
+== Preparation check for _MachinePool_
 
-Después de las comprobaciones posteriores, ejecuta este _script_ en el mismo contenedor. Es de solo lectura y comprueba que el _cluster_ queda listo para usar grupos _MachinePool_:
+After the subsequent checks, run this script in the same container. It is read-only and checks that the cluster is ready to use _MachinePool_ groups:
 
 [source,bash]
 ----
 python3 activate-capa-machinepool-features.py -p <vault-password> 2>&1 | tee /upgrade/backup/activate-mp-$(date +%Y%m%d-%H%M%S).log
 ----
 
-El _script_ comprueba que _cluster-operator_ está en la versión 0.7.0 o posterior, que CAPA está en la versión v2.9.3 o posterior, que `KeosCluster.status.ready` es `true` y que los _feature gates_ `MachinePool` y `EKSAllowAddRoles` de CAPA están activos.
+The script checks that cluster-operator is on version 0.7.0 or later, that CAPA is on version 2.9.3 or later, that `KeosCluster.status.ready` is `true`, and that the `MachinePool` and `EKSAllowAddRoles` CAPA feature gates are enabled.
 
-*Salida esperada al terminar:* "PREPARATION COMPLETE", "cluster-operator/CAPA versions and CAPA feature gates verified." y "RESULT: OK".
+*Expected output on finishing:* `PREPARATION COMPLETE`, `cluster-operator/CAPA versions and CAPA feature gates verified.`, and `RESULT: OK`.
 
-Si alguna comprobación falla, el _script_ termina con un `[ERROR]` sin mostrar "PREPARATION COMPLETE": revisa la ejecución de `upgrade-provisioner.py`.
+When any check fails, the script ends with an `[ERROR]` message and does not show `PREPARATION COMPLETE`. In that case, review the execution of `upgrade-provisioner.py`.
 
-IMPORTANT: Antes de crear un grupo _MachinePool_ en un _cluster_ actualizado, consulta el xref:ROOT:known-issues.adoc#eks-doble-escalado-machinedeployments-machinepools[problema conocido del doble escalado en EKS].
+IMPORTANT: Before creating a _MachinePool_ group in an upgraded cluster, see the xref:ROOT:known-issues.adoc#eks-doble-escalado-machinedeployments-machinepools[known issue of the double scaling in EKS].
 
 == Troubleshooting
 

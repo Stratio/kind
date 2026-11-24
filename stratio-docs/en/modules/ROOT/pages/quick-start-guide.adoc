@@ -35,18 +35,18 @@ Likewise, *groups of _worker_ nodes* can be indicated with the following options
 * _max++_++size_: maximum number of nodes for autoscaling (optional).
 * _labels_: node labels in Kubernetes (optional).
 * _root++_++volume_: disk specifics (optional).
-** _size_: tamaño en GB. Si no se indica, se usa el valor por defecto de EKS. En EKS, _type_ y _encrypted_ no tienen efecto.
+** _size_: size in GB. If not specified, the EKS default value is used. In EKS, _type_ and _encrypted_ have no effect.
 * _ssh++_++key_: SSH key for node access (optional). Must exist in the provider.
 * _spot_: indicates if the instance is of _spot_ type (optional).
-* _ami++_++type_: tipo de AMI del grupo (opcional): `BOTTLEROCKET_x86_64` (por defecto) o `BOTTLEROCKET_x86_64_NVIDIA`. En EKS no se admite _node++_++image_.
-* _zone++_++distribution_: indicates whether the number of nodes must be balanced in the zones or not (default: _balanced_).
-* _az_: zone of the worker's group (optional). If specified, only this one will be used for the whole group. This parameter overrides what is specified in _zone++_++distribution_.
+* _ami++_++type_: AMI type of the group (optional): `BOTTLEROCKET_x86_64` (by default) or `BOTTLEROCKET_x86_64_NVIDIA`. In EKS, _node++_++image_ is not supported.
+* _zone++_++distribution_: indicates whether the number of nodes should be balanced across the zones or not (by default: _balanced_).
+* _az_: zone of the worker group (optional). When specified, only this one is used for the entire group. This parameter overrides what is specified in _zone++_++distribution_.
 
-NOTE: By default, the distribution of nodes will be done in zones a, b and c of the indicated region in a balanced way, so _quantity_ must be zero or a multiple of three. Example: if "quantity=6" is specified, 2 nodes will be deployed in each of the zones.
+NOTE: By default, nodes are distributed in a balanced way across zones a, b, and c of the indicated region, so _quantity_ must be 0 or a multiple of 3. Example: when 'quantity=6' is indicated, 2 nodes are deployed in each zone.
 
 ==== _keos-installer_
 
-In order to facilitate the installation of _Stratio KEOS_, in the provisioning process a functional _keos.yaml_ file is generated and ready to launch the installation. For this purpose, the flavour (_production_, _development_ or _minimal_) can be indicated in the cluster descriptor.
+To facilitate the installation of _Stratio KEOS_, during the provisioning process a functional _keos.yaml_ file is generated, ready to launch the installation. In the cluster descriptor, the _flavour_ (_production_, _development_, or _minimal_) can be specified.
 
 [source,yaml]
 ----
@@ -216,7 +216,7 @@ As for the _control-plane_, in the cluster descriptor you can indicate that it i
 * _cluster++_++network_ (mandatory): defines the cluster network.
 ** _private++_++cluster_ (mandatory): defines the _spec_ of the private cluster.
 *** _enable++_++private++_++endpoint_ (mandatory/immutable; default: "true"): indicates whether the internal IP address of the _master_ is used as the endpoint of the cluster.
-*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (optional): is the IP range in CIDR notation to be used for the _master_ network. This range must not overlap with any other range in use within the cluster network. Must be a /28 subnet.
+*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (optional): the IP range in CIDR notation to use for the _master_ network. This range must not overlap with any other range in use within the cluster network. Must be a /28 subnet.
 * _ip++_++allocation++_++policy_ (optional/immutable): represents the configuration options for the cluster GKE's IP allocation (if not specified, the GKE defaults will be used).
 ** _cluster++_++ipv4++_++cidr++_++block_: represents the range of IP addresses for the IPs of the pods of the cluster GKE (if not specified, the range with the default size will be chosen).
 ** _services++_++ipv4++_++cidr++_++block_: represents the range of IP addresses for the GKE cluster services IPs (if not specified, the range with the default size will be chosen).
@@ -258,18 +258,18 @@ In the cluster descriptor, _worker_ node groups can be indicated with the follow
 * _max++_++size_: maximum number of nodes for autoscaling (optional).
 * _labels_: node labels in Kubernetes (optional).
 * _taints_: _taints_ of the nodes in Kubernetes (optional).
-* _additional++_++labels_: etiquetas adicionales del _node pool_ (opcional). Incluye `goog-gke-node-pool-provisioning-model: on-demand` para evitar el xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_labels[bucle de reconciliación de CAPG].
+* _additional++_++labels_: additional labels for the node pool (optional). Include `goog-gke-node-pool-provisioning-model: on-demand` to avoid the xref:operations-manual:operations-manual.adoc#_reconciliation_loop_in_gke_due_to_automatic_labels[CAPG reconciliation loop].
 * _root++_++volume_: disk specifics (optional).
 ** _size_: size in GB. If not set, the GKE default is used.
 ** _type_: disk type. If not set, the GKE default is used.
 * _zone++_++distribution_: indicates whether the number of nodes should be balanced in the zones or not (default: _balanced_).
 * _az_: zone of the _workers_ group (optional). If specified, only this one will be used for the whole group. This parameter overrides what is specified in _zone++_++distribution_.
 
-NOTE: By default, the distribution of nodes will be done in zones a, b, and c of the indicated region in a balanced way, so _quantity_ must be zero or a multiple of three. Example: if 'quantity=6' is specified, 2 nodes will be deployed in each of the zones.
+NOTE: By default, nodes are distributed in a balanced way across zones a, b, and c of the indicated region, so _quantity_ must be 0 or a multiple of 3. Example: when 'quantity=6' is indicated, 2 nodes are deployed in each zone.
 
 ==== _keos-installer_
 
-To facilitate the installation of _Stratio KEOS_, in the provisioning process a functional _keos.yaml_ file is generated and ready to launch the installation. For this purpose, the flavor (_production_, _development_, or _minimal_) can be indicated in the cluster descriptor.
+In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavour_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
 
 [source,yaml]
 ----
@@ -406,11 +406,11 @@ In the cluster descriptor, groups of _worker_ nodes can be indicated with the fo
 * _zone++_++distribution_: indicates whether the number of nodes must be balanced in the zones or not (default: _balanced_).
 * _az_: zone of the _workers_ group (optional). If specified, only this one will be used for the whole group. This parameter overrides what is specified in _zone++_++distribution_.
 
-NOTE: By default, the distribution of nodes will be done in zones a, b and c of the indicated region in a balanced way, so _quantity_ must be zero or a multiple of three. Example: if 'quantity=6' is specified, 2 nodes will be deployed in each of the zones.
+NOTE: By default, nodes are distributed in a balanced way across zones a, b, and c of the indicated region, so _quantity_ must be 0 or a multiple of 3. Example: when 'quantity=6' is indicated, 2 nodes are deployed in each zone.
 
 ==== _keos-installer_
 
-In order to facilitate the installation of _Stratio KEOS_, in the provisioning process a functional _keos.yaml_ file is generated and ready to launch the installation. For this purpose, the flavour (_production_, _development_ or _minimal_) can be indicated in the cluster descriptor.
+In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavour_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
 
 [source,yaml]
 ----
