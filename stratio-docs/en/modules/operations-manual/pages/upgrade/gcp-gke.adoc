@@ -13,7 +13,7 @@ In GKE, the upgrade changes the following:
 * The Kubernetes version of the _control-plane_ and of all the node pools, from minor to minor: 1.33, 1.34, and 1.35. In each step, the script waits for the _control-plane_, the node pools, and their nodes to reach the version before moving on to the next step (see the <<_cambio_de_versión_de_kubernetes_en_gke, Kubernetes version change in GKE>>).
 * The `allow-traffic-to-gcp-imds-capg` `GlobalNetworkPolicy`, which specifies which pods can access the VM metadata server. The script adds the `event-exporter-gke` pods to its exceptions.
 
-IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow going back to an earlier version.
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_prompts_interactivos[interactive prompts]) and does not allow going back to an earlier version.
 
 In GKE, only the `upgrade-provisioner.py` script of the upgrade image is used.
 
@@ -48,7 +48,7 @@ gcloud container get-server-config --region <region> --format='yaml(channels)'
 +
 *Expected output:* in the `validVersions` list of the cluster's channel, at least one version of 1.33, of 1.34, and of 1.35.
 
-NOTE: On startup, the script rewrites the mounted kubeconfig by regenerating it with `gcloud container clusters get-credentials` using the cluster's Cluster API service account (`capg-manager-bootstrap-credentials`). For this reason, do not mount the file in read-only mode (`:ro`). After the execution, to use that kubeconfig from the user's machine, `gcloud` and `gke-gcloud-auth-plugin` must be installed and authenticated. To keep the original, copy it before launching the container.
+NOTE: On startup, the script rewrites the mounted kubeconfig by regenerating it with `gcloud container clusters get-credentials` using the cluster's Cluster API service account (`capg-manager-bootstrap-credentials`). For this reason, do not mount the file in read-only mode (`:ro`). After the execution, to use that kubeconfig from your machine, `gcloud` and `gke-gcloud-auth-plugin` must be installed and authenticated. To keep the original, copy it before launching the container.
 
 NOTE: The container uses the host machine's network (`--net host`). In a GKE cluster with a private endpoint, launch it from a machine that can access that endpoint (for example, from inside the cluster's VPC). That machine also needs access to the Google APIs, because the script calls `gcloud`.
 
@@ -63,7 +63,7 @@ Before starting, check the permissions of the service accounts that the script u
 
 === Preparation
 
-Position in the working directory from which the container will be run. Usually, it is the same workspace from which the cluster and _keos-installer_ were installed, because it probably already contains several of the necessary files (see the <<_estructura_necesaria, necessary structure>>); if not, use a specific directory.
+Go to the working directory from which you will run the container. Usually, it is the same workspace from which the cluster and _keos-installer_ were installed, because it probably already contains several of the necessary files (see the <<_estructura_necesaria, necessary structure>>); if not, use a specific directory.
 
 Create a local directory for the backups:
 
@@ -186,7 +186,7 @@ Respond to the prompts in this order:
 
 == Tracking the upgrade
 
-While the script runs, follow the state of the cluster from the user's machine, in another terminal, with the user's own kubeconfig and the user's Google Cloud credentials:
+While the script runs, follow the state of the cluster from your machine, in another terminal, with your own kubeconfig and your Google Cloud credentials:
 
 include::partial$upgrade-monitoring.adoc[]
 
@@ -212,7 +212,7 @@ NOTE: During the upgrade, the list of GKE operations (`gcloud container operatio
 
 == Subsequent checks
 
-In addition to the common xref:operations-manual:upgrade.adoc#_final_verificationl[final verification], in GKE check the following:
+In addition to the common xref:operations-manual:upgrade.adoc#_final_verification[final verification], in GKE check the following:
 
 * Version of the `KeosCluster`, of the node pools, and of the nodes:
 +
@@ -240,7 +240,7 @@ NOTE: When any error appears, review it before continuing.
 
 == Subsequent tasks
 
-After the upgrade, only one task remains: applying the GKE label to each worker group.
+After the upgrade, only one task remains: declaring the GKE label in each worker group.
 
 [#_etiqueta_de_gke_en_cada_grupo_de_trabajo]
 

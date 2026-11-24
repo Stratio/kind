@@ -104,7 +104,7 @@ When creating the image for the cluster, take into account the operating system 
 
 ==== Elasticsearch
 
-To support Elasticsearch deployments, the operating system must have the `vm.max_map_count = 262144` parameter configured in sysctl, as indicated by its official documentation: https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html.
+To support Elasticsearch deployments, the operating system must have the `vm.max_map_count = 262144` parameter configured in sysctl, as indicated in its https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[official documentation].
 
 The Amazon Linux 2 images *that EKS uses* already include this parameter and its value.
 
@@ -581,7 +581,7 @@ This section details the particularities of the Kubernetes _control-plane_.
 ^|Name ^|Description ^|Example ^|Optional
 
 |_aws_
-|Values specific to EKS. Includes the configuration of the _control-plane_ logging (`api`, `audit`, `authenticator`, `controllerManager`, or `scheduler`) and the IAM role of the managed node groups (_MachinePool_) (_mp++_++role++_++name_). This role is optional and only supports `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, the value that _Stratio Cloud Provisioner_ sets when it is left empty.
+|Values specific to EKS. Includes the configuration of the _control-plane_ logging (`api`, `audit`, `authenticator`, `controllerManager`, or `scheduler`) and the IAM role of the managed node groups (_MachinePool_) (_mp++_++role++_++name_). The field is optional and only supports `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, the value that _Stratio Cloud Provisioner_ sets when it is left empty.
 a|
 
 [source,yaml]
@@ -594,8 +594,8 @@ logging:
 
 IMPORTANT: `mp_role_name` only supports `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. When it is left empty, _Stratio Cloud Provisioner_ sets that value; with any other value, the descriptor validation fails. This role is created by the `clusterawsadm bootstrap iam create-cloudformation-stack` command, which is run on the AWS account in one of these two ways:
 
-* *Automatically, from _Stratio Cloud Provisioner_*: with `security.aws.create_iam: true`, it invokes that same command as part of the installation.
-* *Manually, from the user*: with `security.aws.create_iam: false`, as prior preparation of the AWS account for EKS and CAPA (a common prerequisite on accounts that have already been used with earlier versions).
+* *Automatically*: with `security.aws.create_iam: true`, _Stratio Cloud Provisioner_ invokes that same command as part of the installation.
+* *Manually*: with `security.aws.create_iam: false`, you run it as prior preparation of the AWS account for EKS and CAPA (a common prerequisite on accounts that have already been used with earlier versions).
 
 In both cases, the result is the same CloudFormation stack with the same role name, so there is no need to run it again once the account has already gone through that bootstrap.
 
@@ -626,7 +626,7 @@ cluster_security:
   workload_identity_config:
 ----
 
-|Yes. For more information, see the quick-start guide.
+|No. For more information, see the quick start guide.
 
 |_managed_
 |Indicates whether the _control-plane_ is managed by the cloud provider.
@@ -660,7 +660,7 @@ The images used must be supported by EKS. See https://docs.aws.amazon.com/eks/la
 |No
 
 |_max++_++size_/_min++_++size_
-|Minimum and maximum number of instances for autoscaling.
+|Maximum and minimum number of instances for autoscaling.
 |18/6
 |Yes
 
@@ -711,8 +711,8 @@ a|
 ----
 additional_labels:
   goog-gke-node-pool-provisioning-model: on-demand
-  entorno: producción
-  equipo: datos
+  environment: production
+  team: data
 ----
 
 |Yes
@@ -895,8 +895,8 @@ NOTE: In _MachinePool_, `root_volume.type` and `root_volume.encrypted` have no e
 | `quantity: 0` requires `max_size >= 1`; in balanced mode (with several availability zones), `max_size` must be greater than or equal to the number of zones
 |
 
-| EC2 instances of _MachinePool_ without the `Name` label visible on the AWS console
-| They can be identified through the `kubernetes.io/cluster/<name>` and `eks:nodegroup-name` labels.
+| EC2 instances of _MachinePool_ without the `Name` tag visible on the AWS console
+| They can be identified through the `kubernetes.io/cluster/<name>` and `eks:nodegroup-name` tags.
 |===
 
 ==== GKE
@@ -1195,7 +1195,7 @@ NOTE: Since the installation descriptor (`keos.yaml`) is regenerated in each exe
 
 Due to an error in different controllers (fixed in the main branch, but still without a published release), the load balancer created in GCP and Azure for the _API Server_ of clusters with an unmanaged _control-plane_ is configured with a TCP-based health check.
 
-This may cause problems when any _control-plane_ node fails, because the load balancer sends requests to _control-plane_ nodes that respond, even when they cannot serve them.
+This may cause problems when any _control-plane_ node fails, because the load balancer sends requests to _control-plane_ nodes whose port responds, even when they cannot serve them.
 
 To avoid it, modify the health check of the load balancer created so that it uses the HTTPS protocol and the `/readyz` path. Keep port 443 in GCP and 6443 in Azure.
 

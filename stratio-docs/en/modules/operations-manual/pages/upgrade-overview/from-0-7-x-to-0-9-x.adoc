@@ -177,7 +177,7 @@ The components that determine the impact of the window are those that cannot be 
 | cluster-autoscaler
 | None.
 | 2 replicas.
-| It scales to zero at the start and is restored at the end. There is no autoscaling for most of the window; it only works while the charts are updating.
+| It is scaled to zero at the start and restored at the end. There is no autoscaling for almost the whole window: it only works while the charts are updating.
 
 | Application volumes
 | Provider disks.
@@ -411,7 +411,7 @@ What changes between environments is not the sequence, but who raises the _contr
 | EKS, on Amazon Web Services
 | Managed by the provider. Its etcd is Amazon Web Services' and is not touched.
 | A single version change is applied, and the provider internally staggers the three minor versions. The wait runs against the EKS API, not the state of the `KeosCluster`, because it passes through "ready" between minor versions.
-| Confirm that the provider supports 1.35, including the cluster add-ons. Review the `coredns` PDB. With cluster-autoscaler, the script creates the cluster-autoscaler IAM policy and associates it with the nodes' roles, together with the identity of _secrets.yml_, which also requires the permissions of `stratio-aws-temp-policy.json`. When either role is missing, it shows a `[WARN]` and continues; any other error stops it before changing the cluster.
+| Confirm that the provider supports 1.35, including the cluster add-ons. Review the `coredns` PDB. With cluster-autoscaler, the script creates the cluster-autoscaler IAM policy and associates it with the nodes' roles using the identity of _secrets.yml_, which also requires the permissions of `stratio-aws-temp-policy.json`. When either role is missing, it shows a `[WARN]` and continues; any other error stops it before changing the cluster.
 | The most exercised path.
 
 | Azure VMs, on Microsoft Azure

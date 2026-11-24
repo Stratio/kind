@@ -9,10 +9,10 @@ This procedure upgrades an Azure VMs cluster created with _Stratio Cloud Provisi
 
 In Azure VMs, the upgrade changes the following:
 
-* The components of the Azure VMs column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is upgraded] table.
+* The components of the Azure VMs column of the xref:operations-manual:upgrade.adoc#_what_is_upgraded[what is upgraded] table.
 * The Kubernetes version of the _control-plane_ and of the worker groups that have `node_image`, from minor to minor: 1.33, 1.34, and 1.35. In each step, the script waits for the _control-plane_ and those groups to reach the version before moving on to the next one (see the <<_cambio_de_versión_de_kubernetes_en_azure_vms, Kubernetes version change in Azure VMs>>).
 
-IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow reverting to an earlier version.
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see xref:operations-manual:upgrade.adoc#_prompts_interactivos[interactive prompts]) and does not allow reverting to an earlier version.
 
 In Azure VMs, only the `upgrade-provisioner.py` script of the upgrade image is used.
 
@@ -31,7 +31,7 @@ In each step, the script:
 
 While the version change lasts, the script temporarily modifies two objects and undoes the changes on finishing: the `allow-all-traffic-from-control-plane` `GlobalNetworkPolicy` and the Capsule validation webhook, which _Stratio KEOS_ installs. When they do not exist in the cluster, it does nothing with them:
 
-* Opens the `allow-all-traffic-from-control-plane` `GlobalNetworkPolicy` to the network CIDR and to the cluster pods. When finished, it regenerates it with the IP addresses of the _control-plane_ nodes at that moment.
+* Opens the `allow-all-traffic-from-control-plane` `GlobalNetworkPolicy` to the network CIDR and to the pod CIDR of the cluster. When finished, it regenerates it with the IP addresses of the _control-plane_ nodes at that moment.
 * Removes the `nodes.capsule.clastix.io` entry from the Capsule validation webhook, since it can block the joining of the new _control-plane_ replicas. On finishing, it adds it again.
 
 When the process is interrupted partway through the version change, see the <<_proceso_interrumpido_durante_el_cambio_de_versión, process interrupted during the version change>> before relaunching it.
@@ -62,7 +62,7 @@ Before starting, check the service principal permissions in `secrets.yml`. It ne
 
 === Preparation
 
-Position in the working directory from which the container will be run. Usually, it is the same workspace from which the cluster and _keos-installer_ were installed, because it probably already contains several necessary files (see <<_estructura_necesaria, necessary structure>>); if not, use a specific directory.
+Go to the working directory from which you will run the container. Usually, it is the same workspace from which the cluster and _keos-installer_ were installed, because it probably already contains several necessary files (see <<_estructura_necesaria, necessary structure>>); if not, use a specific directory.
 
 Create a local directory for the backups:
 
@@ -221,7 +221,7 @@ Respond to the prompts in this order:
 
 == Tracking the upgrade
 
-While the script runs, follow the state of the cluster from the user's machine, in another terminal, with the user's own kubeconfig:
+While the script runs, follow the state of the cluster from your machine, in another terminal, with your own kubeconfig:
 
 include::partial$upgrade-monitoring.adoc[]
 
@@ -315,7 +315,7 @@ include::partial$upgrade-recovery.adoc[]
 
 === Process interrupted during the version change
 
-When the script process ends forcibly during the Kubernetes version change (for example, when the container is stopped), the temporary changes to the network policy and to the Capsule webhook may remain applied when the cluster keeps them. When the script fails with an error, it undoes them itself.
+When the script process ends forcibly during the Kubernetes version change (for example, when the container is stopped), the temporary changes to the network policy and to the Capsule webhook may remain applied when those objects exist in the cluster. When the script fails with an error, it undoes them itself.
 
 When the container was stopped, enter it again. Do not launch another `docker run` with the same name, because it fails with the error "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use":
 

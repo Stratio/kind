@@ -66,7 +66,7 @@ Para aprovisionar en Azure no gestionado, necesitas una cuenta con todos los per
 ** Un rol para los _workers_ del _cluster_ en `spec.security.nodes_identity`.
 ** Un rol para el _control-plane_ en `spec.security.control_plane_identity`.
 +
-Si los permisos se asignan a nivel de suscripción, te recomendamos estos ficheros:
+Si los permisos se asignan a nivel de suscripción, se recomiendan estos ficheros:
 +
 ** xref:attachment$stratio-azure-role.json[Descargar permisos para el usuario de despliegue de Azure].
 ** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para _workers_ de Azure].

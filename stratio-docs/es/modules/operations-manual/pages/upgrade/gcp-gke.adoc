@@ -240,7 +240,7 @@ NOTE: Si aparece algún error, revísalo antes de continuar.
 
 == Tareas posteriores
 
-Después de la actualización, solo queda una tarea: aplicar la etiqueta de GKE a cada grupo de trabajo.
+Después de la actualización, solo queda una tarea: declarar la etiqueta de GKE en cada grupo de trabajo.
 
 [#_etiqueta_de_gke_en_cada_grupo_de_trabajo]
 

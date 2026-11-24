@@ -46,7 +46,7 @@ NOTE: By default, nodes are distributed in a balanced way across zones a, b, and
 
 ==== _keos-installer_
 
-To facilitate the installation of _Stratio KEOS_, during the provisioning process a functional _keos.yaml_ file is generated, ready to launch the installation. In the cluster descriptor, the _flavor_ (_production_, _development_, or _minimal_) can be specified.
+To facilitate the installation of _Stratio KEOS_, during the provisioning process a functional _keos.yaml_ file is generated, ready to launch the installation. In the cluster descriptor, the _flavour_ (_production_, _development_, or _minimal_) can be specified.
 
 [source,yaml]
 ----
@@ -269,7 +269,7 @@ NOTE: By default, nodes are distributed in a balanced way across zones a, b, and
 
 ==== _keos-installer_
 
-In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavor_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
+In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavour_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
 
 [source,yaml]
 ----
@@ -410,7 +410,7 @@ NOTE: By default, nodes are distributed in a balanced way across zones a, b, and
 
 ==== _keos-installer_
 
-In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavor_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
+In order to facilitate the installation of _Stratio KEOS_, during the provisioning process, a functional _keos.yaml_ file is generated, ready to start the installation. To do this, the _flavour_ (_production_, _development_, or _minimal_) can be specified in the cluster descriptor.
 
 [source,yaml]
 ----

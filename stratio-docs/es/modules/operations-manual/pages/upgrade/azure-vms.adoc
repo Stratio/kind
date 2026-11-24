@@ -31,7 +31,7 @@ En cada paso, el _script_:
 
 Mientras dura el cambio de versión, el _script_ modifica temporalmente dos objetos y deshace los cambios al terminar: la `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` y el _webhook_ de validación de Capsule, que instala _Stratio KEOS_. Si no existen en el _cluster_, no hace nada con ellos:
 
-* Abre la política `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` al CIDR de la red y a los _pods_ del _cluster_. Al terminar, la vuelve a generar con las IP de los nodos de _control-plane_ de ese momento.
+* Abre la política `GlobalNetworkPolicy` `allow-all-traffic-from-control-plane` al CIDR de la red y al de los _pods_ del _cluster_. Al terminar, la vuelve a generar con las IP de los nodos de _control-plane_ de ese momento.
 * Quita del _webhook_ de validación de Capsule la entrada `nodes.capsule.clastix.io`, ya que puede bloquear la unión de las nuevas réplicas del _control-plane_. Al terminar, la vuelve a añadir.
 
 Si el proceso se interrumpe a mitad del cambio de versión, consulta el <<_proceso_interrumpido_durante_el_cambio_de_versión, proceso interrumpido durante el cambio de versión>> antes de relanzarlo.
@@ -315,7 +315,7 @@ include::partial$upgrade-recovery.adoc[]
 
 === Proceso interrumpido durante el cambio de versión
 
-Si el proceso del _script_ termina de forma forzada durante el cambio de versión de Kubernetes (por ejemplo, si se detiene el contenedor), los cambios temporales en la política de red y en el _webhook_ de Capsule pueden quedar aplicados si el _cluster_ los mantiene. Si el _script_ falla con un error, los deshace él mismo.
+Si el proceso del _script_ termina de forma forzada durante el cambio de versión de Kubernetes (por ejemplo, si se detiene el contenedor), los cambios temporales en la política de red y en el _webhook_ de Capsule pueden quedar aplicados si esos objetos existen en el _cluster_. Si el _script_ falla con un error, los deshace él mismo.
 
 Si el contenedor se detuvo, vuelve a entrar en él. No lances otro `docker run` con el mismo nombre, porque falla con el error "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use":
 

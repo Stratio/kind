@@ -411,7 +411,7 @@ Lo que cambia entre entornos no es la secuencia, sino quién sube el _control-pl
 | EKS, en Amazon Web Services
 | Gestionado por el proveedor. Su etcd es de Amazon Web Services y no se toca.
 | Se aplica un único cambio de versión y el proveedor escalona internamente las tres versiones menores. La espera se realiza contra la API de EKS, no contra el estado del `KeosCluster`, porque este pasa por «listo» entre versiones menores.
-| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos, junto con la identidad de _secrets.yml_, que también requiere los permisos de `stratio-aws-temp-policy.json`. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error lo detiene antes de cambiar el _cluster_.
+| Confirmar que el proveedor admite la 1.35, incluidos los complementos del _cluster_. Revisar el PDB `coredns`. Con _cluster-autoscaler_, el _script_ crea la política IAM de _cluster-autoscaler_ y la asocia a los _roles_ de los nodos con la identidad de _secrets.yml_, que también requiere los permisos de `stratio-aws-temp-policy.json`. Si falta alguno de los dos _roles_, muestra un `[WARN]` y continúa; cualquier otro error lo detiene antes de cambiar el _cluster_.
 | El camino más ejercitado.
 
 | Azure VMs, en Microsoft Azure

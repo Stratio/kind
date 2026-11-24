@@ -442,7 +442,7 @@ NOTE: In EKS, the cluster rejects a change of `min_size`, `max_size`, or `quanti
 
 * The EKS nodegroup is not in `ACTIVE` state (for example, because it has an in-progress change made from the console or from the AWS CLI).
 * The desired size of the nodegroup does not yet match that of its Auto Scaling group. This happens for a few minutes after each cluster-autoscaler change.
-* Any nodegroup is left with a minimum above its number of nodes or with a maximum below it. When `quantity` is changed, that value becomes the new `quantity`; when not, the current value is kept.
+* Any nodegroup is left with a minimum above its number of nodes or with a maximum below it. That number of nodes is the one the new `quantity` sets if you change it; otherwise, it is the current one.
 * The cluster cannot query AWS with its credentials.
 
 In the first two cases, repeat the change after a few minutes.

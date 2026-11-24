@@ -9,12 +9,12 @@ This procedure upgrades an EKS cluster created with _Stratio Cloud Provisioner_ 
 
 On EKS, the upgrade changes the following:
 
-* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_updated[what is updated] table.
+* The components of the EKS column of the xref:operations-manual:upgrade.adoc#_what_is_upgraded[what is upgraded] table.
 * The version of the _control-plane_, from 1.32 to 1.35. The script changes `KeosCluster.spec.k8s_version` only once, and CAPA raises the EKS _control-plane_ minor by minor up to 1.35.
 * Nothing on the worker nodes: the _MachineDeployment_ groups stay on 1.32, and no node is replaced.
 * With cluster-autoscaler, the cluster-autoscaler IAM policy on the `eks-nodegroup` and `nodes` roles, and a second instance, `cluster-autoscaler-aws`, installed with 0 replicas. The existing instance continues to scale the _MachineDeployment_ groups.
 
-IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_interactive_prompts[interactive prompts]) and does not allow you to return to a previous version.
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see the xref:operations-manual:upgrade.adoc#_prompts_interactivos[interactive prompts]) and does not allow you to return to a previous version.
 
 On EKS, the upgrade image includes three scripts. They are run in this order:
 
@@ -124,7 +124,7 @@ Before executing the command, `aws-secrets-exec.py` shows the AWS identity it us
 
 == Pre-checks
 
-`aws-secrets-exec.py` does not regenerate the kubeconfig. When the mount is old, the `kubectl` commands fail with the message "You must be logged in to the server". Before the checks, regenerate it with the credentials of _secrets.yml_:
+`aws-secrets-exec.py` does not regenerate the kubeconfig. When the mounted kubeconfig is old, the `kubectl` commands fail with the message "You must be logged in to the server". Before the checks, regenerate it with the credentials of _secrets.yml_:
 
 [source,bash]
 ----

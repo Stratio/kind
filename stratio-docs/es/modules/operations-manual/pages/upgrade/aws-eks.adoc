@@ -124,7 +124,7 @@ Antes de ejecutar el comando, `aws-secrets-exec.py` muestra la identidad de AWS 
 
 == Comprobaciones previas
 
-`aws-secrets-exec.py` no regenera el _kubeconfig_. Si el montaje es antiguo, los comandos de `kubectl` fallan con el mensaje "You must be logged in to the server". Antes de las comprobaciones, regenéralo con las credenciales de _secrets.yml_:
+`aws-secrets-exec.py` no regenera el _kubeconfig_. Si el _kubeconfig_ montado es antiguo, los comandos de `kubectl` fallan con el mensaje "You must be logged in to the server". Antes de las comprobaciones, regenéralo con las credenciales de _secrets.yml_:
 
 [source,bash]
 ----
@@ -281,7 +281,7 @@ Si el _stack_ ya estaba al día, el comando termina con este error, muestra su a
 Error: failed to update AWS CloudFormation stack: operation error CloudFormation: UpdateStack, https response error StatusCode: 400, RequestID: <id>, api error ValidationError: No updates are to be performed.
 ----
 +
-NOTE: La política de _cluster-autoscaler_ (`cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io`) no forma parte del _stack_. La asocian a los _roles_ `eks-nodegroup` y `nodes` de _Stratio Cloud Provisioner_ al crear el _cluster_, y a `upgrade-provisioner.py` al actualizarlo. Las actualizaciones del _stack_ no la eliminan. No la añadas a esta configuración: si el _stack_ la incluye, la siguiente actualización sin ella la quita de los _roles_.
+NOTE: La política de _cluster-autoscaler_ (`cluster-autoscaler.cluster-api-provider-aws.sigs.k8s.io`) no forma parte del _stack_. _Stratio Cloud Provisioner_ la asocia a los _roles_ `eks-nodegroup` y `nodes` al crear el _cluster_, y `upgrade-provisioner.py`, al actualizarlo. Las actualizaciones del _stack_ no la quitan. No la añadas a esta configuración: si el _stack_ la incluye, la siguiente actualización sin ella la quita de los _roles_.
 
 == Migración a ECR _pull-through cache_ (opcional)
 

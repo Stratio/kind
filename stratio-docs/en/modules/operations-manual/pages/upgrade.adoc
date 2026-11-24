@@ -17,13 +17,13 @@ This page gathers what is common to the three environments:
 * The phases of the upgrade process.
 * The final verification.
 
-To run the upgrade, follow the procedure for the user's environment.
+To run the upgrade, follow the procedure for your environment.
 
-IMPORTANT: Before starting, read this page and the one for the user's environment procedure in full. Some steps have no way back, and several decisions are made before launching the script. If you have any questions, open a ticket with the Platform team before continuing.
+IMPORTANT: Before starting, read this page and the procedure for your environment in full. Some steps cannot be undone, and several decisions are made before launching the script. If you have any questions, open a ticket with the Platform team before continuing.
 
 IMPORTANT: Only clusters with Kubernetes version 1.32 are supported. If the cluster is on an earlier version, follow the corresponding upgrade procedure first until you reach the supported version.
 
-The script and all its dependencies are in the `cloud-provisioner-upgrade:0.9.9` Docker image, so there is no need to install them on the user's machine:
+The script and all its dependencies are in the `cloud-provisioner-upgrade:0.9.9` Docker image, so there is no need to install them on your machine:
 
 [%header,cols="2,4,1"]
 |===
@@ -139,7 +139,7 @@ kubectl get helmrelease -A
 +
 *Expected output:* all with `READY = True`.
 
-** [[comprobación_automática]]Automatic check: on startup, before asking for confirmation, the script performs its own health check, independent of the previous ones:
+** [[automatic_check]]Automatic check: on startup, before asking for confirmation, the script performs its own health check, independent of the previous ones:
 +
 --
 * Checks `KeosCluster.status.ready`.
@@ -188,7 +188,7 @@ This implies that:
 | `private_registry=false` +
 `private_helm_repo=false`
 | With `--private`
-| The use of private Helm registries and repositories is enforced, and `ClusterConfig` is updated to `true`.
+| The use of the private registry and the private Helm repository is enforced, and `ClusterConfig` is updated to `true`.
 
 | `private_registry=false` +
 `private_helm_repo=false`, with the cluster already upgraded without `--private`
@@ -263,7 +263,7 @@ Main options:
 | No
 
 | `--disable-prepare-capsule`
-| Disables the temporary exclusion of the system namespaces (`kube-system`, `tigera-operator`, `calico-system`, `cert-manager`, `capi-system`, and so on) in the Capsule admission webhooks, preventing them from interfering with the chart upgrade. The exclusion is undone on finishing that phase.
+| Disables the temporary exclusion of the system namespaces (`kube-system`, `tigera-operator`, `calico-system`, `cert-manager`, `capi-system`, and so on) in the Capsule admission webhooks. That exclusion prevents the webhooks from interfering with the chart upgrade and is undone when that phase finishes.
 | `False`
 | No
 
@@ -323,9 +323,9 @@ The script may ask for up to three keyboard confirmations, in this order. With `
 
 . *Continue with the upgrade*: at the start, after the previous cluster checks. Press Enter to continue; to abort, type anything else and press Enter. It is skipped with `-y`/`--yes`.
 . *Helm repository*: right afterward. Shows the repository configured in `KeosCluster.spec.helm_repository.url` and lets you specify a new one. Press Enter to keep the current one. *It cannot be skipped*: it is asked every time, even with `-y`.
-. *`k8s_version` change* (only when `KeosCluster.spec.k8s_version` is going to change): appears when reaching the Kubernetes upgrade, when the charts and Cluster API are already upgraded. It asks for an explicit `[y/N]` confirmation before applying the patch. The uppercase `N` indicates the default response: when Enter is pressed without typing anything, the response is "no". The responses are not case-sensitive (for example, `y`, `yes`, `n`, and `no`). When the response is `n` or left blank, only this step is canceled (the rest of the upgrade continues). It is skipped with `--start-from-k8s-version`. In Azure VMs, the image map is validated before this question; if it is incorrect, the script aborts, even if the response is `n`.
+. *`k8s_version` change* (only when `KeosCluster.spec.k8s_version` is going to change): appears when reaching the Kubernetes upgrade, when the charts and Cluster API are already upgraded. It asks for an explicit `[y/N]` confirmation before applying the patch. The uppercase `N` indicates the default response: when Enter is pressed without typing anything, the response is "no". The accepted responses are `y`, `yes`, `n`, and `no`, and they are not case-sensitive. When the response is `n` or left blank, only this step is canceled (the rest of the upgrade continues). It is skipped with `--start-from-k8s-version`. In Azure VMs, the image map is validated before this question; if it is incorrect, the script aborts, even if the response is `n`.
 +
-To stop the upgrade at this point, respond `n`. The script restores the `KeosCluster` webhooks, starts up its controller, resumes the `HelmRelease`, waits for the `KeosCluster` to be ready, returns cluster-autoscaler to the replicas it had at the start, performs the rest of the post-upgrade of the user's environment (in EKS, `mp_role_name` and `cluster-autoscaler-aws` with 0 replicas; in Azure VMs, the cloud-provider-azure image) and ends, without changing the Kubernetes version. The version change can be performed later, in another execution. *Do not use `Ctrl+C` at this question*: the script is in the critical section and its recovery is not run, so the `KeosCluster` webhooks would be left disabled and the `HelmRelease`, suspended.
+To stop the upgrade at this point, respond `n`. The script restores the `KeosCluster` webhooks, starts up its controller, resumes the `HelmRelease`, waits for the `KeosCluster` to be ready, returns cluster-autoscaler to the replicas it had at the start, performs the rest of the post-upgrade of your environment (in EKS, `mp_role_name` and `cluster-autoscaler-aws` with 0 replicas; in Azure VMs, the cloud-provider-azure image) and ends, without changing the Kubernetes version. The version change can be performed later, in another execution. *Do not use `Ctrl+C` at this question*: the script is in the critical section and its recovery is not run, so the `KeosCluster` webhooks would be left disabled and the `HelmRelease`, suspended.
 
 WARNING: When a different Helm repository is indicated, the script saves it in `KeosCluster.spec.helm_repository.url` and in the `keos` `HelmRepository`, and uses it for the _cluster-operator_ chart and, when it is a private repository, for the rest of the charts. Change this value only when the new repository publishes the same Universe of versions (`kubernetes-universe`) that corresponds to this version of _Stratio Cloud Provisioner_: a repository from another Universe may resolve chart versions that are incompatible with each other.
 
@@ -336,7 +336,7 @@ This section summarizes, in order, the phases that the script goes through when 
 . *Validation*
 ** Checks the `clusterctl` version, verifies that the secrets and the _kubeconfig_ exist, and decrypts the secrets.
 ** Configures the cloud provider credentials and checks access to the cluster. In EKS and in GKE, regenerates the _kubeconfig_ when it does not grant access.
-** In GKE, adds the `event-exporter-gke` pods to the exceptions of the IMDS _GlobalNetworkPolicy _ when they are not there, and restarts the pod. It is the only change before the initial confirmation.
+** In GKE, adds the `event-exporter-gke` pods to the exceptions of the IMDS _GlobalNetworkPolicy_ when they are not there, and restarts the pod. It is the only change before the initial confirmation.
 ** Performs the automatic health check (see the <<_automatic_check, automatic check>>).
 ** Asks for the initial confirmation (see the <<_prompts_interactivos, interactive prompts>>).
 ** In EKS with cluster-autoscaler, creates the cluster-autoscaler IAM policy when it does not exist, associates it with the `eks-nodegroup` and `nodes` roles, and allows IMDS access to its pods. If either role is missing, it shows a `[WARN]` and continues. Any other error in the IAM policy or in the IMDS _GlobalNetworkPolicy_ stops the script at this step.
@@ -386,9 +386,9 @@ clusterctl upgrade apply \
 +
 It is skipped when all the providers are already on their target version and, in private mode (see the <<_use_of_the_private_option, use of the `--private` option>>), their images come from the private registry. Beforehand, when cert-manager is managed with Helm, the script removes the `clusterctl` label from it, so that `clusterctl` does not replace it. Afterward, it returns the CAPI and provider controllers to 2 replicas, with `priorityClassName: system-node-critical`.
 +
-NOTE: On Azure VMs, the command also includes the `--bootstrap kubeadm:v1.10.10` and `--control-plane kubeadm:v1.10.10` parameters. EKS and GKE manage their own _control-plane_ and do not need to upgrade it, but Azure VMs use `KubeadmControlPlane`, the CAPI kubeadm _control-plane_ provider, which must be upgraded separately.
+NOTE: On Azure VMs, the command also includes the `--bootstrap kubeadm:v1.10.10` and `--control-plane kubeadm:v1.10.10` parameters. EKS and GKE manage their own _control-plane_ and do not need to upgrade these providers, but Azure VMs use `KubeadmControlPlane`, the CAPI kubeadm _control-plane_ provider, which must be upgraded separately.
 
-. *Kubernetes version upgrade*: each environment performs it in a different way. See the "Before starting" section of the procedure for the user's environment.
+. *Kubernetes version upgrade*: each environment performs it in a different way. See the "Before starting" section of the procedure for your environment.
 
 . *Post-upgrade*
 ** Restores the `KeosCluster` webhooks, starts up `keoscluster-controller-manager` again, and resumes the `HelmRelease` of _cluster-operator_.
