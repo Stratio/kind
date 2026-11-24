@@ -188,7 +188,7 @@ Esto implica que:
 | `private_registry=false` +
 `private_helm_repo=false`
 | Con `--private`
-| Se fuerza el uso de los registros y repositorios privados de Helm, y el `ClusterConfig` se actualiza a `true`.
+| Se fuerza el uso del registro privado y del repositorio privado de Helm, y el `ClusterConfig` se actualiza a `true`.
 
 | `private_registry=false` +
 `private_helm_repo=false`, con el _cluster_ ya actualizado sin `--private`
@@ -263,7 +263,7 @@ Opciones principales:
 | No
 
 | `--disable-prepare-capsule`
-| Desactiva la exclusión temporal de los _namespaces_ del sistema (`kube-system`, `tigera-operator`, `calico-system`, `cert-manager`, `capi-system`, etc.) en los _webhooks_ de admisión de Capsule, lo que evita que interfieran con la actualización de los _charts_. La exclusión se disuelve al finalizar esa fase.
+| Desactiva la exclusión temporal de los _namespaces_ del sistema (`kube-system`, `tigera-operator`, `calico-system`, `cert-manager`, `capi-system`, etc.) en los _webhooks_ de admisión de Capsule. Esa exclusión evita que los _webhooks_ interfieran con la actualización de los _charts_ y se deshace al terminar esa fase.
 | `False`
 | No
 
@@ -323,7 +323,7 @@ El _script_ puede pedir hasta tres confirmaciones por teclado, en este orden. Co
 
 . *Continuar con la actualización*: al principio, tras las comprobaciones previas del _cluster_. Pulsa Intro para continuar; para abortar, escribe cualquier otro texto y pulsa Intro. Se omite con `-y`/`--yes`.
 . *Repositorio de Helm*: justo después. Muestra el repositorio configurado en `KeosCluster.spec.helm_repository.url` y permite especificar uno nuevo. Pulsa Intro para mantener el actual. *No se puede omitir*: se pregunta siempre, incluso con `-y`.
-. *Cambio de `k8s_version`* (solo si `KeosCluster.spec.k8s_version` va a cambiar): aparece al llegar a la actualización de Kubernetes, cuando los _charts_ y Cluster API ya están actualizados. Pide una confirmación explícita `[y/N]` antes de aplicar el _patch_. La `N` en mayúscula indica la respuesta por defecto: si pulsas Intro sin escribir nada, la respuesta es "no". Las respuestas no distinguen entre mayúsculas y minúsculas (por ejemplo, `y`, `yes`, `n` y `no`). Si respondes `n` o lo dejas en blanco, solo se cancela este paso (el resto de la actualización continúa). Se omite con `--start-from-k8s-version`. En Azure VMs, el mapa de imágenes se valida antes de esta pregunta: si no es correcto, el _script_ aborta, aunque respondas `n`.
+. *Cambio de `k8s_version`* (solo si `KeosCluster.spec.k8s_version` va a cambiar): aparece al llegar a la actualización de Kubernetes, cuando los _charts_ y Cluster API ya están actualizados. Pide una confirmación explícita `[y/N]` antes de aplicar el _patch_. La `N` en mayúscula indica la respuesta por defecto: si pulsas Intro sin escribir nada, la respuesta es "no". Las respuestas admitidas son `y`, `yes`, `n` y `no`, sin distinguir entre mayúsculas y minúsculas. Si respondes `n` o lo dejas en blanco, solo se cancela este paso (el resto de la actualización continúa). Se omite con `--start-from-k8s-version`. En Azure VMs, el mapa de imágenes se valida antes de esta pregunta: si no es correcto, el _script_ aborta, aunque respondas `n`.
 +
 Para detener la actualización en este punto, responde `n`. El _script_ restaura los _webhooks_ de `KeosCluster`, arranca su _controller_, reanuda el `HelmRelease`, espera a que el `KeosCluster` esté listo, devuelve _cluster-autoscaler_ a las réplicas que tenía al principio, hace el resto de la posactualización de tu entorno (en EKS, `mp_role_name` y `cluster-autoscaler-aws` con 0 réplicas; en Azure VMs, la imagen de cloud-provider-azure) y termina, sin cambiar la versión de Kubernetes. Puedes hacer el cambio de versión más tarde, en otra ejecución. *No uses `Ctrl+C` en esta pregunta*: el _script_ está en la sección crítica y su recuperación no se ejecuta, así que los _webhooks_ de `KeosCluster` se quedarían desactivados y el `HelmRelease`, suspendido.
 
@@ -339,7 +339,7 @@ Esta sección resume, en orden, las fases por las que pasa el _script_ al ejecut
 ** En GKE, añade los _pods_ de `event-exporter-gke` a las excepciones de la _GlobalNetworkPolicy_ de IMDS, si no están, y reinicia el _pod_. Es el único cambio antes de la confirmación inicial.
 ** Hace la comprobación automática de salud (consulta la <<comprobación_automática, comprobación automática>>).
 ** Pide la confirmación inicial (consulta los <<_prompts_interactivos, _prompts_ interactivos>>).
-** En EKS con _cluster-autoscaler_, crea la política de IAM de _cluster-autoscaler_ si no existe, asóciala a los roles `eks-nodegroup` y `nodes` y permite el acceso a IMDS a sus _pods_. Si falta alguno de los dos roles, muestra un `[WARN]` y continúa. Cualquier otro error en la política de IAM o en la _GlobalNetworkPolicy_ de IMDS detiene el _script_ en este paso.
+** En EKS con _cluster-autoscaler_, crea la política de IAM de _cluster-autoscaler_ si no existe, la asocia a los roles `eks-nodegroup` y `nodes` y permite el acceso a IMDS a sus _pods_. Si falta alguno de los dos roles, muestra un `[WARN]` y continúa. Cualquier otro error en la política de IAM o en la _GlobalNetworkPolicy_ de IMDS detiene el _script_ en este paso.
 ** Pide el repositorio de Helm.
 
 . *Preactualización*
@@ -386,7 +386,7 @@ clusterctl upgrade apply \
 +
 Se omite si todos los proveedores ya están en su versión de destino y, en modo privado (consulta el <<_uso_de_la_opción_private, uso de la opción `--private`>>), sus imágenes provienen del registro privado. Antes, si cert-manager está gestionado con Helm, el _script_ le quita la etiqueta de `clusterctl`, para que `clusterctl` no lo sustituya. Después, devuelve los _controllers_ de CAPI y del proveedor a 2 réplicas, con `priorityClassName: system-node-critical`.
 +
-NOTE: En las VMs de Azure, el comando también incluye los parámetros `--bootstrap kubeadm:v1.10.10` y `--control-plane kubeadm:v1.10.10`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizarlo, pero Azure VMs usa `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
+NOTE: En las VMs de Azure, el comando también incluye los parámetros `--bootstrap kubeadm:v1.10.10` y `--control-plane kubeadm:v1.10.10`. EKS y GKE gestionan su propio _control-plane_ y no necesitan actualizar estos proveedores, pero Azure VMs usa `KubeadmControlPlane`, el proveedor de _control-plane_ de kubeadm de CAPI, que hay que actualizar por separado.
 
 . *Actualización de la versión de Kubernetes*: cada entorno la hace de una forma distinta. Consulta el apartado "Antes de empezar" del procedimiento de tu entorno.
 

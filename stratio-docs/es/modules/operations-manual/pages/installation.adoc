@@ -72,7 +72,7 @@ Si los permisos se asignan a nivel de suscripción, se recomiendan estos fichero
 ** xref:attachment$stratio-azure-nodes-role.json[Descargar permisos para _workers_ de Azure].
 ** xref:attachment$stratio-azure-cp-role.json[Descargar permisos para el _control-plane_ de Azure].
 +
-Si los permisos se asignan a nivel de grupo de recursos, te recomendamos estos ficheros:
+Si los permisos se asignan a nivel de grupo de recursos, se recomiendan estos ficheros:
 +
 ** xref:attachment$stratio-azure-role-rg.json[Descargar permisos para el usuario de despliegue de Azure].
 ** xref:attachment$stratio-azure-nodes-role-rg.json[Descargar permisos para _workers_ de Azure].
@@ -90,7 +90,7 @@ Si el usuario de despliegue también prepara el prerrequisito de _external-dns_ 
 
 * Sistemas operativos certificados
 +
-Para garantizar la compatibilidad entre el _control-plane_ y los nodos _worker_ en entornos no gestionados de Azure, hay que usar imágenes correctamente configuradas. Te recomendamos generarlas con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes adaptadas a distintos proveedores de _cloud_. Para aprender a construir imágenes personalizadas, consulta la https://image-builder.sigs.k8s.io/[documentación oficial de _Image Builder_].
+Para garantizar la compatibilidad entre el _control-plane_ y los nodos _worker_ en entornos no gestionados de Azure, hay que usar imágenes correctamente configuradas. Se recomienda generarlas con el https://github.com/kubernetes-sigs/image-builder[_Image Builder_ de Kubernetes], una herramienta oficial del proyecto Kubernetes que permite crear imágenes adaptadas a distintos proveedores de _cloud_. Para aprender a construir imágenes personalizadas, consulta la https://image-builder.sigs.k8s.io/[documentación oficial de _Image Builder_].
 
 El sistema operativo recomendado es Ubuntu 22.04, que es el que se configura por defecto en el _controller_ de Azure.
 
@@ -104,7 +104,7 @@ Al crear la imagen para el _cluster_, ten en cuenta los requisitos del sistema o
 
 ==== Elasticsearch
 
-Para admitir los despliegues de Elasticsearch, el sistema operativo debe tener el parámetro `vm.max_map_count = 262144` configurado en _sysctl_, como indica su documentación oficial: https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html.
+Para admitir los despliegues de Elasticsearch, el sistema operativo debe tener el parámetro `vm.max_map_count = 262144` configurado en _sysctl_, como indica su https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html[documentación oficial].
 
 Las imágenes de Amazon Linux 2 *que utiliza EKS* ya incluyen este parámetro y su valor.
 
@@ -581,7 +581,7 @@ En este apartado se detallan las particularidades del _control-plane_ de Kuberne
 ^|Nombre ^|Descripción ^|Ejemplo ^|Opcional
 
 |_aws_
-|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ (`api`, `audit`, `authenticator`, `controllerManager` o `scheduler`) y el rol de IAM de los grupos de nodos gestionados (_MachinePool_) (_mp++_++role++_++name_). Este rol es opcional y solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, el valor que fija _Stratio Cloud Provisioner_ si lo dejas vacío.
+|Valores específicos de EKS. Incluye la configuración del _logging_ del _control-plane_ (`api`, `audit`, `authenticator`, `controllerManager` o `scheduler`) y el rol de IAM de los grupos de nodos gestionados (_MachinePool_) (_mp++_++role++_++name_). El campo es opcional y solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`, el valor que fija _Stratio Cloud Provisioner_ si lo dejas vacío.
 a|
 
 [source,yaml]
@@ -594,8 +594,8 @@ logging:
 
 IMPORTANT: `mp_role_name` solo admite `eks-nodegroup.cluster-api-provider-aws.sigs.k8s.io`. Si lo dejas vacío, _Stratio Cloud Provisioner_ fija ese valor; con cualquier otro valor, la validación del descriptor falla. Este rol lo crea el comando `clusterawsadm bootstrap iam create-cloudformation-stack`, que se ejecuta sobre la cuenta de AWS de una de estas dos formas:
 
-* *Automáticamente, desde _Stratio Cloud Provisioner_*, con `security.aws.create_iam: true`, invoca ese mismo comando como parte de la instalación.
-* *Manualmente, desde el usuario*, con `security.aws.create_iam: false`, como preparación previa de la cuenta de AWS para EKS y CAPA (un prerrequisito habitual en las cuentas que ya se han usado con versiones anteriores).
+* *Automáticamente*: con `security.aws.create_iam: true`, _Stratio Cloud Provisioner_ invoca ese mismo comando como parte de la instalación.
+* *Manualmente*: con `security.aws.create_iam: false`, lo ejecutas tú como preparación previa de la cuenta de AWS para EKS y CAPA (un prerrequisito habitual en las cuentas que ya se han usado con versiones anteriores).
 
 En los dos casos, el resultado es el mismo _stack_ de CloudFormation, con el mismo nombre de rol, así que no hace falta volver a ejecutarlo si la cuenta ya ha pasado alguna vez por ese _bootstrap_.
 
@@ -626,7 +626,7 @@ cluster_security:
   workload_identity_config:
 ----
 
-|Sí. Para más información, consulta la guía de inicio rápido.
+|No. Para más información, consulta la guía de inicio rápido.
 
 |_managed_
 |Indica si el _control-plane_ lo gestiona el proveedor de _cloud_.
@@ -650,7 +650,7 @@ Las imágenes que se utilicen deben estar admitidas por EKS. Consulta la https:/
 |No
 
 |_quantity_
-|Número de nodos del grupo. Te recomendamos que sea un múltiplo de 3, para no tener zonas desequilibradas.
+|Número de nodos del grupo. Se recomienda que sea un múltiplo de 3, para no tener zonas desequilibradas.
 |15
 |No
 
@@ -660,7 +660,7 @@ Las imágenes que se utilicen deben estar admitidas por EKS. Consulta la https:/
 |No
 
 |_max++_++size_/_min++_++size_
-|Número mínimo y máximo de instancias para el autoescalado.
+|Número máximo y mínimo de instancias para el autoescalado.
 |18/6
 |Sí
 
@@ -732,7 +732,7 @@ root_volume:
 |Sí
 
 |_ssh++_++key_
-|Clave SSH pública para acceder a los nodos _worker_. Debe estar creada previamente en AWS. Te recomendamos no añadir ninguna clave SSH a los nodos.
+|Clave SSH pública para acceder a los nodos _worker_. Debe estar creada previamente en AWS. Se recomienda no añadir ninguna clave SSH a los nodos.
 |prod-key
 |Sí
 |===
@@ -1195,7 +1195,7 @@ NOTE: Como el descriptor de la instalación (`keos.yaml`) se regenera en cada ej
 
 Por un error de los distintos _controllers_ (corregido en la rama principal, pero todavía sin una versión publicada), el balanceador de carga que se crea en GCP y en Azure para el _API Server_ de los _clusters_ con _control-plane_ no gestionado se configura con un _health check_ basado en TCP.
 
-Esto puede causar problemas en las peticiones si falla alguno de los nodos del _control-plane_, porque el balanceador de carga envía peticiones a los nodos del _control-plane_ que responden, aunque no puedan atenderlas.
+Esto puede causar problemas en las peticiones si falla alguno de los nodos del _control-plane_, porque el balanceador de carga envía peticiones a los nodos del _control-plane_ cuyo puerto responde, aunque no puedan atenderlas.
 
 Para evitarlo, modifica el _health check_ del balanceador de carga creado para que utilice el protocolo HTTPS y la ruta `/readyz`. Mantén el puerto 443 en GCP y el 6443 en Azure.
 
@@ -1215,7 +1215,7 @@ TIP: Para más información, consulta la documentación oficial de Google sobre 
 
 == Despliegue de _aws-load-balancer-controller_ (solo EKS)
 
-En los _clusters_ de EKS, se puede desplegar un controlador (_aws-load-balancer-controller_) que crea los _Elastic Load Balancers_ que utilizan objetos como los _Ingress_ y los _Service_ de tipo _LoadBalancer_.
+En los _clusters_ de EKS, se puede desplegar un controlador (_aws-load-balancer-controller_) que crea los _Elastic Load Balancers_ para objetos como los _Ingress_ y los _Service_ de tipo _LoadBalancer_.
 
 Como este despliegue no está habilitado por defecto, tienes que indicarlo en el recurso _ClusterConfig_ del descriptor del _cluster_, con `spec.eks_lb_controller: true`.
 
