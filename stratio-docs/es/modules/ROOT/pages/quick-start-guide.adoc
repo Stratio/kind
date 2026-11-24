@@ -7,7 +7,7 @@
 * Usuario con los privilegios necesarios en AWS:
 ** Crear el usuario para la instalación.
 ** Crear la política según xref:attachment$stratio-eks-policy.json[_stratio-eks-policy.json_].
-** Crear la política según xref:attachment$stratio-aws-temp-policy.json[_stratio-temp-policy.json_] (sólo para el aprovisionamiento).
+** Crear la política según xref:attachment$stratio-aws-temp-policy.json[_stratio-aws-temp-policy.json_].
 ** Adjuntar políticas al usuario.
 ** Crear una clave de acceso.
 * Zonas DNS privadas y públicas creadas en AWS (opcional).
@@ -35,25 +35,22 @@ Asimismo, se pueden indicar *grupos de nodos _worker_* con las siguientes opcion
 * _max++_++size_: número máximo de nodos para el autoescalado (opcional).
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root++_++volume_: particularidades del disco (opcional).
-** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: gp3).
-** _encrypted_: cifrado del disco (por defecto: _false_).
+** _size_: tamaño en GB. Si no se especifica, se utiliza el valor predeterminado de EKS. En EKS, _type_ y _encrypted_ no tienen efecto.
 * _ssh++_++key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).
-* _node++_++image_: imagen de los nodos _worker_ (opcional). La imagen indicada deberá existir y ser compatible con EKS.
+* _ami++_++type_: tipo de AMI del grupo (opcional): `BOTTLEROCKET_x86_64` (por defecto) o `BOTTLEROCKET_x86_64_NVIDIA`. En EKS no se admite _node++_++image_.
 * _zone++_++distribution_: indica si la cantidad de nodos debe quedar balanceada en las zonas o no (por defecto: _balanced_).
 * _az_: zona del grupo de _workers_ (opcional). En caso de especificarse, solamente se utilizará ésta para todo el grupo. Este parámetro invalida lo especificado en _zone++_++distribution_.
 
-NOTE: Por defecto, el reparto de nodos se hará en las zonas a, b y c de la región indicada de forma balanceada, por lo tanto, el resto de la división por tres de la cantidad de nodos se descartará. Ejemplo: si se indica "quantity=7", sólo se desplegarán 2 nodos en cada una de las zonas.
+NOTE: Por defecto, el reparto de nodos se realizará de forma balanceada entre las zonas a, b y c de la región indicada, por lo que _quantity_ debe ser 0 o un múltiplo de 3. Ejemplo: si se indica 'quantity=6', se desplegarán 2 nodos en cada zona.
 
 ==== _keos-installer_
 
-A modo de facilitar la instalación de _Stratio KEOS_, en el proceso de provisión se genera un fichero _keos.yaml_ funcional y listo para poder lanzar la instalación. Para ello, en el descriptor del _cluster_ se podrá indicar la versión y _flavour_ (_production_, _development_ o _minimal_).
+A modo de facilitar la instalación de _Stratio KEOS_, durante el proceso de provisión se genera un fichero _keos.yaml_ funcional, listo para iniciar la instalación. Para ello, en el descriptor del _cluster_ se podrá especificar el _flavour_ (_production_, _development_ o _minimal_).
 
 [source,yaml]
 ----
   keos:
-    version: 1.0.2
     flavour: development
 ----
 
@@ -79,8 +76,7 @@ $ tar xvzf cloud-provisioner-*tar.gz
 $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster "example-eks" ...
- ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (cloud-provisioner:<version>) 📸
+ ✓ Ensuring node image (cloud-provisioner:0.9.9) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -121,8 +117,6 @@ aws eks update-kubeconfig --region <region> --name <cluster_id> --kubeconfig ./<
 kubectl --kubeconfig ./<cluster_id>.kubeconfig get nodes
 ----
 
-Aquí, se podrán eliminar los permisos de _clusterawsadm.json_.
-
 A continuación, se procederá a desplegar _Stratio KEOS_ *utilizando _keos-installer_*.
 
 == GKE
@@ -155,7 +149,7 @@ TIP: Se recomienda crear un bastión para proceder a la instalación.
 ==== Requisitos del bastión
 
 - Tener Docker instalado (versión 27.0.3 o superior).
-- Tener una imagen local: _cloud-provisioner:<version>_.
+- Tener una imagen local: _cloud-provisioner:0.9.9_.
 
 ==== Requisitos de _Workload Identity_
 
@@ -222,7 +216,7 @@ En cuanto al _control-plane_, en el descriptor del _cluster_ se puede indicar qu
 * _cluster++_++network_ (obligatorio): define la red del _cluster_.
 ** _private++_++cluster_ (obligatorio): define la _spec_ del _cluster_ privado.
 *** _enable++_++private++_++endpoint_ (obligatorio/immutable; por defecto: "true"): indica si se utiliza la dirección IP interna del _master_ como _endpoint_ del _cluster_.
-*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (obligatorio/immutable): es el rango de IP en notación CIDR que se utilizará para la red del _master_. Este rango no debe superponerse con ningún otro rango en uso dentro de la red del _cluster_. Se aplica cuando _enabled++_++private++_++nodes_ es "true" (valor por defecto) y debe ser una subred /28.
+*** _control++_++plane++_++cidr++_++block_ (master-ipv4-cidr) (obligatorio/immutable): es el rango de IP en notación CIDR que se utilizará para la red del _master_. Este rango no debe superponerse a ningún otro rango en uso dentro de la red del _cluster_. Debe ser una subred /28.
 * _ip++_++allocation++_++policy_ (opcional/immutable): representa las opciones de configuración para la asignación de IP del _cluster_ GKE (si no se especifica, se usarán los valores predeterminados de GKE).
 ** _cluster++_++ipv4++_++cidr++_++block_: representa el rango de direcciones IP para las IP de los _pods_ del _cluster_ GKE (si no se especifica, se elegirá el rango con el tamaño predeterminado).
 ** _services++_++ipv4++_++cidr++_++block_: representa el rango de direcciones IP para las IP de los servicios del _cluster_ GKE (si no se especifica, se elegirá el rango con el tamaño predeterminado).
@@ -247,8 +241,8 @@ NOTE: Al habilitar la configuración de redes autorizadas, se impedirá que todo
 
 NOTE: Cualquier modificación de estos parámetros solo tiene efecto durante la creación del _cluster_. Los cambios posteriores no se aplican a los _clusters_ ya existentes.
 
-* _cluster++_++network_ (opcional): define la configuración de seguridad del _cluster_.
-** _workload_++_++identity++_++config_ (obligatorio): permite que las cargas de trabajo del _cluster_ de GKE suplanten las cuentas de servicio de _Identity and Access Management_ (IAM) para acceder a los servicios de Google Cloud.
+* _cluster++_++security_ (opcional): define la configuración de seguridad del _cluster_.
+** _workload++_++identity++_++config_ (obligatorio): permite que las cargas de trabajo del _cluster_ de GKE suplanten las cuentas de servicio de _Identity and Access Management_ (IAM) para acceder a los servicios de Google Cloud.
 *** _enabled_ (obligatorio): habilita _Workload Identity_ en el _cluster_.
 *** _workload++_++pool_ (obligatorio, valor por defecto: `spec.credentials.gcp.project_id.svc.id.goog`): _pool_ de identidades utilizado para asociar las cuentas de servicio de Kubernetes con los servicios de Google Cloud.
 *** _service++_++accounts_ (obligatorio: "flux"): lista de cuentas de servicio de Google Cloud vinculadas a las cuentas de servicio de Kubernetes.
@@ -264,22 +258,22 @@ En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con la
 * _max++_++size_: número máximo de nodos para el autoescalado (opcional).
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _taints_: _taints_ de los nodos en Kubernetes (opcional).
+* _additional++_++labels_: etiquetas adicionales del _node pool_ (opcional). Incluye `goog-gke-node-pool-provisioning-model: on-demand` para evitar el xref:operations-manual:operations-manual.adoc#_bucle_de_reconciliación_en_gke_por_etiquetas_automáticas[bucle de reconciliación de CAPG].
 * _root++_++volume_: particularidades del disco (opcional).
-** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: Managed).
+** _size_: tamaño en GB. Si no se indica, se usa el valor por defecto de GKE.
+** _type_: tipo de disco. Si no se indica, se usa el valor por defecto de GKE.
 * _zone++_++distribution_: indica si la cantidad de nodos debe quedar balanceada en las zonas o no (por defecto: _balanced_).
 * _az_: zona del grupo de _workers_ (opcional). En caso de especificarse, solamente se utilizará esta para todo el grupo. Este parámetro invalida lo especificado en _zone++_++distribution_.
 
-NOTE: Por defecto, el reparto de nodos se hará en las zonas a, b y c de la región indicada de forma balanceada, por lo tanto, el resto de la división por tres de la cantidad de nodos se descartará. Ejemplo: si se indica 'quantity=7', sólo se desplegarán 2 nodos en cada una de las zonas.
+NOTE: Por defecto, el reparto de nodos se realizará de forma balanceada entre las zonas a, b y c de la región indicada, por lo que _quantity_ debe ser 0 o un múltiplo de 3. Ejemplo: si se indica 'quantity=6', se desplegarán 2 nodos en cada zona.
 
 ==== _keos-installer_
 
-A modo de facilitar la instalación de _Stratio KEOS_, en el proceso de provisión se genera un fichero _keos.yaml_ funcional y listo para poder lanzar la instalación. Para ello, en el descriptor del _cluster_ se podrá indicar la versión y _flavour_ (_production_, _development_ o _minimal_).
+A modo de facilitar la instalación de _Stratio KEOS_, en el proceso de provisión se genera un fichero _keos.yaml_ funcional y listo para poder lanzar la instalación. Para ello, en el descriptor del _cluster_ se podrá indicar el _flavour_ (_production_, _development_ o _minimal_).
 
 [source,yaml]
 ----
   keos:
-    version: 1.1.2
     flavour: development
 ----
 
@@ -314,7 +308,7 @@ $ tar xvzf cloud-provisioner-*tar.gz
 $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --use-local-stratio-image --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster "example-gke" ...
- ✓ Using local Stratio image (cloud-provisioner:<version>) 🖼
+ ✓ Using local Stratio image (cloud-provisioner:0.9.9) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
@@ -390,8 +384,8 @@ Para este proveedor, el _control-plane_ se desplegará en máquinas virtuales, p
 * _size_: tipo de instancia.
 * _node++_++image_: imagen de los nodos del _control-plane_ (opcional). La imagen indicada deberá existir en la cuenta.
 * _root++_++volume_: particularidades del disco (opcional).
-** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: Standard_LRS).
+** _size_: tamaño en GB. Si no se indica, se usa el valor por defecto de Azure.
+** _type_: tipo de disco. Si no se indica, se usa el valor por defecto de Azure.
 
 ==== Nodos _worker_
 
@@ -404,24 +398,23 @@ En el descriptor del _cluster_ se pueden indicar grupos de nodos _worker_ con la
 * _max++_++size_: número máximo de nodos para el autoescalado (opcional).
 * _labels_: etiquetas de los nodos en Kubernetes (opcional).
 * _root++_++volume_: particularidades del disco (opcional).
-** _size_: tamaño en GB (por defecto: 30GB).
-** _type_: tipo de disco (por defecto: Standard_LRS).
+** _size_: tamaño en GB. Si no se indica, se usa el valor por defecto de Azure.
+** _type_: tipo de disco. Si no se indica, se usa el valor por defecto de Azure.
 * _ssh++_++key_: clave SSH para acceso a los nodos (opcional). Debe existir en el proveedor.
 * _spot_: indica si la instancia es de tipo _spot_ (opcional).
 * _node++_++image_: imagen de los nodos _worker_ (opcional). La imagen indicada deberá existir en la cuenta.
 * _zone++_++distribution_: indica si la cantidad de nodos debe quedar balanceada en las zonas o no (por defecto: _balanced_).
 * _az_: zona del grupo de _workers_ (opcional). En caso de especificarse, solamente se utilizará ésta para todo el grupo. Este parámetro invalida lo especificado en _zone++_++distribution_.
 
-NOTE: Por defecto, el reparto de nodos se hará en las zonas a, b y c de la región indicada de forma balanceada, por lo tanto, el resto de la división por tres de la cantidad de nodos se descartará. Ejemplo: si se indica 'quantity=7', sólo se desplegarán 2 nodos en cada una de las zonas.
+NOTE: Por defecto, el reparto de nodos se realizará de forma balanceada entre las zonas a, b y c de la región indicada, por lo que _quantity_ debe ser 0 o un múltiplo de 3. Ejemplo: si se indica 'quantity=6', se desplegarán 2 nodos en cada zona.
 
 ==== _keos-installer_
 
-A modo de facilitar la instalación de _Stratio KEOS_, en el proceso de provisión se genera un fichero _keos.yaml_ funcional y listo para poder lanzar la instalación. Para ello, en el descriptor del _cluster_ se podrá indicar la versión y _flavour_ (_production_, _development_ o _minimal_).
+A modo de facilitar la instalación de _Stratio KEOS_, durante el proceso de provisión se genera un fichero _keos.yaml_ funcional, listo para iniciar la instalación. Para ello, en el descriptor del _cluster_ se podrá especificar el _flavour_ (_production_, _development_ o _minimal_).
 
 [source,yaml]
 ----
   keos:
-    version: 1.0.2
     flavour: development
 ----
 
@@ -447,8 +440,7 @@ $ tar xvzf cloud-provisioner-*tar.gz
 $ sudo ./bin/cloud-provisioner create cluster --name <cluster_id> --descriptor cluster.yaml
 Vault Password:
 Creating temporary cluster "example-azure" ...
- ✓ Ensuring node image (kindest/node:v1.27.0) 🖼
- ✓ Building Stratio image (cloud-provisioner:<version>) 📸
+ ✓ Ensuring node image (cloud-provisioner:0.9.9) 🖼
  ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️

@@ -1,0 +1,354 @@
+= Upgrade in Azure VMs
+
+:sectnums:
+:sectnumlevels: 1
+
+This procedure upgrades an Azure VMs cluster created with _Stratio Cloud Provisioner_ 0.7.x and Kubernetes 1.32 to version 0.9.9 with Kubernetes 1.35. Read the complete procedure before applying it, then follow the sections in order.
+
+== Before starting
+
+In Azure VMs, the upgrade changes the following:
+
+* The components of the Azure VMs column of the xref:operations-manual:upgrade.adoc#_what_is_upgraded[what is upgraded] table.
+* The Kubernetes version of the _control-plane_ and of the worker groups that have `node_image`, from minor to minor: 1.33, 1.34, and 1.35. In each step, the script waits for the _control-plane_ and those groups to reach the version before moving on to the next one (see the <<_cambio_de_versión_de_kubernetes_en_azure_vms, Kubernetes version change in Azure VMs>>).
+
+IMPORTANT: The Kubernetes version change is the point of no return. The script asks for confirmation before applying it (see xref:operations-manual:upgrade.adoc#_prompts_interactivos[interactive prompts]) and does not allow reverting to an earlier version.
+
+In Azure VMs, only the `upgrade-provisioner.py` script of the upgrade image is used.
+
+[#_cambio_de_versión_de_kubernetes_en_azure_vms]
+
+=== Kubernetes version change in Azure VMs
+
+The Azure VMs _control-plane_ is a Cluster API `KubeadmControlPlane`. Its webhook rejects jumps of two or more minors, so the script applies one change per minor (1.32 → 1.33 → 1.34 → 1.35) and waits for each one to finish before applying the next.
+
+In each step, the script:
+
+. Changes the Kubernetes version (`vX.Y.0`) and the VM image of the _control-plane_ and of the worker groups that have `node_image` in the `KeosCluster`. The image is taken from `--node-image-map`.
+. Waits for the `KubeadmControlPlane` to be on the new version, ready, and for all its replicas to be updated. The limit is `--control-plane-timeout` (90 minutes by default).
+. Waits for the worker groups with `node_image` to have all their replicas ready on the new version. It also waits for the nodes' `kubeletVersion` to match that minor version. The limit is `--node-convergence-timeout` (90 minutes by default): it only aborts when no node advances during that time. A group that cluster-autoscaler has reduced to zero nodes is also upgraded: its `MachineDeployment` moves to the new version and the new image. Since it has no nodes, the script does not wait for any and continues with the next group.
+. Waits 90 seconds before the next step.
+
+While the version change lasts, the script temporarily modifies two objects and undoes the changes on finishing: the `allow-all-traffic-from-control-plane` `GlobalNetworkPolicy` and the Capsule validation webhook, which _Stratio KEOS_ installs. When they do not exist in the cluster, it does nothing with them:
+
+* Opens the `allow-all-traffic-from-control-plane` `GlobalNetworkPolicy` to the network CIDR and to the pod CIDR of the cluster. When finished, it regenerates it with the IP addresses of the _control-plane_ nodes at that moment.
+* Removes the `nodes.capsule.clastix.io` entry from the Capsule validation webhook, since it can block the joining of the new _control-plane_ replicas. On finishing, it adds it again.
+
+When the process is interrupted partway through the version change, see the <<_proceso_interrumpido_durante_el_cambio_de_versión, process interrupted during the version change>> before relaunching it.
+
+== Requirements
+
+In addition to the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], in Azure VMs the following are needed:
+
+* That the service principal credentials in `secrets.yml` (`client_id`, `client_secret`, `tenant_id`, and `subscription_id`) continue to be valid. The script uses them to sign in to the Azure CLI and passes them to Cluster API.
+* A Kubernetes VM image for each minor of the change: 1.33, 1.34, and 1.35. Each step needs the image for its minor, not the final target. Each image has to be a complete resource ID, with one of these two formats:
+** `/subscriptions/<id>/resourceGroups/<group>/providers/Microsoft.Compute/images/<image>`
+** `/CommunityGalleries/<gallery>/Images/<image>/Versions/<version>`
++
+A Compute Gallery (SIG) image is not valid: the `KeosCluster` webhook rejects it.
++
+IMPORTANT: The 1.33 image must be built with `kubeadm` v1.33.13 or later. With earlier versions, the move to 1.34 does not finish: the new _control-plane_ replicas remain etcd learners and are not promoted.
+
+NOTE: In Azure VMs, the script does not regenerate the kubeconfig. When it cannot access the cluster on startup (`kubectl get ns`), it stops. Update the kubeconfig credentials and run it again.
+
+== Permissions
+
+Before starting, check the service principal permissions in `secrets.yml`. It needs the same permissions as in the installation:
+
+* With subscription-level permissions, those of xref:attachment$stratio-azure-role.json[`stratio-azure-role.json`].
+* With resource-group-level permissions, those of xref:attachment$stratio-azure-role-rg.json[`stratio-azure-role-rg.json`] and those of xref:attachment$stratio-azure-acr.json[`stratio-azure-acr.json`].
+
+== Upgrade container
+
+=== Preparation
+
+Go to the working directory from which you will run the container. Usually, it is the same workspace from which the cluster and _keos-installer_ were installed, because it probably already contains several necessary files (see <<_estructura_necesaria, necessary structure>>); if not, use a specific directory.
+
+Create a local directory for the backups:
+
+[source,bash]
+----
+mkdir -p $PWD/backup
+----
+
+[#_estructura_necesaria]
+
+=== Necessary structure
+
+Make sure that the working directory includes the following elements. Only what is mounted from the host is needed; the main script, the Jinja2 templates, and the dependencies are already in the image, and there is no need to have them here:
+
+* `secrets.yml`: the cluster credentials.
+* `.kube/config`: the cluster _kubeconfig_ file.
+* `backup/`: the directory for the backups (can be empty at the start).
+
+=== Container execution
+
+Download the image:
+
+[source,bash]
+----
+docker pull <registry>/cloud-provisioner-upgrade:0.9.9
+----
+
+Start the container:
+
+[source,bash]
+----
+docker run \
+  --name cloud-provisioner-upgrade-0.9.9 \
+  --net host \
+  -it \
+  -v $PWD/secrets.yml:/upgrade/secrets.yml \
+  -v $PWD/.kube/config:/upgrade/.kube/config \
+  -v $PWD/backup:/upgrade/backup \
+  <registry>/cloud-provisioner-upgrade:0.9.9
+----
+
+NOTE: The script does not generate its own timestamped log file; all output is sent to the container console. To keep a complete record of the execution, redirect the output to a file on the mounted volume; for example, add `2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log` to the script command.
+
+Run the `kubectl` commands in this procedure inside the container, using the mounted kubeconfig.
+
+== Prior checks
+
+In addition to the functional checks of the xref:operations-manual:upgrade.adoc#_common_requirements[common requirements], in Azure VMs, check the following:
+
+* _Control-plane_:
++
+[source,bash]
+----
+kubectl -n cluster-<cluster-name> get kubeadmcontrolplane
+----
++
+*Expected output:* `INITIALIZED` and `API SERVER AVAILABLE` at `true`; the same number in `REPLICAS`, `READY`, and `UPDATED`, and `UNAVAILABLE` at `0`.
+
+* Machines in execution:
++
+[source,bash]
+----
+kubectl get machines -A
+----
++
+*Expected output:* all with `PHASE = Running`.
+
+* _MachineDeployments_:
++
+[source,bash]
+----
+kubectl get machinedeployments -A
+----
++
+*Expected output:*
++
+** `READY = REPLICAS`
+** `UNAVAILABLE = 0`
+
+* Provider pods:
++
+[source,bash]
+----
+kubectl get pods -n capz-system
+----
++
+*Expected output:* all the pods in `Running` state.
+
+* Provider logs:
++
+[source,bash]
+----
+kubectl logs -n capz-system -l control-plane=capz-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: When any error appears, review it before continuing.
+
+NOTE: In addition, the script checks that the `ClusterRoleBinding` called `kubeadm:apiserver-kubelet-client` exists. If it is missing, it creates it because, without it, the Cluster API etcd health checks can leave the version change hanging. With `--dry-run`, it does not create it.
+
+== Dry-run of `upgrade-provisioner.py`
+
+Inside the container, run the script with the `--dry-run` option and the image map. It does not change anything in the cluster:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> --dry-run --node-image-map '{
+  "1.33": "<resource-id-of-the-1.33-image>",
+  "1.34": "<resource-id-of-the-1.34-image>",
+  "1.35": "<resource-id-of-the-1.35-image>"
+}' 2>&1 | tee /upgrade/backup/upgrade-dry-run-$(date +%Y%m%d-%H%M%S).log
+----
+
+This is an example of a map with images from Stratio's Community Gallery:
+
+[source,json]
+----
+{
+  "1.33": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.33.13",
+  "1.34": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.34.3",
+  "1.35": "/CommunityGalleries/stratio-b00cbc3d-2c79-4721-a4d8-3a2ffbd01854/Images/k8s-node-2204/versions/1.35.8"
+}
+----
+
+The dry-run validates the image map: when it is missing, not valid JSON, an image does not have a valid format, or a minor is missing, the script stops with the corresponding error. It is the only point at which an incomplete map is detected before changing the cluster.
+
+In dry-run, the script only asks about the Helm repository: press Enter to keep the current one if there is no change, or type the URL of the target repository.
+
+*Expected output:*
+
+* At the start, "[INFO] Mode: DRY-RUN (no changes will be applied)".
+* "[INFO] Bumping k8s_version: DRY-RUN".
+* At the end, "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: DRY-RUN (no changes were applied)".
+
+When any `[WARN]` or `[ERROR]` appears, correct it and repeat the dry-run before the actual upgrade. The exception is "[WARN] ClusterRoleBinding kubeadm:apiserver-kubelet-client is missing … Creating it now.": the dry-run does not create that object, and the actual execution does.
+
+== Execution of `upgrade-provisioner.py`
+
+Inside the container, launch the upgrade with the same image map:
+
+[source,bash]
+----
+python3 upgrade-provisioner.py -p <vault-password> --node-image-map '{
+  "1.33": "<resource-id-of-the-1.33-image>",
+  "1.34": "<resource-id-of-the-1.34-image>",
+  "1.35": "<resource-id-of-the-1.35-image>"
+}' 2>&1 | tee /upgrade/backup/upgrade-$(date +%Y%m%d-%H%M%S).log
+----
+
+Respond to the prompts in this order:
+
+. "Press ENTER to continue upgrading the cluster or any other key to abort:": press Enter.
+. "The current helm repository is: <url>. Do you want to indicate a new helm repository? Press enter or specify new repository:" press Enter to keep the current repository if there is no change, or type the URL of the target repository.
+. "Proceed with the k8s_version bump <current version> -> v1.35.0? [y/N]:" type `y`. It is the point of no return.
+
+*Expected output on finishing:* "[INFO] Upgrade process finished successfully in ..." and "[INFO] Mode was: REAL — changes were applied".
+
+== Tracking the upgrade
+
+While the script runs, follow the state of the cluster from your machine, in another terminal, with your own kubeconfig:
+
+include::partial$upgrade-monitoring.adoc[]
+
+=== `k8s_version` change
+
+During the version change, the script shows one line per step: `Stepping control plane to vX.Y.0`, `Waiting for the real control plane to reach vX.Y.0`, `Waiting for the real worker nodes (<group>) to reach vX.Y.0`, and `Letting the cluster settle for 90s before the next step`.
+
+While the _control-plane_ replicas are being replaced, the lines "[INFO] 1 control-plane Node(s) with no matching Machine — holding until the confirmation window elapses" and "[INFO] 1 etcd member(s) with no matching Node — holding until the confirmation window elapses" may appear. When the wait ends in `OK`, there is no need to do anything.
+
+When that state lasts 10 minutes, the script deletes the node or the etcd member and indicates it with "[INFO] Deleted orphaned Node <node>" or "[INFO] Removed orphaned etcd member <member>". It only deletes a _control-plane_ node without a `Machine` and with the `Ready` condition at `Unknown`, and an etcd member that does not respond and does not correspond to any node. It does not delete anything when the cluster has fewer than two _control-plane_ nodes or fewer than three etcd members.
+
+The script waits for the worker groups one after another, in the order of `spec.worker_nodes` of the `KeosCluster`. The `MachineDeployment` objects change version one by one, even within the same group: while one is upgraded, the others may continue on the previous version until it is their turn.
+
+Follow the _control-plane_ and the nodes:
+
+[source,bash]
+----
+watch -n30 kubectl -n cluster-<cluster-name> get kubeadmcontrolplane,machinedeployments
+watch -n30 kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
+----
+
+*Expected output:* the version advances from minor to minor (1.33, 1.34, and 1.35) on the `KubeadmControlPlane`, on the _MachineDeployments_, and on the `kubeletVersion` of the nodes.
+
+== Subsequent checks
+
+In addition to the common xref:operations-manual:upgrade.adoc#_final_verification[final verification], in Azure VMs, check the following:
+
+* _Control-plane_, worker groups, and nodes:
++
+[source,bash]
+----
+kubectl -n cluster-<cluster-name> get kubeadmcontrolplane,machinedeployments
+kubectl get machines -A
+kubectl get nodes -o custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion
+----
++
+*Expected output:* all the machines with `PHASE = Running`; the `KubeadmControlPlane` and the _MachineDeployments_ with `node_image` at `v1.35.0`; and all their nodes with a `kubeletVersion` of `v1.35.<patch>`, corresponding to the 1.35 version image of the map (for example, `v1.35.8`).
+
+* _Control-plane_ network policy, when the cluster has it:
++
+[source,bash]
+----
+kubectl get globalnetworkpolicy allow-all-traffic-from-control-plane -o jsonpath='{.spec.ingress[0].source.nets}{"\n"}'
+----
++
+*Expected output:* only `/32` addresses, those of the _control-plane_ nodes. When the network and pod CIDRs appear (for example, `10.0.0.0/16`), the temporary opening has not been undone (see the <<_proceso_interrumpido_durante_el_cambio_de_versión, process interrupted during the version change>>).
+
+* Capsule node webhook, when the cluster has Capsule:
++
+[source,bash]
+----
+kubectl get validatingwebhookconfiguration capsule-validating-webhook-configuration \
+  -o jsonpath='{range .webhooks[*]}{.name}{"\n"}{end}' | grep nodes.capsule.clastix.io
+----
++
+*Expected output:* `nodes.capsule.clastix.io`.
+
+* cluster-autoscaler image, when the cluster has it:
++
+[source,bash]
+----
+kubectl -n kube-system get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}' | grep cluster-autoscaler
+----
++
+*Expected output:* with a private registry, `<registry>/autoscaling/cluster-autoscaler:v1.35.3`; without a private registry, `registry.k8s.io/autoscaling/cluster-autoscaler:v1.35.3`.
+
+* cloud-provider-azure image:
++
+[source,bash]
+----
+kubectl -n kube-system get deploy cloud-controller-manager -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+kubectl -n kube-system get ds cloud-node-manager -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+----
++
+*Expected output:* the two images with the `v1.35.9` tag.
+
+* Provider logs:
++
+[source,bash]
+----
+kubectl logs -n capz-system -l control-plane=capz-controller-manager --tail=-1 --since=1h | grep '^E'
+----
++
+NOTE: When any error appears, review it before continuing.
+
+== Troubleshooting
+
+include::partial$upgrade-recovery.adoc[]
+
+[#_proceso_interrumpido_durante_el_cambio_de_versión]
+
+=== Process interrupted during the version change
+
+When the script process ends forcibly during the Kubernetes version change (for example, when the container is stopped), the temporary changes to the network policy and to the Capsule webhook may remain applied when those objects exist in the cluster. When the script fails with an error, it undoes them itself.
+
+When the container was stopped, enter it again. Do not launch another `docker run` with the same name, because it fails with the error "Conflict. The container name "/cloud-provisioner-upgrade-0.9.9" is already in use":
+
+[source,bash]
+----
+docker start -ai cloud-provisioner-upgrade-0.9.9
+----
+
+Before relaunching it, wait for the `KeosCluster` to finish applying the version that the interrupted process left. cluster-operator continues applying it on its own and, in the meantime, the script stops at its initial checks with the error "KeosCluster.status.ready = False (expected true)":
+
+[source,bash]
+----
+kubectl get keoscluster -n cluster-<cluster-name>
+----
+
+*Expected output:* `READY` at `true` and `PHASE` at `Provisioned`.
+
+Before relaunching it, also check the two changes when the cluster has them:
+
+[source,bash]
+----
+kubectl get globalnetworkpolicy allow-all-traffic-from-control-plane -o jsonpath='{.spec.ingress[0].source.nets}{"\n"}'
+kubectl get validatingwebhookconfiguration capsule-validating-webhook-configuration \
+  -o jsonpath='{range .webhooks[*]}{.name}{"\n"}{end}'
+----
+
+When it is run again with the same command, the script continues from the minor on which the cluster is. When it finishes, it restores what the interrupted process left half-finished: the `KeosCluster` webhooks, the `HelmRelease` of cluster-operator without suspended state, and cluster-autoscaler with its replicas.
+
+IMPORTANT: When the process was interrupted after removing the `nodes.capsule.clastix.io` entry, the next launch does not recover it because each execution saves its copies in a new directory and cannot find the previous one. After finishing the upgrade, when the entry is missing, add it from the copy of the interrupted execution:
+
+[source,bash]
+----
+kubectl get validatingwebhookconfiguration capsule-validating-webhook-configuration -o json \
+  | jq --slurpfile e backup/upgrade/<timestamp>/capsule/nodes-webhook-entry.json '.webhooks += $e' \
+  | kubectl replace -f -
+----

@@ -34,8 +34,8 @@ In turn, the "kw" alias can be used from the local container to interact with th
 ----
 root@example-azure-control-plane:/# kw get nodes
 NAME                                STATUS   ROLES           AGE   VERSION
-example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.26.8
-example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.26.8
+example-azure-control-plane-6kp94   Ready    control-plane   60m   v1.35.8
+example-azure-control-plane-fgkcc   Ready    control-plane   63m   v1.35.8
 ...
 ----
 
@@ -419,11 +419,11 @@ spec:
 
 image::autoescalado.png[]
 
-For node autoscaling, _cluster-autoscaler_ detects pods pending due to a lack of resources and scales the node group it deems necessary based on deployment filters.
+For autoscaling nodes, the cluster-autoscaler is used; it detects pods that cannot run due to a lack of resources and scales the node group it deems necessary, according to the deployments' filters.
 
-This operation runs on the _API Server_, where the controllers create virtual machines on the cloud provider and add them to the cluster as Kubernetes worker nodes.
+This operation is performed on the _API Server_, where the controllers create virtual machines on the cloud provider and add them to the cluster as Kubernetes worker nodes.
 
-Since autoscaling is based on _cluster-autoscaler_, the minimum and maximum in the node group will be added in the _KeosCluster_ resource:
+Since autoscaling is based on cluster-autoscaler, indicate the minimum and the maximum of each node group in the _KeosCluster_ resource:
 
 [source,yaml]
 ----
@@ -436,30 +436,92 @@ spec:
       ...
 ----
 
+NOTE: In EKS, the _MachinePool_ objects with `min_size` and `max_size` carry the `cluster.x-k8s.io/replicas-managed-by` annotation, which leaves the number of replicas to the cluster-autoscaler. Do not remove it: without it, CAPA may send EKS an outdated replica count.
+
+NOTE: In EKS, the cluster rejects a change of `min_size`, `max_size`, or `quantity` in a _MachinePool_ group in these cases:
+
+* The EKS nodegroup is not in `ACTIVE` state (for example, because it has an in-progress change made from the console or from the AWS CLI).
+* The desired size of the nodegroup does not yet match that of its Auto Scaling group. This happens for a few minutes after each cluster-autoscaler change.
+* Any nodegroup is left with a minimum above its number of nodes or with a maximum below it. That number of nodes is the one the new `quantity` sets if you change it; otherwise, it is the current one.
+* The cluster cannot query AWS with its credentials.
+
+In the first two cases, repeat the change after a few minutes.
+
+NOTE: cluster-autoscaler may not scale a group from zero after changing its labels or its taints. See the xref:ROOT:known-issues.adoc#cluster-autoscaler-grupo-sin-nodos-etiquetas-taints[known issue and its solution].
+
 ==== Test
 
-To test the autoscaling, a _Deployment_ can be created with enough replicas so that they cannot be scheduled on the current nodes:
+To test the autoscaling, create a _Deployment_ with more replicas than can be run on the current nodes:
 
 [source,bash]
 ----
 kubectl create deploy test --replicas 1500 --image nginx:alpine
 ----
 
-Upon finishing the test, the _Deployment_ is deleted:
+On finishing the test, delete the _Deployment_:
 
 [source,bash]
 ----
-kubectl --kubeconfig demo-eks.kubeconfig delete deploy test
+kubectl delete deploy test
 ----
 
 ==== Logs
 
-The _cluster-autoscaler_ logs can be viewed from its _Deployment_:
+You can view the cluster-autoscaler logs from its _Deployment_. In unmanaged Azure:
 
 [source,bash]
 ----
 kubectl -n kube-system logs -f -l app.kubernetes.io/name=clusterapi-cluster-autoscaler
 ----
+
+In EKS, cluster-autoscaler uses the `aws` provider:
+
+[source,bash]
+----
+kubectl -n kube-system logs -f -l app.kubernetes.io/name=aws-cluster-autoscaler
+----
+
+In EKS clusters upgraded from version 0.7.x, the `cluster-autoscaler-aws` instance is installed with 0 replicas and has no logs. The previous instance continues to scale the _MachineDeployment_ objects: view its logs with the command for unmanaged Azure.
+
+[[eks-activar-cluster-autoscaler-aws]]
+
+==== Enabling `cluster-autoscaler-aws` in EKS
+
+In EKS clusters upgraded from 0.7.x, enable the `cluster-autoscaler-aws` instance when _MachinePool_ groups are to be used, because it is the instance that scales those groups.
+
+Enable it from its Helm values. Do not use `kubectl scale`, because any release update returns the _Deployment_ to the replicas defined in its values.
+
+. Save the instance's own values to a file:
++
+[source,bash]
+----
+kubectl -n kube-system get configmap 02-cluster-autoscaler-aws-helm-chart-override-values -o jsonpath='{.data.values\.yaml}' > cluster-autoscaler-aws-values.yaml
+----
++
+If the file already has a `replicaCount` line, change it to `replicaCount: 2`, then move on to step 3.
+
+. Add `replicaCount: 2` to the file:
++
+[source,bash]
+----
+printf '\nreplicaCount: 2\n' >> cluster-autoscaler-aws-values.yaml
+----
+
+. Replace the _ConfigMap_ with the content of the file:
++
+[source,bash]
+----
+kubectl -n kube-system create configmap 02-cluster-autoscaler-aws-helm-chart-override-values --from-file=values.yaml=cluster-autoscaler-aws-values.yaml --dry-run=client -o yaml | kubectl replace -f -
+----
+
+. Check that Flux applies the change:
++
+[source,bash]
+----
+kubectl -n kube-system get deployment cluster-autoscaler-aws-cluster-autoscaler
+----
++
+*Expected output:* `READY` at `2/2` after a few minutes.
 
 === Kubernetes upgrade
 
@@ -534,7 +596,7 @@ To start the upgrade, once the prerequisites are satisfied, a patch of _spec.k8s
 
 [source,bash]
 ----
-kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.32.x"}}'
+kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge -p '{"spec": {"k8s_version": "v1.35.x"}}'
 ----
 
 NOTE: The controller provisions a new node of the worker group with the updated version and, once it is _Ready_ in Kubernetes, deletes a node with the previous version. This way, the configured number of nodes is guaranteed.
