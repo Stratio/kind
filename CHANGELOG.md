@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5526] `upgrade-providers.py` stops every cluster-autoscaler during the migration: the `clusterapi` one and the
+  `aws` ones of EKS. The `aws` ones go back to their replicas after the final verification, so no scaling changes the
+  nodes while the script checks the result; on a `--resume-from` relaunch they take the replicas from that backup when
+  the interrupted run left them at 0. The verification waits up to 5 minutes for the `KeosCluster` to be
+  ready/Provisioned before failing.
 * [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
   user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
   sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
