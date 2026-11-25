@@ -11,7 +11,7 @@ The configuration lives in `.github/dependabot.yml`.
 | Covered | Not covered |
 |---|---|
 | Every Go module in the root `go.mod` (direct and indirect), minor and patch versions | Major versions — upgraded by hand |
-| The `master` branch | Release branches (`branch-X.Y`) — an artifact under QA must not change underneath it |
+| The `master` branch | Release branches (`branch-X.Y`) — see "Release branches" below |
 | | `hack/tools/go.mod` and `images/kindnetd/go.mod` — inherited from upstream kind, not part of the `cloud-provisioner` build |
 | | Versions that `cloud-provisioner` installs: providers, charts and images in `DEPENDENCIES`, in the Go code and in the templates |
 | | The Python dependencies of the upgrade image (`upgrade/resources/scripts`) |
@@ -105,9 +105,17 @@ The labels `go`, `dependencies` and `skip doPushDockerECR` have to be created be
 
 Dependabot rebases its own pull requests when they conflict with `master`. If one is only behind `master`, comment `@dependabot rebase` on it.
 
-Do not merge Dependabot pull requests while a milestone is being prepared or while QA is testing a build of `master`: milestone releases (`X.Y.Z-m.N`) are built from `master`, so a dependency update merged then changes what QA tested. Leave the pull requests open; for a longer pause, set `open-pull-requests-limit: 0`.
+Do not merge Dependabot pull requests while QA is testing a build of `master` or one is being prepared: a dependency update merged then changes what QA tested. Leave the pull requests open; for a longer pause, set `open-pull-requests-limit: 0`. Milestones of a release line that already has its `branch-X.Y` are built from that branch (for example `0.10.0-m.14` is the head of `branch-0.10`), so merges in `master` do not change them.
 
 Observed volume over 8 days with this configuration: 4 pull requests (1 to 21 updates each), all in the group. The first run on `Stratio/kind` (2026-10-14) opened one group pull request with 40 updates.
+
+## Release branches
+
+Dependabot only updates `master`. A release branch keeps the dependency versions it had when it was cut; the updates reach a release when its `branch-X.Y` is cut from `master`.
+
+A dependency update goes to a release branch only when it fixes a vulnerability that affects the released code, or a critical bug. It is merged in `master` first and taken to each release branch that ships the affected code with the `need-cherry-pick-branch-X.Y` label on the original pull request, which opens the cherry-pick pull request after the merge. The cherry-pick is tested on that branch like any other change, with at least one `create cluster` on each provider whose code it changes. Updates that only silence a scanner are not cherry-picked.
+
+This follows the [Kubernetes cherry-pick policy](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-release/cherry-picks.md#what-kind-of-prs-are-good-for-cherry-picks) and the [Cluster API backport rule](https://github.com/kubernetes-sigs/cluster-api/blob/main/CONTRIBUTING.md#backporting-a-pull-request).
 
 ## Validation gate: what is checked and what is not
 
