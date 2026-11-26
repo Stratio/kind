@@ -449,9 +449,47 @@ La imagen depende de la versión de Kubernetes del _cluster_ y del registro:
 Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, comprueba que la cuenta de AWS cumple los siguientes requisitos:
 
 * Reglas de _pull-through cache_ configuradas en Amazon ECR para los cinco _upstreams_ que utiliza _Stratio KEOS_: `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io` y `public.ecr.aws`.
-* Permisos de IAM para el rol de los nodos: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
+* Permisos de IAM para el rol `nodes`: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
+* Los mismos permisos para el rol `eks-nodegroup`, que usan los nodos _MachinePool_. En el _stack_ de `clusterawsadm`, este rol solo admite políticas gestionadas, así que necesitas una política de IAM propia con esos permisos.
 
-Si tienes `spec.security.aws.create_iam: true` en el descriptor, _Stratio Cloud Provisioner_ añade estos permisos automáticamente al crear el _cluster_. Si gestionas los recursos de IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ de AWS CloudFormation con `clusterawsadm`:
+_Stratio Cloud Provisioner_ no crea esta política. Créala antes de instalar con un usuario que tenga el permiso `iam:CreatePolicy`, incluido en xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`]:
+
+[source,bash]
+----
+cat > ecr-pull-through-mp-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": ["ecr:BatchImportUpstreamImage", "ecr:CreateRepository"],
+      "Effect": "Allow",
+      "Resource": ["*"]
+    }
+  ]
+}
+EOF
+
+aws iam create-policy --policy-name ecr-pull-through-cache-machinepool \
+  --policy-document file://ecr-pull-through-mp-policy.json \
+  --query Policy.Arn --output text
+----
+
+Guarda el ARN que devuelve. Si la política ya existe (`EntityAlreadyExists`), su ARN es `arn:aws:iam::<id-de-cuenta>:policy/ecr-pull-through-cache-machinepool`.
+
+Con `spec.security.aws.create_iam: true`, indica ese ARN en el descriptor. Al crear el _cluster_, _Stratio Cloud Provisioner_ añade los permisos al rol `nodes` y asocia la política al rol `eks-nodegroup`:
+
+[source,yaml]
+----
+spec:
+  security:
+    aws:
+      create_iam: true
+      nodegroup_extra_policy_arn: arn:aws:iam::<id-de-cuenta>:policy/ecr-pull-through-cache-machinepool
+----
+
+NOTE: El _stack_ de IAM es común a todos los _clusters_ de la cuenta, y cada creación con `create_iam: true` lo actualiza. Indica `nodegroup_extra_policy_arn` en todos ellos: si un _cluster_ se crea sin él, la política deja de estar asociada al rol `eks-nodegroup`.
+
+Si gestionas los recursos de IAM de forma manual (`create_iam: false`) o necesitas habilitarlos en una cuenta existente, actualiza el _stack_ de AWS CloudFormation con `clusterawsadm`. Pon el ARN de la política en `managedMachinePool.extraPolicyAttachments`, como en el ejemplo. No indiques `nodegroup_extra_policy_arn` en el descriptor: con `create_iam: false`, la validación lo rechaza.
 
 NOTE: El usuario de AWS con el que ejecutas `clusterawsadm` debe tener los permisos definidos en el fichero xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`].
 
@@ -472,6 +510,7 @@ spec:
         disable: false
         extraPolicyAttachments:
         - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+        - arn:aws:iam::<id-de-cuenta>:policy/ecr-pull-through-cache-machinepool
   controlPlane:
     enableCSIPolicy: true
   nodes:
@@ -601,7 +640,7 @@ En los dos casos, el resultado es el mismo _stack_ de CloudFormation, con el mis
 
 [[nodegroup_extra_policy_arn]]
 
-IMPORTANT: Si el _cluster_ va a tener `docker_registries[].ecr_pull_through_cache_enabled: true`, los nodos _MachinePool_ también necesitan los permisos `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`. El rol `eks-nodegroup`, a diferencia de `nodes`, *no admite políticas _inline_*: solo admite políticas gestionadas, por su ARN. Con `security.aws.create_iam: true`, crea primero una política de IAM independiente con esos permisos e indícala en `security.aws.nodegroup_extra_policy_arn`; _Stratio Cloud Provisioner_ la asocia automáticamente al rol `eks-nodegroup` (junto con `AmazonEBSCSIDriverPolicy`) durante la instalación. Este campo *solo se aplica a las instalaciones nuevas*: en un _cluster_ existente cuyo _stack_ de IAM se creó antes de esta funcionalidad, hay que asociar la política manualmente (consulta la xref:operations-manual:upgrade/aws-eks.adoc#_migración_a_ecr_pull_through_cache_opcional[migración a la _pull-through cache_ de ECR]).
+IMPORTANT: Si el _cluster_ va a tener `docker_registries[].ecr_pull_through_cache_enabled: true`, los nodos _MachinePool_ también necesitan los permisos `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`. El rol `eks-nodegroup`, a diferencia de `nodes`, *no admite políticas _inline_*: solo admite políticas gestionadas, por su ARN. Con `security.aws.create_iam: true`, crea primero una política de IAM independiente con esos permisos (consulta los <<_prerrequisitos_para_ecr_pull_through_cache_enabled, prerrequisitos para `ecr_pull_through_cache_enabled`>>) e indícala en `security.aws.nodegroup_extra_policy_arn`; _Stratio Cloud Provisioner_ la asocia automáticamente al rol `eks-nodegroup` (junto con `AmazonEBSCSIDriverPolicy`) durante la instalación. Este campo *solo se aplica a las instalaciones nuevas*: en un _cluster_ existente cuyo _stack_ de IAM se creó antes de esta funcionalidad, hay que asociar la política manualmente (consulta la xref:operations-manual:upgrade/aws-eks.adoc#_migración_a_ecr_pull_through_cache_opcional[migración a la _pull-through cache_ de ECR]). Con `create_iam: false`, la validación del descriptor rechaza este campo.
 
 |Sí
 
