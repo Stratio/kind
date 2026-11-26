@@ -449,7 +449,7 @@ La imagen depende de la versión de Kubernetes del _cluster_ y del registro:
 Antes de crear un _cluster_ con `ecr_pull_through_cache_enabled: true`, comprueba que la cuenta de AWS cumple los siguientes requisitos:
 
 * Reglas de _pull-through cache_ configuradas en Amazon ECR para los cinco _upstreams_ que utiliza _Stratio KEOS_: `registry.k8s.io`, `docker.io`, `ghcr.io`, `quay.io` y `public.ecr.aws`.
-* Permisos de IAM para el rol `nodes`: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`.
+* Permisos de IAM para el rol `nodes`: `ecr:BatchImportUpstreamImage` y `ecr:CreateRepository`. Con `create_iam: true`, los añade _Stratio Cloud Provisioner_.
 * Los mismos permisos para el rol `eks-nodegroup`, que usan los nodos _MachinePool_. En el _stack_ de `clusterawsadm`, este rol solo admite políticas gestionadas, así que necesitas una política de IAM propia con esos permisos.
 
 _Stratio Cloud Provisioner_ no crea esta política. Créala antes de instalar con un usuario que tenga el permiso `iam:CreatePolicy`, incluido en xref:attachment$stratio-aws-temp-policy.json[`stratio-aws-temp-policy.json`]:
