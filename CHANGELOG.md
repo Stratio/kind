@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
   user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
   sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
   value on the release's current values and never skips the azurefile-csi-driver chart, which stays at the same version.
+* [PLT-5180] Docs (installation, EKS): the `ecr_pull_through_cache_enabled` prerequisites now include the IAM policy that
+  MachinePool nodes need on the `eks-nodegroup` role (JSON and `aws iam create-policy`), how to set it with
+  `nodegroup_extra_policy_arn` (only with `create_iam: true`), and its ARN in the `clusterawsadm` example.
 
 ## 0.9.9 (2026-11-19)
 
