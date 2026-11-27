@@ -440,6 +440,16 @@ spec:
 
 NOTE: En EKS, los _MachinePool_ con `min_size` y `max_size` llevan la anotación `cluster.x-k8s.io/replicas-managed-by`, que deja el número de réplicas en manos de _cluster-autoscaler_. No la quites: sin ella, CAPA puede enviar a EKS un número de réplicas desfasado.
 
+[NOTE]
+====
+En GKE, los _MachinePool_ de grupos con `min_size` y `max_size` creados con _Stratio Cloud Provisioner_ 0.9.9 o anterior no llevan esta anotación. Su ausencia no afecta al autoescalado. _cluster-operator_ la añade cuando cambias `quantity`, `min_size` o `max_size` del grupo en el _KeosCluster_. También puedes añadirla con este comando:
+
+[source,bash]
+----
+kubectl -n cluster-<nombre-cluster> annotate machinepool <machinepool> cluster.x-k8s.io/replicas-managed-by=external-autoscaler
+----
+====
+
 NOTE: En EKS, el _cluster_ rechaza un cambio de `min_size`, `max_size` o `quantity` en un grupo _MachinePool_ en estos casos:
 
 * El _nodegroup_ de EKS no está en estado `ACTIVE` (por ejemplo, porque tiene en curso un cambio hecho desde la consola o desde la CLI de AWS).

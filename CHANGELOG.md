@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 * [PLT-5180] Docs (installation, EKS): the `ecr_pull_through_cache_enabled` prerequisites now include the IAM policy that
   MachinePool nodes need on the `eks-nodegroup` role (JSON and `aws iam create-policy`), how to set it with
   `nodegroup_extra_policy_arn` (only with `create_iam: true`), and its ARN in the `clusterawsadm` example.
+* [PLT-5569] Docs (operations manual, GKE): MachinePools of autoscaled groups created with 0.9.9 or earlier lack the
+  `cluster.x-k8s.io/replicas-managed-by` annotation; the note says it does not affect autoscaling and how it is added.
 
 ## 0.9.9 (2026-11-19)
 
