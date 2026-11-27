@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5557] GKE: node pools with autoscaling keep the size the autoscaler sets. cluster-operator 0.8.0-m.3 → 0.8.0
+  (quantity applied pool by pool on GKE, edits rejected while a pool is not RUNNING) and cluster-api-provider-gcp
+  1.13.1-0.1.0-M2 → 1.13.1-0.1.0 (no node pool resize with autoscaling enabled). The upgrade image also keeps the
+  CAPG 1.6.1-0.4.4 metadata (`ARG CAPG`, `CAPG_KEEP_VERSIONS`) for clusters coming from cloud-provisioner 0.9.10.
 * [PLT-5557] The cloud-provisioner and cloud-provisioner-upgrade images download the CAPG manifests (`metadata.yaml`,
   `infrastructure-components.yaml`) with `curl -f`: a CAPG version without a GitHub release now fails the build instead of
   leaving a "Not Found" page as the manifest.
