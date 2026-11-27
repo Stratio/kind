@@ -10,6 +10,21 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+<<<<<<< HEAD
+=======
+* [PLT-5557] GKE: node pools with autoscaling keep the size the autoscaler sets. cluster-operator 0.8.0-m.3 → 0.8.0
+  (quantity applied pool by pool on GKE, edits rejected while a pool is not RUNNING) and cluster-api-provider-gcp
+  1.13.1-0.1.0-M2 → 1.13.1-0.1.0 (no node pool resize with autoscaling enabled). The upgrade image also keeps the
+  CAPG 1.6.1-0.4.4 metadata (`ARG CAPG`, `CAPG_KEEP_VERSIONS`) for clusters coming from cloud-provisioner 0.9.10.
+* [PLT-5557] The cloud-provisioner and cloud-provisioner-upgrade images download the CAPG manifests (`metadata.yaml`,
+  `infrastructure-components.yaml`) with `curl -f`: a CAPG version without a GitHub release now fails the build instead of
+  leaving a "Not Found" page as the manifest.
+* [PLT-5526] `upgrade-providers.py` stops every cluster-autoscaler during the migration: the `clusterapi` one and the
+  `aws` ones of EKS. The `aws` ones go back to their replicas after the final verification, so no scaling changes the
+  nodes while the script checks the result; on a `--resume-from` relaunch they take the replicas from that backup when
+  the interrupted run left them at 0. The verification waits up to 5 minutes for the `KeosCluster` to be
+  ready/Provisioned before failing.
+>>>>>>> 04d0e921 ([PLT-5557] Pin final versions for 0.10.0: cluster-operator 0.8.0 and CAPG 1.13.1-0.1.0 (#1097))
 * [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
   user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
   sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same

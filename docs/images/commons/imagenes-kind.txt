@@ -7,4 +7,8 @@ registry.k8s.io/kube-apiserver:v1.37.0
 registry.k8s.io/kube-controller-manager:v1.37.0
 registry.k8s.io/kube-proxy:v1.37.0
 registry.k8s.io/kube-scheduler:v1.37.0
+<<<<<<< HEAD
 stratio-releases.repo.stratio.com/stratio/cloud-provisioner:0.10.0-m.14
+=======
+stratio-releases.repo.stratio.com/stratio/cloud-provisioner:0.10.0
+>>>>>>> 04d0e921 ([PLT-5557] Pin final versions for 0.10.0: cluster-operator 0.8.0 and CAPG 1.13.1-0.1.0 (#1097))
