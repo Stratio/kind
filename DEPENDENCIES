@@ -28,14 +28,14 @@ core:
       cert-manager-webhook: v1.21.2
     cluster-autoscaler: v1.35.3
     cluster-operator:
-      cluster-operator: 0.7.6
+      cluster-operator: 0.7.7
     flux:
       flux-cli: v2.7.5
       helm-controller: v1.4.5
       kustomize-controller: v1.7.3
       source-controller: v1.7.4
     kind:
-      cloud-provisioner: 0.9.9
+      cloud-provisioner: 0.9.10
       coredns: v1.13.1
       etcd: 3.6.6-0
       kindnetd: v20260820-69b56db7
@@ -48,7 +48,7 @@ core:
   charts:
     cert-manager: v1.21.2
     cluster-autoscaler: 9.59.0
-    cluster-operator: 0.7.6
+    cluster-operator: 0.7.7
     flux: 2.17.2
     tigera-operator: v3.31.7
 aws:
@@ -106,10 +106,10 @@ azure:
 gcp:
   capg:
     images:
-      cluster-api-gcp-controller: 1.6.1-0.4.3
+      cluster-api-gcp-controller: 1.6.1-0.4.4
     manifests:
-      metadata.yaml: 1.6.1-0.4.3
-      infrastructure-components.yaml: 1.6.1-0.4.3
+      metadata.yaml: 1.6.1-0.4.4
+      infrastructure-components.yaml: 1.6.1-0.4.4
   managed:
     images:
       coredns: v1.13.1
