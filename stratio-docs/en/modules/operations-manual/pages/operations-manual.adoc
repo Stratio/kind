@@ -338,6 +338,113 @@ The recovery of the node comprises the following phases and estimated times (whi
 . New k8s node is Ready: 2m
 ----
 
+NOTE: En Azure no gestionado, si el nodo reemplazado es del _control-plane_, actualiza después su _GlobalNetworkPolicy_. Consulta la <<azure-sustitucion-control-plane,sustitución de nodos del _control-plane_ en Azure no gestionado>>.
+
+[[azure-sustitucion-control-plane]]
+=== Sustitución de nodos del _control-plane_ en Azure no gestionado
+
+En Azure no gestionado, los nodos del _control-plane_ se sustituyen en estos casos:
+
+* Cuando el _MachineHealthCheck_ del _control-plane_ reemplaza un nodo que ha fallado.
+* Cuando cambias en el _KeosCluster_ el tamaño, la imagen o los discos del _control-plane_. Son los campos `size`, `node_image`, `root_volume`, `cri_volume`, `etcd_volume` y `extra_volumes`, y el cambio sustituye todos los nodos del _control-plane_, uno a uno.
+* Cuando actualizas la versión de Kubernetes.
+
+La instalación de _Stratio KEOS_ crea la _GlobalNetworkPolicy_ `allow-all-traffic-from-control-plane`. Esta política permite el tráfico que sale de los nodos del _control-plane_ a partir de dos IP por nodo: la IP interna y la IP de túnel de Calico.
+
+La política no se actualiza sola. Un nodo nuevo recibe otra IP de túnel y su tráfico hacia los _pods_ de otros nodos deja de estar permitido. Por ejemplo, su _API Server_ no alcanza los _webhooks_ de admisión que se ejecutan en otros nodos.
+
+Por eso, **cada vez que se sustituya un nodo del _control-plane_, regenera la política con las IP de los nodos actuales**.
+
+NOTE: Si actualizas la versión de Kubernetes con `upgrade-provisioner.py`, el proceso abre la política antes de actualizar el _control-plane_ y la regenera al terminar. No tienes que hacerlo tú.
+
+==== Cambio planificado del _control-plane_
+
+Antes de cambiar el _control-plane_ en el _KeosCluster_, abre la política al rango de IP de Calico. Así, los nodos nuevos tienen acceso desde que se unen al _cluster_.
+
+CAUTION: Mientras la política esté abierta, permite el tráfico desde cualquier _pod_ del _cluster_ hacia todos los _pods_. Regenérala en cuanto termine la sustitución.
+
+. Guarda una copia de la política actual:
++
+[source,bash]
+----
+kubectl get globalnetworkpolicies.crd.projectcalico.org allow-all-traffic-from-control-plane -o yaml > allow-all-traffic-from-control-plane-backup.yaml
+----
+
+. Consulta el rango de IP de Calico:
++
+[source,bash]
+----
+kubectl get ippools.crd.projectcalico.org -o custom-columns=NAME:.metadata.name,CIDR:.spec.cidr
+----
+
+. Añade ese rango a la política. Sustituye `<cidr_calico>` por el valor de la columna `CIDR`:
++
+[source,bash]
+----
+kubectl patch globalnetworkpolicies.crd.projectcalico.org allow-all-traffic-from-control-plane --type json -p '[{"op":"add","path":"/spec/ingress/0/source/nets/-","value":"<cidr_calico>"}]'
+----
+
+. Aplica el cambio en el _KeosCluster_ con `kubectl patch`.
+
+. Espera a que el _KeosCluster_ vuelva a estar listo (`ready: true`) y a que todos los nodos del _control-plane_ estén _Ready_:
++
+[source,bash]
+----
+kubectl -n cluster-<cluster_name> get keoscluster <cluster_name> --subresource=status
+kubectl get nodes -l node-role.kubernetes.io/control-plane=
+----
+
+. <<azure-regenerar-politica-control-plane,Regenera la política con los nodos actuales>>.
+
+[[azure-regenerar-politica-control-plane]]
+==== Regenerar la política con los nodos actuales
+
+Sigue estos pasos cuando todos los nodos del _control-plane_ estén _Ready_. Sirven tanto después de un cambio planificado como después de que el _MachineHealthCheck_ reemplace un nodo.
+
+. Guarda los nodos del _control-plane_ en un fichero:
++
+[source,bash]
+----
+kubectl get nodes -l node-role.kubernetes.io/control-plane= -o json > cp-nodes.json
+----
+
+. Comprueba que todos los nodos tienen IP de túnel de Calico:
++
+[source,bash]
+----
+jq '.items | length' cp-nodes.json
+jq '[.items[].metadata.annotations | select(has("projectcalico.org/IPv4VXLANTunnelAddr") or has("projectcalico.org/IPv4IPIPTunnelAddr"))] | length' cp-nodes.json
+----
++
+*Salida esperada:* el mismo número en los dos comandos. Si no coincide, espera unos minutos y repite desde el paso 1.
+
+. Genera el cambio de la política. Por cada nodo, incluye su IP de túnel y su IP interna con máscara `/32`:
++
+[source,bash]
+----
+jq '{spec:{order:0,selector:"all()",ingress:[{action:"Allow",source:{nets:[.items[] | (((.metadata.annotations["projectcalico.org/IPv4VXLANTunnelAddr"] // .metadata.annotations["projectcalico.org/IPv4IPIPTunnelAddr"]) // empty) + "/32"), (.status.addresses[] | select(.type=="InternalIP") | .address + "/32")]}}]}}' cp-nodes.json > gnp-patch.json
+----
+
+. Prueba el cambio sin aplicarlo:
++
+[source,bash]
+----
+kubectl patch globalnetworkpolicies.crd.projectcalico.org allow-all-traffic-from-control-plane --type merge --patch-file gnp-patch.json --dry-run=server -o jsonpath='{.spec.ingress[0].source.nets}'
+----
++
+*Salida esperada:* las IP del fichero `gnp-patch.json`, sin las de los nodos que ya no existen.
+
+. Aplica el cambio:
++
+[source,bash]
+----
+kubectl patch globalnetworkpolicies.crd.projectcalico.org allow-all-traffic-from-control-plane --type merge --patch-file gnp-patch.json
+----
++
+El cambio sustituye la lista completa de IP. Si abriste la política antes de un cambio planificado, también la cierra.
+
+. Comprueba etcd como se indica en la <<verificacion-etcd,verificación de etcd>>.
+
 === Static scaling
 
 Although the manual scaling of an existing node group is discouraged, these operations are presented for cases without autoscaling or for new node groups.
@@ -603,6 +710,7 @@ kubectl -n cluster-<cluster_name> patch KeosCluster <cluster_name> --type merge 
 
 NOTE: The controller provisions a new node of the worker group with the updated version and, once it is _Ready_ in Kubernetes, deletes a node with the previous version. This way, the configured number of nodes is guaranteed.
 
+[[verificacion-etcd]]
 ==== Verification of etcd
 
 One way to ensure etcd is correct after upgrading an unmanaged _control-plane_ is to open a terminal on any etcd pod, verify the cluster state, and compare the IP addresses of the registered members with those of the _control-plane_ nodes.
