@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.10.0 (upcoming)
+## 0.10.0 (2026-11-27)
 
 * [PLT-5557] GKE: node pools with autoscaling keep the size the autoscaler sets. cluster-operator 0.8.0-m.3 → 0.8.0
   (quantity applied pool by pool on GKE, edits rejected while a pool is not RUNNING) and cluster-api-provider-gcp
