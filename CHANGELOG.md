@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
   (quantity applied pool by pool on GKE, edits rejected while a pool is not RUNNING) and cluster-api-provider-gcp
   1.13.1-0.1.0-M2 → 1.13.1-0.1.0 (no node pool resize with autoscaling enabled). The upgrade image also keeps the
   CAPG 1.6.1-0.4.4 metadata (`ARG CAPG`, `CAPG_KEEP_VERSIONS`) for clusters coming from cloud-provisioner 0.9.10.
+* [PLT-5557] The cloud-provisioner and cloud-provisioner-upgrade images download the CAPG manifests (`metadata.yaml`,
+  `infrastructure-components.yaml`) with `curl -f`: a CAPG version without a GitHub release now fails the build instead of
+  leaving a "Not Found" page as the manifest.
 * [PLT-5526] `upgrade-providers.py` stops every cluster-autoscaler during the migration: the `clusterapi` one and the
   `aws` ones of EKS. The `aws` ones go back to their replicas after the final verification, so no scaling changes the
   nodes while the script checks the result; on a `--resume-from` relaunch they take the replicas from that backup when
