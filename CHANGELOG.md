@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.10 (upcoming)
+## 0.9.10 (2026-11-27)
 
 * [PLT-5557] The cloud-provisioner and cloud-provisioner-upgrade images download the CAPG manifests (`metadata.yaml`,
   `infrastructure-components.yaml`) with `curl -f`: a CAPG version without a GitHub release now fails the build instead of
