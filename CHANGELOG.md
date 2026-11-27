@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.9.10 (upcoming)
 
+* [PLT-5570] Docs (operations manual, unmanaged Azure): replacing control-plane nodes (self-healing, `size`/`node_image`/disk
+  changes in the `KeosCluster`) now tells how to open the `allow-all-traffic-from-control-plane` GlobalNetworkPolicy before a
+  planned change and how to regenerate it with the current control-plane nodes afterwards.
 * [PLT-5520] Azure: the azurefile-csi-driver controller no longer runs on control-plane nodes, where the cloud config's
   user-assigned identity (the nodes identity) is not assigned and provisioning fails with `Identity not found`. `create cluster`
   sets `controller.tolerations: {}` in the chart values, as for azuredisk-csi-driver; `upgrade-provisioner.py` sets the same
