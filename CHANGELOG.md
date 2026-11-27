@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.10.0 (upcoming)
 
+* [PLT-5570] Docs (operations manual, unmanaged Azure): replacing control-plane nodes (self-healing, `size`/`node_image`/disk
+  changes in the `KeosCluster`) now tells how to open the `allow-all-traffic-from-control-plane` GlobalNetworkPolicy before a
+  planned change and how to regenerate it with the current control-plane nodes afterwards.
 * [PLT-5526] `upgrade-providers.py` stops every cluster-autoscaler during the migration: the `clusterapi` one and the
   `aws` ones of EKS. The `aws` ones go back to their replicas after the final verification, so no scaling changes the
   nodes while the script checks the result; on a `--resume-from` relaunch they take the replicas from that backup when
